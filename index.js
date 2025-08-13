@@ -30,7 +30,6 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
 
-
 registerCommands;
 
 client.once(Events.ClientReady, async c => {
@@ -45,11 +44,21 @@ client.once(Events.ClientReady, async c => {
   try {
     const me = await friendshipGuild.members.fetchMe();
     await me.setNickname('TAM BOT');
-    console.log('✅ Bot nickname set to TAM BOT');
+    console.log('✅ Bot nickname set to TAM BOT 2.0');
   } catch (error) {
     console.error('❌ Failed to set nickname:', error);
   }
   
+});
+
+// gacha roll happening.
+
+client.on(Events.VoiceStateUpdate, async (oldMember, newMember) => {
+  if (newMember.channelId === '1217268929517322261') { // starting channel ID
+
+    // send to gacha roll handler.
+
+  }
 });
 
 // Define a collection to store your commands
