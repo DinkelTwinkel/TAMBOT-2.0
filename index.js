@@ -34,12 +34,10 @@ registerCommands;
 
 client.once(Events.ClientReady, async c => {
 
+  // BASIC BOT START UP
   client.user.setActivity('tam', { type: ActivityType.Watching });
-
 	console.log(`Ready! Logged in as ${c.user.tag}`);
   client.user.setPresence( { status: "away" });
-
-  const friendshipGuild = await client.guilds.fetch('1183979706329092236');
 
   try {
     const me = await friendshipGuild.members.fetchMe();
@@ -48,6 +46,15 @@ client.once(Events.ClientReady, async c => {
   } catch (error) {
     console.error('❌ Failed to set nickname:', error);
   }
+
+  // GET TARGET DISCORD
+  const friendshipGuild = await client.guilds.fetch('1183979706329092236');
+  
+  // RUN START UP TIDY STUFF
+  const ensureMoneyProfilesForGuild = require('./patterns/currency/ensureMoneyProfile');
+  ensureMoneyProfilesForGuild (friendshipGuild);
+
+
   
 });
 
