@@ -45,20 +45,27 @@ client.once(Events.ClientReady, async c => {
   // RUN START UP TIDY STUFF
 
   // reset bot nick name to default
-  try {
-    const me = await friendshipGuild.members.fetchMe();
-    await me.setNickname('TAM BOT');
+  friendshipGuild.members.fetchMe()
+  .then(me => {
+    me.setNickname('TAM BOT');
     console.log('✅ Bot nickname set to TAM BOT 2.0');
-  } catch (error) {
-    console.error('❌ Failed to set nickname:', error);
-  }
-    // ensure all members on the server have a currency profile.
+  })
+  .catch (console.error);
+
+  // ensure all members on the server have a currency profile.
   const ensureMoneyProfilesForGuild = require('./patterns/currency/ensureMoneyProfile');
   ensureMoneyProfilesForGuild (friendshipGuild);
+
+  // clean old messages from before the bot started
+  const botMessageDeletus = require('./patterns/botMessageCleaner');
+  botMessageDeletus(friendshipGuild);
 
   // gacha roll happening.
   const gachaRollChannel = await friendshipGuild.channels.fetch('1217268929517322261');
   const gachaSpawnParentCategory = await friendshipGuild.channels.fetch('1183979706329092240');
+
+  const gachaGM = require('./patterns/gachaGameMaster');
+  gachaGM(friendshipGuild);
 
   client.on(Events.VoiceStateUpdate, async (oldMember, newMember) => {
     if (newMember.channel === gachaRollChannel) { // starting channel ID

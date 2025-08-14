@@ -1,9 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const { ChannelType } = require('discord.js');
-const Money = require('../models/currency'); // Adjust path accordingly
+const { ChannelType, NewsChannel } = require('discord.js');
+const messageDeletus = require('../models/tidyMessages'); // Adjust path accordingly
 const ActiveVCS =  require ('../models/activevcs');
 const createCurrencyProfile = require('../patterns/currency/createCurrencyProfile');
+const registerBotMessage = require('./registerBotMessage');
 const rollPrice = 0;
 
 const channelsFile = path.join(__dirname, '../data/gachaServers.json');
@@ -72,11 +73,19 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         console.log(`🎉 Gacha rolled [${chosenChannelType.rarity.toUpperCase()}]: ${chosenChannelType.name}`);
 
         console.log(`Created VC ${newGachaChannel.name} for ${rollerMember.user.tag}`);
-        await gachaRollChannel.send(`${roller} Your rolling booth is ready: **${newGachaChannel.name}**`);
+        await gachaRollChannel.send(`**${rollerMember.user.tag}** Your rolling booth is ready: **${newGachaChannel.name}**`)
+        .then( sentMessage => {
+            registerBotMessage(sentMessage);
+        })
+        .catch(console.error);
 
     } catch (err) {
         console.error('Error creating or assigning VC:', err);
-        await gachaRollChannel.send(`${roller} Something went wrong making your VC.`);
+        await gachaRollChannel.send(`${rollerMember} Something went wrong making your VC.`)
+        .then( sentMessage => {
+            registerBotMessage(sentMessage);
+        })
+        .catch(console.error);
     }
 
 
