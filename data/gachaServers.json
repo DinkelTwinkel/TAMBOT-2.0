@@ -1,0 +1,29 @@
+[
+    {
+    "id": "1",
+    "name": "The Children Yearn for the Mines",
+    "type": "mining",
+    "rarity": "common",
+    "spawnWeight": 100,
+    "description": "Welcome to the mines...",
+    "power": 1
+    },
+    {
+    "id": "2",
+    "name": "The Children Yearn for the Mines",
+    "type": "battlefield",
+    "rarity": "common",
+    "spawnWeight": 100,
+    "description": "Welcome to the battlefield...",
+    "power": 1
+    },
+    {
+    "id": "3",
+    "name": "Pond",
+    "type": "battlefield",
+    "rarity": "common",
+    "spawnWeight": 100,
+    "description": "Welcome to the fishing spot...!",
+    "power": 1
+    }
+]

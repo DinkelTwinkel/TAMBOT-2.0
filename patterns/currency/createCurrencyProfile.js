@@ -1,16 +1,18 @@
-const Money = require('.../models/currency'); // Adjust path accordingly
+const Money = require('../../models/currency'); // Adjust path accordingly
 
 module.exports = async (member, amount) => {
+
   try {
     // Check if user already has a profile
-    const existingProfile = await Money.findOne({ userId: member.id });
+    const existingProfile = await Money.findOne({ userid: member.id });
     if (existingProfile) {
       return existingProfile; // Or handle as you want (e.g. update amount)
     }
 
     // Create new profile with given amount
     const newProfile = new Money({
-      userId: member.id,
+      userid: member.id,
+      usertag: member.user.tag,
       money: amount || 0
     });
 
@@ -20,4 +22,5 @@ module.exports = async (member, amount) => {
     console.error('Error creating money profile:', error);
     throw error;
   }
+
 };

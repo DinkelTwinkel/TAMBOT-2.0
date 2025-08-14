@@ -39,6 +39,12 @@ client.once(Events.ClientReady, async c => {
 	console.log(`Ready! Logged in as ${c.user.tag}`);
   client.user.setPresence( { status: "away" });
 
+  // GET TARGET DISCORD
+  const friendshipGuild = await client.guilds.fetch('1183979706329092236');
+  
+  // RUN START UP TIDY STUFF
+
+  // reset bot nick name to default
   try {
     const me = await friendshipGuild.members.fetchMe();
     await me.setNickname('TAM BOT');
@@ -46,26 +52,38 @@ client.once(Events.ClientReady, async c => {
   } catch (error) {
     console.error('❌ Failed to set nickname:', error);
   }
-
-  // GET TARGET DISCORD
-  const friendshipGuild = await client.guilds.fetch('1183979706329092236');
-  
-  // RUN START UP TIDY STUFF
+    // ensure all members on the server have a currency profile.
   const ensureMoneyProfilesForGuild = require('./patterns/currency/ensureMoneyProfile');
   ensureMoneyProfilesForGuild (friendshipGuild);
 
+  // gacha roll happening.
+  const gachaRollChannel = await friendshipGuild.channels.fetch('1217268929517322261');
+  const gachaSpawnParentCategory = await friendshipGuild.channels.fetch('1183979706329092240');
+
+  client.on(Events.VoiceStateUpdate, async (oldMember, newMember) => {
+    if (newMember.channel === gachaRollChannel) { // starting channel ID
+
+      const gachaMachine = require ('./patterns/gachaMachine');
+      gachaMachine(newMember, friendshipGuild, gachaSpawnParentCategory, gachaRollChannel);
+
+    }
+
+    // if user goes to a different discord vc or left vc call a function file which checks the activevc mongodb if the vc the user left is on the database. If so, perform a check for if no one is left on the vc and then delete vc if so.
+
+    if (oldMember.channelId && oldMember.channelId !== newMember.channelId) {
+
+      const channelToCheck = await friendshipGuild.channels.fetch(oldMember.channelId);
+
+      setTimeout(() => {
+          const emptyVoiceCheck = require('./patterns/emptyVoiceCheck');
+          emptyVoiceCheck(channelToCheck);
+      }, 1000); // 3 seconds delay
+      
+    }
+    
+  });
 
   
-});
-
-// gacha roll happening.
-
-client.on(Events.VoiceStateUpdate, async (oldMember, newMember) => {
-  if (newMember.channelId === '1217268929517322261') { // starting channel ID
-
-    // send to gacha roll handler.
-
-  }
 });
 
 // Define a collection to store your commands
