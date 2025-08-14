@@ -1,29 +1,18 @@
+// models/inventory.js
 const mongoose = require('mongoose');
 
 const inventoryItemSchema = new mongoose.Schema({
-  itemId: {
-    type: String, // matches the 'id' in itemsheet.json
-    required: true,
-  },
-  quantity: {
-    type: Number,
-    default: 0,
-    min: 0,
-  },
+  itemId: { type: String, required: true }, // matches the 'id' in itemsheet.json
+  quantity: { type: Number, default: 0, min: 0 },
 });
 
 const playerInventorySchema = new mongoose.Schema({
-  	playerId: {
-		type: String, // Discord user ID or game player ID
-		required: true,
-		unique: true,
-	},
-		playerTag: {
-		type: String, // Discord user ID or game player ID
-		required: true,
-		unique: true,
-	},
-	items: [inventoryItemSchema], // array of items with id + quantity
+  playerId: { type: String, required: true },
+  playerTag: { type: String, required: true },
+  items: [inventoryItemSchema],
 }, { timestamps: true });
+
+// Unique per player per guild
+playerInventorySchema.index({ playerId: 1, guildId: 1 }, { unique: true });
 
 module.exports = mongoose.model('PlayerInventory', playerInventorySchema);

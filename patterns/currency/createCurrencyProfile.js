@@ -4,14 +4,14 @@ module.exports = async (member, amount) => {
 
   try {
     // Check if user already has a profile
-    const existingProfile = await Money.findOne({ userid: member.id });
+    const existingProfile = await Money.findOne({ userId: member.id });
     if (existingProfile) {
       return existingProfile; // Or handle as you want (e.g. update amount)
     }
 
     // Create new profile with given amount
     const newProfile = new Money({
-      userid: member.id,
+      userId: member.id,
       usertag: member.user.tag,
       money: amount || 0
     });

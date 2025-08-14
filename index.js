@@ -47,8 +47,9 @@ client.once(Events.ClientReady, async c => {
   // reset bot nick name to default
   friendshipGuild.members.fetchMe()
   .then(me => {
-    me.setNickname('TAM BOT');
-    console.log('✅ Bot nickname set to TAM BOT 2.0');
+    me.roles.remove('1349292336781197353');
+    me.setNickname('SUPER HELLUNGI');
+    console.log('✅ Bot nickname set to default');
   })
   .catch (console.error);
 

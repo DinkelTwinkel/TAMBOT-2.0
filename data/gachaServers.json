@@ -1,7 +1,7 @@
 [
     {
     "id": "1",
-    "name": "The Children Yearn for the Mines",
+    "name": "Coal Mines",
     "type": "mining",
     "rarity": "common",
     "spawnWeight": 100,
@@ -11,7 +11,7 @@
     },
     {
     "id": "2",
-    "name": "The Children Yearn for the Mines",
+    "name": "Wandering Battlefield",
     "type": "battle",
     "rarity": "common",
     "spawnWeight": 100,
@@ -21,7 +21,7 @@
     },
     {
     "id": "3",
-    "name": "Pond",
+    "name": "Lily Pond",
     "type": "fishing",
     "rarity": "common",
     "spawnWeight": 100,
