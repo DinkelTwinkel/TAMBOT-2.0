@@ -61,7 +61,7 @@ client.once(Events.ClientReady, async c => {
   botMessageDeletus(friendshipGuild);
 
   // gacha roll happening.
-  const gachaRollChannel = await friendshipGuild.channels.fetch('1217268929517322261');
+  const gachaRollChannel = await friendshipGuild.channels.fetch('1405579572380045423');
   const gachaSpawnParentCategory = await friendshipGuild.channels.fetch('1183979706329092240');
 
   const gachaGM = require('./patterns/gachaGameMaster');
@@ -84,7 +84,7 @@ client.once(Events.ClientReady, async c => {
       setTimeout(() => {
           const emptyVoiceCheck = require('./patterns/emptyVoiceCheck');
           emptyVoiceCheck(channelToCheck);
-      }, 1000); // 3 seconds delay
+      }, 1000); // 1 seconds delay
       
     }
     

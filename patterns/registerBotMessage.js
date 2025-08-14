@@ -1,13 +1,13 @@
-
-const messageDeletus =  require ('../models/tidyMessages');
+const messageDeletus = require('../models/tidyMessages');
 
 module.exports = async (sentMessage) => {
 
     const newStoreMsg = new messageDeletus({ 
-        guildid: sentMessage.guild.id,
-        channelid: sentMessage.channel.id,
-        messageid: sentMessage.id,
-    })
-    newStoreMsg.save();
+        guildId: sentMessage.guild.id,
+        channelId: sentMessage.channel.id,
+        messageId: sentMessage.id,
+    });
+
+    await newStoreMsg.save();
 
 };

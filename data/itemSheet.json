@@ -1,0 +1,32 @@
+[
+    {
+    "id": "1",
+    "name": "Coal Ore",
+    "type": "resource",
+    "description": "a piece of ore commonly found underground.",
+    "value": 1,
+    "vendable": false,
+    "ability": "mineLoot",
+    "powerlevel": 1
+    },
+    {
+    "id": "2",
+    "name": "Topaz",
+    "type": "resource",
+    "description": "a shiny gem worth some money.",
+    "value": 3,
+    "vendable": false,
+    "ability": "mineLoot",
+    "powerlevel": 1
+    },
+    {
+    "id": "3",
+    "name": "Rusty Pick Axe",
+    "type": "tool",
+    "description": "Better than nothing...",
+    "value": 5,
+    "vendable": true,
+    "ability": "mineTool",
+    "powerlevel": 1
+    }
+]

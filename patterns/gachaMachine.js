@@ -32,11 +32,6 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
     existingProfile.money -= rollPrice;
     (await existingProfile).save();
 
-    // code to create a channel 
-    // Step 2: Create a temporary VC and move the roller into it
-
-    // get Roller's true member data 
-
     try {
         // Create the voice channel under the given parent category
         const newGachaChannel = await guild.channels.create({
@@ -47,34 +42,31 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
         await roller.setChannel(newGachaChannel);
 
-        // Now store vc data on the mongodb
-
+        // Now store VC data on the mongodb
         const storeVC = new ActiveVCS ({
-            channelid: newGachaChannel.id,
-            guildid: guild.id,
-            typeid: 0,
+            channelId: newGachaChannel.id,
+            guildId: guild.id,
+            typeId: 0,
+            nextTrigger: new Date(),
         })
 
         await storeVC.save();
 
         // roll for VC type > then update the storeVC to match it.
-
         const chosenChannelType = pickRandomChannelWeighted(channelData);
 
-        storeVC.typeid = chosenChannelType.id;
+        storeVC.typeId = chosenChannelType.type;
         await storeVC.save();
 
-        // need to now update the vc name to the selected VC and create the intro message!
-        // 
-
-        await newGachaChannel.setName('『' + chosenChannelType.rarity.toUpperCase() + ' ROLL 』');
+        // Update VC name to the selected VC and create the intro message
+        await newGachaChannel.setName('『 ' + chosenChannelType.rarity.toUpperCase() + ' ROLL 』');
         await new Promise(r => setTimeout(r, 1500));
         await newGachaChannel.setName(`${chosenChannelType.name}`);
         console.log(`🎉 Gacha rolled [${chosenChannelType.rarity.toUpperCase()}]: ${chosenChannelType.name}`);
 
         console.log(`Created VC ${newGachaChannel.name} for ${rollerMember.user.tag}`);
         await gachaRollChannel.send(`**${rollerMember.user.tag}** Your rolling booth is ready: **${newGachaChannel.name}**`)
-        .then( sentMessage => {
+        .then(sentMessage => {
             registerBotMessage(sentMessage);
         })
         .catch(console.error);
@@ -82,23 +74,17 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
     } catch (err) {
         console.error('Error creating or assigning VC:', err);
         await gachaRollChannel.send(`${rollerMember} Something went wrong making your VC.`)
-        .then( sentMessage => {
+        .then(sentMessage => {
             registerBotMessage(sentMessage);
         })
         .catch(console.error);
     }
-
-
 };
 
 function pickRandomChannelWeighted(channels) {
-    // Calculate total weight
     const totalWeight = channels.reduce((sum, ch) => sum + ch.spawnWeight, 0);
-
-    // Get a random number between 0 and totalWeight
     let random = Math.random() * totalWeight;
 
-    // Loop through channels and find where the random number falls
     for (const channel of channels) {
         if (random < channel.spawnWeight) {
             return channel;

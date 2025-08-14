@@ -1,34 +1,59 @@
+const fs = require('fs');
+const path = require('path');
+const ActiveVCS = require('../models/activevcs');
+const emptyvccheck = require('./emptyVoiceCheck');
 
-const ActiveVCS =  require ('../models/activevcs');
-const emptyvccheck = require ('./emptyVoiceCheck');
+// Load gacha server data
+const gachaServersPath = path.join(__dirname, '../data/gachaServers.json');
+const gachaServers = JSON.parse(fs.readFileSync(gachaServersPath, 'utf8'));
 
 module.exports = async (guild) => {
 
-    // first this code will perform a check across all channels and delete left over or empty channels upon first being run.
-    // then it will start a interval timer to check every active channel, read the type it is and run the relevant game event code. This will happen every 5mins.
-    // It will then store it all on a mongodb database as a event stack. / The event stack will have events and the right utc time to run them. another section of this code will be checking every 10 seconds for all the events it needs to run. and executing.
-
+    // --- INITIAL CLEANUP ---
     const channels = await guild.channels.fetch();
-
-    // Get all active VC entries from the database
     const activeVCs = await ActiveVCS.find().lean();
+    const activeVCIds = new Set(activeVCs.map(vc => vc.channelId));
 
-    // Create a Set for quick channelId lookups
-    const activeVCIds = new Set(activeVCs.map(vc => vc.channelid));
-
-    // Iterate through all channels in the guild
     channels.forEach(channel => {
-        // Check if it's in the database and still exists
         if (activeVCIds.has(channel.id)) {
             console.log(`Found active VC in DB: ${channel.name} (${channel.id})`);
-            
-            // Run your empty VC check function
             emptyvccheck(channel);
         }
     });
 
-    /////////////////////// ABOVE ^ is my clean up code... ///////////////
+    // --- INTERVAL CHECK ---
+    setInterval(async () => {
 
+        const activeVCs = await ActiveVCS.find(); // Fetch live DB entries
+        const now = Date.now();
 
+        for (const vc of activeVCs) {
+            const nextTrigger = vc.nextTrigger ? new Date(vc.nextTrigger).getTime() : 0;
 
+            // Trigger if current time has passed nextTrigger
+            if (!vc.nextTrigger || now >= nextTrigger) {
+
+                // Find corresponding gacha server data
+                const serverData = gachaServers.find(s => s.type === vc.typeId);
+                if (!serverData) continue;
+
+                try {
+                    // Load and run the script
+                    const scriptPath = path.join(__dirname, './gachaModes', serverData.script);
+                    const gameScript = require(scriptPath);
+
+                    const gachaVC = await guild.channels.fetch(vc.channelId);
+                    console.log('running gameVC script');
+                    await gameScript(gachaVC, vc, serverData);
+
+                    // let gameScript set next trigger time.
+
+                    console.log(`Triggered ${serverData.name} for VC ${vc.channelId}`);
+                } catch (err) {
+                    console.error(`Error running script for VC ${vc.channelId}:`, err);
+                }
+            }
+        }
+
+    }, 5 * 1000); // Check every 5 seconds
 };

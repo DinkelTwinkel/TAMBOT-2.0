@@ -3,9 +3,10 @@ const Schema = mongoose.Schema;
 
 const vcSchema = new Schema({
 
-	channelid: { type: String, required: true, unique: true },
-	guildid: { type: String, required: true, unique: false },
-	typeid: { type: Number, required: true, unique: false },
+	channelId: { type: String, required: true, unique: true },
+	guildId: { type: String, required: true, unique: false },
+	typeId: { type: String, required: true, unique: false },
+	nextTrigger: {type: Date, required: true, unique: false },
 
 }, { timestamps: true });
 
