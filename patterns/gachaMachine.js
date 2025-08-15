@@ -48,6 +48,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             guildId: guild.id,
             typeId: 0,
             nextTrigger: new Date(),
+            nextShopRefresh: new Date(),
         })
 
         await storeVC.save();

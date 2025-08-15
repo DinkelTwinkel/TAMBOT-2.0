@@ -7,6 +7,7 @@ const shopData = require('../data/shops.json');
 const itemSheet = require('../data/itemSheet.json');
 const registerBotMessage = require('../patterns/registerBotMessage');
 const generateShopImage = require('./generateShopImage');
+const path = require('path');
 
 function seededRandom(seed) {
     let x = Math.sin(seed++) * 10000;
@@ -20,19 +21,22 @@ async function generateShop(channel) {
     const shopInfo = shopData.find(s => s.id === gachaData.find(g => g.type === matchingVC.typeId)?.shop);
     if (!shopInfo) return channel.send('⚠ No shop data found for this VC!');
 
-    let buyPool = [...shopInfo.itemPool];
-    if (shopInfo.rotational) {
-        const amount = shopInfo.rotationalAmount || buyPool.length;
-        let selectedItems = [];
-        let availableItems = [...buyPool];
-        let seed = Math.ceil(Math.random() * 1000);
-        for (let i = 0; i < amount && availableItems.length > 0; i++) {
-            const index = Math.floor(seededRandom(seed++) * availableItems.length);
-            selectedItems.push(availableItems[index]);
-            availableItems.splice(index, 1);
-        }
-        buyPool = selectedItems;
+    // Always include staticItems
+    let buyPool = [...shopInfo.staticItems];
+
+    // Add rotational/random items on top of staticItems
+    const amount = shopInfo.rotationalAmount || shopInfo.itemPool.length;
+    let availableItems = shopInfo.itemPool.filter(id => !buyPool.includes(id));
+    let seed = matchingVC.nextShopRefresh.getTime();
+
+    for (let i = 0; i < amount && availableItems.length > 0; i++) {
+        const index = Math.floor(seededRandom(seed++) * availableItems.length);
+        buyPool.push(availableItems[index]);
+        availableItems.splice(index, 1);
     }
+
+    // The rest of your code (creating embed, menus, collectors) stays the same
+
 
     // Create the embed description:
     const itemDescriptions = buyPool.map(id => {
@@ -50,12 +54,34 @@ async function generateShop(channel) {
 
     const attachment = new AttachmentBuilder(imageBuffer, { name: 'shop.png' });
 
+    // Calculate time difference until next refresh
+    const now = Date.now(); // current UTC in ms
+    const nextRefreshTime = new Date(matchingVC.nextShopRefresh).getTime(); // UTC ms
+    let diffMs = nextRefreshTime - now;
+
+    if (diffMs < 0) diffMs = 0; // in case refresh time already passed
+
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMinutes / 60);
+
+    let refreshText;
+    if (diffHours > 0) {
+        refreshText = `    ✧      ✧   shop refreshing ${diffHours}h ${diffMinutes % 60}m    ✧      ✧`;
+    } else {
+        refreshText = `    ✧      ✧   shop refreshing in ${diffMinutes}m    ✧      ✧`;
+    }
+
+    const thumbAttachment = new AttachmentBuilder(`./assets/shops/${path.basename(shopInfo.image, path.extname(shopInfo.image))}_shopKeeper${path.extname(shopInfo.image)}`, { name: 'thumb.png' });
+
     const embed = new EmbedBuilder()
         .setTitle(`🛒 ${shopInfo.name}`)
         .setColor('Gold')
         .setDescription('```' + shopInfo.description + '```')
         .setImage('attachment://shop.png')
-        .setThumbnail('https://cdn.discordapp.com/attachments/1391742804237094972/1405798173800402964/image.png?ex=68a02313&is=689ed193&hm=0daf85110200d2b1639353bb0856ce8b1fe51d0853add7292b551acc635357ac&');
+        .setFooter({
+            text: refreshText,
+        })
+        .setThumbnail('attachment://thumb.png');
 
     // Remove any existing shop embed with same title
     const messages = await channel.messages.fetch({ limit: 10 });
@@ -106,7 +132,7 @@ const buyMenu = new ActionRowBuilder().addComponents(
             .addOptions(sellOptions)
     );
 
-    const shopMessage = await channel.send({ embeds: [embed], components: [buyMenu, sellMenu], files: [attachment]});
+    const shopMessage = await channel.send({ embeds: [embed], components: [buyMenu, sellMenu], files: [attachment, thumbAttachment]});
 
     registerBotMessage(shopMessage.guild.id, shopMessage.channel.id, shopMessage.id);
 
@@ -204,13 +230,13 @@ const buyMenu = new ActionRowBuilder().addComponents(
         }
     });
 
-    collector.on('end', async () => {
-        try {
-            await shopMessage.edit({ embeds: [{ description: 'The shop is now closed.', color: 'Red' }], components: [] });
-        } catch (err) {
-            console.error('❌ Failed to close shop message:', err);
-        }
-    });
+    // collector.on('end', async () => {
+    //     try {
+    //         await shopMessage.edit({ embeds: [{ description: 'The shop is now closed.', color: 'Red' }], components: [] });
+    //     } catch (err) {
+    //         console.error('❌ Failed to close shop message:', err);
+    //     }
+    // });
 }
 
 module.exports = generateShop;

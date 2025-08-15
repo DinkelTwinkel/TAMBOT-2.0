@@ -1,6 +1,7 @@
 const PlayerInventory = require('../../models/inventory');
 const Currency = require('../../models/currency');
 const generateShop = require('../generateShop');
+const getPlayerStats = require('../calculatePlayerStat');
 
 // ---------------- Embed Helper ----------------
 function createMessage(description) {
@@ -46,7 +47,7 @@ function pickWeightedItem(powerLevel) {
 // ---------------- Weighted Event System ----------------
 const miningEvents = [
     { func: giveFindResource, weight: 60 },
-    { func: nothingHappens, weight: 10 },
+    //{ func: nothingHappens, weight: 10 },
     { func: sellCoalEvent, weight: 5 } // adjust as needed
 ];
 
@@ -63,7 +64,33 @@ function pickEvent(events) {
 
 // ---------------- Event Functions ----------------
 async function giveFindResource(player, channel, powerLevel = 1) {
+
+    // Cannot mine if player mining is low. 
+    const playerStats = getPlayerStats(player.id);
+
+    let quantityFound = 1
+
     const item = pickWeightedItem(powerLevel);
+
+    if (playerStats.mining > 0) {
+
+        // Natural Failure >
+        if (Math.random() > 0.95) return nothingHappens(player, channel);
+
+        quantityFound += Math.floor (Math.random() * playerStats.mining) ;
+        const message = createMessage(`⛏️ MINED! ${player.displayName} found 『 ${item.name} 』x ${quantityFound}!`);
+        await channel.send(message);
+    }
+    else {
+        if (Math.random() > 0.7) {
+            const message = createMessage(`Scavenged! ${player.displayName} found 『 ${item.name} 』x ${quantityFound} on the floor...!`);
+            await channel.send(message);
+        }
+        else {
+            message = createMessage(`${player.displayName} failed to mine anything due to not having a pickaxe...`);
+            return  channel.send(message);
+        }
+    }
 
     try {
         let inv = await PlayerInventory.findOne({ playerId: player.id, playerTag: player.user.tag });
@@ -71,24 +98,22 @@ async function giveFindResource(player, channel, powerLevel = 1) {
             inv = new PlayerInventory({
                 playerId: player.id,
                 playerTag: player.user.tag,
-                items: [{ itemId: item.itemId, quantity: 1 }]
+                items: [{ itemId: item.itemId, quantity: quantityFound }]
             });
         } else {
             const existing = inv.items.find(it => it.itemId === item.itemId);
-            if (existing) existing.quantity += 1;
-            else inv.items.push({ itemId: item.itemId, quantity: 1 });
+            if (existing) existing.quantity += quantityFound;
+            else inv.items.push({ itemId: item.itemId, quantity: quantityFound });
         }
         await inv.save();
-
-        const message = createMessage(`⛏️ MINED! ${player.displayName} found 『 ${item.name} 』!`);
-        await channel.send(message);
     } catch (err) {
-        console.error('Error giving item:', err);
+    console.error('Error giving item:', err);
     }
+
 }
 
 async function nothingHappens(player, channel) {
-    const message = createMessage(`😐 ${player.displayName} swung their pickaxe but found nothing.`);
+    const message = createMessage(`😐 ${player.displayName} swung at the walls but found nothing.`);
     await channel.send(message);
 }
 
@@ -113,7 +138,7 @@ async function sellCoalEvent(player, channel) {
         }
 
         const sellAmount = Math.ceil(coal.quantity * Math.random());
-        const pricePerCoal = 5;
+        const pricePerCoal = Math.ceil(Math.random() * 5);
         const total = sellAmount * pricePerCoal;
 
         coal.quantity = 0;
@@ -122,7 +147,7 @@ async function sellCoalEvent(player, channel) {
 
         // chance for the player to be scammed.
         const scamChance = 0.2;
-        if (scamChance > Math.random()) return channel.send(createMessage(`⚠️ Scammed! ${player.displayName} tried to sell Coal, but the trader scammed them! They lost their coal and gained nothing.`))
+        if (scamChance > Math.random()) return channel.send(createMessage(`⚠️ Scammed! ${player.displayName} tried to sell Coal, but the trader scammed them! They lost ${sellAmount} coal and gained nothing.`))
 
         let currency = await Currency.findOne({ userId: playerId });
         if (!currency) {
@@ -146,6 +171,12 @@ module.exports = async (channel, dbEntry, json, client) => {
 
     // Schedule next trigger
     dbEntry.nextTrigger = new Date(now + 60 * 1000 * Math.random());
+
+    // check if its time to refresh shop > refresh. 
+
+    if (now > dbEntry.nextShopRefresh ) {
+        dbEntry.nextShopRefresh = new Date(now + 60 * 1000 * 25);
+    }
     await dbEntry.save();
 
     // Check VC

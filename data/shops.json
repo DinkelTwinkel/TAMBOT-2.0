@@ -4,11 +4,10 @@
     "name": "Coal Mine Trading Desk",
     "description": "The children yearn for the mines...",
     "cost": 0,
-    "rotational": true,
-    "rotationalAmount": 3,
-    "itemPool": [1,2,3],
-    "image": "hellmartportable.png",
-    "itemMap": "hellmartportable.png",
+    "staticItems": [3],
+    "rotationalAmount": 1,
+    "itemPool": [1,2],
+    "image": "coalMineShop.png",
     "priceChangeFactor": 0.1
     }
 ]

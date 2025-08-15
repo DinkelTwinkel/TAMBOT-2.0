@@ -7,6 +7,7 @@ const vcSchema = new Schema({
 	guildId: { type: String, required: true, unique: false },
 	typeId: { type: String, required: true, unique: false },
 	nextTrigger: {type: Date, required: true, unique: false },
+	nextShopRefresh: {type: Date, required: true, unique: false },
 
 }, { timestamps: true });
 

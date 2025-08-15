@@ -73,7 +73,7 @@ async function generateShopImage(shopData, itemData) {
         if (!foundItemData || !foundItemData.image) continue;
 
         const img = await loadImage(`./assets/items/${foundItemData.image}`);
-        const scale = 2;
+        const scale = 1;
         const newWidth = img.width * scale;
         const newHeight = img.height * scale;
 

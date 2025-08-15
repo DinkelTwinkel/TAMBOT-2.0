@@ -8,7 +8,8 @@ module.exports = {
 
     async execute(interaction) {
         const channel = interaction.channel;
+        await interaction.deferReply({ephemeral: true})
         await generateShop(channel, interaction.user.id);
-        await interaction.reply({ content: 'Shop opened!', ephemeral: true });
+        await interaction.editReply({ content: 'Shop opened!', ephemeral: true });
     }
 };
