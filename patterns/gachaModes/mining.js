@@ -65,15 +65,14 @@ function pickEvent(events) {
 // ---------------- Event Functions ----------------
 async function giveFindResource(player, channel, powerLevel = 1) {
 
-    // Cannot mine if player mining is low. 
-    const playerStats = getPlayerStats(player.id);
-
     let quantityFound = 1
-
     const item = pickWeightedItem(powerLevel);
 
-    if (playerStats.mining > 0) {
+    // Cannot mine if player mining is low. 
+    const playerStats = await getPlayerStats(player.id);
+    console.log (playerStats.mining);
 
+    if (playerStats.mining > 0) {
         // Natural Failure >
         if (Math.random() > 0.95) return nothingHappens(player, channel);
 
