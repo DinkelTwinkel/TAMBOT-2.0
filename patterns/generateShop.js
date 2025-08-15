@@ -21,10 +21,7 @@ async function generateShop(channel) {
     const shopInfo = shopData.find(s => s.id === gachaData.find(g => g.id === matchingVC.typeId)?.shop);
     if (!shopInfo) return channel.send('⚠ No shop data found for this VC!');
 
-    // Always include staticItems
     let buyPool = [...shopInfo.staticItems];
-
-    // Add rotational/random items on top of staticItems
     const amount = shopInfo.rotationalAmount || shopInfo.itemPool.length;
     let availableItems = shopInfo.itemPool.filter(id => !buyPool.includes(id));
     let seed = matchingVC.nextShopRefresh.getTime();
@@ -35,31 +32,14 @@ async function generateShop(channel) {
         availableItems.splice(index, 1);
     }
 
-    // The rest of your code (creating embed, menus, collectors) stays the same
-
-
-    // Create the embed description:
-    const itemDescriptions = buyPool.map(id => {
-        const item = itemSheet.find(i => i.id === String(id));
-        let statLine = item.powerlevel && item.powerlevel > 0 && item.ability ? `(+${item.powerlevel} ${item.ability})` : '';
-        return `**${item.name}** — ${item.value} coins\n\`\`\`\n${item.description}\n${statLine}\n\`\`\``;
-    }).join('\n');
-
-    const embedDescription = `${shopInfo.description || ''}\n\n${itemDescriptions}`;
-
-    const imageBuffer = await generateShopImage(
-        shopInfo,
-        buyPool,
-    );
-
+    const pickShopDescription = shopInfo.idleDialogue[Math.floor(shopInfo.idleDialogue.length * Math.random())];
+    const imageBuffer = await generateShopImage(shopInfo, buyPool);
     const attachment = new AttachmentBuilder(imageBuffer, { name: 'shop.png' });
 
-    // Calculate time difference until next refresh
-    const now = Date.now(); // current UTC in ms
-    const nextRefreshTime = new Date(matchingVC.nextShopRefresh).getTime(); // UTC ms
+    const now = Date.now();
+    const nextRefreshTime = new Date(matchingVC.nextShopRefresh).getTime();
     let diffMs = nextRefreshTime - now;
-
-    if (diffMs < 0) diffMs = 0; // in case refresh time already passed
+    if (diffMs < 0) diffMs = 0;
 
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMinutes / 60);
@@ -71,19 +51,16 @@ async function generateShop(channel) {
         refreshText = `    ✧      ✧   shop refreshing in ${diffMinutes}m    ✧      ✧`;
     }
 
-    const thumbAttachment = new AttachmentBuilder(`./assets/shops/${path.basename(shopInfo.image, path.extname(shopInfo.image))}_shopKeeper${path.extname(shopInfo.image)}`, { name: 'thumb.png' });
+    const thumbAttachment = new AttachmentBuilder(`./assets/shops/${path.basename(shopInfo.image)}_shopKeeper.gif`, { name: 'thumb.gif' });
 
     const embed = new EmbedBuilder()
         .setTitle(`🛒 ${shopInfo.name}`)
         .setColor('Gold')
-        .setDescription('```' + shopInfo.description + '```')
+        .setDescription('```"' + pickShopDescription + '"```')
         .setImage('attachment://shop.png')
-        .setFooter({
-            text: refreshText,
-        })
-        .setThumbnail('attachment://thumb.png');
+        .setFooter({ text: refreshText })
+        .setThumbnail('attachment://thumb.gif');
 
-    // Remove any existing shop embed with same title
     const messages = await channel.messages.fetch({ limit: 10 });
     messages.forEach(msg => {
         if (msg.embeds.length > 0 && msg.embeds[0].title === embed.data.title) {
@@ -91,30 +68,32 @@ async function generateShop(channel) {
         }
     });
 
-const buyMenu = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-        .setCustomId('shop_buy_select')
-        .setPlaceholder('Select an item to buy')
-        .addOptions(
-            buyPool.map(id => {
-                const item = itemSheet.find(i => i.id === String(id));
+    // 🟢 Send shop message first so we have shopMessage.id
+    const shopMessage = await channel.send({ embeds: [embed], files: [attachment, thumbAttachment] });
 
-                // Build description + power info
-                let statLine = '';
-                if (item.powerlevel && item.powerlevel > 0 && item.ability) {
-                    statLine = `+${item.powerlevel} ${item.ability}`;
-                }
+    registerBotMessage(shopMessage.guild.id, shopMessage.channel.id, shopMessage.id);
 
-                const descriptionText = `${item.description}${statLine ? ` | ${statLine}` : ''}`;
-
-                return {
-                    label: item.name,
-                    description: descriptionText.slice(0, 100), // Discord max 100 chars
-                    value: String(item.id)
-                };
-            })
-        )
-);
+    // 🟢 Custom IDs include shopMessage.id
+    const buyMenu = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`shop_buy_select_${shopMessage.id}`)
+            .setPlaceholder('Select an item to buy')
+            .addOptions(
+                buyPool.map(id => {
+                    const item = itemSheet.find(i => i.id === String(id));
+                    let statLine = '';
+                    if (item.powerlevel && item.powerlevel > 0 && item.ability) {
+                        statLine = `+${item.powerlevel} ${item.ability}`;
+                    }
+                    const descriptionText = `${item.description}${statLine ? ` | ${statLine}` : ''}`;
+                    return {
+                        label: item.name,
+                        description: descriptionText.slice(0, 100),
+                        value: String(item.id)
+                    };
+                })
+            )
+    );
 
     const sellOptions = shopInfo.itemPool.map(itemId => {
         const item = itemSheet.find(i => i.id === String(itemId));
@@ -127,19 +106,20 @@ const buyMenu = new ActionRowBuilder().addComponents(
 
     const sellMenu = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
-            .setCustomId('shop_sell_select')
+            .setCustomId(`shop_sell_select_${shopMessage.id}`)
             .setPlaceholder('Select an item to sell')
             .addOptions(sellOptions)
     );
 
-    const shopMessage = await channel.send({ embeds: [embed], components: [buyMenu, sellMenu], files: [attachment, thumbAttachment]});
+    // 🟢 Edit the shop message to add menus now
+    await shopMessage.edit({ components: [buyMenu, sellMenu] });
 
-    registerBotMessage(shopMessage.guild.id, shopMessage.channel.id, shopMessage.id);
-
-    // Collector for all users
     const collector = channel.createMessageComponentCollector({ time: 300000, componentType: 3 });
 
     collector.on('collect', async i => {
+        // 🟢 Only allow this shopMessage's menus
+        if (!i.customId.endsWith(`_${shopMessage.id}`)) return;
+
         const userId = i.user.id;
         const selectedItemId = i.values[0];
         const item = itemSheet.find(it => it.id === selectedItemId);
@@ -148,9 +128,9 @@ const buyMenu = new ActionRowBuilder().addComponents(
         let userCurrency = await Currency.findOne({ userId }) || new Currency({ userId, money: 0 });
         let userInv = await PlayerInventory.findOne({ playerId: userId }) || new PlayerInventory({ playerId: userId, items: [] });
 
-        if (i.customId === 'shop_buy_select') {
+        if (i.customId.startsWith('shop_buy_select')) {
             const modal = new ModalBuilder()
-                .setCustomId(`buy_modal_${item.id}_${userId}`)
+                .setCustomId(`buy_modal_${item.id}_${userId}_${shopMessage.id}`)
                 .setTitle(`Buy ${item.name}`)
                 .addComponents(
                     new ActionRowBuilder().addComponents(
@@ -166,17 +146,21 @@ const buyMenu = new ActionRowBuilder().addComponents(
             await i.showModal(modal);
 
             const submitted = await i.awaitModalSubmit({
-                filter: sub => sub.customId === `buy_modal_${item.id}_${userId}` && sub.user.id === userId,
+                filter: sub => sub.customId === `buy_modal_${item.id}_${userId}_${shopMessage.id}` && sub.user.id === userId,
                 time: 15000
             }).catch(() => null);
             if (!submitted) return i.followUp({ content: '⏰ Time out for quantity input.', ephemeral: true });
 
             const quantity = Number(submitted.fields.getTextInputValue('quantity'));
-            if (isNaN(quantity) || quantity <= 0) return submitted.reply({ content: '❌ Invalid quantity.', ephemeral: true });
-
+            if (isNaN(quantity) || quantity <= 0) {
+                updateShopDescription(shopMessage, shopInfo.failureOther, attachment, thumbAttachment);  
+                return submitted.reply({ content: '❌ Invalid quantity.', ephemeral: true });
+            }
             const totalCost = quantity * item.value;
-            if (userCurrency.money < totalCost) return submitted.reply({ content: `❌ You need ${totalCost} coins but only have ${userCurrency.money}.`, ephemeral: true });
-
+            if (userCurrency.money < totalCost) {
+                updateShopDescription(shopMessage, shopInfo.failureTooPoor, attachment, thumbAttachment);   
+                return submitted.reply({ content: `❌ You need ${totalCost} coins but only have ${userCurrency.money}.`, ephemeral: true });
+            }
             userCurrency.money -= totalCost;
             await userCurrency.save();
 
@@ -186,13 +170,14 @@ const buyMenu = new ActionRowBuilder().addComponents(
             await userInv.save();
 
             await submitted.reply({ content: `✅ Purchased ${quantity} x ${item.name} for ${totalCost} coins!`, ephemeral: true });
+            updateShopDescription(shopMessage, shopInfo.successBuy, attachment, thumbAttachment);  
 
-        } else if (i.customId === 'shop_sell_select') {
+        } else if (i.customId.startsWith('shop_sell_select')) {
             const ownedItem = userInv.items.find(it => it.itemId === selectedItemId);
             const maxQty = ownedItem?.quantity || 0;
 
             const modal = new ModalBuilder()
-                .setCustomId(`sell_modal_${item.id}_${userId}`)
+                .setCustomId(`sell_modal_${item.id}_${userId}_${shopMessage.id}`)
                 .setTitle(`Sell ${item.name}`)
                 .addComponents(
                     new ActionRowBuilder().addComponents(
@@ -208,14 +193,16 @@ const buyMenu = new ActionRowBuilder().addComponents(
             await i.showModal(modal);
 
             const submitted = await i.awaitModalSubmit({
-                filter: sub => sub.customId === `sell_modal_${item.id}_${userId}` && sub.user.id === userId,
+                filter: sub => sub.customId === `sell_modal_${item.id}_${userId}_${shopMessage.id}` && sub.user.id === userId,
                 time: 15000
             }).catch(() => null);
             if (!submitted) return i.followUp({ content: '⏰ Time out for quantity input.', ephemeral: true });
 
             const quantity = Number(submitted.fields.getTextInputValue('quantity'));
-            if (isNaN(quantity) || quantity <= 0 || quantity > maxQty) return submitted.reply({ content: `❌ Invalid quantity. You can sell between 0 and ${maxQty}.`, ephemeral: true });
-
+            if (isNaN(quantity) || quantity <= 0 || quantity > maxQty) {    
+                updateShopDescription(shopMessage, shopInfo.failureOther, attachment, thumbAttachment);          
+                return submitted.reply({ content: `❌ Invalid quantity. You can sell between 0 and ${maxQty}.`, ephemeral: true });
+            }
             if (ownedItem) {
                 ownedItem.quantity -= quantity;
                 if (ownedItem.quantity <= 0) userInv.items = userInv.items.filter(it => it.itemId !== item.id);
@@ -227,16 +214,30 @@ const buyMenu = new ActionRowBuilder().addComponents(
             await userCurrency.save();
 
             await submitted.reply({ content: `💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! Your new balance: ${userCurrency.money}`, ephemeral: true });
+            updateShopDescription(shopMessage, shopInfo.successSell, attachment, thumbAttachment);      
         }
     });
-
-    // collector.on('end', async () => {
-    //     try {
-    //         await shopMessage.edit({ embeds: [{ description: 'The shop is now closed.', color: 'Red' }], components: [] });
-    //     } catch (err) {
-    //         console.error('❌ Failed to close shop message:', err);
-    //     }
-    // });
 }
 
 module.exports = generateShop;
+
+async function updateShopDescription(shopMessage, newDescriptions, attachment, thumbAttachment) {
+
+    const newDescription = newDescriptions[Math.floor(Math.random() * newDescriptions.length)];
+    if (!shopMessage?.embeds?.length) {
+        console.warn("No embeds found in shopMessage");
+        return;
+    }
+
+    // Get the first embed and clone it so we can modify
+    const existingEmbed = EmbedBuilder.from(shopMessage.embeds[0]);
+
+    // Update the description
+    existingEmbed.setDescription('``` "' + newDescription + '"```');
+
+    existingEmbed.setImage('attachment://shop.png');
+    existingEmbed.setThumbnail('attachment://thumb.gif');
+
+    // Edit the message
+    await shopMessage.edit({ embeds: [existingEmbed], files: [attachment, thumbAttachment] });
+}

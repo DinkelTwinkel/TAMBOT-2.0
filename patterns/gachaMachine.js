@@ -5,7 +5,9 @@ const messageDeletus = require('../models/tidyMessages'); // Adjust path accordi
 const ActiveVCS =  require ('../models/activevcs');
 const createCurrencyProfile = require('../patterns/currency/createCurrencyProfile');
 const registerBotMessage = require('./registerBotMessage');
-const rollPrice = 0;
+const rollPrice = 5;
+
+const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 
 const channelsFile = path.join(__dirname, '../data/gachaServers.json');
 const channelData = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
@@ -47,7 +49,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             channelId: newGachaChannel.id,
             guildId: guild.id,
             typeId: 0,
-            nextTrigger: new Date(),
+            nextTrigger: new Date(Date.now() + 5 * 1000), // 5 second delay before events start.
             nextShopRefresh: new Date(),
         })
 
@@ -64,16 +66,34 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         await new Promise(r => setTimeout(r, 1500));
         await newGachaChannel.setName(`${chosenChannelType.name}`);
         console.log(`🎉 Gacha rolled [${chosenChannelType.rarity.toUpperCase()}]: ${chosenChannelType.name}`);
-
         console.log(`Created VC ${newGachaChannel.name} for ${rollerMember.user.tag}`);
+
         await gachaRollChannel.send(`**${rollerMember.user.tag}** Your rolling booth is ready: **${newGachaChannel.name}**`)
         .then(sentMessage => {
             registerBotMessage(sentMessage.guild.id, sentMessage.channel.id, sentMessage.id);
         })
         .catch(console.error);
 
-        await newGachaChannel.send (`You've found the ${chosenChannelType.name}!`);
-        await newGachaChannel.send (`${chosenChannelType.description}`);
+
+
+        await newGachaChannel.send(`${rollerMember} You've found the ${chosenChannelType.name}!`);
+
+        // Build the file path for the image
+        const imagePath = path.join(__dirname, '../assets/gachaLocations', chosenChannelType.image + '.png');
+
+        // Create the attachment
+        const imageAttachment = new AttachmentBuilder(imagePath, { name: imagePath });
+
+        // Build the embed
+        const rollEmbed = new EmbedBuilder()
+            .setTitle(chosenChannelType.name)
+            .setDescription('```' + chosenChannelType.description + '```')
+            .setFooter({ text: `Rarity: ${chosenChannelType.rarity}` })
+            .setColor(chosenChannelType.colour || 'Gold') // Use custom color if set, else Gold
+            .setImage(`attachment://${chosenChannelType.image}.png`); // Display the image in the embed
+
+        // Send it in the new text channel with the attachment
+        await newGachaChannel.send({ embeds: [rollEmbed], files: [imageAttachment] });
 
     } catch (err) {
         console.error('Error creating or assigning VC:', err);

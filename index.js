@@ -2,6 +2,7 @@
 const fs = require('fs');
 const { Client, Events, GatewayIntentBits, ActivityType, PermissionsBitField, Partials } = require('discord.js');
 const { token, mongourl } = require('./keys.json');
+const GuildConfig = require('./models/GuildConfig');
 
 // Create a new client instance
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates], partials: [
@@ -34,64 +35,77 @@ registerCommands;
 
 client.once(Events.ClientReady, async c => {
 
-  // BASIC BOT START UP
-  client.user.setActivity('tam', { type: ActivityType.Watching });
-	console.log(`Ready! Logged in as ${c.user.tag}`);
-  client.user.setPresence( { status: "away" });
+    client.user.setActivity('tam', { type: ActivityType.Watching });
+    console.log(`Ready! Logged in as ${c.user.tag}`);
+    client.user.setPresence({ status: "away" });
 
-  // GET TARGET DISCORD
-  const friendshipGuild = await client.guilds.fetch('1183979706329092236');
-  
-  // RUN START UP TIDY STUFF
+    // Loop through all guilds your bot is in
+    client.guilds.cache.forEach(async guild => {
 
-  // reset bot nick name to default
-  friendshipGuild.members.fetchMe()
-  .then(me => {
-    me.roles.remove('1349292336781197353');
-    me.setNickname('SUPER HELLUNGI');
-    console.log('✅ Bot nickname set to default');
-  })
-  .catch (console.error);
+        // Fetch guild config from MongoDB
+        let config = await GuildConfig.findOne({ guildId: guild.id });
+        if (!config) {
+            config = new GuildConfig({ guildId: guild.id });
+            await config.save();
+        }
 
-  // ensure all members on the server have a currency profile.
-  const ensureMoneyProfilesForGuild = require('./patterns/currency/ensureMoneyProfile');
-  ensureMoneyProfilesForGuild (friendshipGuild);
+        // FRIENDSHIP ID (optional)
+        const friendshipDiscordId = config.friendshipDiscordId;
 
-  // clean old messages from before the bot started
-  const botMessageDeletus = require('./patterns/botMessageCleaner');
-  botMessageDeletus(friendshipGuild);
+        // Fetch roll channels dynamically
+        const gachaRollChannels = await Promise.all(
+            config.gachaRollChannelIds.map(id => guild.channels.fetch(id))
+        );
 
-  // gacha roll happening.
-  const gachaRollChannel = await friendshipGuild.channels.fetch('1405579572380045423');
-  const gachaSpawnParentCategory = await friendshipGuild.channels.fetch('1183979706329092240');
+        // Fetch parent categories dynamically
+        const gachaParentCategories = await Promise.all(
+            config.gachaParentCategoryIds.map(id => guild.channels.fetch(id))
+        );
 
-  const gachaGM = require('./patterns/gachaGameMaster');
-  gachaGM(friendshipGuild);
+        // Example: reset bot nickname
+        guild.members.fetchMe()
+            .then(me => {
+                me.roles.remove('1349292336781197353'); // optional
+                me.setNickname('SUPER HELLUNGI');
+                console.log('✅ Bot nickname set to default');
+            })
+            .catch(console.error);
 
-  client.on(Events.VoiceStateUpdate, async (oldMember, newMember) => {
-    if (newMember.channel === gachaRollChannel) { // starting channel ID
+        // Ensure currency profiles
+        const ensureMoneyProfilesForGuild = require('./patterns/currency/ensureMoneyProfile');
+        ensureMoneyProfilesForGuild(guild);
 
-      const gachaMachine = require ('./patterns/gachaMachine');
-      gachaMachine(newMember, friendshipGuild, gachaSpawnParentCategory, gachaRollChannel);
+        // Clean old messages
+        const botMessageDeletus = require('./patterns/botMessageCleaner');
+        botMessageDeletus(guild);
 
-    }
+        // Run gacha GM for this guild
+        const gachaGM = require('./patterns/gachaGameMaster');
+        gachaGM(guild);
 
-    // if user goes to a different discord vc or left vc call a function file which checks the activevc mongodb if the vc the user left is on the database. If so, perform a check for if no one is left on the vc and then delete vc if so.
+        // Listen for VoiceStateUpdate for all roll channels in this guild
+        client.on(Events.VoiceStateUpdate, async (oldMember, newMember) => {
 
-    if (oldMember.channelId && oldMember.channelId !== newMember.channelId) {
+            // Check if user joined any gacha roll channel
+            if (config.gachaRollChannelIds.includes(newMember.channelId)) {
+                const gachaMachine = require('./patterns/gachaMachine');
+                const parentCategory = gachaParentCategories[0]; // or pick the right one
+                const rollChannel = gachaRollChannels.find(ch => ch.id === newMember.channelId);
+                gachaMachine(newMember, guild, parentCategory, rollChannel);
+            }
 
-      const channelToCheck = await friendshipGuild.channels.fetch(oldMember.channelId);
+            // Empty voice check
+            if (oldMember.channelId && oldMember.channelId !== newMember.channelId) {
+                const channelToCheck = await guild.channels.fetch(oldMember.channelId);
+                setTimeout(() => {
+                    const emptyVoiceCheck = require('./patterns/emptyVoiceCheck');
+                    emptyVoiceCheck(channelToCheck);
+                }, 1000 * 5);
+            }
+        });
 
-      setTimeout(() => {
-          const emptyVoiceCheck = require('./patterns/emptyVoiceCheck');
-          emptyVoiceCheck(channelToCheck);
-      }, 1000); // 1 seconds delay
-      
-    }
-    
-  });
+    });
 
-  
 });
 
 // Define a collection to store your commands

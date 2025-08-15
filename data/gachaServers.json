@@ -1,14 +1,16 @@
 [
     {
     "id": "1",
-    "name": "Coal Mines",
+    "name": "⛏️ Coal Mines",
     "type": "mining",
     "rarity": "common",
     "spawnWeight": 100,
-    "description": "Welcome to the mines...",
+    "description": "Welcome to the coal mines... yada yada yada yada",
     "power": 1,
     "script": "mining.js",
-    "shop": 1
+    "shop": 1,
+    "colour": "000000",
+    "image": "placeHolder"
     },
     {
     "id": "2",
@@ -16,10 +18,12 @@
     "type": "battle",
     "rarity": "common",
     "spawnWeight": 100,
-    "description": "Welcome to the battlefield...",
+    "description": "Welcome to the battlefield... yada yada yada yada",
     "power": 1,
     "script": "mining.js",
-    "shop": 1
+    "shop": 1,
+    "colour": "FFECDB",
+    "image": "placeHolder"
     },
     {
     "id": "3",
@@ -27,10 +31,12 @@
     "type": "fishing",
     "rarity": "common",
     "spawnWeight": 100,
-    "description": "Welcome to the fishing spot...!",
+    "description": "Welcome to the fishing spot... yada yada yada yada",
     "power": 1,
     "script": "mining.js",
-    "shop": 1
+    "shop": 1,
+    "colour": "7EC297",
+    "image": "placeHolder"
     },
     {
     "id": "4",
@@ -38,9 +44,11 @@
     "type": "mining",
     "rarity": "uncommon",
     "spawnWeight": 10,
-    "description": "WELCOME TO THE TOPAZ MINES",
+    "description": "WELCOME TO THE TOPAZ MINES ... yada yada yada yada",
     "power": 3,
     "script": "mining.js",
-    "shop": 2
+    "shop": 2,
+    "colour": "D69B22",
+    "image": "placeHolder"
     }
 ]

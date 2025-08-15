@@ -13,7 +13,7 @@ const itemsheet = require('../data/itemSheet.json');
  * @returns {Promise<Buffer>} PNG image buffer
  */
 async function generateShopImage(shopData, itemData) {
-    const bgImage = await loadImage(`./assets/shops/${shopData.image}`);
+    const bgImage = await loadImage(`./assets/shops/${shopData.image}.png`);
     const canvas = createCanvas(bgImage.width, bgImage.height);
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
@@ -22,7 +22,7 @@ async function generateShopImage(shopData, itemData) {
     ctx.drawImage(bgImage, 0, 0);
 
     // Load the _itemmap image for detecting magenta points
-    const itemMapPath = `./assets/shops/${path.basename(shopData.image, path.extname(shopData.image))}_itemmap${path.extname(shopData.image)}`;
+    const itemMapPath = `./assets/shops/${shopData.image}_itemmap.png`;
     if (!fs.existsSync(itemMapPath)) {
         console.warn(`Item map not found: ${itemMapPath}`);
         return canvas.toBuffer('image/png');

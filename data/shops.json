@@ -2,23 +2,31 @@
     {
     "id": 1,
     "name": "Coal Mine Trading Desk",
-    "description": "The children yearn for the mines...",
+    "idleDialogue": ["The children yearn for the mines...", "Keep mining!", "Eris-chan..."],
+    "successSell": ["A pleasure doing business..."],
+    "successBuy": ["A pleasure doing business..."],
+    "failureTooPoor": ["If you're broke get out of here!", "Scram Pauper!"],
+    "failureOther": ["Stop wasting my time..", "-HUFF", "scram!"],
     "cost": 0,
     "staticItems": [3],
     "rotationalAmount": 1,
     "itemPool": [1,2],
-    "image": "coalMineShop.png",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.1
     },
     {
     "id": 2,
     "name": "Topaz Mine Trading Desk",
-    "description": "The children yearn for the mines...",
+    "idleDialogue": ["The children yearn for the mines...", "Keep mining!", "Eris-chan..."],
+    "successSell": ["A pleasure doing business..."],
+    "successBuy": ["A pleasure doing business..."],
+    "failureTooPoor": ["If you're broke get out of here!", "Scram Pauper!"],
+    "failureOther": ["Stop wasting my time..", "-HUFF", "Scram!"],
     "cost": 0,
     "staticItems": [3],
     "rotationalAmount": 1,
     "itemPool": [1,2],
-    "image": "coalMineShop.png",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.1
     }
 ]
