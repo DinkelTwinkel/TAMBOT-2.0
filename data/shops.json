@@ -9,5 +9,16 @@
     "itemPool": [1,2],
     "image": "coalMineShop.png",
     "priceChangeFactor": 0.1
+    },
+    {
+    "id": 2,
+    "name": "Topaz Mine Trading Desk",
+    "description": "The children yearn for the mines...",
+    "cost": 0,
+    "staticItems": [3],
+    "rotationalAmount": 1,
+    "itemPool": [1,2],
+    "image": "coalMineShop.png",
+    "priceChangeFactor": 0.1
     }
 ]

@@ -34,7 +34,7 @@ module.exports = async (guild) => {
             if (!vc.nextTrigger || now >= nextTrigger) {
 
                 // Find corresponding gacha server data
-                const serverData = gachaServers.find(s => s.type === vc.typeId);
+                const serverData = gachaServers.find(s => s.id === vc.typeId);
                 if (!serverData) continue;
 
                 try {

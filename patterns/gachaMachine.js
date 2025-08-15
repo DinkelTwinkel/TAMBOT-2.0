@@ -56,7 +56,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         // roll for VC type > then update the storeVC to match it.
         const chosenChannelType = pickRandomChannelWeighted(channelData);
 
-        storeVC.typeId = chosenChannelType.type;
+        storeVC.typeId = chosenChannelType.id;
         await storeVC.save();
 
         // Update VC name to the selected VC and create the intro message
@@ -71,6 +71,9 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             registerBotMessage(sentMessage.guild.id, sentMessage.channel.id, sentMessage.id);
         })
         .catch(console.error);
+
+        await newGachaChannel.send (`You've found the ${chosenChannelType.name}!`);
+        await newGachaChannel.send (`${chosenChannelType.description}`);
 
     } catch (err) {
         console.error('Error creating or assigning VC:', err);

@@ -63,14 +63,13 @@ function pickEvent(events) {
 }
 
 // ---------------- Event Functions ----------------
-async function giveFindResource(player, channel, powerLevel = 1) {
+async function giveFindResource(player, channel, powerLevel) {
 
     let quantityFound = 1
     const item = pickWeightedItem(powerLevel);
 
     // Cannot mine if player mining is low. 
     const playerStats = await getPlayerStats(player.id);
-    console.log (playerStats.mining);
 
     if (playerStats.mining > 0) {
         // Natural Failure >
@@ -184,6 +183,8 @@ module.exports = async (channel, dbEntry, json, client) => {
     // Get all non-bot members
     const humans = channel.members.filter(m => !m.user.bot);
     if (humans.size === 0) return;
+
+    console.log (json);
 
     const powerLevel = json.power || 1;
 

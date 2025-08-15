@@ -18,7 +18,7 @@ async function generateShop(channel) {
     const matchingVC = await GachaVC.findOne({ channelId: channel.id }).lean();
     if (!matchingVC) return channel.send('❌ Not an active Gacha VC channel!');
 
-    const shopInfo = shopData.find(s => s.id === gachaData.find(g => g.type === matchingVC.typeId)?.shop);
+    const shopInfo = shopData.find(s => s.id === gachaData.find(g => g.id === matchingVC.typeId)?.shop);
     if (!shopInfo) return channel.send('⚠ No shop data found for this VC!');
 
     // Always include staticItems
