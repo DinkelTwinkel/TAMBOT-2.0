@@ -67,7 +67,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         console.log(`Created VC ${newGachaChannel.name} for ${rollerMember.user.tag}`);
         await gachaRollChannel.send(`**${rollerMember.user.tag}** Your rolling booth is ready: **${newGachaChannel.name}**`)
         .then(sentMessage => {
-            registerBotMessage(sentMessage);
+            registerBotMessage(sentMessage.guild.id, sentMessage.channel.id, sentMessage.id);
         })
         .catch(console.error);
 
@@ -75,7 +75,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         console.error('Error creating or assigning VC:', err);
         await gachaRollChannel.send(`${rollerMember} Something went wrong making your VC.`)
         .then(sentMessage => {
-            registerBotMessage(sentMessage);
+            registerBotMessage(sentMessage.guild.id, sentMessage.channel.id, sentMessage.id);
         })
         .catch(console.error);
     }

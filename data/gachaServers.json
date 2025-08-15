@@ -7,7 +7,8 @@
     "spawnWeight": 100,
     "description": "Welcome to the mines...",
     "power": 1,
-    "script": "mining.js"
+    "script": "mining.js",
+    "shop": 1
     },
     {
     "id": "2",
@@ -17,7 +18,8 @@
     "spawnWeight": 100,
     "description": "Welcome to the battlefield...",
     "power": 1,
-    "script": "battle.js"
+    "script": "mining.js",
+    "shop": 1
     },
     {
     "id": "3",
@@ -27,6 +29,18 @@
     "spawnWeight": 100,
     "description": "Welcome to the fishing spot...!",
     "power": 1,
-    "script": "fishing.js"
+    "script": "mining.js",
+    "shop": 1
+    },
+    {
+    "id": "4",
+    "name": "Topaz",
+    "type": "mining",
+    "rarity": "Uncommon",
+    "spawnWeight": 10,
+    "description": "WELCOME TO THE TOPAZ MINES",
+    "power": 3,
+    "script": "mining.js",
+    "shop": 1
     }
 ]

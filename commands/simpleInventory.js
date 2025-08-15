@@ -1,7 +1,7 @@
 // commands/inventory.js
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const PlayerInventory = require('../models/inventory');
-const itemsheet = require('../data/itemsheet.json'); // must contain { id, name, emoji? }
+const itemsheet = require('../data/itemSheet.json'); // must contain { id, name }
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -23,12 +23,15 @@ module.exports = {
         const lines = playerInv.items.map(item => {
             const itemData = itemsheet.find(i => i.id === item.itemId);
             if (!itemData) return `${item.itemId}: ${item.quantity}`;
-            return `${itemData.emoji || ''} **${itemData.name}** x${item.quantity}`;
+            return `${itemData.name} x${item.quantity}`;
         });
+
+        // Wrap inventory in a code block
+        const inventoryText = '```\n' + lines.join('\n') + '\n```';
 
         const embed = new EmbedBuilder()
             .setTitle(`${interaction.user.username}'s Inventory`)
-            .setDescription(lines.join('\n'))
+            .setDescription(inventoryText)
             .setColor(0xFFD700)
             .setTimestamp();
 
