@@ -33,15 +33,21 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
 
+let shopHandler;
+
 client.once(Events.ClientReady, async c => {
 
-    client.user.setActivity('tam', { type: ActivityType.Watching });
+    client.user.setActivity('SUPER HELLUNGI', { type: ActivityType.Playing });
     console.log(`Ready! Logged in as ${c.user.tag}`);
     client.user.setPresence({ status: "away" });
+    
 
     //Global Listeners:
     const eatTheRichListener = require('./patterns/eatTheRich');
     eatTheRichListener(client);
+    const ShopHandler = require('./patterns/shopHandler'); 
+    shopHandler = new ShopHandler(client);
+    console.log('✅ Centralized shop handler initialized');
 
     // Loop through all guilds your bot is in
     client.guilds.cache.forEach(async guild => {

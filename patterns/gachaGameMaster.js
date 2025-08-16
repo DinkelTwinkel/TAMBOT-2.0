@@ -43,16 +43,16 @@ module.exports = async (guild) => {
                 const gameScript = require(scriptPath);
 
                 // Fetch the channel globally via client, not just the guild
-                const gachaVC = await guild.client.channels.fetch(vc.channelId).catch(() => null);
+                const gachaVC = await guild.channels.fetch(vc.channelId).catch(() => null);
                 if (!gachaVC) {
-                    console.warn(`VC ${vc.channelId} not found or not accessible`);
+                    // console.warn(`VC ${vc.channelId} not found or not accessible`);
                     continue;
                 }
 
                 console.log('running gameVC script');
 
                 const now = Date.now();
-                vc.nextTrigger = new Date((now + 60 * 1000 * Math.random() * 2) + 5000);
+                vc.nextTrigger = new Date((now + 30 * 1000 * Math.random()) + 5000);
                 await vc.save();
 
                 await gameScript(gachaVC, vc, serverData);
@@ -64,5 +64,5 @@ module.exports = async (guild) => {
             }
         }
 
-    }, 30 * 1000); // Check every 5 seconds
+    }, 5 * 1000); // Check every 30 seconds
 };

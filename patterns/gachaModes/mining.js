@@ -4,12 +4,9 @@ const generateShop = require('../generateShop');
 const getPlayerStats = require('../calculatePlayerStat');
 const itemSheet = require('../../data/itemSheet.json');
 const { db } = require('../../models/GuildConfig');
-const { createCanvas, loadImage } = require('canvas');
-const path = require('path');
-
-
-// ---------------- Embed Helper ----------------
-const createMessage = description => ({ content: `\`${description}\`` });
+const { EmbedBuilder } = require('discord.js');
+const registerBotMessage = require('../registerBotMessage');
+const gachaVC = require('../../models/activevcs');
 
 // ---------------- Item Pool for findResource ----------------
 const itemPool = [
@@ -53,24 +50,136 @@ async function removeFromInventory(inv, itemRef, amount = 1) {
     await inv.save();
 }
 
-// ---------------- Event Functions ----------------
-async function nothingHappens(player, channel, playerStats, item) {
-    // If player has no mining ability, they might scavenge
-
-    if (!playerStats.mining || playerStats.mining <= 0) {
-        if (Math.random() < 0.3) { // 30% chance to scavenge
-            await channel.send(createMessage(`🪓 Scavenged! ${player.displayName} found 『 ${item.name} 』x 1 on the floor...!`));
-            await addToInventory(player, item.itemId, 1);
-        } else {
-            await channel.send(createMessage(`❌ ${player.displayName} failed to mine anything due to not having a pickaxe...`));
-        }
-    } else {
-        // Player has mining ability, but failed
-        await channel.send(createMessage(`😐 ${player.displayName} swung at the walls but found nothing.`));
+// ---------------- Game Data Helpers ----------------
+function initializeGameData(dbEntry) {
+    if (!dbEntry.gameData || dbEntry.gameData.gamemode !== 'mining') {
+        dbEntry.gameData = {
+            gamemode: 'mining',
+            minecart: {
+                totalCoal: 0,
+                contributors: {} // playerId -> contributedCoal (plain object, not Map)
+            },
+            sessionStart: new Date(),
+            breakCount: 0 // Track number of breaks for long break timing
+        };
+        // CRITICAL FIX: Mark as modified for Mongoose
+        dbEntry.markModified('gameData');
     }
 }
 
-async function giveFindResource(player, channel, powerLevel) {
+function addCoalToMinecart(dbEntry, playerId, amount) {
+    // Ensure gameData structure exists
+    if (!dbEntry.gameData) {
+        dbEntry.gameData = {
+            gamemode: 'mining',
+            minecart: { totalCoal: 0, contributors: {} },
+            sessionStart: new Date(),
+            breakCount: 0
+        };
+    }
+    
+    if (!dbEntry.gameData.minecart) {
+        dbEntry.gameData.minecart = { totalCoal: 0, contributors: {} };
+    }
+    
+    if (!dbEntry.gameData.minecart.contributors) {
+        dbEntry.gameData.minecart.contributors = {};
+    }
+    
+    dbEntry.gameData.minecart.totalCoal += amount;
+    const currentContribution = dbEntry.gameData.minecart.contributors[playerId] || 0;
+    dbEntry.gameData.minecart.contributors[playerId] = currentContribution + amount;
+    
+    // CRITICAL FIX: Mark as modified for Mongoose
+    dbEntry.markModified('gameData');
+}
+
+// ---------------- Event Log System ----------------
+async function logEvent(channel, eventText) {
+    const timestamp = new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    const logEntry = `[${timestamp}] ${eventText}`;
+
+    const result = await gachaVC.findOne({ channelId: channel.id});
+    const totalCoal = result.gameData.minecart.totalCoal;
+
+    try {
+        // Fetch last 5 messages to look for existing EVENT LOG
+        const messages = await channel.messages.fetch({ limit: 5 });
+        let eventLogMessage = null;
+
+        for (const [, message] of messages) {
+            if (message.embeds.length > 0 && 
+                message.embeds[0].title === 'EVENT LOG' && 
+                message.author.bot) {
+                eventLogMessage = message;
+                break;
+            }
+        }
+
+        if (eventLogMessage) {
+            // Update existing event log
+            const existingEmbed = eventLogMessage.embeds[0];
+            let currentDescription = existingEmbed.description || '';
+            
+            // Remove existing code block markers if present
+            currentDescription = currentDescription.replace(/^```\n?|```$/g, '');
+            
+            // Keep only last 20 lines to prevent embed from getting too long
+            const lines = currentDescription.split('\n').filter(line => line.trim());
+            if (lines.length >= 20) {
+                lines.shift(); // Remove oldest line
+            }
+            lines.push(logEntry);
+            
+            const newDescription = '```\n' + lines.join('\n') + '\n```';
+            
+            const updatedEmbed = new EmbedBuilder()
+                .setTitle('EVENT LOG')
+                .setDescription(newDescription)
+                .setColor(0x8B4513) // Brown color for mining theme
+                .setFooter({text: `MINECART : ${totalCoal} Coal`})
+                .setTimestamp();
+
+            await eventLogMessage.edit({ embeds: [updatedEmbed] });
+        } else {
+            // Create new event log
+            const embed = new EmbedBuilder()
+                .setTitle('EVENT LOG')
+                .setDescription('```\n' + logEntry + '\n```')
+                .setColor(0x8B4513)
+                .setFooter({text: `MINECART : ${totalCoal} Coal`})
+                .setTimestamp();
+
+            const logMessage = await channel.send({ embeds: [embed] });
+            registerBotMessage(logMessage.guild.id, logMessage.channel.id, logMessage.id);
+        }
+    } catch (error) {
+        console.error('Error updating event log:', error);
+        // Fallback: send as regular message
+        await channel.send(`\`${logEntry}\``);
+    }
+}
+
+// ---------------- Event Functions ----------------
+async function nothingHappens(player, channel, playerStats, item) {
+    if (!playerStats.mining || playerStats.mining <= 0) {
+        console.log(playerStats);
+        if (Math.random() < 0.3) { // 30% chance to scavenge
+            await logEvent(channel, `🪓 Scavenged! ${player.displayName} found 『 ${item.name} 』x 1 on the floor...!`);
+            await addToInventory(player, item.itemId, 1);
+        } else {
+            await logEvent(channel, `❌ ${player.displayName} failed to mine anything due to not having a pickaxe...`);
+        }
+    } else {
+        await logEvent(channel, `😐 ${player.displayName} swung at the walls but found nothing.`);
+    }
+}
+
+async function giveFindResource(player, channel, powerLevel, dbEntry) {
     const item = pickWeightedItem(powerLevel);
     const playerStats = await getPlayerStats(player.id);
 
@@ -79,46 +188,26 @@ async function giveFindResource(player, channel, powerLevel) {
             // Small chance to fail mining
             return nothingHappens(player, channel, playerStats, item);
         }
+        
         const quantityFound = 1 + Math.floor(Math.random() * playerStats.mining);
-        await channel.send(createMessage(`⛏️ MINED! ${player.displayName} found 『 ${item.name} 』x ${quantityFound}!`));
-        await addToInventory(player, item.itemId, quantityFound);
+        
+        if (item.itemId === "1") { // Coal goes to shared minecart
+            addCoalToMinecart(dbEntry, player.id, quantityFound);
+            await logEvent(channel, `⛏️ MINED! ${player.displayName} found 『 ${item.name} 』x ${quantityFound} → Added to minecart!`);
+        } else {
+            // Other items go to personal inventory
+            await addToInventory(player, item.itemId, quantityFound);
+            await logEvent(channel, `⛏️ MINED! ${player.displayName} found 『 ${item.name} 』x ${quantityFound}!`);
+        }
     } else {
         // Player has no pickaxe → delegate to nothingHappens which handles scavenging chance
         return nothingHappens(player, channel, playerStats, item);
     }
 }
 
-async function sellCoalEvent(player, channel) {
-    try {
-        const inv = await PlayerInventory.findOne({ playerId: player.id });
-        if (!inv) return channel.send(createMessage(`❌ ${player.displayName} Met a Coal Trader, but had no coal to sell...`));
-
-        const coal = inv.items.find(i => i.itemId === "1" && i.quantity > 0);
-        if (!coal) return channel.send(createMessage(`❌ ${player.displayName} Met a Coal Trader, but had no coal to sell...`));
-
-        const sellAmount = Math.ceil(coal.quantity * Math.random());
-        const pricePerCoal = Math.ceil(Math.random() * 5);
-        const total = sellAmount * pricePerCoal;
-
-        coal.quantity = 0;
-        inv.items = inv.items.filter(i => i.quantity > 0);
-        await inv.save();
-
-        if (Math.random() < 0.2) {
-            return channel.send(createMessage(`⚠️ Scammed! ${player.displayName} tried to sell Coal, but the trader scammed them! They lost ${sellAmount} coal and gained nothing.`));
-        }
-
-        const currency = await Currency.findOne({ userId: player.id }) || new Currency({ userId: player.id, money: 0 });
-        currency.money += total;
-        await currency.save();
-
-        await channel.send(createMessage(`💰 Trader Event! ${player.displayName} sold ${sellAmount} Coal for ${total} coins!`));
-    } catch (err) { console.error('Error selling coal in event:', err); }
-}
-
-async function pickaxeBreakEvent(player, channel, powerLevel) {
+async function pickaxeBreakEvent(player, channel, powerLevel, dbEntry) {
     const playerStats = await getPlayerStats(player.id);
-    if (!playerStats.mining || playerStats.mining <= 0) return giveFindResource(player, channel, powerLevel);
+    if (!playerStats.mining || playerStats.mining <= 0) return giveFindResource(player, channel, powerLevel, dbEntry);
 
     const inv = await PlayerInventory.findOne({ playerId: player.id });
     if (!inv) return console.log('Cannot find player inventory');
@@ -132,166 +221,178 @@ async function pickaxeBreakEvent(player, channel, powerLevel) {
     if (miningPickaxes.length === 0) return nothingHappens(player, channel, playerStats, rustyPickaxe);
 
     const bestPickaxe = miningPickaxes.reduce((prev, curr) => (curr.powerlevel > prev.powerlevel ? curr : prev));
-
     const breakChance = Math.max(0.05, 0.5 - (bestPickaxe.powerlevel * 0.05));
 
     if (Math.random() < breakChance) {
         await removeFromInventory(inv, bestPickaxe.invRef, 1);
-        await channel.send(createMessage(`💥 ${player.displayName}'s 『 ${bestPickaxe.name} 』 shattered into pieces!`));
+        await logEvent(channel, `💥 ${player.displayName}'s 『 ${bestPickaxe.name} 』 shattered into pieces!`);
     } else {
-        await channel.send(createMessage(`⚒️ ${player.displayName} heard their 『 ${bestPickaxe.name} 』 creak... but it held together!`));
+        await logEvent(channel, `⚒️ ${player.displayName} heard their 『 ${bestPickaxe.name} 』 creak... but it held together!`);
     }
 }
 
-// ---------------- Main Mining Event ----------------
-const miningEvents = [
-    { func: giveFindResource, weight: 60 },
-    { func: sellCoalEvent, weight: 5 },
-    { func: pickaxeBreakEvent, weight: 20 }
-];
+// ---------------- Mining Session Summary ----------------
+async function createMiningSummary(channel, dbEntry) {
+    const gameData = dbEntry.gameData;
+    if (!gameData || gameData.gamemode !== 'mining') return;
 
-module.exports = async (channel, dbEntry, json, client) => {
+    const totalCoal = gameData.minecart.totalCoal || 0;
+    const contributors = gameData.minecart.contributors || {};
+    const contributorCount = Object.keys(contributors).length;
 
-    const now = Date.now();
-    // end any active games.
-    if (dbEntry.gameData !== null) {
-        await endThiefGame(channel, dbEntry);
-        dbEntry.gameData = null;
+    if (totalCoal === 0 || contributorCount === 0) {
+        const embed = new EmbedBuilder()
+            .setTitle('🛒 Mining Session Complete')
+            .setDescription('No coal was mined this session. Shop is now available!')
+            .setColor(0x8B4513)
+            .setTimestamp();
+        
+        await channel.send({ embeds: [embed] });
+        return;
     }
+
+    // Convert coal to coins (assuming 2 coins per coal)
+    const coinsPerCoal = 2;
+    const totalCoins = totalCoal * coinsPerCoal;
+    const coinsPerPlayer = Math.floor(totalCoins / contributorCount);
+
+    // Reward each contributor
+    const contributorLines = [];
+    for (const [playerId, coalContributed] of Object.entries(contributors)) {
+        try {
+            const member = await channel.guild.members.fetch(playerId);
+            let currency = await Currency.findOne({ userId: playerId });
+            
+            if (!currency) {
+                currency = new Currency({ userId: playerId, money: 0 });
+            }
+            
+            currency.money += coinsPerPlayer;
+            await currency.save();
+            
+            contributorLines.push(`${member.displayName}: ${coalContributed} coal → ${coinsPerPlayer} coins`);
+        } catch (error) {
+            console.error(`Error rewarding player ${playerId}:`, error);
+        }
+    }
+
+    const embed = new EmbedBuilder()
+        .setTitle('🛒 Mining Session Complete')
+        .setDescription(`The minecart has been sold to the shop!\n\n**Total Coal Mined:** ${totalCoal}\n**Total Value:** ${totalCoins} coins\n**Split ${contributorCount} ways:** ${coinsPerPlayer} coins each`)
+        .addFields({
+            name: 'Contributors',
+            value: contributorLines.join('\n') || 'None',
+            inline: false
+        })
+        .setColor(0xFFD700) // Gold color
+        .setTimestamp();
+
+    await channel.send({ embeds: [embed] });
+
+    // Reset the minecart for next session
+    gameData.minecart = {
+        totalCoal: 0,
+        contributors: {}
+    };
+    gameData.sessionStart = new Date();
     
-    if (now > dbEntry.nextShopRefresh) dbEntry.nextShopRefresh = new Date(now + 60 * 1000 * 25);
+    // CRITICAL FIX: Mark as modified
+    dbEntry.markModified('gameData');
+}
 
-    if (!channel?.isVoiceBased()) return;
-    const humans = channel.members.filter(m => !m.user.bot);
-    if (!humans.size) return;
-
-    const powerLevel = json.power || 1;
-    const timesToRun = Math.floor(Math.random() * humans.size) + 1;
-
-    for (let i = 0; i < timesToRun; i++) {
-        const winner = humans.random();
-        await pickEvent(miningEvents)(winner, channel, powerLevel);
-    }
-
-    await generateShop(channel);
-
-    if (now > dbEntry.nextLongBreak) {
-        dbEntry.nextLongBreak = new Date(now + 60 * 1000 * 125);
-        dbEntry.nextTrigger = new Date(now + 60 * 1000 * 25);
-        channel.send ('# 25 MIN BREAK, MINING PAUSED.');
-
-        await startThiefGame(channel, dbEntry);
-    }
-
-    await dbEntry.save();
-
-};
-
-const Vote = require('../../models/votes'); // import your vote schema
-const { EmbedBuilder } = require('discord.js');
-const GuildConfig = require('../../models/GuildConfig');
-
+// ---------------- Long Break Events ----------------
 async function startThiefGame(channel, dbEntry) {
     if (!channel?.isVoiceBased()) return;
 
     const guild = channel.guild;
-
-    // Get all members currently in this voice channel (excluding bots)
     const humansArray = guild.members.cache
         .filter(member => member.voice.channelId === channel.id && !member.user.bot)
         .map(member => member);
 
-    if (humansArray.length >= 3) {
-        const thief = humansArray[Math.floor(Math.random() * humansArray.length)];
-        let stealAmount = 0;
-        const lossDescriptions = [];
+    if (humansArray.length < 3) {
+        await logEvent(channel, '⚠️ Not enough players for special event. Extending break...');
+        return;
+    }
 
-        for (const user of humansArray) {
-            let userMoney = await Currency.findOne({ userId: user.id });
+    const thief = humansArray[Math.floor(Math.random() * humansArray.length)];
+    let stealAmount = 0;
+    const lossDescriptions = [];
 
-            if (!userMoney) {
-                userMoney = await Currency.create({
-                    userId: user.id,
-                    usertag: user.user.tag,
-                    money: 0
-                });
-            }
+    for (const user of humansArray) {
+        let userMoney = await Currency.findOne({ userId: user.id });
 
-            if (userMoney.money > 0) {
-                const percentToSteal = Math.floor(Math.random() * 10) + 10;
-                const stolen = Math.floor((percentToSteal / 100) * userMoney.money);
-
-                userMoney.money -= stolen;
-                stealAmount += stolen;
-                await userMoney.save();
-
-                lossDescriptions.push(`${user.user.username} lost ${stolen} coins`);
-            }
-        }
-
-        // Store thief info in gameData
-        dbEntry.gameData = {
-            gamemode: 'thief',
-            thiefId: thief.id,
-            amount: stealAmount
-        };
-        await dbEntry.save();
-
-        // Create vote entries for each user
-        for (const user of humansArray) {
-            await Vote.create({
-                channelId: dbEntry.channelId,
+        if (!userMoney) {
+            userMoney = await Currency.create({
                 userId: user.id,
-                targetId: 'novote'
+                usertag: user.user.tag,
+                money: 0
             });
         }
 
-        // Build the public embed
-        const embed = new EmbedBuilder()
-            .setTitle('⚠️ THIEF ALERT! ⚠️')
-            .setDescription(`In the darkness of the mines, someone has stolen eveyone's coins! Use /vote to catch the thief.\n\n` +
-                            lossDescriptions.join('\n') +
-                            `\n\n💰 Total stolen: ${stealAmount}`)
-            .setColor(0xff0000)
-            .setTimestamp();
+        if (userMoney.money > 0) {
+            const percentToSteal = Math.floor(Math.random() * 10) + 10;
+            const stolen = Math.floor((percentToSteal / 100) * userMoney.money);
 
-        if (dbEntry.nextTrigger) {
-            const nextTriggerSeconds = Math.floor(dbEntry.nextTrigger.getTime() / 1000);
-            embed.addFields({ name: 'Hurry!', value: `The thief is getting away... <t:${nextTriggerSeconds}:R>` });
+            userMoney.money -= stolen;
+            stealAmount += stolen;
+            await userMoney.save();
+
+            lossDescriptions.push(`${user.user.username} lost ${stolen} coins`);
         }
+    }
 
-        await channel.send({ embeds: [embed] });
+    // Store thief info in gameData
+    dbEntry.gameData = {
+        ...dbEntry.gameData,
+        specialEvent: {
+            type: 'thief',
+            thiefId: thief.id,
+            amount: stealAmount,
+            endTime: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes from now
+        }
+    };
+    // CRITICAL FIX: Mark as modified
+    dbEntry.markModified('gameData');
 
-        // DM the thief
-        await thief.send(`You are the thief! You stole a total of ${stealAmount} coins. Be careful not to get caught!`)
-            .catch(async () => {
-                console.log(`Could not DM thief: ${thief.user.tag}`);
+    // Create vote entries for each user
+    const Vote = require('../../models/votes');
+    for (const user of humansArray) {
+        await Vote.create({
+            channelId: dbEntry.channelId,
+            userId: user.id,
+            targetId: 'novote'
+        });
+    }
 
-                try {
-                    // Find guild config in MongoDB
-                    const guildConfig = await GuildConfig.findOne({ guildId: thief.guild.id });
-                    if (!guildConfig?.gachaRollChannelIds?.length) return;
+    // Build the public embed
+    const embed = new EmbedBuilder()
+        .setTitle('⚠️ THIEF ALERT! ⚠️')
+        .setDescription(`In the darkness of the mines, someone has stolen everyone's coins! Use /vote to catch the thief.\n\n` +
+                        lossDescriptions.join('\n') +
+                        `\n\n💰 Total stolen: ${stealAmount}`)
+        .setColor(0xff0000)
+        .setTimestamp();
 
-                    // Get the first gacha roll channel ID
-                    const fallbackChannelId = guildConfig.gachaRollChannelIds[0];
-                    const fallbackChannel = await thief.guild.channels.fetch(fallbackChannelId);
-                    if (!fallbackChannel?.isTextBased()) return;
+    const endTimeSeconds = Math.floor(dbEntry.gameData.specialEvent.endTime.getTime() / 1000);
+    embed.addFields({ name: 'Hurry!', value: `The thief is getting away... <t:${endTimeSeconds}:R>` });
 
-                    // Send message mentioning the thief
-                    await fallbackChannel.send(`⚠️ ${thief} I tried to send you a direct message but I could not!`);
-                } catch (err) {
-                    console.error('Failed to send fallback thief message:', err);
-                }
-            });
-    } else {
-        console.log('There were not enough users to start a thief game!');
+    await channel.send({ embeds: [embed] });
+    await logEvent(channel, `⚠️ SPECIAL EVENT: Thief game started! ${stealAmount} coins stolen.`);
+
+    // DM the thief
+    try {
+        await thief.send(`You are the thief! You stole a total of ${stealAmount} coins. Be careful not to get caught!`);
+    } catch {
+        console.log(`Could not DM thief: ${thief.user.tag}`);
+        // Could add fallback channel notification here if needed
     }
 }
 
 async function endThiefGame(channel, dbEntry) {
-    if (!dbEntry.gameData || dbEntry.gameData.gamemode !== 'thief') return;
+    if (!dbEntry.gameData?.specialEvent || dbEntry.gameData.specialEvent.type !== 'thief') return;
 
-    const { thiefId, amount: totalStolen } = dbEntry.gameData;
+    const { thiefId, amount: totalStolen } = dbEntry.gameData.specialEvent;
+    const Vote = require('../../models/votes');
 
     // Fetch all votes for this channel
     const votes = await Vote.find({ channelId: dbEntry.channelId });
@@ -301,7 +402,7 @@ async function endThiefGame(channel, dbEntry) {
         .setColor(0x00ff00)
         .setTimestamp();
 
-    let winners = [];
+    let winners = []
 
     if (!votes.length) {
         embed.setDescription('No votes were cast this round.');
@@ -348,8 +449,10 @@ async function endThiefGame(channel, dbEntry) {
                 { name: 'Total Stolen', value: `${totalStolen} coins` }
             );
             embed.setTitle('📰 THIEF CAUGHT');
+            await logEvent(channel, `📰 Thief caught! ${winners.length} player(s) win ${Math.floor(totalStolen / winners.length)} coins each.`);
         } else {
             embed.addFields({ name: 'Result', value: `No one guessed correctly. The thief got away with ${totalStolen} coins.` });
+            await logEvent(channel, `🏃‍♂️ Thief escaped with ${totalStolen} coins! No one guessed correctly.`);
         }
     }
 
@@ -359,58 +462,104 @@ async function endThiefGame(channel, dbEntry) {
         embed.addFields({ name: 'The Thief', value: `<@${thiefId}>` });
     }
 
-    // Only attach jail image if thief was caught
-    if (winners.length && thiefMember) {
-        try {
-            const avatarURL = thiefMember.displayAvatarURL({ extension: 'png', size: 512 });
-            const buffer = await generateJailImage(avatarURL);
+    await channel.send({ embeds: [embed] });
 
-            const fileName = 'jailed.png';
-            embed.setImage(`attachment://${fileName}`);
-            await channel.send({ embeds: [embed], files: [{ attachment: buffer, name: fileName }] });
-        } catch (error) {
-            console.log(error);
-            // fallback: send embed without image
-            await channel.send({ embeds: [embed] });
-        }
-    } else {
-        // Send embed normally without image
-        await channel.send({ embeds: [embed] });
+    // Clear votes and special event data
+    await Vote.deleteMany({ channelId: dbEntry.channelId });
+    delete dbEntry.gameData.specialEvent;
+    // CRITICAL FIX: Mark as modified
+    dbEntry.markModified('gameData');
+}
+
+// ---------------- Long Break Event System ----------------
+const longBreakEvents = [
+    { func: startThiefGame, weight: 100 }
+    // More special events can be added here later
+];
+
+function pickLongBreakEvent(events) {
+    const totalWeight = events.reduce((sum, e) => sum + e.weight, 0);
+    let rand = Math.random() * totalWeight;
+    return events.find(e => (rand -= e.weight) < 0)?.func || events[0].func;
+}
+
+// ---------------- Main Mining Event ----------------
+const miningEvents = [
+    { func: giveFindResource, weight: 70 },
+    { func: pickaxeBreakEvent, weight: 20 },
+    { func: nothingHappens, weight: 10 }
+];
+
+module.exports = async (channel, dbEntry, json, client) => {
+    const now = Date.now();
+    
+    // Initialize game data
+    initializeGameData(dbEntry);
+    
+    // Initialize break counters if not present
+    if (!dbEntry.gameData.breakCount) {
+        dbEntry.gameData.breakCount = 0;
+        dbEntry.markModified('gameData');
     }
 
-    // Clear votes and game data
-    await Vote.deleteMany({ channelId: dbEntry.channelId });
-}
+    // CRITICAL FIX: Save immediately after initialization
+    await dbEntry.save();
 
-async function generateJailImage(avatarURL, size = 512) {
-  const [avatar, bars] = await Promise.all([
-    loadImage(avatarURL),
-    loadImage(path.join(__dirname, '../../assets/game/jailbars.png'))
-  ]);
+    if (!channel?.isVoiceBased()) return;
+    const humans = channel.members.filter(m => !m.user.bot);
+    if (!humans.size) return;
 
-  const canvas = createCanvas(size, size);
-  const ctx = canvas.getContext('2d');
+    // Check if special event is running and needs to end
+    if (dbEntry.gameData.specialEvent && now > dbEntry.gameData.specialEvent.endTime) {
+        await endThiefGame(channel, dbEntry);
+        
+        // Start 5-minute shop break after special event
+        dbEntry.nextTrigger = new Date(now + 5 * 60 * 1000); // 5 minutes
+        await generateShop(channel);
+        await logEvent(channel, '🛒 Special event concluded! Shop open for 5 minutes before mining resumes.');
+        await dbEntry.save();
+        return;
+    }
 
-  // Draw avatar
-  ctx.drawImage(avatar, 0, 0, size, size);
+    // Don't run mining events if special event is active
+    if (dbEntry.gameData.specialEvent) {
+        await dbEntry.save();
+        return;
+    }
 
-  // Convert avatar to grayscale
-  const imageData = ctx.getImageData(0, 0, size, size);
-  const data = imageData.data;
+    const powerLevel = json.power || 1;
+    const timesToRun = Math.floor(Math.random() * humans.size) + 1;
 
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    const gray = 0.3 * r + 0.59 * g + 0.11 * b;
+    // Run mining events
+    for (let i = 0; i < timesToRun; i++) {
+        const winner = humans.random();
+        await pickEvent(miningEvents)(winner, channel, powerLevel, dbEntry);
+    }
 
-    data[i] = data[i + 1] = data[i + 2] = gray;
-  }
+    // Check if it's time for a break (every 25 minutes)
+    if (now > dbEntry.nextShopRefresh) {
+        dbEntry.gameData.breakCount++;
+        dbEntry.markModified('gameData');
+        
+        // Every 4th break (2 hours) is a long break with special event
+        if (dbEntry.gameData.breakCount % 4 === 0) {
+            // Long break: 10min special event + 5min shop = 15min total
+            await createMiningSummary(channel, dbEntry);
+            await pickLongBreakEvent(longBreakEvents)(channel, dbEntry);
+            
+            dbEntry.nextShopRefresh = new Date(now + 25 * 60 * 1000); // Next regular break in 25 mins
+            await logEvent(channel, '🎭 LONG BREAK: Special event starting! (10min event + 5min shop)');
+        } else {
+            // Regular break: 5min shop break
+            await createMiningSummary(channel, dbEntry);
+            await generateShop(channel);
+            
+            dbEntry.nextTrigger = new Date(now + 5 * 60 * 1000); // 5 minute pause
+            dbEntry.nextShopRefresh = new Date(now + 25 * 60 * 1000); // Next break in 25 mins
+            await logEvent(channel, '🛑 SHORT BREAK: Mining paused for 5 minutes. Shop is now open!');
+        }
+    }
 
-  ctx.putImageData(imageData, 0, 0);
-
-  // Draw jail bars overlay
-  ctx.drawImage(bars, 0, 0, size, size);
-
-  return canvas.toBuffer();
-}
+    // CRITICAL FIX: Always save at the end
+    await dbEntry.save();
+};
