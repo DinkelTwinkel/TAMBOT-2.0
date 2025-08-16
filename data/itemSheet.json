@@ -1,35 +1,64 @@
 [
-    {
+  {
     "id": "1",
     "name": "Coal Ore",
     "type": "resource",
     "description": "a piece of ore commonly found underground.",
     "value": 1,
     "vendable": false,
-    "ability": "mineLoot",
-    "powerlevel": 0,
-    "image": "coal.png"
-    },
-    {
+    "abilities": [
+      { "name": "mineLoot", "powerlevel": 0 }
+    ],
+    "image": "coal"
+  },
+  {
     "id": "2",
     "name": "Topaz",
     "type": "resource",
     "description": "a shiny gem worth some money.",
     "value": 3,
     "vendable": false,
-    "ability": "mineLoot",
-    "powerlevel": 0,
-    "image": "topaz.png"
-    },
-    {
+    "abilities": [
+      { "name": "mineLoot", "powerlevel": 0 }
+    ],
+    "image": "topaz"
+  },
+  {
     "id": "3",
     "name": "Rusty Pick Axe",
     "type": "tool",
     "description": "Better than nothing...",
     "value": 5,
     "vendable": true,
-    "ability": "mining",
-    "powerlevel": 1,
-    "image": "rustypickaxe.png"
-    }
+    "abilities": [
+      { "name": "mining", "powerlevel": 1 }
+    ],
+    "image": "rustypickaxe"
+  },
+  {
+    "id": "4",
+    "name": "Mining Bun",
+    "type": "consumable",
+    "description": "Rations for the mine...",
+    "value": 3,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 1 }
+    ],
+    "image": "miningbun",
+    "duration": 30
+  },
+    {
+    "id": "5",
+    "name": "Water",
+    "type": "consumable",
+    "description": "Drink some GODDAMM WATER",
+    "value": 1,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 1 }
+    ],
+    "image": "water",
+    "duration": 30
+  }
 ]

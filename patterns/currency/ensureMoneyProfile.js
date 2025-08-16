@@ -6,7 +6,7 @@ module.exports = async (guild) => {
 
     for (const [userId, member] of guild.members.cache) {
       // Call your existing function to create if missing
-      await createMoneyProfile(member, 0);
+      await createMoneyProfile(member, 5);
     }
 
     console.log('✅ Money profiles ensured for all members.');

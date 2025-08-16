@@ -3,6 +3,7 @@ const fs = require('fs');
 const { Client, Events, GatewayIntentBits, ActivityType, PermissionsBitField, Partials } = require('discord.js');
 const { token, mongourl } = require('./keys.json');
 const GuildConfig = require('./models/GuildConfig');
+const CurrencyProfile = require('./models/currency');
 
 // Create a new client instance
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates], partials: [
@@ -12,16 +13,17 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
   Partials.User,
 ] });
 
+const registerCommands = require ('./registerCommands');
+
 const mongoose = require('mongoose');
 
   mongoose.connect(mongourl, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('connected to mayoDB'))
+    .then (registerCommands)
     .catch((err) => console.log(err));
 
 // When the client is ready, run this code (only once)
 // We use 'c' for the event parameter to keep it separate from the already defined 'client'
-
-const registerCommands = require ('./registerCommands');
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection:', reason);
@@ -31,13 +33,15 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
 
-registerCommands;
-
 client.once(Events.ClientReady, async c => {
 
     client.user.setActivity('tam', { type: ActivityType.Watching });
     console.log(`Ready! Logged in as ${c.user.tag}`);
     client.user.setPresence({ status: "away" });
+
+    //Global Listeners:
+    const eatTheRichListener = require('./patterns/eatTheRich');
+    eatTheRichListener(client);
 
     // Loop through all guilds your bot is in
     client.guilds.cache.forEach(async guild => {
@@ -52,21 +56,33 @@ client.once(Events.ClientReady, async c => {
         // FRIENDSHIP ID (optional)
         const friendshipDiscordId = config.friendshipDiscordId;
 
-        // Fetch roll channels dynamically
-        const gachaRollChannels = await Promise.all(
-            config.gachaRollChannelIds.map(id => guild.channels.fetch(id))
-        );
+        // Fetch roll channels safely
+        const gachaRollChannels = [];
+        for (const id of config.gachaRollChannelIds || []) {
+            try {
+                const ch = await guild.channels.fetch(id);
+                if (ch) gachaRollChannels.push(ch);
+            } catch (err) {
+                console.warn(`⚠️ Channel ${id} not found in guild ${guild.id}, skipping.`);
+            }
+        }
 
-        // Fetch parent categories dynamically
-        const gachaParentCategories = await Promise.all(
-            config.gachaParentCategoryIds.map(id => guild.channels.fetch(id))
-        );
+        // Fetch parent categories safely
+        const gachaParentCategories = [];
+        for (const id of config.gachaParentCategoryIds || []) {
+            try {
+                const ch = await guild.channels.fetch(id);
+                if (ch && ch.type === 4) gachaParentCategories.push(ch); // 4 = CategoryChannel type
+            } catch (err) {
+                console.warn(`⚠️ Category ${id} not found in guild ${guild.id}, skipping.`);
+            }
+        }
 
-        // Example: reset bot nickname
+        // Reset bot nickname
         guild.members.fetchMe()
             .then(me => {
-                me.roles.remove('1349292336781197353'); // optional
-                me.setNickname('SUPER HELLUNGI');
+                me.roles.remove('1349292336781197353').catch(() => {});
+                me.setNickname('SUPER HELLUNGI').catch(() => {});
                 console.log('✅ Bot nickname set to default');
             })
             .catch(console.error);
@@ -83,29 +99,58 @@ client.once(Events.ClientReady, async c => {
         const gachaGM = require('./patterns/gachaGameMaster');
         gachaGM(guild);
 
-        // Listen for VoiceStateUpdate for all roll channels in this guild
+        // Listen for VoiceStateUpdate for this guild
         client.on(Events.VoiceStateUpdate, async (oldMember, newMember) => {
 
             // Check if user joined any gacha roll channel
-            if (config.gachaRollChannelIds.includes(newMember.channelId)) {
+            if (newMember.channelId && config.gachaRollChannelIds.includes(newMember.channelId)) {
                 const gachaMachine = require('./patterns/gachaMachine');
-                const parentCategory = gachaParentCategories[0]; // or pick the right one
-                const rollChannel = gachaRollChannels.find(ch => ch.id === newMember.channelId);
-                gachaMachine(newMember, guild, parentCategory, rollChannel);
+                const parentCategory = gachaParentCategories[0] || null;
+                const rollChannel = gachaRollChannels.find(ch => ch.id === newMember.channelId) || null;
+                if (parentCategory && rollChannel) {
+                    gachaMachine(newMember, guild, parentCategory, rollChannel);
+                }
             }
 
             // Empty voice check
             if (oldMember.channelId && oldMember.channelId !== newMember.channelId) {
-                const channelToCheck = await guild.channels.fetch(oldMember.channelId);
-                setTimeout(() => {
-                    const emptyVoiceCheck = require('./patterns/emptyVoiceCheck');
-                    emptyVoiceCheck(channelToCheck);
-                }, 1000 * 5);
+                try {
+                    const channelToCheck = await guild.channels.fetch(oldMember.channelId);
+                    setTimeout(() => {
+                        const emptyVoiceCheck = require('./patterns/emptyVoiceCheck');
+                        emptyVoiceCheck(channelToCheck);
+                    }, 1000 * 5);
+                } catch (err) {
+                    console.warn(`⚠️ Old channel ${oldMember.channelId} not found, skipping empty voice check.`);
+                }
             }
         });
 
     });
 
+});
+
+client.on(Events.GuildMemberAdd, async (member) => {
+    try {
+        // Check if the user already has a profile in this guild
+        let profile = await CurrencyProfile.findOne({ userId: member.id });
+
+        if (!profile) {
+            // Create a new profile with a starting balance of 5
+            profile = new CurrencyProfile({
+                userId: member.id,
+                usertag: member.user.tag,
+                money: 5
+            });
+            await profile.save();
+
+            console.log(`✅ Created a new currency profile for ${member.user.tag} with balance 5`);
+        } else {
+            console.log(`ℹ️ Currency profile already exists for ${member.user.tag}`);
+        }
+    } catch (err) {
+        console.error(`⚠️ Failed to create currency profile for ${member.user.tag}:`, err);
+    }
 });
 
 // Define a collection to store your commands

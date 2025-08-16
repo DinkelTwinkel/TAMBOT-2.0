@@ -56,7 +56,7 @@ async function generateShop(channel) {
     const embed = new EmbedBuilder()
         .setTitle(`🛒 ${shopInfo.name}`)
         .setColor('Gold')
-        .setDescription('```"' + pickShopDescription + '"```')
+        .setDescription('```' + formatDescription(pickShopDescription) + '```')
         .setImage('attachment://shop.png')
         .setFooter({ text: refreshText })
         .setThumbnail('attachment://thumb.gif');
@@ -81,11 +81,21 @@ async function generateShop(channel) {
             .addOptions(
                 buyPool.map(id => {
                     const item = itemSheet.find(i => i.id === String(id));
+
+                    // Build stat line from all abilities
                     let statLine = '';
-                    if (item.powerlevel && item.powerlevel > 0 && item.ability) {
-                        statLine = `+${item.powerlevel} ${item.ability}`;
+                    if (Array.isArray(item.abilities) && item.abilities.length > 0) {
+                        const abilityStrings = item.abilities
+                            .filter(a => a.powerlevel && a.powerlevel > 0)
+                            .map(a => `+${a.powerlevel} ${a.name}`);
+                        
+                        if (abilityStrings.length > 0) {
+                            statLine = abilityStrings.join(', ');
+                        }
                     }
+
                     const descriptionText = `${item.description}${statLine ? ` | ${statLine}` : ''}`;
+
                     return {
                         label: item.name,
                         description: descriptionText.slice(0, 100),
@@ -95,7 +105,10 @@ async function generateShop(channel) {
             )
     );
 
-    const sellOptions = shopInfo.itemPool.map(itemId => {
+    // Combine static and rotational items for selling, remove duplicates
+    const sellItemIds = Array.from(new Set([...shopInfo.staticItems, ...shopInfo.itemPool]));
+
+    const sellOptions = sellItemIds.map(itemId => {
         const item = itemSheet.find(i => i.id === String(itemId));
         return {
             label: item.name,
@@ -103,6 +116,7 @@ async function generateShop(channel) {
             value: String(itemId),
         };
     });
+
 
     const sellMenu = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
@@ -129,6 +143,31 @@ async function generateShop(channel) {
         let userInv = await PlayerInventory.findOne({ playerId: userId }) || new PlayerInventory({ playerId: userId, items: [] });
 
         if (i.customId.startsWith('shop_buy_select')) {
+
+            if (item.type === 'consumable') {
+            const totalCost = item.value;
+            if (userCurrency.money < totalCost) {
+                updateShopDescription(shopMessage, shopInfo.failureTooPoor, attachment, thumbAttachment);
+                return i.reply({ content: `❌ You need ${totalCost} coins but only have ${userCurrency.money}.`, ephemeral: true });
+            }
+
+            // Deduct cost
+            userCurrency.money -= totalCost;
+            await userCurrency.save();
+
+            // Apply buff
+            const applyConsumableBuff = require('./applyConsumeableBuff');
+            const buffResult = await applyConsumableBuff(userId, item);
+
+            await i.reply({
+                content: `✅ Used ${item.name}! Buff applied for ${item.duration} minutes.`,
+                ephemeral: true
+            });
+            updateShopDescription(shopMessage, shopInfo.successBuy, attachment, thumbAttachment);
+            return;
+            }
+
+            // 🟢 Non-consumable → open modal as before
             const modal = new ModalBuilder()
                 .setCustomId(`buy_modal_${item.id}_${userId}_${shopMessage.id}`)
                 .setTitle(`Buy ${item.name}`)
@@ -170,8 +209,7 @@ async function generateShop(channel) {
             await userInv.save();
 
             await submitted.reply({ content: `✅ Purchased ${quantity} x ${item.name} for ${totalCost} coins!`, ephemeral: true });
-            updateShopDescription(shopMessage, shopInfo.successBuy, attachment, thumbAttachment);  
-
+            updateShopDescription(shopMessage, shopInfo.successBuy, attachment, thumbAttachment);
         } else if (i.customId.startsWith('shop_sell_select')) {
             const ownedItem = userInv.items.find(it => it.itemId === selectedItemId);
             const maxQty = ownedItem?.quantity || 0;
@@ -217,23 +255,32 @@ async function generateShop(channel) {
             updateShopDescription(shopMessage, shopInfo.successSell, attachment, thumbAttachment);      
         }
     });
+
+    collector.on('end', async () => {
+        try {
+            await shopMessage.edit({ embeds: [{ description: 'The shop is now closed.', color: 'Red' }], components: [] });
+        } catch (err) {
+            console.error('❌ Failed to close shop message:');
+        }
+    });
 }
 
 module.exports = generateShop;
 
 async function updateShopDescription(shopMessage, newDescriptions, attachment, thumbAttachment) {
-
     const newDescription = newDescriptions[Math.floor(Math.random() * newDescriptions.length)];
     if (!shopMessage?.embeds?.length) {
         console.warn("No embeds found in shopMessage");
         return;
     }
 
+    // Helper to format description
+
     // Get the first embed and clone it so we can modify
     const existingEmbed = EmbedBuilder.from(shopMessage.embeds[0]);
 
-    // Update the description
-    existingEmbed.setDescription('``` "' + newDescription + '"```');
+    // Update the description with formatting
+    existingEmbed.setDescription('```' + formatDescription(newDescription) + '```');
 
     existingEmbed.setImage('attachment://shop.png');
     existingEmbed.setThumbnail('attachment://thumb.gif');
@@ -241,3 +288,13 @@ async function updateShopDescription(shopMessage, newDescriptions, attachment, t
     // Edit the message
     await shopMessage.edit({ embeds: [existingEmbed], files: [attachment, thumbAttachment] });
 }
+
+const formatDescription = (str) => {
+        if (!str) return '';
+        str = str.toString();
+        // Remove surrounding * if present
+        if (str.startsWith('*') && str.endsWith('*')) {
+            return str.slice(1, -1);
+        }
+        return `"${str}"`; // wrap in quotes otherwise
+};

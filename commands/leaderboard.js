@@ -9,18 +9,23 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply();
 
-    const topUsers = await Money.find({ money: { $gt: 0 } })
-      .sort({ money: -1 })
-      .limit(100);
+    // Fetch all members of the guild
+    const guildMembers = await interaction.guild.members.fetch();
+    const memberIds = guildMembers.map(member => member.id);
 
-    if (!topUsers.length) {
-      return interaction.editReply('No leaderboard data available.');
+    // Find global money profiles for only the members in this guild
+    const allProfiles = await Money.find({ userId: { $in: memberIds }, money: { $gt: 0 } });
+
+    if (!allProfiles.length) {
+      return interaction.editReply('No leaderboard data available for this server.');
     }
 
-    const leaderboard = await Promise.all(topUsers.map(async (entry, index) => {
-      const member = await interaction.guild.members.fetch(entry.userId).catch(() => null);
+    // Sort profiles by money descending
+    const sortedProfiles = allProfiles.sort((a, b) => b.money - a.money).slice(0, 100);
+
+    const leaderboard = sortedProfiles.map((entry, index) => {
       return `**#${index + 1}** – <@${entry.userId}> — 💰 ${entry.money.toLocaleString()}`;
-    }));
+    });
 
     const embed = new EmbedBuilder()
       .setTitle('TAMUNGI WEALTH DISTRIBUTION CENTRE')
@@ -39,7 +44,7 @@ module.exports = {
 
     await interaction.editReply({
       embeds: [embed],
+      components: [row],
     });
-
   }
 };

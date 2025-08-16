@@ -51,6 +51,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             typeId: 0,
             nextTrigger: new Date(Date.now() + 5 * 1000), // 5 second delay before events start.
             nextShopRefresh: new Date(),
+            nextLongBreak: new Date(Date.now() + 60 * 1000 * 100),
         })
 
         await storeVC.save();

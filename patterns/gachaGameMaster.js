@@ -38,22 +38,31 @@ module.exports = async (guild) => {
                 if (!serverData) continue;
 
                 try {
-                    // Load and run the script
-                    const scriptPath = path.join(__dirname, './gachaModes', serverData.script);
-                    const gameScript = require(scriptPath);
+                // Load and run the script
+                const scriptPath = path.join(__dirname, './gachaModes', serverData.script);
+                const gameScript = require(scriptPath);
 
-                    const gachaVC = await guild.channels.fetch(vc.channelId);
-                    console.log('running gameVC script');
-                    await gameScript(gachaVC, vc, serverData);
-
-                    // let gameScript set next trigger time.
-
-                    console.log(`Triggered ${serverData.name} for VC ${vc.channelId}`);
-                } catch (err) {
-                    console.error(`Error running script for VC ${vc.channelId}:`, err);
+                // Fetch the channel globally via client, not just the guild
+                const gachaVC = await guild.client.channels.fetch(vc.channelId).catch(() => null);
+                if (!gachaVC) {
+                    console.warn(`VC ${vc.channelId} not found or not accessible`);
+                    continue;
                 }
+
+                console.log('running gameVC script');
+
+                const now = Date.now();
+                vc.nextTrigger = new Date((now + 60 * 1000 * Math.random())+ 5000);
+                await vc.save();
+
+                await gameScript(gachaVC, vc, serverData);
+
+                console.log(`Triggered ${serverData.name} for VC ${vc.channelId}`);
+            } catch (err) {
+                console.error(`Error running script for VC ${vc.channelId}:`, err);
+            }
             }
         }
 
-    }, 5 * 1000); // Check every 5 seconds
+    }, 10 * 1000); // Check every 5 seconds
 };
