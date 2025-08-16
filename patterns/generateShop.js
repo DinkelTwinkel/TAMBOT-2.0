@@ -97,13 +97,14 @@ async function generateShop(channel) {
                     const descriptionText = `${item.description}${statLine ? ` | ${statLine}` : ''}`;
 
                     return {
-                        label: item.name,
+                        label: `${item.name} [${item.value}c]`, // 🟢 cost added here
                         description: descriptionText.slice(0, 100),
                         value: String(item.id)
                     };
                 })
             )
     );
+
 
     // Combine static and rotational items for selling, remove duplicates
     const sellItemIds = Array.from(new Set([...shopInfo.staticItems, ...shopInfo.itemPool]));

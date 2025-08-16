@@ -4,6 +4,7 @@
     "discord.js": "^14.13.0",
     "fs": "^0.0.1-security",
     "gifencoder": "^2.0.1",
+    "gifwrap": "^0.10.1",
     "https": "^1.0.0",
     "mongoose": "^8.17.1",
     "path": "^0.12.7"

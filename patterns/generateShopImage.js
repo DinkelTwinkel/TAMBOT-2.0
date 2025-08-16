@@ -1,12 +1,16 @@
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas, loadImage, registerFont } = require('canvas');
 const path = require('path');
 const fs = require('fs');
 const itemsheet = require('../data/itemSheet.json');
 
+// Register your custom font
+// Place the font file (e.g., `myfont.ttf`) inside ./assets/fonts/
+registerFont('./assets/font/goblinfont.ttf', { family: 'MyFont' });
+
 /**
  * Generates a shop image by placing items on magenta points in a separate _itemmap image.
  * Each point gets a single item from itemData, in order.
- * Stops when all items have been placed.
+ * Draws the item's cost text next to the item.
  *
  * @param {Object} shopData - Filtered shop entry from shops.json
  * @param {Array} itemData - Filtered items from itemsheet.json
@@ -34,7 +38,7 @@ async function generateShopImage(shopData, itemData) {
     mapCtx.drawImage(itemMap, 0, 0);
     const mapData = mapCtx.getImageData(0, 0, itemMap.width, itemMap.height).data;
 
-    // Find magenta points in _itemmap
+    // Find magenta points
     const points = [];
     const targetColor = { r: 255, g: 0, b: 255 }; // magenta
     const tolerance = 10;
@@ -63,7 +67,7 @@ async function generateShopImage(shopData, itemData) {
 
     if (points.length === 0 || itemData.length === 0) return canvas.toBuffer('image/png');
 
-    // Draw each item at each point, stop when we run out of items
+    // Draw each item + cost
     const count = Math.min(points.length, itemData.length);
     for (let i = 0; i < count; i++) {
         const point = points[i];
@@ -77,7 +81,23 @@ async function generateShopImage(shopData, itemData) {
         const newWidth = img.width * scale;
         const newHeight = img.height * scale;
 
+        // Draw item
         ctx.drawImage(img, point.x - newWidth / 2, point.y - newHeight / 2, newWidth, newHeight);
+
+        // Draw cost text
+        if (foundItemData.value) {
+            ctx.font = '15px "MyFont"'; // use your custom font family
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 3;
+            ctx.textAlign = 'center';
+
+            const textX = point.x;
+            const textY = point.y + newHeight / 2 + 10; // below the item
+
+            ctx.strokeText(`${foundItemData.value}c`, textX, textY);
+            ctx.fillText(`${foundItemData.value}c`, textX, textY);
+        }
     }
 
     return canvas.toBuffer('image/png');

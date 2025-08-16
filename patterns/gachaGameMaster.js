@@ -52,7 +52,7 @@ module.exports = async (guild) => {
                 console.log('running gameVC script');
 
                 const now = Date.now();
-                vc.nextTrigger = new Date((now + 60 * 1000 * Math.random())+ 5000);
+                vc.nextTrigger = new Date((now + 60 * 1000 * Math.random() * 2) + 5000);
                 await vc.save();
 
                 await gameScript(gachaVC, vc, serverData);
@@ -64,5 +64,5 @@ module.exports = async (guild) => {
             }
         }
 
-    }, 10 * 1000); // Check every 5 seconds
+    }, 30 * 1000); // Check every 5 seconds
 };
