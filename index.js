@@ -82,7 +82,7 @@ client.once(Events.ClientReady, async c => {
         guild.members.fetchMe()
             .then(me => {
                 me.roles.remove('1349292336781197353').catch(() => {});
-                me.setNickname('SUPER HELLUNGI').catch(() => {});
+                // me.setNickname('SUPER HELLUNGI').catch(() => {});
                 console.log('✅ Bot nickname set to default');
             })
             .catch(console.error);
