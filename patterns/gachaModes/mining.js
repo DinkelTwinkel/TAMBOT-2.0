@@ -56,102 +56,80 @@ async function removeFromInventory(inv, itemRef, amount = 1) {
     await inv.save();
 }
 
-// ---------------- Game Data Helpers ----------------
-function initializeGameData(dbEntry) {
-    if (!dbEntry.gameData || dbEntry.gameData.gamemode !== 'mining') {
-        dbEntry.gameData = {
-            gamemode: 'mining',
-            minecart: {
-                items: {}, // itemId -> { quantity, contributors: { playerId -> amount } }
-                contributors: {} // playerId -> totalItemsContributed (for participation tracking)
-            },
-            sessionStart: new Date(),
-            breakCount: 0 // Track number of breaks for long break timing
-        };
-        // CRITICAL FIX: Mark as modified for Mongoose
-        dbEntry.markModified('gameData');
-    }
-    
-    // Ensure minecart structure exists
-    if (!dbEntry.gameData.minecart) {
-        dbEntry.gameData.minecart = {
-            items: {},
-            contributors: {}
-        };
-        dbEntry.markModified('gameData');
-    }
-    
-    if (!dbEntry.gameData.minecart.items) {
-        dbEntry.gameData.minecart.items = {};
-        dbEntry.markModified('gameData');
-    }
-    
-    if (!dbEntry.gameData.minecart.contributors) {
-        dbEntry.gameData.minecart.contributors = {};
-        dbEntry.markModified('gameData');
-    }
-}
+// ---------------- Atomic Database Operations ----------------
 
-// Replace addItemToMinecart function with atomic operation
+// Atomic minecart item addition
 async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
     const channelId = dbEntry.channelId;
     
-    // First, ensure the structure exists
-    await gachaVC.updateOne(
-        { channelId: channelId },
-        {
-            $setOnInsert: {
-                'gameData.minecart.items': {},
-                'gameData.minecart.contributors': {}
-            }
-        },
-        { upsert: true }
-    );
-
-    // Then ensure this specific item structure exists
-    const itemPath = `gameData.minecart.items.${itemId}`;
-    await gachaVC.updateOne(
-        { 
-            channelId: channelId,
-            [itemPath]: { $exists: false }
-        },
-        {
-            $set: {
-                [itemPath]: {
-                    quantity: 0,
-                    contributors: {}
+    try {
+        // Try the increment operation first
+        await gachaVC.updateOne(
+            { channelId: channelId },
+            {
+                $inc: {
+                    [`gameData.minecart.items.${itemId}.quantity`]: amount,
+                    [`gameData.minecart.items.${itemId}.contributors.${playerId}`]: amount,
+                    [`gameData.minecart.contributors.${playerId}`]: amount
                 }
             }
+        );
+    } catch (error) {
+        // If it fails due to missing path, initialize the structure first
+        if (error.code === 40 || error.message.includes('path') || error.message.includes('conflict')) {
+            // Get current document to merge with new structure
+            const currentDoc = await gachaVC.findOne({ channelId: channelId });
+            
+            // Initialize the minecart structure preserving existing data
+            const existingItems = currentDoc?.gameData?.minecart?.items || {};
+            const existingContributors = currentDoc?.gameData?.minecart?.contributors || {};
+            
+            // Set the new item structure
+            existingItems[itemId] = existingItems[itemId] || { quantity: 0, contributors: {} };
+            existingItems[itemId].quantity = (existingItems[itemId].quantity || 0) + amount;
+            existingItems[itemId].contributors[playerId] = (existingItems[itemId].contributors[playerId] || 0) + amount;
+            existingContributors[playerId] = (existingContributors[playerId] || 0) + amount;
+            
+            await gachaVC.updateOne(
+                { channelId: channelId },
+                {
+                    $set: {
+                        'gameData.minecart.items': existingItems,
+                        'gameData.minecart.contributors': existingContributors
+                    }
+                },
+                { upsert: true }
+            );
+        } else {
+            throw error; // Re-throw if it's a different error
         }
-    );
-
-    // Finally, perform the atomic increment
-    await gachaVC.updateOne(
-        { channelId: channelId },
-        {
-            $inc: {
-                [`gameData.minecart.items.${itemId}.quantity`]: amount,
-                [`gameData.minecart.items.${itemId}.contributors.${playerId}`]: amount,
-                [`gameData.minecart.contributors.${playerId}`]: amount
-            }
-        }
-    );
+    }
 }
 
 // Atomic break counter increment
 async function incrementBreakCount(channelId) {
-    const result = await gachaVC.findOneAndUpdate(
-        { channelId: channelId },
-        { 
-            $inc: { 'gameData.breakCount': 1 },
-            $setOnInsert: { 'gameData.breakCount': 0 }
-        },
-        { 
-            returnDocument: 'after',
-            upsert: true 
+    try {
+        const result = await gachaVC.findOneAndUpdate(
+            { channelId: channelId },
+            { $inc: { 'gameData.breakCount': 1 } },
+            { returnDocument: 'after' }
+        );
+        return result.gameData.breakCount;
+    } catch (error) {
+        if (error.code === 40 || error.message.includes('conflict')) {
+            // Initialize breakCount if it doesn't exist
+            await gachaVC.updateOne(
+                { channelId: channelId },
+                {
+                    $set: { 'gameData.breakCount': 1 }
+                },
+                { upsert: true }
+            );
+            return 1;
+        } else {
+            throw error;
         }
-    );
-    return result.gameData.breakCount;
+    }
 }
 
 // Atomic minecart reset
@@ -168,6 +146,7 @@ async function resetMinecart(channelId) {
     );
 }
 
+// Atomic special event setup
 async function setSpecialEvent(channelId, eventData) {
     await gachaVC.updateOne(
         { channelId: channelId },
@@ -203,6 +182,41 @@ async function updateTimers(channelId, nextTrigger, nextShopRefresh) {
     );
 }
 
+// ---------------- Game Data Helpers ----------------
+function initializeGameData(dbEntry) {
+    if (!dbEntry.gameData || dbEntry.gameData.gamemode !== 'mining') {
+        dbEntry.gameData = {
+            gamemode: 'mining',
+            minecart: {
+                items: {}, // itemId -> { quantity, contributors: { playerId -> amount } }
+                contributors: {} // playerId -> totalItemsContributed (for participation tracking)
+            },
+            sessionStart: new Date(),
+            breakCount: 0 // Track number of breaks for long break timing
+        };
+        // CRITICAL FIX: Mark as modified for Mongoose
+        dbEntry.markModified('gameData');
+    }
+    
+    // Ensure minecart structure exists
+    if (!dbEntry.gameData.minecart) {
+        dbEntry.gameData.minecart = {
+            items: {},
+            contributors: {}
+        };
+        dbEntry.markModified('gameData');
+    }
+    
+    if (!dbEntry.gameData.minecart.items) {
+        dbEntry.gameData.minecart.items = {};
+        dbEntry.markModified('gameData');
+    }
+    
+    if (!dbEntry.gameData.minecart.contributors) {
+        dbEntry.gameData.minecart.contributors = {};
+        dbEntry.markModified('gameData');
+    }
+}
 
 // ---------------- Helper function to get minecart summary ----------------
 function getMinecartSummary(dbEntry) {
@@ -345,7 +359,8 @@ async function giveFindResource(player, channel, powerLevel, dbEntry) {
 
     if (playerStats.mining && playerStats.mining > 0) {
         if (Math.random() > 0.95) {
-            console.log('mining failed, doing nothing happens');
+            // Small chance to fail mining
+            console.log ('mining failed, doing nothing happens');
             return nothingHappens(player, channel, playerStats, item);
         }
         
@@ -355,7 +370,8 @@ async function giveFindResource(player, channel, powerLevel, dbEntry) {
         await addItemToMinecart(dbEntry, player.id, item.itemId, quantityFound);
         await logEvent(channel, `⛏️ MINED! ${player.displayName} found 『 ${item.name} 』x ${quantityFound} → Added to minecart!`);
     } else {
-        console.log('stats too low, nothing happens');
+        // Player has no pickaxe → delegate to nothingHappens which handles scavenging chance
+        console.log ('stats too low, nothing happens');
         return nothingHappens(player, channel, playerStats, item);
     }
 }
@@ -507,7 +523,6 @@ async function createMiningSummary(channel, dbEntry) {
     await resetMinecart(channel.id);
 }
 
-
 // ---------------- Long Break Events ----------------
 async function startThiefGame(channel, dbEntry) {
     if (!channel?.isVoiceBased()) return;
@@ -549,24 +564,19 @@ async function startThiefGame(channel, dbEntry) {
         }
     }
 
-    // Store thief info in gameData
-    dbEntry.gameData = {
-        ...dbEntry.gameData,
-        specialEvent: {
-            type: 'thief',
-            thiefId: thief.id,
-            amount: stealAmount,
-            endTime: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes from now
-        }
-    };
-    // CRITICAL FIX: Mark as modified
-    dbEntry.markModified('gameData');
+    // Store thief info using atomic operation
+    await setSpecialEvent(channel.id, {
+        type: 'thief',
+        thiefId: thief.id,
+        amount: stealAmount,
+        endTime: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes from now
+    });
 
     // Create vote entries for each user
     const Vote = require('../../models/votes');
     for (const user of humansArray) {
         await Vote.create({
-            channelId: dbEntry.channelId,
+            channelId: channel.id,
             userId: user.id,
             targetId: 'novote'
         });
@@ -581,7 +591,7 @@ async function startThiefGame(channel, dbEntry) {
         .setColor(0xff0000)
         .setTimestamp();
 
-    const endTimeSeconds = Math.floor(dbEntry.gameData.specialEvent.endTime.getTime() / 1000);
+    const endTimeSeconds = Math.floor((Date.now() + 10 * 60 * 1000) / 1000);
     embed.addFields({ name: 'Hurry!', value: `The thief is getting away... <t:${endTimeSeconds}:R>` });
 
     await channel.send({ embeds: [embed] });
@@ -592,7 +602,6 @@ async function startThiefGame(channel, dbEntry) {
         await thief.send(`You are the thief! You stole a total of ${stealAmount} coins. Be careful not to get caught!`);
     } catch {
         console.log(`Could not DM thief: ${thief.user.tag}`);
-        // Could add fallback channel notification here if needed
     }
 }
 
@@ -603,7 +612,7 @@ async function endThiefGame(channel, dbEntry) {
     const Vote = require('../../models/votes');
 
     // Fetch all votes for this channel
-    const votes = await Vote.find({ channelId: dbEntry.channelId });
+    const votes = await Vote.find({ channelId: channel.id });
 
     const embed = new EmbedBuilder()
         .setTitle('🕵️ Thief Game Results')
@@ -673,10 +682,8 @@ async function endThiefGame(channel, dbEntry) {
     await channel.send({ embeds: [embed] });
 
     // Clear votes and special event data
-    await Vote.deleteMany({ channelId: dbEntry.channelId });
-    delete dbEntry.gameData.specialEvent;
-    // CRITICAL FIX: Mark as modified
-    dbEntry.markModified('gameData');
+    await Vote.deleteMany({ channelId: channel.id });
+    await clearSpecialEvent(channel.id);
 }
 
 // ---------------- Long Break Event System ----------------
@@ -701,9 +708,18 @@ const miningEvents = [
 module.exports = async (channel, dbEntry, json, client) => {
     const now = Date.now();
     
-    // Initialize game data - only do this once, avoid repeated saves
+    // Initialize game data
     initializeGameData(dbEntry);
     
+    // Initialize break counters if not present
+    if (!dbEntry.gameData.breakCount) {
+        dbEntry.gameData.breakCount = 0;
+        dbEntry.markModified('gameData');
+    }
+
+    // Save initial setup only once
+    await dbEntry.save();
+
     if (!channel?.isVoiceBased()) return;
     const humans = channel.members.filter(m => !m.user.bot);
     if (!humans.size) return;
@@ -741,14 +757,18 @@ module.exports = async (channel, dbEntry, json, client) => {
         // Every 4th break (2 hours) is a long break with special event
         if (breakCount % 4 === 0) {
             // Long break: 10min special event + 5min shop = 15min total
-            await createMiningSummary(channel, dbEntry);
-            await pickLongBreakEvent(longBreakEvents)(channel, dbEntry);
+            // Refresh dbEntry to get latest minecart data for summary
+            const refreshedEntry = await gachaVC.findOne({ channelId: channel.id });
+            await createMiningSummary(channel, refreshedEntry);
+            await pickLongBreakEvent(longBreakEvents)(channel, refreshedEntry);
             
             await updateTimers(channel.id, null, new Date(now + 25 * 60 * 1000));
             await logEvent(channel, '🎭 LONG BREAK: Special event starting! (10min event + 5min shop)');
         } else {
             // Regular break: 5min shop break
-            await createMiningSummary(channel, dbEntry);
+            // Refresh dbEntry to get latest minecart data for summary
+            const refreshedEntry = await gachaVC.findOne({ channelId: channel.id });
+            await createMiningSummary(channel, refreshedEntry);
             await generateShop(channel, 5);
             
             await updateTimers(
