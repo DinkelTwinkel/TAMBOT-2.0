@@ -14,7 +14,7 @@ const path = require('path');
 const itemPool = [
     { itemId: "1", name: "Coal Ore", baseWeight: 50, boostedPowerLevel: 1 },
     { itemId: "2", name: "Topaz Gem", baseWeight: 20, boostedPowerLevel: 2 },
-    { itemId: "3", name: "Diamond Gem", baseWeight: 1, boostedPowerLevel: 3 },
+    { itemId: "6", name: "Diamond Gem", baseWeight: 1, boostedPowerLevel: 3 },
 ];
 
 // ---------------- Weighted Selection ----------------
