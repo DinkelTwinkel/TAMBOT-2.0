@@ -685,7 +685,7 @@ async function endThiefGame(channel, dbEntry) {
 
                     // Load and draw jail bars (assuming jailbars.png exists in the project)
                     try {
-                        const jailBars = await Canvas.loadImage('./assets/jailbars.png');
+                        const jailBars = await Canvas.loadImage('../../assets/game/jailbars.png');
                         ctx.drawImage(jailBars, 0, 0, 256, 256);
                     } catch (error) {
                         console.warn('jailbars.png not found, drawing simple bars instead');
