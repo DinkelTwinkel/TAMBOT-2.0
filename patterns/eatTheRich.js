@@ -16,9 +16,9 @@ module.exports = (client) => {
     }
 
     // Check cooldown
-    let cdDoc = await Cooldown.findOne({ userId: thiefId });
+    let cdDoc = await Cooldown.findOne({ userId: interaction.member.id });
     if (!cdDoc) {
-      cdDoc = new Cooldown({ userId: thiefId, cooldowns: {} });
+      cdDoc = new Cooldown({ userId: interaction.member.id, cooldowns: {} });
     }
 
     const now = Date.now();

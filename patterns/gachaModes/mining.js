@@ -368,7 +368,8 @@ async function giveFindResource(player, channel, powerLevel, dbEntry) {
             console.log('mining failed, doing nothing happens');
             return nothingHappens(player, channel, playerStats, item, dbEntry);
         }
-        
+        console.log (`${player.displayName} gain resource, their player stat sheet is`)
+        console.log (playerStats);
         const quantityFound = 1 + Math.floor(Math.random() * playerStats.mining);
         
         // Use atomic operation instead of modifying dbEntry
