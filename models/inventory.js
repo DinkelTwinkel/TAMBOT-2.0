@@ -1,5 +1,6 @@
 // models/inventory.js
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
 const inventoryItemSchema = new mongoose.Schema({
   itemId: { type: String, required: true }, // matches the 'id' in itemsheet.json
