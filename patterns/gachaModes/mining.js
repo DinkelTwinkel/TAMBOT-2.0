@@ -634,13 +634,14 @@ async function endThiefGame(channel, dbEntry) {
 
     const { thiefId, amount: totalStolen } = dbEntry.gameData.specialEvent;
     const Vote = require('../../models/votes');
+    const Canvas = require('canvas');
+    const fs = require('fs');
 
     // Fetch all votes for this channel
     const votes = await Vote.find({ channelId: channel.id });
 
     const embed = new EmbedBuilder()
         .setTitle('🕵️ Thief Game Results')
-        .setColor(0x00ff00)
         .setTimestamp();
 
     let winners = []
@@ -665,8 +666,62 @@ async function endThiefGame(channel, dbEntry) {
         winners = votes.filter(v => v.targetId === thiefId);
         const totalPlayers = votes.length;
 
+        // Generate jail bars image if thief was caught
+        let jailImageAttachment = null;
+        if (winners.length > 0) {
+            try {
+                const thiefMember = await channel.guild.members.fetch(thiefId).catch(() => null);
+                if (thiefMember) {
+                    // Create canvas
+                    const canvas = Canvas.createCanvas(256, 256);
+                    const ctx = canvas.getContext('2d');
+
+                    // Load thief's avatar
+                    const avatarUrl = thiefMember.user.displayAvatarURL({ format: 'png', size: 256 });
+                    const avatar = await Canvas.loadImage(avatarUrl);
+                    
+                    // Draw avatar
+                    ctx.drawImage(avatar, 0, 0, 256, 256);
+
+                    // Load and draw jail bars (assuming jailbars.png exists in the project)
+                    try {
+                        const jailBars = await Canvas.loadImage('./assets/jailbars.png');
+                        ctx.drawImage(jailBars, 0, 0, 256, 256);
+                    } catch (error) {
+                        console.warn('jailbars.png not found, drawing simple bars instead');
+                        // Draw simple jail bars if image not found
+                        ctx.strokeStyle = '#444444';
+                        ctx.lineWidth = 8;
+                        for (let i = 0; i < 6; i++) {
+                            const x = (i + 1) * (256 / 7);
+                            ctx.beginPath();
+                            ctx.moveTo(x, 0);
+                            ctx.lineTo(x, 256);
+                            ctx.stroke();
+                        }
+                        // Horizontal bars
+                        for (let i = 0; i < 4; i++) {
+                            const y = (i + 1) * (256 / 5);
+                            ctx.beginPath();
+                            ctx.moveTo(0, y);
+                            ctx.lineTo(256, y);
+                            ctx.stroke();
+                        }
+                    }
+
+                    // Create attachment
+                    const buffer = canvas.toBuffer('image/png');
+                    jailImageAttachment = new AttachmentBuilder(buffer, { name: 'thief_jailed.png' });
+                    embed.setImage('attachment://thief_jailed.png');
+                }
+            } catch (error) {
+                console.error('Error creating jail image:', error);
+            }
+        }
+
         if (winners.length > 0 && winners.length < totalPlayers) {
             // Some players guessed correctly but not everyone - thief gets a share too
+            embed.setColor(0xFFFF00); // Yellow for partial success
             const totalRecipients = winners.length + 1; // winners + thief
             const share = Math.floor(totalStolen / totalRecipients);
             const winnerLines = [];
@@ -713,6 +768,7 @@ async function endThiefGame(channel, dbEntry) {
             
         } else if (winners.length === totalPlayers) {
             // Everyone guessed correctly - thief gets nothing
+            embed.setColor(0x00FF00); // Green for complete success
             const share = Math.floor(totalStolen / winners.length);
             const winnerLines = [];
 
@@ -742,6 +798,7 @@ async function endThiefGame(channel, dbEntry) {
             
         } else {
             // No one guessed correctly - thief keeps everything
+            embed.setColor(0xFF0000); // Red for thief escape
             embed.addFields({ name: 'Result', value: `No one guessed correctly. The thief got away with ${totalStolen} coins.` });
             await logEvent(channel, `🏃‍♂️ Thief escaped with ${totalStolen} coins! No one guessed correctly.`);
         }
@@ -753,7 +810,12 @@ async function endThiefGame(channel, dbEntry) {
         embed.addFields({ name: 'The Thief', value: `<@${thiefId}>` });
     }
 
-    await channel.send({ embeds: [embed] });
+    // Send the message with optional jail image attachment
+    const messageOptions = { embeds: [embed] };
+    if (jailImageAttachment) {
+        messageOptions.files = [jailImageAttachment];
+    }
+    await channel.send(messageOptions);
 
     // Clear votes and special event data
     await Vote.deleteMany({ channelId: channel.id });

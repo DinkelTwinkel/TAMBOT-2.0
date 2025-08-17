@@ -44,7 +44,6 @@ async function scanMagentaPixels() {
             // Store results using just the filename as key
             const fileName = path.basename(imagePath);
             existingData[fileName] = {
-                lastScanned: new Date().toISOString(),
                 pixelCount: magentaPixels.length,
                 coordinates: magentaPixels
             };
@@ -54,7 +53,6 @@ async function scanMagentaPixels() {
         } catch (error) {
             console.error(`❌ Error processing ${imagePath}:`, error.message);
             existingData[fileName] = {
-                lastScanned: new Date().toISOString(),
                 error: error.message,
                 pixelCount: 0,
                 coordinates: []
