@@ -645,6 +645,7 @@ async function endThiefGame(channel, dbEntry) {
         .setTimestamp();
 
     let winners = []
+    let jailImageAttachment = null;
 
     if (!votes.length) {
         embed.setDescription('No votes were cast this round.');
@@ -667,7 +668,6 @@ async function endThiefGame(channel, dbEntry) {
         const totalPlayers = votes.length;
 
         // Generate jail bars image if thief was caught
-        let jailImageAttachment = null;
         if (winners.length > 0) {
             try {
                 const thiefMember = await channel.guild.members.fetch(thiefId).catch(() => null);
