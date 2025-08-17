@@ -61,6 +61,8 @@ client.once(Events.ClientReady, async c => {
     // Loop through all guilds your bot is in
     client.guilds.cache.forEach(async guild => {
 
+        if (guild.id != '1221772148385910835') return;
+
         // Fetch guild config from MongoDB
         let config = await GuildConfig.findOne({ guildId: guild.id });
         if (!config) {
