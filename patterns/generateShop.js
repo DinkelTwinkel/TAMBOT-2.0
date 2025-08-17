@@ -1,6 +1,7 @@
-// Updated generateShop.js - Added price fluctuation system
+// Updated generateShop.js - Added price fluctuation system with global guild config seeding
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, AttachmentBuilder } = require('discord.js');
 const GachaVC = require('../models/activevcs');
+const GuildConfig = require('../models/GuildConfig');
 const gachaData = require('../data/gachaServers.json');
 const shopData = require('../data/shops.json');
 const itemSheet = require('../data/itemSheet.json');
@@ -13,9 +14,13 @@ function seededRandom(seed) {
     return x - Math.floor(x);
 }
 
-// New function to calculate fluctuated price
-function calculateFluctuatedPrice(basePrice, seed, priceChangeFactor) {
-    // Use seeded random to get consistent price fluctuation
+// New function to calculate fluctuated price using global guild config seed
+function calculateFluctuatedPrice(basePrice, guildConfigUpdatedAt, itemId, priceChangeFactor) {
+    // Convert updatedAt to a usable seed format (days since epoch)
+    const daysSinceEpoch = Math.floor(guildConfigUpdatedAt.getTime() / (1000 * 60 * 60 * 24));
+    
+    // Use guild config date + item ID as seed for consistent price fluctuation
+    const seed = daysSinceEpoch + parseInt(itemId || 0);
     const randomValue = seededRandom(seed);
     
     // Convert to range of -priceChangeFactor to +priceChangeFactor
@@ -28,18 +33,34 @@ function calculateFluctuatedPrice(basePrice, seed, priceChangeFactor) {
     return Math.max(1, Math.floor(basePrice * multiplier));
 }
 
-// Function to get fluctuated prices for all items in the shop
-function getShopPrices(itemIds, refreshTime, priceChangeFactor) {
+// Function to get fluctuated prices for all items in the shop using guild config
+async function getShopPrices(itemIds, guildId, priceChangeFactor) {
     const prices = {};
     
-    itemIds.forEach((itemId, index) => {
+    // Get guild config for seeding
+    const guildConfig = await GuildConfig.findOne({ guildId });
+    if (!guildConfig) {
+        console.warn(`No guild config found for guild ${guildId}, using fallback seeding`);
+        // Fallback to current date if no guild config
+        const fallbackDate = new Date();
+        itemIds.forEach(itemId => {
+            const item = itemSheet.find(i => i.id === String(itemId));
+            if (item) {
+                prices[itemId] = {
+                    buy: calculateFluctuatedPrice(item.value, fallbackDate, itemId, priceChangeFactor),
+                    sell: Math.floor(calculateFluctuatedPrice(item.value, fallbackDate, itemId, priceChangeFactor) / 2)
+                };
+            }
+        });
+        return prices;
+    }
+    
+    itemIds.forEach(itemId => {
         const item = itemSheet.find(i => i.id === String(itemId));
         if (item) {
-            // Use refresh time + item index as seed for unique but consistent prices
-            const seed = refreshTime + index + parseInt(itemId);
             prices[itemId] = {
-                buy: calculateFluctuatedPrice(item.value, seed, priceChangeFactor),
-                sell: Math.floor(calculateFluctuatedPrice(item.value, seed, priceChangeFactor) / 2)
+                buy: calculateFluctuatedPrice(item.value, guildConfig.updatedAt, itemId, priceChangeFactor),
+                sell: Math.floor(calculateFluctuatedPrice(item.value, guildConfig.updatedAt, itemId, priceChangeFactor) / 2)
             };
         }
     });
@@ -50,7 +71,7 @@ function getShopPrices(itemIds, refreshTime, priceChangeFactor) {
 async function generateShop(channel, closingTime) {
     
     const matchingVC = await GachaVC.findOne({ channelId: channel.id }).lean();
-    if (!matchingVC) return channel.send('⌘ Not an active Gacha VC channel!');
+    if (!matchingVC) return channel.send('⚘ Not an active Gacha VC channel!');
 
     const shopInfo = shopData.find(s => s.id === gachaData.find(g => g.id === matchingVC.typeId)?.shop);
     if (!shopInfo) return channel.send('⚠️ No shop data found for this VC!');
@@ -61,6 +82,8 @@ async function generateShop(channel, closingTime) {
     let buyPool = [...shopInfo.staticItems];
     const amount = shopInfo.rotationalAmount || shopInfo.itemPool.length;
     let availableItems = shopInfo.itemPool.filter(id => !buyPool.includes(id));
+    
+    // Keep item rotation seeded by nextShopRefresh
     let seed = matchingVC.nextShopRefresh.getTime();
 
     for (let i = 0; i < amount && availableItems.length > 0; i++) {
@@ -69,9 +92,9 @@ async function generateShop(channel, closingTime) {
         availableItems.splice(index, 1);
     }
 
-    // Calculate fluctuated prices for all items
+    // Calculate fluctuated prices using guild config for all items
     const allShopItems = Array.from(new Set([...shopInfo.staticItems, ...shopInfo.itemPool]));
-    const fluctuatedPrices = getShopPrices(allShopItems, matchingVC.nextShopRefresh.getTime(), shopInfo.priceChangeFactor);
+    const fluctuatedPrices = await getShopPrices(allShopItems, channel.guild.id, shopInfo.priceChangeFactor);
 
     const pickShopDescription = shopInfo.idleDialogue[Math.floor(shopInfo.idleDialogue.length * Math.random())];
     

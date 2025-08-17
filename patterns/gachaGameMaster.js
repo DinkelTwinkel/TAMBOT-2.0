@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const ActiveVCS = require('../models/activevcs');
 const emptyvccheck = require('./emptyVoiceCheck');
+const GuildConfig = require('../models/GuildConfig');
 
 // Load gacha server data
 const gachaServersPath = path.join(__dirname, '../data/gachaServers.json');
@@ -24,8 +25,24 @@ module.exports = async (guild) => {
     // --- INTERVAL CHECK ---
     setInterval(async () => {
 
-        const activeVCs = await ActiveVCS.find(); // Fetch live DB entries
+
         const now = Date.now();
+
+        // global Shop price shift KEY change update.
+        const guildDb = await GuildConfig.findOne({guildId: guild.id});
+        if (now > guildDb.updatedAt) {
+            const msToAdd = 1000 * 60 * 60; // add 60 minutes
+
+            await GuildConfig.updateOne(
+            { guildId: guild.id },
+            { $set: { updatedAt: new Date(guildDb.updatedAt.getTime() + msToAdd) } }
+            );
+        }
+
+        // // begin vc check cycle.
+
+        const activeVCs = await ActiveVCS.find(); // Fetch live DB entries
+
 
         for (const vc of activeVCs) {
             const nextTrigger = vc.nextTrigger ? new Date(vc.nextTrigger).getTime() : 0;

@@ -1,8 +1,9 @@
-// shopHandler.js - Centralized shop interaction handler with price fluctuation
+// shopHandler.js - Centralized shop interaction handler with guild config price fluctuation
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const Currency = require('../models/currency');
 const PlayerInventory = require('../models/inventory');
 const GachaVC = require('../models/activevcs');
+const GuildConfig = require('../models/GuildConfig');
 const gachaData = require('../data/gachaServers.json');
 const shopData = require('../data/shops.json');
 const itemSheet = require('../data/itemSheet.json');
@@ -33,8 +34,8 @@ class ShopHandler {
         });
     }
 
-    // Helper function to get current shop prices
-    async getShopFluctuatedPrices(channelId) {
+    // Helper function to get current shop prices using guild config
+    async getShopFluctuatedPrices(channelId, guildId) {
         const matchingVC = await GachaVC.findOne({ channelId }).lean();
         if (!matchingVC) return null;
 
@@ -42,12 +43,13 @@ class ShopHandler {
         if (!shopInfo) return null;
 
         const allShopItems = Array.from(new Set([...shopInfo.staticItems, ...shopInfo.itemPool]));
-        return getShopPrices(allShopItems, matchingVC.nextShopRefresh.getTime(), shopInfo.priceChangeFactor);
+        return getShopPrices(allShopItems, guildId, shopInfo.priceChangeFactor);
     }
 
     async handleShopSelectMenu(interaction) {
         const userId = interaction.user.id;
         const channelId = interaction.channel.id;
+        const guildId = interaction.guild.id;
         const selectedItemId = interaction.values[0];
         
         // Extract shop message ID from custom ID
@@ -55,13 +57,13 @@ class ShopHandler {
 
         const item = itemSheet.find(it => it.id === selectedItemId);
         if (!item) {
-            return interaction.reply({ content: '⌘ Item not found', ephemeral: true });
+            return interaction.reply({ content: '⚘ Item not found', ephemeral: true });
         }
 
-        // Get fluctuated prices
-        const fluctuatedPrices = await this.getShopFluctuatedPrices(channelId);
+        // Get fluctuated prices using guild config
+        const fluctuatedPrices = await this.getShopFluctuatedPrices(channelId, guildId);
         if (!fluctuatedPrices || !fluctuatedPrices[selectedItemId]) {
-            return interaction.reply({ content: '⌘ Could not get current prices', ephemeral: true });
+            return interaction.reply({ content: '⚘ Could not get current prices', ephemeral: true });
         }
 
         // Get user currency and inventory
@@ -90,7 +92,7 @@ class ShopHandler {
             if (userCurrency.money < totalCost) {
                 await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor);
                 return interaction.reply({ 
-                    content: `⌘ You need ${totalCost} coins but only have ${userCurrency.money}.`, 
+                    content: `⚘ You need ${totalCost} coins but only have ${userCurrency.money}.`, 
                     ephemeral: true 
                 });
             }
@@ -140,7 +142,7 @@ class ShopHandler {
 
         if (maxQty === 0) {
             return interaction.reply({ 
-                content: `⌘ You don't own any ${item.name} to sell.`, 
+                content: `⚘ You don't own any ${item.name} to sell.`, 
                 ephemeral: true 
             });
         }
@@ -173,24 +175,24 @@ class ShopHandler {
 
         // Verify the user is the one who initiated the modal
         if (interaction.user.id !== userId) {
-            return interaction.reply({ content: '⌘ This modal is not for you.', ephemeral: true });
+            return interaction.reply({ content: '⚘ This modal is not for you.', ephemeral: true });
         }
 
         const item = itemSheet.find(it => it.id === itemId);
         if (!item) {
-            return interaction.reply({ content: '⌘ Item not found', ephemeral: true });
+            return interaction.reply({ content: '⚘ Item not found', ephemeral: true });
         }
 
         const quantity = Number(interaction.fields.getTextInputValue('quantity'));
         if (isNaN(quantity) || quantity <= 0) {
             await this.updateShopDescription(interaction.message, null, 'failure');
-            return interaction.reply({ content: '⌘ Invalid quantity.', ephemeral: true });
+            return interaction.reply({ content: '⚘ Invalid quantity.', ephemeral: true });
         }
 
-        // Get fluctuated prices
-        const fluctuatedPrices = await this.getShopFluctuatedPrices(interaction.channel.id);
+        // Get fluctuated prices using guild config
+        const fluctuatedPrices = await this.getShopFluctuatedPrices(interaction.channel.id, interaction.guild.id);
         if (!fluctuatedPrices || !fluctuatedPrices[itemId]) {
-            return interaction.reply({ content: '⌘ Could not get current prices', ephemeral: true });
+            return interaction.reply({ content: '⚘ Could not get current prices', ephemeral: true });
         }
 
         // Get user data
@@ -216,7 +218,7 @@ class ShopHandler {
         if (userCurrency.money < totalCost) {
             await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor);
             return interaction.reply({ 
-                content: `⌘ You need ${totalCost} coins but only have ${userCurrency.money}.`, 
+                content: `⚘ You need ${totalCost} coins but only have ${userCurrency.money}.`, 
                 ephemeral: true 
             });
         }
@@ -252,7 +254,7 @@ class ShopHandler {
         if (quantity > maxQty) {
             await this.updateShopDescription(interaction.message, shopInfo?.failureOther);
             return interaction.reply({ 
-                content: `⌘ Invalid quantity. You can sell between 1 and ${maxQty}.`, 
+                content: `⚘ Invalid quantity. You can sell between 1 and ${maxQty}.`, 
                 ephemeral: true 
             });
         }
