@@ -5,16 +5,20 @@ const messageDeletus = require('../models/tidyMessages'); // Adjust path accordi
 const ActiveVCS =  require ('../models/activevcs');
 const createCurrencyProfile = require('../patterns/currency/createCurrencyProfile');
 const registerBotMessage = require('./registerBotMessage');
-const rollPrice = 0;
 
 const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const generateShop = require('./generateShop');
+const GuildConfig = require('../models/GuildConfig');
 
 const channelsFile = path.join(__dirname, '../data/gachaServers.json');
 const channelData = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
 
 
 module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
+
+    const rollPrice = (await GuildConfig.findOne({ guildId: guild.id }))?.gachaCost ?? 0;
+
+    gachaRollChannel.setName(`🎰 𝙂𝘼𝘾𝙃𝘼 [ ${rollPrice} COINS ]`);
 
     const rollerMember = await guild.members.fetch(roller.id);
 

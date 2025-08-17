@@ -12,14 +12,18 @@ const path = require('path');
 
 // ---------------- Expandable Item Pool for Mining ----------------
 const miningItemPool = [
-    { itemId: "1", name: "Coal Ore", baseWeight: 50, boostedPowerLevel: 1, value: 2 }, // 2 coins per coal
-    { itemId: "2", name: "Topaz Gem", baseWeight: 20, boostedPowerLevel: 2, value: 15 }, // 15 coins per topaz
-    { itemId: "6", name: "Diamond Gem", baseWeight: 1, boostedPowerLevel: 3, value: 100 }, // 100 coins per diamond
-    // Easy to add more items:
-    // { itemId: "7", name: "Ruby Gem", baseWeight: 5, boostedPowerLevel: 2, value: 50 },
-    // { itemId: "8", name: "Emerald Gem", baseWeight: 3, boostedPowerLevel: 3, value: 75 },
-];
+    { itemId: "1", name: "Coal Ore", baseWeight: 50, boostedPowerLevel: 1, value: 2 },   // Common starter ore
+    { itemId: "21", name: "Copper Ore", baseWeight: 35, boostedPowerLevel: 1, value: 8 }, // Low-tier metal
+    { itemId: "22", name: "Iron Ore", baseWeight: 25, boostedPowerLevel: 2, value: 15 },  // Sturdy metal
 
+    { itemId: "2", name: "Topaz Gem", baseWeight: 20, boostedPowerLevel: 2, value: 25 },  // Semi-rare gem
+    { itemId: "23", name: "Emerald Gem", baseWeight: 10, boostedPowerLevel: 3, value: 50 }, // Rare gem
+    { itemId: "24", name: "Ruby Gem", baseWeight: 7, boostedPowerLevel: 3, value: 75 },    // Rare gem
+    { itemId: "6", name: "Diamond Gem", baseWeight: 3, boostedPowerLevel: 4, value: 100 }, // Precious gem
+
+    { itemId: "25", name: "Obsidian", baseWeight: 2, boostedPowerLevel: 5, value: 150 },   // Deep-tier rare
+    { itemId: "26", name: "Mythril Ore", baseWeight: 1, boostedPowerLevel: 6, value: 200 } // Ultra-rare metal
+];
 // ---------------- Weighted Selection ----------------
 function pickWeightedItem(powerLevel) {
     const weightedItems = miningItemPool.map(item => {

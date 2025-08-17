@@ -3,28 +3,98 @@
     "id": "1",
     "name": "Coal Ore",
     "type": "mineLoot",
-    "description": "a piece of ore commonly found underground.",
+    "description": "A piece of ore commonly found underground.",
     "value": 2,
     "vendable": false,
     "abilities": [],
     "image": "coal"
   },
   {
+    "id": "21",
+    "name": "Copper Ore",
+    "type": "mineLoot",
+    "description": "A basic metal, often used for tools and wiring.",
+    "value": 8,
+    "vendable": false,
+    "abilities": [],
+    "image": "copper"
+  },
+  {
+    "id": "22",
+    "name": "Iron Ore",
+    "type": "mineLoot",
+    "description": "A sturdy ore, essential for durable equipment.",
+    "value": 15,
+    "vendable": false,
+    "abilities": [],
+    "image": "iron"
+  },
+  {
     "id": "2",
     "name": "Topaz",
     "type": "mineLoot",
-    "description": "a shiny gem worth some money.",
-    "value": 5,
+    "description": "A shiny gem with a warm glow.",
+    "value": 25,
     "vendable": false,
     "abilities": [],
     "image": "topaz"
   },
   {
+    "id": "23",
+    "name": "Emerald",
+    "type": "mineLoot",
+    "description": "A rare green gem, prized for its clarity and brilliance.",
+    "value": 50,
+    "vendable": false,
+    "abilities": [],
+    "image": "emerald"
+  },
+  {
+    "id": "24",
+    "name": "Ruby",
+    "type": "mineLoot",
+    "description": "A vibrant red gemstone, symbol of wealth and power.",
+    "value": 75,
+    "vendable": false,
+    "abilities": [],
+    "image": "ruby"
+  },
+  {
+    "id": "6",
+    "name": "Diamond",
+    "type": "mineLoot",
+    "description": "A rare and precious gem, dazzling with brilliance.",
+    "value": 100,
+    "vendable": false,
+    "abilities": [],
+    "image": "diamond"
+  },
+  {
+    "id": "25",
+    "name": "Obsidian",
+    "type": "mineLoot",
+    "description": "A mysterious volcanic glass, dark and sharp.",
+    "value": 150,
+    "vendable": false,
+    "abilities": [],
+    "image": "obsidian"
+  },
+  {
+    "id": "26",
+    "name": "Mythril Ore",
+    "type": "mineLoot",
+    "description": "A legendary metal, light yet impossibly strong.",
+    "value": 200,
+    "vendable": false,
+    "abilities": [],
+    "image": "mythril"
+  },
+  {
     "id": "3",
     "name": "Rusty Pick Axe",
     "type": "pickAxe",
-    "description": "Better than nothing...",
-    "value": 5,
+    "description": "Barely holds together. Better than nothing.",
+    "value": 10,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 1 }
@@ -32,47 +102,23 @@
     "image": "rustypickaxe"
   },
   {
-    "id": "4",
-    "name": "Mining Bun",
-    "type": "consumable",
-    "description": "Rations for the mine...",
-    "value": 3,
+    "id": "13",
+    "name": "Banana Axe",
+    "type": "pickAxe",
+    "description": "A slippery axe made from a banana. Not very reliable.",
+    "value": 30,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 1 }
+      { "name": "mining", "powerlevel": 2 }
     ],
-    "image": "miningbun",
-    "duration": 30
-  },
-    {
-    "id": "5",
-    "name": "Water",
-    "type": "consumable",
-    "description": "Drink some GODDAMM WATER",
-    "value": 1,
-    "vendable": true,
-    "abilities": [
-      { "name": "mining", "powerlevel": 1 }
-    ],
-    "image": "water",
-    "duration": 30
-  },
-  {
-    "id": "6",
-    "name": "Diamond",
-    "type": "mineLoot",
-    "description": "a shiny gem worth some money.",
-    "value": 10,
-    "vendable": false,
-    "abilities": [],
-    "image": "topaz"
+    "image": "banana_axe"
   },
   {
     "id": "7",
     "name": "Worn Iron Pickaxe",
     "type": "pickAxe",
-    "description": "Pretty Okay at Mining, Moderately Used",
-    "value": 50,
+    "description": "Sturdy enough to mine reliably, though worn.",
+    "value": 60,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 3 }
@@ -83,60 +129,172 @@
     "id": "8",
     "name": "Robust Pickaxe",
     "type": "pickAxe",
-    "description": "A Very Good Pickaxe. Smithed proudly by one of the best.",
-    "value": 100,
+    "description": "A solidly built pickaxe, dependable and effective.",
+    "value": 150,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 5 }
     ],
     "image": "robustpickaxe"
-},
-{
+  },
+  {
+    "id": "17",
+    "name": "Pixter",
+    "type": "pickAxe",
+    "description": "A playful pickaxe, light but oddly effective in short bursts.",
+    "value": 220,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 6 }
+    ],
+    "image": "pixter"
+  },
+  {
+    "id": "18",
+    "name": "Robust Pickaxe+",
+    "type": "pickAxe",
+    "description": "An upgraded version of the robust pickaxe, reinforced and refined.",
+    "value": 300,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 7 }
+    ],
+    "image": "robustpickaxe"
+  },
+  {
+    "id": "20",
+    "name": "Nature's Pickaxe",
+    "type": "pickAxe",
+    "description": "A pickaxe intertwined with roots and vines, resonating with the earth’s essence.",
+    "value": 450,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 8 }
+    ],
+    "image": "natures_pickaxe"
+  },
+  {
+    "id": "14",
+    "name": "Haunted Pickaxe",
+    "type": "pickAxe",
+    "description": "Whispers of trapped souls echo from its blade.",
+    "value": 600,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 9 }
+    ],
+    "image": "haunted_pixaxe"
+  },
+  {
+    "id": "16",
+    "name": "Pinkgem Axe",
+    "type": "pickAxe",
+    "description": "Forged with glowing pink gemstones, it radiates elegance and strength.",
+    "value": 800,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 10 }
+    ],
+    "image": "pinkgem_axe"
+  },
+  {
+    "id": "12",
+    "name": "DRICK",
+    "type": "pickAxe",
+    "description": "Styvec's DRICK. Heavy and oddly shaped, but brutally efficient.",
+    "value": 1000,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 11 }
+    ],
+    "image": "drick"
+  },
+  {
+    "id": "15",
+    "name": "Hypickeon",
+    "type": "pickAxe",
+    "description": "A mysterious tool, its form seems unstable yet powerful.",
+    "value": 1200,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 12 }
+    ],
+    "image": "hypickeon"
+  },
+  {
+    "id": "19",
+    "name": "Murderous Aura Pickaxe",
+    "type": "pickAxe",
+    "description": "A cursed pickaxe radiating a murderous aura. The ground itself recoils at its touch.",
+    "value": 1500,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 13 }
+    ],
+    "image": "murderous_aura_pickaxe"
+  },
+  {
     "id": "9",
     "name": "Enchanted Pickaxe",
     "type": "pickAxe",
-    "description": "Runic symbols decorate the surface of this pick",
-    "value": 1000,
+    "description": "Runic symbols decorate the surface of this pick.",
+    "value": 2000,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 15 }
     ],
     "image": "enchantedpickaxe"
-},
-{
+  },
+  {
+    "id": "4",
+    "name": "Mining Bun",
+    "type": "consumable",
+    "description": "Simple rations for the mine. Small boost.",
+    "value": 5,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 1 }
+    ],
+    "image": "miningbun",
+    "duration": 30
+  },
+  {
     "id": "10",
     "name": "Bun Pack",
     "type": "consumable",
-    "description": "Longer lasting buns! 3 hours!",
-    "value": 10,
+    "description": "Longer lasting buns! Moderate boost.",
+    "value": 20,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 3 }
     ],
-    "image": "bunpack"
-},
-{
+    "image": "bunpack",
+    "duration": 180
+  },
+  {
+    "id": "5",
+    "name": "Water",
+    "type": "consumable",
+    "description": "Drink some water and stay sharp.",
+    "value": 3,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 2 }
+    ],
+    "image": "water",
+    "duration": 30
+  },
+  {
     "id": "11",
     "name": "Mine Beer",
     "type": "consumable",
-    "description": "Mining Beer to fight the lung cancer...",
-    "value": 20,
+    "description": "Brewed for miners. Greatly boosts morale and efficiency.",
+    "value": 50,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 5 }
     ],
-    "image": "minebeer"
-},
-{
-    "id": "12",
-    "name": "DRICK",
-    "type": "pickAxe",
-    "description": "Styvec's DRICK.",
-    "value": 1500,
-    "vendable": true,
-    "abilities": [
-      { "name": "mining", "powerlevel": 10 }
-    ],
-    "image": "drick"
-}
+    "image": "minebeer",
+    "duration": 120
+  }
 ]

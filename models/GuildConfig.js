@@ -25,6 +25,10 @@ const guildConfigSchema = new mongoose.Schema({
     updatedAt: {
         type: Date,
         default: Date.now
+    },
+    gachaCost: {
+        type: Number,
+        default: 0,
     }
 });
 
