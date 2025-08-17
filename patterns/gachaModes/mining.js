@@ -3,10 +3,13 @@ const Currency = require('../../models/currency');
 const generateShop = require('../generateShop');
 const getPlayerStats = require('../calculatePlayerStat');
 const itemSheet = require('../../data/itemSheet.json');
+const gachaInfo = require('../../data/gachaServers.json');
 const { db } = require('../../models/GuildConfig');
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const registerBotMessage = require('../registerBotMessage');
 const gachaVC = require('../../models/activevcs');
+const generateVoiceChannelImage = require('../generateLocationImage');
+const path = require('path');
 
 // ---------------- Item Pool for findResource ----------------
 const itemPool = [
@@ -95,7 +98,6 @@ function addCoalToMinecart(dbEntry, playerId, amount) {
 }
 
 // ---------------- Event Log System ----------------
-// ---------------- Event Log System ----------------
 async function logEvent(channel, eventText) {
     const timestamp = new Date().toLocaleTimeString('en-US', { 
         hour12: false, 
@@ -106,6 +108,24 @@ async function logEvent(channel, eventText) {
 
     const result = await gachaVC.findOne({ channelId: channel.id });
     const totalCoal = result.gameData.minecart.totalCoal;
+
+    // calculates minutes until next break / shop refresh here.
+
+    const now = new Date();
+    const nextRefreshTime = result.nextShopRefresh;
+
+    let diffMs = nextRefreshTime - now;
+    if (diffMs < 0) diffMs = 0;
+
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMinutes / 60);
+
+    // generate mine image.
+
+    const gachaVCInfo = gachaInfo.find(s => s.id === result.typeId);
+    
+    const buffer = await generateVoiceChannelImage(channel,`./assets/gachaLocations/${gachaVCInfo.image}.png`, `${gachaVCInfo.image}_character_map.png`, `./assets/gachaLocations/${gachaVCInfo.image}_legs.png`,  0.7, minDistance = 70, holderOffset = -20);
+    const attachment = new AttachmentBuilder(buffer, { name: 'mine.png' });
 
     try {
         // Fetch last 5 messages to look for existing EVENT LOG
@@ -136,7 +156,6 @@ async function logEvent(channel, eventText) {
             lines.push(logEntry);
 
             const newDescription = '```\n' + lines.join('\n') + '\n```';
-
             // ✅ If it would exceed ~3000 chars, create NEW embed instead of editing
             if (newDescription.length > 3000) {
                 const embed = new EmbedBuilder()
@@ -146,18 +165,18 @@ async function logEvent(channel, eventText) {
                     .setFooter({ text: `MINECART : ${totalCoal} Coal` })
                     .setTimestamp();
 
-                const logMessage = await channel.send({ embeds: [embed] });
-                registerBotMessage(logMessage.guild.id, logMessage.channel.id, logMessage.id);
+                const logMessage = await channel.send({ embeds: [embed], files: [attachment] });
+                //registerBotMessage(logMessage.guild.id, logMessage.channel.id, logMessage.id);
             } else {
                 // Safe to update existing embed
                 const updatedEmbed = new EmbedBuilder()
                     .setTitle('EVENT LOG')
                     .setDescription(newDescription)
                     .setColor(0x8B4513)
-                    .setFooter({ text: `MINECART : ${totalCoal} Coal` })
+                    .setFooter({ text: `MINECART : ${totalCoal} Coal ~ NEXT BREAK IN ${diffMinutes} MINUTES` })
                     .setTimestamp();
 
-                await eventLogMessage.edit({ embeds: [updatedEmbed] });
+                await eventLogMessage.edit({ embeds: [updatedEmbed], files: [attachment] });
             }
         } else {
             // Create new event log
@@ -165,11 +184,11 @@ async function logEvent(channel, eventText) {
                 .setTitle('EVENT LOG')
                 .setDescription('```\n' + logEntry + '\n```')
                 .setColor(0x8B4513)
-                .setFooter({ text: `MINECART : ${totalCoal} Coal` })
+                .setFooter({ text: `MINECART : ${totalCoal} Coal ~ NEXT BREAK IN ${diffMinutes} MINUTES` })
                 .setTimestamp();
 
-            const logMessage = await channel.send({ embeds: [embed] });
-            registerBotMessage(logMessage.guild.id, logMessage.channel.id, logMessage.id);
+            const logMessage = await channel.send({ embeds: [embed], files: [attachment] });
+            //registerBotMessage(logMessage.guild.id, logMessage.channel.id, logMessage.id);
         }
     } catch (error) {
         console.error('Error updating event log:', error);
@@ -180,7 +199,7 @@ async function logEvent(channel, eventText) {
 // ---------------- Event Functions ----------------
 async function nothingHappens(player, channel, playerStats, item) {
     if (!playerStats.mining || playerStats.mining <= 0) {
-        console.log(playerStats);
+        console.log(item);
         if (Math.random() < 0.3) { // 30% chance to scavenge
             await logEvent(channel, `🪓 Scavenged! ${player.displayName} found 『 ${item.name} 』x 1 on the floor...!`);
             await addToInventory(player, item.itemId, 1);
@@ -199,6 +218,8 @@ async function giveFindResource(player, channel, powerLevel, dbEntry) {
     if (playerStats.mining && playerStats.mining > 0) {
         if (Math.random() > 0.95) {
             // Small chance to fail mining
+
+            console.log ('mining failed, doing nothing happens');
             return nothingHappens(player, channel, playerStats, item);
         }
         
@@ -214,6 +235,7 @@ async function giveFindResource(player, channel, powerLevel, dbEntry) {
         }
     } else {
         // Player has no pickaxe → delegate to nothingHappens which handles scavenging chance
+        console.log ('stats too low, nothing happens');
         return nothingHappens(player, channel, playerStats, item);
     }
 }
@@ -225,22 +247,45 @@ async function pickaxeBreakEvent(player, channel, powerLevel, dbEntry) {
     const inv = await PlayerInventory.findOne({ playerId: player.id });
     if (!inv) return console.log('Cannot find player inventory');
 
-    const miningPickaxes = inv.items
-        .map(invItem => ({ ...itemSheet.find(it => String(it.id) === String(invItem.itemId)), invRef: invItem }))
-        .filter(i => i?.ability === "mining");
+    // Get all items from player inventory with full item data
+    const playerItems = inv.items.map(invItem => {
+        const itemData = itemSheet.find(item => String(item.id) === String(invItem.itemId));
+        return {
+            ...itemData,
+            invRef: invItem // Reference to the inventory item for quantity management
+        };
+    }).filter(item => item.id); // Only include items that were found in itemSheet
 
-    const rustyPickaxe = itemSheet.find(it => it.id === '3');
+    // Filter for pickaxe type items
+    const miningPickaxes = playerItems.filter(item => item.type === "pickAxe");
 
-    if (miningPickaxes.length === 0) return nothingHappens(player, channel, playerStats, rustyPickaxe);
+    // Get rusty pickaxe data for fallback
+    const rustyPickaxe = itemSheet.find(item => item.id === '3');
 
-    const bestPickaxe = miningPickaxes.reduce((prev, curr) => (curr.powerlevel > prev.powerlevel ? curr : prev));
-    const breakChance = Math.max(0.05, 0.5 - (bestPickaxe.powerlevel * 0.05));
+    // If no pickaxes, do nothingHappens with rusty pickaxe
+    if (miningPickaxes.length === 0) {
+        console.log('no pickaxe, nothing happens but may find pickaxe');
+        return nothingHappens(player, channel, playerStats, rustyPickaxe);
+    }
+
+    // Find the pickaxe with highest mining power level
+    const bestPickaxe = miningPickaxes.reduce((prev, curr) => {
+        const prevPower = prev.abilities?.find(ability => ability.name === "mining")?.powerlevel || 0;
+        const currPower = curr.abilities?.find(ability => ability.name === "mining")?.powerlevel || 0;
+        return currPower > prevPower ? curr : prev;
+    });
+
+    // Get the mining power level for break chance calculation
+    const miningPowerLevel = bestPickaxe.abilities?.find(ability => ability.name === "mining")?.powerlevel || 1;
+    
+    // Calculate break chance (higher power level = lower break chance)
+    const breakChance = Math.max(0.05, 0.5 - (miningPowerLevel * 0.05));
 
     if (Math.random() < breakChance) {
         await removeFromInventory(inv, bestPickaxe.invRef, 1);
         await logEvent(channel, `💥 ${player.displayName}'s 『 ${bestPickaxe.name} 』 shattered into pieces!`);
     } else {
-        await logEvent(channel, `⚒️ ${player.displayName} heard their 『 ${bestPickaxe.name} 』 creak... but it held together!`);
+        await logEvent(channel, `⚡️ ${player.displayName} heard their 『 ${bestPickaxe.name} 』 creak... but it held together!`);
     }
 }
 
@@ -499,8 +544,8 @@ function pickLongBreakEvent(events) {
 // ---------------- Main Mining Event ----------------
 const miningEvents = [
     { func: giveFindResource, weight: 70 },
-    { func: pickaxeBreakEvent, weight: 20 },
-    { func: nothingHappens, weight: 10 }
+    { func: pickaxeBreakEvent, weight: 30 }
+    //{ func: nothingHappens, weight: 10 }
 ];
 
 module.exports = async (channel, dbEntry, json, client) => {
@@ -513,6 +558,7 @@ module.exports = async (channel, dbEntry, json, client) => {
     if (!dbEntry.gameData.breakCount) {
         dbEntry.gameData.breakCount = 0;
         dbEntry.markModified('gameData');
+        //dbEntry.nextShopRefresh = Date.now() + (25 * 60 * 1000);
     }
 
     // CRITICAL FIX: Save immediately after initialization
@@ -528,7 +574,7 @@ module.exports = async (channel, dbEntry, json, client) => {
         
         // Start 5-minute shop break after special event
         dbEntry.nextTrigger = new Date(now + 5 * 60 * 1000); // 5 minutes
-        await generateShop(channel);
+        await generateShop(channel, 5);
         await logEvent(channel, '🛒 Special event concluded! Shop open for 5 minutes before mining resumes.');
         await dbEntry.save();
         return;
@@ -565,39 +611,14 @@ module.exports = async (channel, dbEntry, json, client) => {
         } else {
             // Regular break: 5min shop break
             await createMiningSummary(channel, dbEntry);
-            const shopMessage =  await generateShop(channel);
+            await generateShop(channel, 5);
             
             dbEntry.nextTrigger = new Date(now + 5 * 60 * 1000); // 5 minute pause
             dbEntry.nextShopRefresh = new Date(now + 25 * 60 * 1000); // Next break in 25 mins
             await logEvent(channel, '🛑 SHORT BREAK: Mining paused for 5 minutes. Shop is now open!');
-
-            setTimeout(async () => {
-                // If you stored the whole Message object in memory:
-                await closeShop(shopMessage);
-            }, 5 * 60 * 1000);
         }
     }
 
     // CRITICAL FIX: Always save at the end
     await dbEntry.save();
 };
-
-/**
- * Deletes the shop message when the break ends.
- * @param {Message} shopMessage - The Message object returned by generateShop()
- */
-async function closeShop(shopMessage) {
-    if (!shopMessage) return;
-
-    try {
-        await shopMessage.delete();
-        console.log(`🗑️ Shop message deleted in #${shopMessage.channel.name}`);
-    } catch (error) {
-        if (error.code === 10008) {
-            // Unknown Message (already deleted or invalid)
-            console.warn('⚠️ Tried to delete shop message, but it no longer exists.');
-        } else {
-            console.error('Error deleting shop message:', error);
-        }
-    }
-}

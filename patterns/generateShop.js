@@ -4,7 +4,7 @@ const GachaVC = require('../models/activevcs');
 const gachaData = require('../data/gachaServers.json');
 const shopData = require('../data/shops.json');
 const itemSheet = require('../data/itemSheet.json');
-const registerBotMessage = require('../patterns/registerBotMessage');
+const registerBotMessage = require('./registerBotMessage');
 const generateShopImage = require('./generateShopImage');
 const path = require('path');
 
@@ -13,7 +13,7 @@ function seededRandom(seed) {
     return x - Math.floor(x);
 }
 
-async function generateShop(channel) {
+async function generateShop(channel, closingTime) {
     
     const matchingVC = await GachaVC.findOne({ channelId: channel.id }).lean();
     if (!matchingVC) return channel.send('❌ Not an active Gacha VC channel!');
@@ -135,6 +135,13 @@ async function generateShop(channel) {
     console.log(`✅ Shop generated for channel ${channel.id} with message ID ${shopMessage.id}`);
     
     // Return the shop message so it can be closed later
+
+
+    setTimeout(async () => {
+    // If you stored the whole Message object in memory:
+    await closeShop(shopMessage);
+    }, 5 * 60 * 1000);
+
     return shopMessage;
 
 }
@@ -148,5 +155,27 @@ const formatDescription = (str) => {
     }
     return `"${str}"`; // wrap in quotes otherwise
 };
+
+
+/**
+ * Deletes the shop message when the break ends.
+ * @param {Message} shopMessage - The Message object returned by generateShop()
+ */
+async function closeShop(shopMessage) {
+    if (!shopMessage) return;
+
+    try {
+        await shopMessage.delete();
+        console.log(`🗑️ Shop message deleted in #${shopMessage.channel.name}`);
+    } catch (error) {
+        if (error.code === 10008) {
+            // Unknown Message (already deleted or invalid)
+            console.warn('⚠️ Tried to delete shop message, but it no longer exists.');
+        } else {
+            console.error('Error deleting shop message:', error);
+        }
+    }
+}
+
 
 module.exports = generateShop;

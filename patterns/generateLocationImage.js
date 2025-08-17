@@ -1,5 +1,5 @@
 const { createCanvas, loadImage } = require('canvas');
-
+const { scanMagentaPixels, getMagentaCoordinates } = require('../fileStoreMapData');
 /**
  * Generates a composite image:
  * - Places circular user avatars at random magenta points on a mask image
@@ -8,7 +8,7 @@ const { createCanvas, loadImage } = require('canvas');
  *
  * @param {object} channel - The voice channel object
  * @param {string} backgroundPath - Path to background image
- * @param {string} maskPath - Path to mask image with magenta points (255, 0, 255)
+ * @param {string} maskName - Path to mask image with magenta points (255, 0, 255)
  * @param {string} holderPath - Path to holder image to draw beneath avatars
  * @param {number} scale - Scaling factor for avatar size (default = 1)
  * @param {number} minDistance - Minimum distance between avatars (default = 70)
@@ -18,7 +18,7 @@ const { createCanvas, loadImage } = require('canvas');
 async function generateVoiceChannelImage(
     channel,
     backgroundPath,
-    maskPath,
+    maskName,
     holderPath,
     scale = 1,
     minDistance = 70,
@@ -27,9 +27,8 @@ async function generateVoiceChannelImage(
     if (!channel?.isVoiceBased()) throw new Error('Channel must be a voice channel');
 
     // Load background, mask, and holder
-    const [background, mask, holder] = await Promise.all([
+    const [background, holder] = await Promise.all([
         loadImage(backgroundPath),
-        loadImage(maskPath),
         loadImage(holderPath)
     ]);
 
@@ -37,20 +36,7 @@ async function generateVoiceChannelImage(
     const ctx = canvas.getContext('2d');
 
     // Scan mask for magenta pixels
-    ctx.drawImage(mask, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-    const candidates = [];
-
-    for (let y = 0; y < canvas.height; y++) {
-        for (let x = 0; x < canvas.width; x++) {
-            const idx = (y * canvas.width + x) * 4;
-            const [r, g, b] = [data[idx], data[idx + 1], data[idx + 2]];
-            if (r === 255 && g === 0 && b === 255) {
-                candidates.push({ x, y });
-            }
-        }
-    }
+    const candidates = await getMagentaCoordinates(maskName);
 
     // Shuffle candidate points
     for (let i = candidates.length - 1; i > 0; i--) {

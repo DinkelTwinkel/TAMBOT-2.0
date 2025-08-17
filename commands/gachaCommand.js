@@ -19,7 +19,7 @@ module.exports = {
 
         // Adjust paths for your assets
         const backgroundPath = path.join(__dirname, '../assets/gachaLocations/placeHolder.png');
-        const maskPath = path.join(__dirname, '../assets/gachaLocations/placeHolder_charactermap.png');
+        const maskPath = 'placeHolder_character_map.png';
         const holderPath = path.join(__dirname, '../assets/gachaLocations/placeHolder_legs.png');
         const scale = 0.7;
 

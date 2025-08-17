@@ -8,6 +8,7 @@ const registerBotMessage = require('./registerBotMessage');
 const rollPrice = 5;
 
 const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
+const generateShop = require('./generateShop');
 
 const channelsFile = path.join(__dirname, '../data/gachaServers.json');
 const channelData = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
@@ -49,8 +50,8 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             channelId: newGachaChannel.id,
             guildId: guild.id,
             typeId: 0,
-            nextTrigger: new Date(Date.now() + 5 * 1000), // 5 second delay before events start.
-            nextShopRefresh: new Date(),
+            nextTrigger: new Date(Date.now() + 1000 * 30), // 30 second delay before events start.
+            nextShopRefresh: new Date(), 
             nextLongBreak: new Date(Date.now() + 60 * 1000 * 100),
         })
 
@@ -95,6 +96,8 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
         // Send it in the new text channel with the attachment
         await newGachaChannel.send({ embeds: [rollEmbed], files: [imageAttachment] });
+
+        await generateShop(newGachaChannel, 0.5);
 
     } catch (err) {
         console.error('Error creating or assigning VC:', err);

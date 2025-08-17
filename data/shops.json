@@ -12,7 +12,8 @@
     "rotationalAmount": 1,
     "itemPool": [1,2,5],
     "image": "coalMineShop",
-    "priceChangeFactor": 0.1
+    "priceChangeFactor": 0.1,
+    "itemDisplayScale": 1
     },
     {
     "id": 2,
@@ -23,10 +24,27 @@
     "failureTooPoor": ["If you're broke get out of here!", "Scram Pauper!"],
     "failureOther": ["Stop wasting my time..", "-HUFF", "Scram!"],
     "cost": 0,
-    "staticItems": [3],
+    "staticItems": [3, 5],
     "rotationalAmount": 1,
-    "itemPool": [1,2],
+    "itemPool": [1,2,4],
     "image": "coalMineShop",
-    "priceChangeFactor": 0.1
+    "priceChangeFactor": 0.1,
+    "itemDisplayScale": 1
+    },
+    {
+    "id": 3,
+    "name": "Diamond Mine Trading Shop",
+    "idleDialogue": ["The children yearn for the mines...", "Keep mining!", "Eris-chan...", "*-Scratches Balls.*", "*~Yawns*"],
+    "successSell": ["A pleasure doing business..."],
+    "successBuy": ["A pleasure doing business..."],
+    "failureTooPoor": ["If you're broke get out of here!", "Scram Pauper!"],
+    "failureOther": ["Stop wasting my time..", "-HUFF", "Scram!"],
+    "cost": 0,
+    "staticItems": [3, 5],
+    "rotationalAmount": 1,
+    "itemPool": [1,2,4],
+    "image": "coalMineShop",
+    "priceChangeFactor": 0.1,
+    "itemDisplayScale": 1
     }
 ]

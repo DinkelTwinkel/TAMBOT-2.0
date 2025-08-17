@@ -4,6 +4,9 @@ const { Client, Events, GatewayIntentBits, ActivityType, PermissionsBitField, Pa
 const { token, mongourl } = require('./keys.json');
 const GuildConfig = require('./models/GuildConfig');
 const CurrencyProfile = require('./models/currency');
+const ensureMoneyProfilesForGuild = require('./patterns/currency/ensureMoneyProfile');
+const botMessageDeletus = require('./patterns/botMessageCleaner');
+const gachaGM = require('./patterns/gachaGameMaster');
 
 // Create a new client instance
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates], partials: [
@@ -33,6 +36,9 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
 
+const { scanMagentaPixels, getMagentaCoordinates } = require('./fileStoreMapData');
+scanMagentaPixels();
+
 let shopHandler;
 
 client.once(Events.ClientReady, async c => {
@@ -41,6 +47,9 @@ client.once(Events.ClientReady, async c => {
     console.log(`Ready! Logged in as ${c.user.tag}`);
     client.user.setPresence({ status: "away" });
     
+    const ensureMoneyProfilesForGuild = require('./patterns/currency/ensureMoneyProfile');
+    const botMessageDeletus = require('./patterns/botMessageCleaner');
+    const gachaGM = require('./patterns/gachaGameMaster');
 
     //Global Listeners:
     const eatTheRichListener = require('./patterns/eatTheRich');
@@ -94,15 +103,12 @@ client.once(Events.ClientReady, async c => {
             .catch(console.error);
 
         // Ensure currency profiles
-        const ensureMoneyProfilesForGuild = require('./patterns/currency/ensureMoneyProfile');
         ensureMoneyProfilesForGuild(guild);
 
         // Clean old messages
-        const botMessageDeletus = require('./patterns/botMessageCleaner');
         botMessageDeletus(guild);
 
         // Run gacha GM for this guild
-        const gachaGM = require('./patterns/gachaGameMaster');
         gachaGM(guild);
 
         // Listen for VoiceStateUpdate for this guild
