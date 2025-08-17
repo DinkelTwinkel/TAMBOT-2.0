@@ -645,7 +645,7 @@ async function endThiefGame(channel, dbEntry) {
         .setTimestamp();
 
     let winners = []
-    let jailImageAttachment = null;
+    let jailImageAttachment = null; // Declare at the top level
 
     if (!votes.length) {
         embed.setDescription('No votes were cast this round.');
@@ -685,7 +685,7 @@ async function endThiefGame(channel, dbEntry) {
 
                     // Load and draw jail bars (assuming jailbars.png exists in the project)
                     try {
-                        const jailBars = await Canvas.loadImage('../../assets/game/jailbars.png');
+                        const jailBars = await Canvas.loadImage('./assets/jailbars.png');
                         ctx.drawImage(jailBars, 0, 0, 256, 256);
                     } catch (error) {
                         console.warn('jailbars.png not found, drawing simple bars instead');
