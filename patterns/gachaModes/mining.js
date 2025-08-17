@@ -782,6 +782,7 @@ module.exports = async (channel, dbEntry, json, client) => {
         if (breakCount % 4 === 0) {
             // Long break: 10min special event + 5min shop = 15min total
             // Refresh dbEntry to get latest minecart data for summary
+            console.log ('running Long Break');
             const refreshedEntry = await gachaVC.findOne({ channelId: channel.id });
             await createMiningSummary(channel, refreshedEntry);
             await pickLongBreakEvent(longBreakEvents)(channel, refreshedEntry);
