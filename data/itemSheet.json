@@ -56,5 +56,15 @@
     ],
     "image": "water",
     "duration": 30
+  },
+  {
+    "id": "6",
+    "name": "Diamond",
+    "type": "mineLoot",
+    "description": "a shiny gem worth some money.",
+    "value": 3,
+    "vendable": false,
+    "abilities": [],
+    "image": "topaz"
   }
 ]
