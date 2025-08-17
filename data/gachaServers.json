@@ -13,7 +13,7 @@
     "image": "placeHolder"
     },
     {
-    "id": "4",
+    "id": "3",
     "name": "⛏️ Diamond Mines",
     "type": "mining",
     "rarity": "uncommon",
@@ -26,7 +26,7 @@
     "image": "placeHolder"
     },
     {
-    "id": "4",
+    "id": "2",
     "name": "⛏️ Topaz Mine",
     "type": "mining",
     "rarity": "rare",
