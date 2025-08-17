@@ -558,7 +558,7 @@ module.exports = async (channel, dbEntry, json, client) => {
     if (!dbEntry.gameData.breakCount) {
         dbEntry.gameData.breakCount = 0;
         dbEntry.markModified('gameData');
-        //dbEntry.nextShopRefresh = Date.now() + (25 * 60 * 1000);
+        dbEntry.nextShopRefresh = Date.now() + (25 * 60 * 1000);
     }
 
     // CRITICAL FIX: Save immediately after initialization
