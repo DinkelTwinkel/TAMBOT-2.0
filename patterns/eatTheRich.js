@@ -32,12 +32,6 @@ module.exports = (client) => {
       });
     }
 
-    const lastUsed = cooldowns.get(interaction.user.id) || 0;
-    if (now - lastUsed < COOLDOWN) {
-      const remaining = Math.ceil((COOLDOWN - (now - lastUsed)) / 1000);
-      return interaction.reply({ content: `⏱ You must wait ${remaining} seconds before eating the rich again!`, ephemeral: true });
-    }
-
     // Fetch all members of the guild
     const guildMembers = await interaction.guild.members.fetch();
     const memberIds = guildMembers.map(member => member.id);
