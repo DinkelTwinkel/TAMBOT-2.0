@@ -17,3 +17,4 @@ data/mapData.json
 # Built Visual Studio Code Extensions
 *.vsix
 
+data/mapData.json
