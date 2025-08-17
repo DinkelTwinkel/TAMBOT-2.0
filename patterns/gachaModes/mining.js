@@ -3,7 +3,6 @@ const Currency = require('../../models/currency');
 const generateShop = require('../generateShop');
 const getPlayerStats = require('../calculatePlayerStat');
 const itemSheet = require('../../data/itemSheet.json');
-const gachaInfo = require('../../data/gachaServers.json');
 const { db } = require('../../models/GuildConfig');
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const registerBotMessage = require('../registerBotMessage');
@@ -121,10 +120,8 @@ async function logEvent(channel, eventText) {
     const diffHours = Math.floor(diffMinutes / 60);
 
     // generate mine image.
-
-    const gachaVCInfo = gachaInfo.find(s => s.id === result.typeId);
     
-    const buffer = await generateVoiceChannelImage(channel,`./assets/gachaLocations/${gachaVCInfo.image}.png`, `${gachaVCInfo.image}_character_map.png`, `./assets/gachaLocations/${gachaVCInfo.image}_legs.png`,  0.7, minDistance = 70, holderOffset = -20);
+    const buffer = await generateVoiceChannelImage(channel);
     const attachment = new AttachmentBuilder(buffer, { name: 'mine.png' });
 
     try {
@@ -558,7 +555,7 @@ module.exports = async (channel, dbEntry, json, client) => {
     if (!dbEntry.gameData.breakCount) {
         dbEntry.gameData.breakCount = 0;
         dbEntry.markModified('gameData');
-        dbEntry.nextShopRefresh = Date.now() + (25 * 60 * 1000);
+        //dbEntry.nextShopRefresh = Date.now() + (25 * 60 * 1000);
     }
 
     // CRITICAL FIX: Save immediately after initialization

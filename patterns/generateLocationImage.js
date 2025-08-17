@@ -1,5 +1,7 @@
 const { createCanvas, loadImage } = require('canvas');
 const { scanMagentaPixels, getMagentaCoordinates } = require('../fileStoreMapData');
+const gachaInfo = require('../data/gachaServers.json');
+const gachaVC = require('../models/activevcs');
 /**
  * Generates a composite image:
  * - Places circular user avatars at random magenta points on a mask image
@@ -15,15 +17,17 @@ const { scanMagentaPixels, getMagentaCoordinates } = require('../fileStoreMapDat
  * @param {number} holderOffset - Vertical offset for holder image (default = 20, pushes it lower)
  * @returns {Buffer} Canvas buffer of final compiled image
  */
-async function generateVoiceChannelImage(
-    channel,
-    backgroundPath,
-    maskName,
-    holderPath,
-    scale = 1,
-    minDistance = 70,
-    holderOffset = 20
-) {
+async function generateVoiceChannelImage(channel) {
+
+    const result = await gachaVC.findOne({channelId: channel.id});
+    const gachaVCInfo = gachaInfo.find(s => s.id === result.typeId);
+    const backgroundPath =`./assets/gachaLocations/${gachaVCInfo.image}.png`;
+    const maskName =`${gachaVCInfo.image}_character_map.png`;
+    const holderPath =`./assets/gachaLocations/${gachaVCInfo.image}_legs.png`;
+    const scale = 0.7;
+    const minDistance = 70;
+    const holderOffset = -20;
+
     if (!channel?.isVoiceBased()) throw new Error('Channel must be a voice channel');
 
     // Load background, mask, and holder
