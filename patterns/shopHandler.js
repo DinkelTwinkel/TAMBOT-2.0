@@ -81,6 +81,7 @@ class ShopHandler {
         }
     }
 
+
     async handleBuyInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId, fluctuatedPrice) {
         const userId = interaction.user.id;
         const currentBuyPrice = fluctuatedPrice.buy;
@@ -117,6 +118,14 @@ class ShopHandler {
         // Handle non-consumables - show modal for quantity
         const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
         
+        // Create a shorter label that fits within Discord's 45 character limit
+        const shortLabel = `Qty? ${currentBuyPrice}c${priceIndicator} | Bal: ${userCurrency.money}c`;
+        
+        // If still too long, truncate further
+        const finalLabel = shortLabel.length > 45 ? 
+            `Qty? ${currentBuyPrice}c${priceIndicator}` : 
+            shortLabel;
+        
         const modal = new ModalBuilder()
             .setCustomId(`buy_modal_${item.id}_${userId}_${shopMessageId}`)
             .setTitle(`Buy ${item.name}`)
@@ -124,10 +133,10 @@ class ShopHandler {
                 new ActionRowBuilder().addComponents(
                     new TextInputBuilder()
                         .setCustomId('quantity')
-                        .setLabel(`How many? Cost: ${currentBuyPrice}c${priceIndicator} each | Balance: ${userCurrency.money}c`)
+                        .setLabel(finalLabel)
                         .setStyle(TextInputStyle.Short)
                         .setRequired(true)
-                        .setPlaceholder('Enter quantity')
+                        .setPlaceholder(`Enter quantity. Cost: ${currentBuyPrice}c${priceIndicator} each`)
                 )
             );
 
@@ -149,6 +158,14 @@ class ShopHandler {
 
         const priceIndicator = currentSellPrice > Math.floor(item.value / 2) ? ' ▲' : currentSellPrice < Math.floor(item.value / 2) ? ' ▼' : '';
 
+        // Create a shorter label that fits within Discord's 45 character limit
+        const shortLabel = `Sell? ${currentSellPrice}c${priceIndicator} | Have ${maxQty}`;
+        
+        // If still too long, truncate further
+        const finalLabel = shortLabel.length > 45 ? 
+            `Sell? ${currentSellPrice}c${priceIndicator}` : 
+            shortLabel;
+
         const modal = new ModalBuilder()
             .setCustomId(`sell_modal_${item.id}_${userId}_${shopMessageId}`)
             .setTitle(`Sell ${item.name}`)
@@ -156,10 +173,10 @@ class ShopHandler {
                 new ActionRowBuilder().addComponents(
                     new TextInputBuilder()
                         .setCustomId('quantity')
-                        .setLabel(`How many to sell? ${currentSellPrice}c${priceIndicator} each | You have ${maxQty}`)
+                        .setLabel(finalLabel)
                         .setStyle(TextInputStyle.Short)
                         .setRequired(true)
-                        .setPlaceholder(`Max: ${maxQty}`)
+                        .setPlaceholder(`Max: ${maxQty}. Price: ${currentSellPrice}c${priceIndicator} each`)
                 )
             );
 
