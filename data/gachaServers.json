@@ -14,7 +14,7 @@
     },
     {
     "id": "4",
-    "name": "Diamond Mines",
+    "name": "⛏️ Diamond Mines",
     "type": "mining",
     "rarity": "uncommon",
     "spawnWeight": 10,
@@ -27,7 +27,7 @@
     },
     {
     "id": "4",
-    "name": "Topaz Mine",
+    "name": "⛏️ Topaz Mine",
     "type": "mining",
     "rarity": "rare",
     "spawnWeight": 1,
