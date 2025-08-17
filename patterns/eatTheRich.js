@@ -1,8 +1,8 @@
 const Money = require('../models/currency');
 
 // Cooldowns map: userId => timestamp of last use
-const cooldowns = new Map();
-const COOLDOWN = 1000; // 1 s
+const COOLDOWN = 60 * 1000 * 60 * 5; // 1 s
+const Cooldown = require('../models/coolDowns');
 
 module.exports = (client) => {
   client.on('interactionCreate', async (interaction) => {
@@ -15,7 +15,23 @@ module.exports = (client) => {
       return interaction.reply({ content: "You need to be broke to eat the rich...!", ephemeral: true });
     }
 
+    // Check cooldown
+    let cdDoc = await Cooldown.findOne({ userId: thiefId });
+    if (!cdDoc) {
+      cdDoc = new Cooldown({ userId: thiefId, cooldowns: {} });
+    }
+
     const now = Date.now();
+    const eatCd = cdDoc.cooldowns.get('eatTheRich');
+
+    if (eatCd && eatCd.getTime() > now) {
+      const cdUnix = Math.floor(eatCd.getTime() / 1000); // Discord uses seconds for timestamps
+      return i.reply({
+        content: `⏳ You must wait <t:${cdUnix}:R> before eating the rich again.`,
+        ephemeral: true
+      });
+    }
+
     const lastUsed = cooldowns.get(interaction.user.id) || 0;
     if (now - lastUsed < COOLDOWN) {
       const remaining = Math.ceil((COOLDOWN - (now - lastUsed)) / 1000);
@@ -51,7 +67,8 @@ module.exports = (client) => {
     await userProfile.save();
 
     // Set cooldown
-    cooldowns.set(interaction.user.id, now);
+    cdDoc.cooldowns.set('eatTheRich', new Date(now + COOLDOWN));
+    await cdDoc.save();
 
     return interaction.reply({
       content: `You 🍴 ate <@${target.userId}> and got 💰 ${stealAmount.toLocaleString()}!`,
