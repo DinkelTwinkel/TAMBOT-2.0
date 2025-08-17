@@ -504,25 +504,31 @@ async function createMiningSummary(channel, dbEntry) {
 
     // Reward each contributor using atomic operations
     const contributorLines = [];
-    for (const [playerId, reward] of Object.entries(contributorRewards)) {
-        try {
-            const member = await channel.guild.members.fetch(playerId);
-            
-            // Atomic currency update
-            await Currency.findOneAndUpdate(
-                { userId: playerId },
-                { 
-                    $inc: { money: reward.coins },
-                    $setOnInsert: { userId: playerId, money: 0 }
-                },
-                { upsert: true }
-            );
-            
-            contributorLines.push(`${member.displayName}: ${reward.items.join(', ')} → ${reward.coins} coins`);
-        } catch (error) {
-            console.error(`Error rewarding player ${playerId}:`, error);
+for (const [playerId, reward] of Object.entries(contributorRewards)) {
+    try {
+        const member = await channel.guild.members.fetch(playerId);
+        
+        // Fixed atomic currency update - handle the case where money field doesn't exist
+        let userCurrency = await Currency.findOne({ userId: playerId });
+        
+        if (!userCurrency) {
+            // Create new currency document if it doesn't exist
+            userCurrency = await Currency.create({
+                userId: playerId,
+                money: reward.coins
+            });
+        } else {
+            // Update existing document safely
+            userCurrency.money = (userCurrency.money || 0) + reward.coins;
+            await userCurrency.save();
         }
+        
+        contributorLines.push(`${member.displayName}: ${reward.items.join(', ')} → ${reward.coins} coins`);
+    } catch (error) {
+        console.error(`Error rewarding player ${playerId}:`, error);
+        // Continue processing other players even if one fails
     }
+}
 
     const embed = new EmbedBuilder()
         .setTitle('🛒 Mining Session Complete')
