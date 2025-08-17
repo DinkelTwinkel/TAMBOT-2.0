@@ -6,16 +6,16 @@ const GachaVC = require('../models/activevcs');
 const gachaData = require('../data/gachaServers.json');
 const shopData = require('../data/shops.json');
 const itemSheet = require('../data/itemSheet.json');
-const path = require('path');
 
 class ShopHandler {
-    constructor(client) {
+    constructor(client, guildId) {
         this.client = client;
         this.setupListeners();
     }
 
     setupListeners() {
         this.client.on('interactionCreate', async (interaction) => {
+            if (interaction.guild.id !== guildId) return;
             if (!interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
 
             // Handle shop select menus

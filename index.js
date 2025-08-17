@@ -1,7 +1,7 @@
 // Require the necessary discord.js classes
 const fs = require('fs');
 const { Client, Events, GatewayIntentBits, ActivityType, PermissionsBitField, Partials } = require('discord.js');
-const { token, mongourl } = require('./keys.json');
+const { token, mongourl, targetGuildId } = require('./keys.json');
 const GuildConfig = require('./models/GuildConfig');
 const CurrencyProfile = require('./models/currency');
 const ensureMoneyProfilesForGuild = require('./patterns/currency/ensureMoneyProfile');
@@ -55,13 +55,13 @@ client.once(Events.ClientReady, async c => {
     const eatTheRichListener = require('./patterns/eatTheRich');
     eatTheRichListener(client);
     const ShopHandler = require('./patterns/shopHandler'); 
-            shopHandler = new ShopHandler(client);
+    shopHandler = new ShopHandler(client, targetGuildId);
     console.log('✅ Centralized shop handler initialized');
 
     // Loop through all guilds your bot is in
     client.guilds.cache.forEach(async guild => {
 
-        //if (guild.id === '1221772148385910835') return console.log ('skipping guild: ' + guild.id);
+        if (guild.id !== targetGuildId) return console.log ('skipping guild: ' + guild.id);
 
 
         // Fetch guild config from MongoDB
