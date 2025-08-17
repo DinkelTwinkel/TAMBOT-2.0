@@ -1,4 +1,4 @@
-// Updated generateShop.js - Removed collectors, relies on centralized handler
+// Updated generateShop.js - Added price fluctuation system
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, AttachmentBuilder } = require('discord.js');
 const GachaVC = require('../models/activevcs');
 const gachaData = require('../data/gachaServers.json');
@@ -13,15 +13,48 @@ function seededRandom(seed) {
     return x - Math.floor(x);
 }
 
+// New function to calculate fluctuated price
+function calculateFluctuatedPrice(basePrice, seed, priceChangeFactor) {
+    // Use seeded random to get consistent price fluctuation
+    const randomValue = seededRandom(seed);
+    
+    // Convert to range of -priceChangeFactor to +priceChangeFactor
+    const fluctuation = (randomValue - 0.5) * 2 * priceChangeFactor;
+    
+    // Apply fluctuation (1.0 = no change, 1.1 = 10% increase, 0.9 = 10% decrease)
+    const multiplier = 1 + fluctuation;
+    
+    // Ensure minimum price of 1
+    return Math.max(1, Math.floor(basePrice * multiplier));
+}
+
+// Function to get fluctuated prices for all items in the shop
+function getShopPrices(itemIds, refreshTime, priceChangeFactor) {
+    const prices = {};
+    
+    itemIds.forEach((itemId, index) => {
+        const item = itemSheet.find(i => i.id === String(itemId));
+        if (item) {
+            // Use refresh time + item index as seed for unique but consistent prices
+            const seed = refreshTime + index + parseInt(itemId);
+            prices[itemId] = {
+                buy: calculateFluctuatedPrice(item.value, seed, priceChangeFactor),
+                sell: Math.floor(calculateFluctuatedPrice(item.value, seed, priceChangeFactor) / 2)
+            };
+        }
+    });
+    
+    return prices;
+}
+
 async function generateShop(channel, closingTime) {
     
     const matchingVC = await GachaVC.findOne({ channelId: channel.id }).lean();
-    if (!matchingVC) return channel.send('❌ Not an active Gacha VC channel!');
-
-
+    if (!matchingVC) return channel.send('⌘ Not an active Gacha VC channel!');
 
     const shopInfo = shopData.find(s => s.id === gachaData.find(g => g.id === matchingVC.typeId)?.shop);
-    if (!shopInfo) return channel.send('⚠ No shop data found for this VC!');
+    if (!shopInfo) return channel.send('⚠️ No shop data found for this VC!');
+    
     const now = Date.now();
     if (new Date(matchingVC.nextShopRefresh).getTime() < now) matchingVC.nextShopRefresh = new Date(now + 25 * 60 * 1000);
 
@@ -36,10 +69,20 @@ async function generateShop(channel, closingTime) {
         availableItems.splice(index, 1);
     }
 
-    const pickShopDescription = shopInfo.idleDialogue[Math.floor(shopInfo.idleDialogue.length * Math.random())];
-    const imageBuffer = await generateShopImage(shopInfo, buyPool);
-    const attachment = new AttachmentBuilder(imageBuffer, { name: 'shop.png' });
+    // Calculate fluctuated prices for all items
+    const allShopItems = Array.from(new Set([...shopInfo.staticItems, ...shopInfo.itemPool]));
+    const fluctuatedPrices = getShopPrices(allShopItems, matchingVC.nextShopRefresh.getTime(), shopInfo.priceChangeFactor);
 
+    const pickShopDescription = shopInfo.idleDialogue[Math.floor(shopInfo.idleDialogue.length * Math.random())];
+    
+    // Create buyPool with fluctuated prices for image generation
+    const buyPoolWithPrices = buyPool.map(itemId => ({
+        itemId: itemId,
+        price: fluctuatedPrices[itemId]?.buy || itemSheet.find(i => i.id === String(itemId))?.value || 0
+    }));
+    
+    const imageBuffer = await generateShopImage(shopInfo, buyPoolWithPrices);
+    const attachment = new AttachmentBuilder(imageBuffer, { name: 'shop.png' });
 
     const nextRefreshTime = new Date(matchingVC.nextShopRefresh).getTime();
     let diffMs = nextRefreshTime - now;
@@ -78,7 +121,7 @@ async function generateShop(channel, closingTime) {
 
     registerBotMessage(shopMessage.guild.id, shopMessage.channel.id, shopMessage.id);
 
-    // Create buy menu with shop message ID in custom ID
+    // Create buy menu with fluctuated prices
     const buyMenu = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId(`shop_buy_select_${shopMessage.id}`)
@@ -86,6 +129,7 @@ async function generateShop(channel, closingTime) {
             .addOptions(
                 buyPool.map(id => {
                     const item = itemSheet.find(i => i.id === String(id));
+                    const fluctuatedPrice = fluctuatedPrices[id];
 
                     // Build stat line from all abilities
                     let statLine = '';
@@ -99,10 +143,21 @@ async function generateShop(channel, closingTime) {
                         }
                     }
 
+                    // Show price change indicator
+                    const originalPrice = item.value;
+                    const currentPrice = fluctuatedPrice.buy;
+                    let priceIndicator = '';
+                    
+                    if (currentPrice > originalPrice) {
+                        priceIndicator = ' ▲';
+                    } else if (currentPrice < originalPrice) {
+                        priceIndicator = ' ▼';
+                    }
+
                     const descriptionText = `${item.description}${statLine ? ` | ${statLine}` : ''}`;
 
                     return {
-                        label: `${item.name} [${item.value}c]`,
+                        label: `${item.name} [${currentPrice}c${priceIndicator}]`,
                         description: descriptionText.slice(0, 100),
                         value: String(item.id)
                     };
@@ -110,13 +165,15 @@ async function generateShop(channel, closingTime) {
             )
     );
 
-    // Create sell menu - combine static and rotational items, remove duplicates
+    // Create sell menu with fluctuated prices
     const sellItemIds = Array.from(new Set([...shopInfo.staticItems, ...shopInfo.itemPool]));
     const sellOptions = sellItemIds.map(itemId => {
         const item = itemSheet.find(i => i.id === String(itemId));
+        const fluctuatedPrice = fluctuatedPrices[itemId];
+        
         return {
             label: item.name,
-            description: `Sell price: ${Math.floor(item.value / 2)}`,
+            description: `Sell price: ${fluctuatedPrice.sell}c`,
             value: String(itemId),
         };
     });
@@ -131,19 +188,13 @@ async function generateShop(channel, closingTime) {
     // Edit the shop message to add the menus
     await shopMessage.edit({ components: [buyMenu, sellMenu] });
 
-    // Note: No collectors needed! The centralized ShopHandler will handle all interactions
     console.log(`✅ Shop generated for channel ${channel.id} with message ID ${shopMessage.id}`);
     
-    // Return the shop message so it can be closed later
-
-
     setTimeout(async () => {
-    // If you stored the whole Message object in memory:
-    await closeShop(shopMessage);
+        await closeShop(shopMessage);
     }, 5 * 60 * 1000);
 
     return shopMessage;
-
 }
 
 const formatDescription = (str) => {
@@ -155,7 +206,6 @@ const formatDescription = (str) => {
     }
     return `"${str}"`; // wrap in quotes otherwise
 };
-
 
 /**
  * Deletes the shop message when the break ends.
@@ -177,5 +227,7 @@ async function closeShop(shopMessage) {
     }
 }
 
-
+// Export the price calculation functions for use in shopHandler
 module.exports = generateShop;
+module.exports.calculateFluctuatedPrice = calculateFluctuatedPrice;
+module.exports.getShopPrices = getShopPrices;

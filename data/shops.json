@@ -12,7 +12,7 @@
     "rotationalAmount": 1,
     "itemPool": [1,2,5,7],
     "image": "coalMineShop",
-    "priceChangeFactor": 0.1,
+    "priceChangeFactor": 0.7,
     "itemDisplayScale": 1
     },
     {
@@ -28,7 +28,7 @@
     "rotationalAmount": 2,
     "itemPool": [1,2,4,3],
     "image": "coalMineShop",
-    "priceChangeFactor": 0.1,
+    "priceChangeFactor": 0.5,
     "itemDisplayScale": 1
     },
     {
@@ -44,7 +44,7 @@
     "rotationalAmount": 2,
     "itemPool": [1,2,4,6,3],
     "image": "coalMineShop",
-    "priceChangeFactor": 0.1,
+    "priceChangeFactor": 0.5,
     "itemDisplayScale": 1
     }
 ]

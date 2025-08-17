@@ -1,4 +1,4 @@
-// shopHandler.js - Centralized shop interaction handler
+// shopHandler.js - Centralized shop interaction handler with price fluctuation
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const Currency = require('../models/currency');
 const PlayerInventory = require('../models/inventory');
@@ -6,6 +6,7 @@ const GachaVC = require('../models/activevcs');
 const gachaData = require('../data/gachaServers.json');
 const shopData = require('../data/shops.json');
 const itemSheet = require('../data/itemSheet.json');
+const { calculateFluctuatedPrice, getShopPrices } = require('./generateShop');
 
 class ShopHandler {
     constructor(client, guildId) {
@@ -32,6 +33,18 @@ class ShopHandler {
         });
     }
 
+    // Helper function to get current shop prices
+    async getShopFluctuatedPrices(channelId) {
+        const matchingVC = await GachaVC.findOne({ channelId }).lean();
+        if (!matchingVC) return null;
+
+        const shopInfo = shopData.find(s => s.id === gachaData.find(g => g.id === matchingVC.typeId)?.shop);
+        if (!shopInfo) return null;
+
+        const allShopItems = Array.from(new Set([...shopInfo.staticItems, ...shopInfo.itemPool]));
+        return getShopPrices(allShopItems, matchingVC.nextShopRefresh.getTime(), shopInfo.priceChangeFactor);
+    }
+
     async handleShopSelectMenu(interaction) {
         const userId = interaction.user.id;
         const channelId = interaction.channel.id;
@@ -42,7 +55,13 @@ class ShopHandler {
 
         const item = itemSheet.find(it => it.id === selectedItemId);
         if (!item) {
-            return interaction.reply({ content: '❌ Item not found', ephemeral: true });
+            return interaction.reply({ content: '⌘ Item not found', ephemeral: true });
+        }
+
+        // Get fluctuated prices
+        const fluctuatedPrices = await this.getShopFluctuatedPrices(channelId);
+        if (!fluctuatedPrices || !fluctuatedPrices[selectedItemId]) {
+            return interaction.reply({ content: '⌘ Could not get current prices', ephemeral: true });
         }
 
         // Get user currency and inventory
@@ -54,23 +73,24 @@ class ShopHandler {
         const shopInfo = shopData.find(s => s.id === gachaData.find(g => g.id === matchingVC?.typeId)?.shop);
 
         if (interaction.customId.startsWith('shop_buy_select')) {
-            await this.handleBuyInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId);
+            await this.handleBuyInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId, fluctuatedPrices[selectedItemId]);
         } else if (interaction.customId.startsWith('shop_sell_select')) {
-            await this.handleSellInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId);
+            await this.handleSellInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId, fluctuatedPrices[selectedItemId]);
         }
     }
 
-    async handleBuyInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId) {
+    async handleBuyInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId, fluctuatedPrice) {
         const userId = interaction.user.id;
+        const currentBuyPrice = fluctuatedPrice.buy;
 
         // Handle consumables - buy 1 immediately
         if (item.type === 'consumable') {
-            const totalCost = item.value;
+            const totalCost = currentBuyPrice;
             
             if (userCurrency.money < totalCost) {
                 await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor);
                 return interaction.reply({ 
-                    content: `❌ You need ${totalCost} coins but only have ${userCurrency.money}.`, 
+                    content: `⌘ You need ${totalCost} coins but only have ${userCurrency.money}.`, 
                     ephemeral: true 
                 });
             }
@@ -93,6 +113,8 @@ class ShopHandler {
         }
 
         // Handle non-consumables - show modal for quantity
+        const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
+        
         const modal = new ModalBuilder()
             .setCustomId(`buy_modal_${item.id}_${userId}_${shopMessageId}`)
             .setTitle(`Buy ${item.name}`)
@@ -100,7 +122,7 @@ class ShopHandler {
                 new ActionRowBuilder().addComponents(
                     new TextInputBuilder()
                         .setCustomId('quantity')
-                        .setLabel(`How many? Cost: ${item.value} each | Your balance: ${userCurrency.money}`)
+                        .setLabel(`How many? Cost: ${currentBuyPrice}c${priceIndicator} each | Balance: ${userCurrency.money}c`)
                         .setStyle(TextInputStyle.Short)
                         .setRequired(true)
                         .setPlaceholder('Enter quantity')
@@ -110,17 +132,20 @@ class ShopHandler {
         await interaction.showModal(modal);
     }
 
-    async handleSellInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId) {
+    async handleSellInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId, fluctuatedPrice) {
         const userId = interaction.user.id;
+        const currentSellPrice = fluctuatedPrice.sell;
         const ownedItem = userInv.items.find(it => it.itemId === item.id);
         const maxQty = ownedItem?.quantity || 0;
 
         if (maxQty === 0) {
             return interaction.reply({ 
-                content: `❌ You don't own any ${item.name} to sell.`, 
+                content: `⌘ You don't own any ${item.name} to sell.`, 
                 ephemeral: true 
             });
         }
+
+        const priceIndicator = currentSellPrice > Math.floor(item.value / 2) ? ' ▲' : currentSellPrice < Math.floor(item.value / 2) ? ' ▼' : '';
 
         const modal = new ModalBuilder()
             .setCustomId(`sell_modal_${item.id}_${userId}_${shopMessageId}`)
@@ -129,7 +154,7 @@ class ShopHandler {
                 new ActionRowBuilder().addComponents(
                     new TextInputBuilder()
                         .setCustomId('quantity')
-                        .setLabel(`How many to sell? You have ${maxQty}`)
+                        .setLabel(`How many to sell? ${currentSellPrice}c${priceIndicator} each | You have ${maxQty}`)
                         .setStyle(TextInputStyle.Short)
                         .setRequired(true)
                         .setPlaceholder(`Max: ${maxQty}`)
@@ -148,18 +173,24 @@ class ShopHandler {
 
         // Verify the user is the one who initiated the modal
         if (interaction.user.id !== userId) {
-            return interaction.reply({ content: '❌ This modal is not for you.', ephemeral: true });
+            return interaction.reply({ content: '⌘ This modal is not for you.', ephemeral: true });
         }
 
         const item = itemSheet.find(it => it.id === itemId);
         if (!item) {
-            return interaction.reply({ content: '❌ Item not found', ephemeral: true });
+            return interaction.reply({ content: '⌘ Item not found', ephemeral: true });
         }
 
         const quantity = Number(interaction.fields.getTextInputValue('quantity'));
         if (isNaN(quantity) || quantity <= 0) {
             await this.updateShopDescription(interaction.message, null, 'failure');
-            return interaction.reply({ content: '❌ Invalid quantity.', ephemeral: true });
+            return interaction.reply({ content: '⌘ Invalid quantity.', ephemeral: true });
+        }
+
+        // Get fluctuated prices
+        const fluctuatedPrices = await this.getShopFluctuatedPrices(interaction.channel.id);
+        if (!fluctuatedPrices || !fluctuatedPrices[itemId]) {
+            return interaction.reply({ content: '⌘ Could not get current prices', ephemeral: true });
         }
 
         // Get user data
@@ -172,19 +203,20 @@ class ShopHandler {
         const shopInfo = shopData.find(s => s.id === gachaData.find(g => g.id === matchingVC?.typeId)?.shop);
 
         if (action === 'buy') {
-            await this.handleBuyModal(interaction, item, quantity, userCurrency, userInv, shopInfo);
+            await this.handleBuyModal(interaction, item, quantity, userCurrency, userInv, shopInfo, fluctuatedPrices[itemId]);
         } else if (action === 'sell') {
-            await this.handleSellModal(interaction, item, quantity, userCurrency, userInv, shopInfo);
+            await this.handleSellModal(interaction, item, quantity, userCurrency, userInv, shopInfo, fluctuatedPrices[itemId]);
         }
     }
 
-    async handleBuyModal(interaction, item, quantity, userCurrency, userInv, shopInfo) {
-        const totalCost = quantity * item.value;
+    async handleBuyModal(interaction, item, quantity, userCurrency, userInv, shopInfo, fluctuatedPrice) {
+        const currentBuyPrice = fluctuatedPrice.buy;
+        const totalCost = quantity * currentBuyPrice;
         
         if (userCurrency.money < totalCost) {
             await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor);
             return interaction.reply({ 
-                content: `❌ You need ${totalCost} coins but only have ${userCurrency.money}.`, 
+                content: `⌘ You need ${totalCost} coins but only have ${userCurrency.money}.`, 
                 ephemeral: true 
             });
         }
@@ -202,22 +234,25 @@ class ShopHandler {
         }
         await userInv.save();
 
+        const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
+        
         await interaction.reply({ 
-            content: `${interaction.member} ✅ Purchased ${quantity} x ${item.name} for ${totalCost} coins!`, 
+            content: `${interaction.member} ✅ Purchased ${quantity} x ${item.name} for ${totalCost} coins! (${currentBuyPrice}c${priceIndicator} each)`, 
             ephemeral: false 
         });
         
         await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
     }
 
-    async handleSellModal(interaction, item, quantity, userCurrency, userInv, shopInfo) {
+    async handleSellModal(interaction, item, quantity, userCurrency, userInv, shopInfo, fluctuatedPrice) {
+        const currentSellPrice = fluctuatedPrice.sell;
         const ownedItem = userInv.items.find(it => it.itemId === item.id);
         const maxQty = ownedItem?.quantity || 0;
 
         if (quantity > maxQty) {
             await this.updateShopDescription(interaction.message, shopInfo?.failureOther);
             return interaction.reply({ 
-                content: `❌ Invalid quantity. You can sell between 1 and ${maxQty}.`, 
+                content: `⌘ Invalid quantity. You can sell between 1 and ${maxQty}.`, 
                 ephemeral: true 
             });
         }
@@ -231,13 +266,16 @@ class ShopHandler {
             await userInv.save();
         }
 
-        // Add money
-        const totalSell = Math.floor(item.value / 2) * quantity;
+        // Add money using fluctuated sell price
+        const totalSell = currentSellPrice * quantity;
         userCurrency.money += totalSell;
         await userCurrency.save();
 
+        const originalSellPrice = Math.floor(item.value / 2);
+        const priceIndicator = currentSellPrice > originalSellPrice ? ' ▲' : currentSellPrice < originalSellPrice ? ' ▼' : '';
+
         await interaction.reply({ 
-            content: `${interaction.member}💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! Your new balance: ${userCurrency.money}`, 
+            content: `${interaction.member}💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! (${currentSellPrice}c${priceIndicator} each) | Balance: ${userCurrency.money}c`, 
             ephemeral: false 
         });
         
@@ -264,23 +302,6 @@ class ShopHandler {
             existingEmbed.setDescription('```' + this.formatDescription(newDescription) + '```')
             .setImage('attachment://shop.png')
             .setThumbnail('attachment://thumb.gif');
-
-            // Keep existing attachments
-            const attachments = shopMessage.attachments;
-            const files = [];
-            
-            // Re-create attachment files from existing message
-            if (attachments.size > 0) {
-                for (const [, attachment] of attachments) {
-                    if (attachment.name === 'shop.png') {
-                        existingEmbed.setImage('attachment://shop.png');
-                        // Note: We can't re-upload the same file, so we'll leave the image as is
-                    }
-                    if (attachment.name === 'thumb.gif') {
-                        existingEmbed.setThumbnail('attachment://thumb.gif');
-                    }
-                }
-            }
 
             // Edit the message
             await shopMessage.edit({ embeds: [existingEmbed] });
