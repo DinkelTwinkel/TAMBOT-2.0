@@ -663,8 +663,56 @@ async function endThiefGame(channel, dbEntry) {
 
         // Find all users who guessed correctly
         winners = votes.filter(v => v.targetId === thiefId);
+        const totalPlayers = votes.length;
 
-        if (winners.length) {
+        if (winners.length > 0 && winners.length < totalPlayers) {
+            // Some players guessed correctly but not everyone - thief gets a share too
+            const totalRecipients = winners.length + 1; // winners + thief
+            const share = Math.floor(totalStolen / totalRecipients);
+            const winnerLines = [];
+
+            // Reward the winners
+            for (const winner of winners) {
+                let winnerMoney = await Currency.findOne({ userId: winner.userId });
+                if (!winnerMoney) {
+                    const member = await channel.guild.members.fetch(winner.userId).catch(() => null);
+                    winnerMoney = await Currency.create({
+                        userId: winner.userId,
+                        usertag: member ? member.user.tag : 'Unknown',
+                        money: 0
+                    });
+                }
+
+                winnerMoney.money += share;
+                await winnerMoney.save();
+
+                winnerLines.push(`<@${winner.userId}> receives ${share} coins!`);
+            }
+
+            // Reward the thief
+            let thiefMoney = await Currency.findOne({ userId: thiefId });
+            if (!thiefMoney) {
+                const thiefMember = await channel.guild.members.fetch(thiefId).catch(() => null);
+                thiefMoney = await Currency.create({
+                    userId: thiefId,
+                    usertag: thiefMember ? thiefMember.user.tag : 'Unknown',
+                    money: 0
+                });
+            }
+
+            thiefMoney.money += share;
+            await thiefMoney.save();
+
+            embed.addFields(
+                { name: 'Winners', value: winnerLines.join('\n') },
+                { name: 'Thief Reward', value: `<@${thiefId}> keeps ${share} coins for evading some suspicion!` },
+                { name: 'Total Stolen', value: `${totalStolen} coins` }
+            );
+            embed.setTitle('📰 THIEF CAUGHT (Partial Success)');
+            await logEvent(channel, `📰 Thief partially caught! ${winners.length} player(s) win ${share} coins each, thief keeps ${share} coins.`);
+            
+        } else if (winners.length === totalPlayers) {
+            // Everyone guessed correctly - thief gets nothing
             const share = Math.floor(totalStolen / winners.length);
             const winnerLines = [];
 
@@ -689,9 +737,11 @@ async function endThiefGame(channel, dbEntry) {
                 { name: 'Winners', value: winnerLines.join('\n') },
                 { name: 'Total Stolen', value: `${totalStolen} coins` }
             );
-            embed.setTitle('📰 THIEF CAUGHT');
-            await logEvent(channel, `📰 Thief caught! ${winners.length} player(s) win ${Math.floor(totalStolen / winners.length)} coins each.`);
+            embed.setTitle('📰 THIEF CAUGHT (Complete Success)');
+            await logEvent(channel, `📰 Thief completely caught! Everyone guessed correctly. ${winners.length} player(s) win ${share} coins each.`);
+            
         } else {
+            // No one guessed correctly - thief keeps everything
             embed.addFields({ name: 'Result', value: `No one guessed correctly. The thief got away with ${totalStolen} coins.` });
             await logEvent(channel, `🏃‍♂️ Thief escaped with ${totalStolen} coins! No one guessed correctly.`);
         }

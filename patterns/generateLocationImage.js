@@ -162,7 +162,7 @@ async function generateVoiceChannelImage(channel) {
                 const miningAbility = bestPickaxe.abilities?.find(a => a.name === 'mining');
                 if (miningAbility && miningAbility.powerlevel) {
                     ctx.save();
-                    ctx.font = '12px Arial';
+                    ctx.font = '15px "MyFont"';
                     ctx.fillStyle = 'white';
                     ctx.strokeStyle = 'black';
                     ctx.lineWidth = 2;
