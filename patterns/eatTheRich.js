@@ -54,8 +54,8 @@ module.exports = (client) => {
     cooldowns.set(interaction.user.id, now);
 
     return interaction.reply({
-      content: `${interaction.member} 🍴 ate <@${target.userId}> and got 💰 ${stealAmount.toLocaleString()}!`,
-      ephemeral: false
+      content: `You 🍴 ate <@${target.userId}> and got 💰 ${stealAmount.toLocaleString()}!`,
+      ephemeral: true
     });
   });
 };
