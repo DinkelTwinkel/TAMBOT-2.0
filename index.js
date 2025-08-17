@@ -181,6 +181,7 @@ for (const file of commandFiles) {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isCommand()) return;
+  if (interaction.guild.id !== targetGuildId) return;
 
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
