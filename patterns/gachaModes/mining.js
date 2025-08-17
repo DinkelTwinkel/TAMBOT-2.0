@@ -339,12 +339,17 @@ async function logEvent(channel, eventText) {
 }
 
 // ---------------- Event Functions ----------------
-async function nothingHappens(player, channel, playerStats, item) {
+async function nothingHappens(player, channel, playerStats, item, dbEntry) {
     if (!playerStats.mining || playerStats.mining <= 0) {
-        console.log(item);
-        if (Math.random() < 0.3) { // 30% chance to scavenge
-            await logEvent(channel, `🪓 Scavenged! ${player.displayName} found 『 ${item.name} 』x 1 on the floor...!`);
-            await addToInventory(player, item.itemId, 1);
+        // Player has no pickaxe - check for scavenging
+        if (Math.random() < 0.15) { // 15% chance to scavenge a mining item
+            const scavengedItem = pickWeightedItem(1); // Use power level 1 for scavenging
+            await addItemToMinecart(dbEntry, player.id, scavengedItem.itemId, 1);
+            await logEvent(channel, `🪓 Scavenged! ${player.displayName} found 『 ${scavengedItem.name} 』x 1 on the floor → Added to minecart!`);
+        } else if (Math.random() < 0.05) { // 5% chance to find a pickaxe
+            // Give them a rusty pickaxe (assuming itemId "3" is the rusty pickaxe)
+            await addToInventory(player, "3", 1);
+            await logEvent(channel, `⚡ Lucky find! ${player.displayName} discovered a rusty pickaxe in the rubble!`);
         } else {
             await logEvent(channel, `❌ ${player.displayName} failed to mine anything due to not having a pickaxe...`);
         }
@@ -360,8 +365,8 @@ async function giveFindResource(player, channel, powerLevel, dbEntry) {
     if (playerStats.mining && playerStats.mining > 0) {
         if (Math.random() > 0.95) {
             // Small chance to fail mining
-            console.log ('mining failed, doing nothing happens');
-            return nothingHappens(player, channel, playerStats, item);
+            console.log('mining failed, doing nothing happens');
+            return nothingHappens(player, channel, playerStats, item, dbEntry);
         }
         
         const quantityFound = 1 + Math.floor(Math.random() * playerStats.mining);
@@ -371,14 +376,24 @@ async function giveFindResource(player, channel, powerLevel, dbEntry) {
         await logEvent(channel, `⛏️ MINED! ${player.displayName} found 『 ${item.name} 』x ${quantityFound} → Added to minecart!`);
     } else {
         // Player has no pickaxe → delegate to nothingHappens which handles scavenging chance
-        console.log ('stats too low, nothing happens');
-        return nothingHappens(player, channel, playerStats, item);
+        console.log('stats too low, nothing happens');
+        return nothingHappens(player, channel, playerStats, item, dbEntry);
     }
 }
 
 async function pickaxeBreakEvent(player, channel, powerLevel, dbEntry) {
     const playerStats = await getPlayerStats(player.id);
-    if (!playerStats.mining || playerStats.mining <= 0) return giveFindResource(player, channel, powerLevel, dbEntry);
+    if (!playerStats.mining || playerStats.mining <= 0) {
+        // Player has no pickaxe, but since this is a "break" event, give them a chance to find one
+        if (Math.random() < 0.3) { // 30% chance to find a pickaxe during break event
+            await addToInventory(player, "3", 1); // Give rusty pickaxe
+            await logEvent(channel, `🔧 Breakthrough! ${player.displayName} found a rusty pickaxe while desperately clawing at the rocks!`);
+        } else {
+            // Fall back to regular scavenging behavior
+            return nothingHappens(player, channel, playerStats, null, dbEntry);
+        }
+        return;
+    }
 
     const inv = await PlayerInventory.findOne({ playerId: player.id });
     if (!inv) return console.log('Cannot find player inventory');
@@ -395,13 +410,16 @@ async function pickaxeBreakEvent(player, channel, powerLevel, dbEntry) {
     // Filter for pickaxe type items
     const miningPickaxes = playerItems.filter(item => item.type === "pickAxe");
 
-    // Get rusty pickaxe data for fallback
-    const rustyPickaxe = itemSheet.find(item => item.id === '3');
-
-    // If no pickaxes, do nothingHappens with rusty pickaxe
+    // If no pickaxes, give them a chance to find one since this is a "break" event
     if (miningPickaxes.length === 0) {
-        console.log('no pickaxe, nothing happens but may find pickaxe');
-        return nothingHappens(player, channel, playerStats, rustyPickaxe);
+        console.log('no pickaxe, break event gives chance to find one');
+        if (Math.random() < 0.4) { // 40% chance to find a pickaxe during break event
+            await addToInventory(player, "3", 1); // Give rusty pickaxe
+            await logEvent(channel, `🔧 Breakthrough! ${player.displayName} found a rusty pickaxe while desperately striking the walls!`);
+        } else {
+            return nothingHappens(player, channel, playerStats, null, dbEntry);
+        }
+        return;
     }
 
     // Find the pickaxe with highest mining power level
