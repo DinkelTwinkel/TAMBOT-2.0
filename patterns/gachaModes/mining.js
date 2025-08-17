@@ -95,6 +95,7 @@ function addCoalToMinecart(dbEntry, playerId, amount) {
 }
 
 // ---------------- Event Log System ----------------
+// ---------------- Event Log System ----------------
 async function logEvent(channel, eventText) {
     const timestamp = new Date().toLocaleTimeString('en-US', { 
         hour12: false, 
@@ -103,7 +104,7 @@ async function logEvent(channel, eventText) {
     });
     const logEntry = `[${timestamp}] ${eventText}`;
 
-    const result = await gachaVC.findOne({ channelId: channel.id});
+    const result = await gachaVC.findOne({ channelId: channel.id });
     const totalCoal = result.gameData.minecart.totalCoal;
 
     try {
@@ -121,37 +122,50 @@ async function logEvent(channel, eventText) {
         }
 
         if (eventLogMessage) {
-            // Update existing event log
             const existingEmbed = eventLogMessage.embeds[0];
             let currentDescription = existingEmbed.description || '';
             
-            // Remove existing code block markers if present
+            // Remove code block markers if present
             currentDescription = currentDescription.replace(/^```\n?|```$/g, '');
             
-            // Keep only last 20 lines to prevent embed from getting too long
+            // Prepare new lines
             const lines = currentDescription.split('\n').filter(line => line.trim());
             if (lines.length >= 20) {
-                lines.shift(); // Remove oldest line
+                lines.shift();
             }
             lines.push(logEntry);
-            
-            const newDescription = '```\n' + lines.join('\n') + '\n```';
-            
-            const updatedEmbed = new EmbedBuilder()
-                .setTitle('EVENT LOG')
-                .setDescription(newDescription)
-                .setColor(0x8B4513) // Brown color for mining theme
-                .setFooter({text: `MINECART : ${totalCoal} Coal`})
-                .setTimestamp();
 
-            await eventLogMessage.edit({ embeds: [updatedEmbed] });
+            const newDescription = '```\n' + lines.join('\n') + '\n```';
+
+            // ✅ If it would exceed ~3000 chars, create NEW embed instead of editing
+            if (newDescription.length > 3000) {
+                const embed = new EmbedBuilder()
+                    .setTitle('EVENT LOG')
+                    .setDescription('```\n' + logEntry + '\n```')
+                    .setColor(0x8B4513)
+                    .setFooter({ text: `MINECART : ${totalCoal} Coal` })
+                    .setTimestamp();
+
+                const logMessage = await channel.send({ embeds: [embed] });
+                registerBotMessage(logMessage.guild.id, logMessage.channel.id, logMessage.id);
+            } else {
+                // Safe to update existing embed
+                const updatedEmbed = new EmbedBuilder()
+                    .setTitle('EVENT LOG')
+                    .setDescription(newDescription)
+                    .setColor(0x8B4513)
+                    .setFooter({ text: `MINECART : ${totalCoal} Coal` })
+                    .setTimestamp();
+
+                await eventLogMessage.edit({ embeds: [updatedEmbed] });
+            }
         } else {
             // Create new event log
             const embed = new EmbedBuilder()
                 .setTitle('EVENT LOG')
                 .setDescription('```\n' + logEntry + '\n```')
                 .setColor(0x8B4513)
-                .setFooter({text: `MINECART : ${totalCoal} Coal`})
+                .setFooter({ text: `MINECART : ${totalCoal} Coal` })
                 .setTimestamp();
 
             const logMessage = await channel.send({ embeds: [embed] });
@@ -159,7 +173,6 @@ async function logEvent(channel, eventText) {
         }
     } catch (error) {
         console.error('Error updating event log:', error);
-        // Fallback: send as regular message
         await channel.send(`\`${logEntry}\``);
     }
 }
@@ -552,14 +565,39 @@ module.exports = async (channel, dbEntry, json, client) => {
         } else {
             // Regular break: 5min shop break
             await createMiningSummary(channel, dbEntry);
-            await generateShop(channel);
+            const shopMessage =  await generateShop(channel);
             
             dbEntry.nextTrigger = new Date(now + 5 * 60 * 1000); // 5 minute pause
             dbEntry.nextShopRefresh = new Date(now + 25 * 60 * 1000); // Next break in 25 mins
             await logEvent(channel, '🛑 SHORT BREAK: Mining paused for 5 minutes. Shop is now open!');
+
+            setTimeout(async () => {
+                // If you stored the whole Message object in memory:
+                await closeShop(shopMessage);
+            }, 5 * 60 * 1000);
         }
     }
 
     // CRITICAL FIX: Always save at the end
     await dbEntry.save();
 };
+
+/**
+ * Deletes the shop message when the break ends.
+ * @param {Message} shopMessage - The Message object returned by generateShop()
+ */
+async function closeShop(shopMessage) {
+    if (!shopMessage) return;
+
+    try {
+        await shopMessage.delete();
+        console.log(`🗑️ Shop message deleted in #${shopMessage.channel.name}`);
+    } catch (error) {
+        if (error.code === 10008) {
+            // Unknown Message (already deleted or invalid)
+            console.warn('⚠️ Tried to delete shop message, but it no longer exists.');
+        } else {
+            console.error('Error deleting shop message:', error);
+        }
+    }
+}
