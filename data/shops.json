@@ -27,7 +27,7 @@
     "staticItems": [],
     "rotationalAmount": 3,
     "itemPool": [1,2,4,23,24,3,8,17,18,20,14],
-    "image": "topazMineShop",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.5,
     "itemDisplayScale": 1
   },
@@ -43,7 +43,7 @@
     "staticItems": [],
     "rotationalAmount": 3,
     "itemPool": [6,25,26,1,2,4,16,12,15,19,9],
-    "image": "diamondMineShop",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.5,
     "itemDisplayScale": 1
   }
