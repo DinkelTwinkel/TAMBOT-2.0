@@ -21,7 +21,7 @@
     "description": "WELCOME TO THE TOPAZ MINES ... yada yada yada yada",
     "power": 3,
     "script": "mining.js",
-    "shop": 2,
+    "shop": 3,
     "colour": "D69B22",
     "image": "placeHolder"
     },
@@ -32,7 +32,7 @@
     "rarity": "rare",
     "spawnWeight": 1,
     "description": "WELCOME TO THE DIAMOND MINES ... yada yada yada yada",
-    "power": 3,
+    "power": 2,
     "script": "mining.js",
     "shop": 2,
     "colour": "D69B22",
