@@ -9,18 +9,13 @@ const itemSheet = require('../data/itemSheet.json');
 const path = require('path');
 
 class ShopHandler {
-    constructor(client, allowedGuildId) {
+    constructor(client) {
         this.client = client;
-        this.allowedGuildId = allowedGuildId; // the guild we want to listen for
         this.setupListeners();
     }
 
-
     setupListeners() {
         this.client.on('interactionCreate', async (interaction) => {
-            // Only handle interactions from the allowed guild
-            if (!interaction.guild || interaction.guild.id !== this.allowedGuildId) return;
-
             if (!interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
 
             // Handle shop select menus
@@ -36,7 +31,6 @@ class ShopHandler {
             }
         });
     }
-
 
     async handleShopSelectMenu(interaction) {
         const userId = interaction.user.id;
@@ -243,7 +237,7 @@ class ShopHandler {
         await userCurrency.save();
 
         await interaction.reply({ 
-            content: `${interaction.member} 💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! Your new balance: ${userCurrency.money}`, 
+            content: `${interaction.member}💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! Your new balance: ${userCurrency.money}`, 
             ephemeral: false 
         });
         
