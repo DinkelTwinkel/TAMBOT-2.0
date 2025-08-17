@@ -20,7 +20,7 @@ module.exports = {
       return interaction.editReply('No leaderboard data available for this server.');
     }
 
-    // Sort profiles by money descending
+    // Sort profiles by money descending and take top 15
     const sortedProfiles = allProfiles.sort((a, b) => b.money - a.money).slice(0, 15);
 
     const leaderboard = sortedProfiles.map((entry, index) => {
