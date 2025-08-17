@@ -4,8 +4,8 @@ const fs = require('fs');
 const itemsheet = require('../data/itemSheet.json');
 const { getMagentaCoordinates } = require('../fileStoreMapData');
 
-// Register your custom font
-// Place the font file (e.g., `myfont.ttf`) inside ./assets/fonts/
+// Register fonts from files
+// Place the font files inside ./assets/fonts/
 registerFont('./assets/font/goblinfont.ttf', { family: 'MyFont' });
 
 /**
@@ -79,14 +79,20 @@ async function generateShopImage(shopData, itemData) {
             // Add price change indicator if different from base price
             const originalPrice = foundItemData.value;
             let priceText = `${fluctuatedPrice}c`;
-            let indicatorText = '';
+            let showIndicator = false;
+            let indicatorColor = '';
+            let triangleUp = false;
             
             if (fluctuatedPrice > originalPrice) {
-                indicatorText = ' ▲';
-                ctx.fillStyle = '#FF4444'; // Red for price increase
+                showIndicator = true;
+                indicatorColor = '#FF4444'; // Red for price increase
+                triangleUp = true;
+                ctx.fillStyle = '#FF4444';
             } else if (fluctuatedPrice < originalPrice) {
-                indicatorText = ' ▼';
-                ctx.fillStyle = '#44FF44'; // Green for price decrease (cheaper)
+                showIndicator = true;
+                indicatorColor = '#44FF44'; // Green for price decrease (cheaper)
+                triangleUp = false;
+                ctx.fillStyle = '#44FF44';
             } else {
                 ctx.fillStyle = 'white'; // White for normal price
             }
@@ -95,17 +101,37 @@ async function generateShopImage(shopData, itemData) {
             ctx.strokeText(priceText, textX, textY);
             ctx.fillText(priceText, textX, textY);
 
-            // Draw indicator with Arial font if present
-            if (indicatorText) {
-                ctx.font = '15px Arial'; // Switch to Arial for the indicator
+            // Draw triangle indicator if price changed
+            if (showIndicator) {
                 const priceWidth = ctx.measureText(priceText).width;
-                const indicatorX = textX + priceWidth / 2 + 5; // Position indicator after price text
+                const triangleX = textX + priceWidth / 2 + 8; // Position triangle after price text
+                const triangleY = textY - 3; // Slightly above baseline to center with text
+                const triangleSize = 5; // Size of the triangle
                 
-                ctx.strokeText(indicatorText, indicatorX, textY);
-                ctx.fillText(indicatorText, indicatorX, textY);
+                ctx.fillStyle = indicatorColor;
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 1;
                 
-                // Reset font back to custom font
-                ctx.font = '15px "MyFont"';
+                ctx.beginPath();
+                if (triangleUp) {
+                    // Draw upward triangle (▲)
+                    ctx.moveTo(triangleX, triangleY - triangleSize); // Top point
+                    ctx.lineTo(triangleX - triangleSize, triangleY + triangleSize); // Bottom left
+                    ctx.lineTo(triangleX + triangleSize, triangleY + triangleSize); // Bottom right
+                } else {
+                    // Draw downward triangle (▼)
+                    ctx.moveTo(triangleX, triangleY + triangleSize); // Bottom point
+                    ctx.lineTo(triangleX - triangleSize, triangleY - triangleSize); // Top left
+                    ctx.lineTo(triangleX + triangleSize, triangleY - triangleSize); // Top right
+                }
+                ctx.closePath();
+                
+                // Fill and stroke the triangle
+                ctx.fill();
+                ctx.stroke();
+                
+                // Reset stroke width
+                ctx.lineWidth = 3;
             }
         }
     }

@@ -10,6 +10,7 @@ const playerInventorySchema = new mongoose.Schema({
   playerId: { type: String, required: true },
   playerTag: { type: String, required: true },
   items: [inventoryItemSchema],
+  objectData: { type: Schema.Types.Mixed, required: false }
 }, { timestamps: true });
 
 // Unique per player per guild
