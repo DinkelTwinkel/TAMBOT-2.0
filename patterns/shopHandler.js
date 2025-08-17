@@ -10,7 +10,7 @@ const itemSheet = require('../data/itemSheet.json');
 class ShopHandler {
     constructor(client, guildId) {
         this.client = client;
-        this.setupListeners();
+        this.setupListeners(guildId);
     }
 
     setupListeners() {
