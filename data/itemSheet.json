@@ -131,11 +131,11 @@
     "id": "12",
     "name": "DRICK",
     "type": "pickAxe",
-    "description": "Styvec's DRICK",
-    "value": 20000,
+    "description": "Styvec's DRICK.",
+    "value": 1500,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 500 }
+      { "name": "mining", "powerlevel": 10 }
     ],
     "image": "drick"
 }
