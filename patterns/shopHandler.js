@@ -13,7 +13,7 @@ class ShopHandler {
         this.setupListeners(guildId);
     }
 
-    setupListeners() {
+    setupListeners(guildId) {
         this.client.on('interactionCreate', async (interaction) => {
             if (interaction.guild.id !== guildId) return;
             if (!interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
