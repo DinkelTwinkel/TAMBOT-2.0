@@ -904,7 +904,7 @@ module.exports = async (channel, dbEntry, json, client) => {
             await createMiningSummary(channel, refreshedEntry);
             await pickLongBreakEvent(longBreakEvents)(channel, refreshedEntry);
             
-            await updateTimers(channel.id, null, new Date(now + 25 * 60 * 1000));
+            await updateTimers(channel.id, null, new Date(now + 30 * 60 * 1000));
             await logEvent(channel, '🎭 LONG BREAK: Special event starting! (10min event + 5min shop)');
         } else {
             // Regular break: 5min shop break
@@ -916,7 +916,7 @@ module.exports = async (channel, dbEntry, json, client) => {
             await updateTimers(
                 channel.id, 
                 new Date(now + 5 * 60 * 1000), 
-                new Date(now + 25 * 60 * 1000)
+                new Date(now + 30 * 60 * 1000)
             );
             await logEvent(channel, '🛑 SHORT BREAK: Mining paused for 5 minutes. Shop is now open!');
         }
