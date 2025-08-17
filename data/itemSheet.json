@@ -78,5 +78,65 @@
       { "name": "mining", "powerlevel": 3 }
     ],
     "image": "ironpickaxe"
-  }
+  },
+  {
+    "id": "8",
+    "name": "Robust Pickaxe",
+    "type": "pickAxe",
+    "description": "A Very Good Pickaxe. Smithed proudly by one of the best.",
+    "value": 100,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 5 }
+    ],
+    "image": "robustpickaxe"
+},
+{
+    "id": "9",
+    "name": "Enchanted Pickaxe",
+    "type": "pickAxe",
+    "description": "Runic symbols decorate the surface of this pick",
+    "value": 1000,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 15 }
+    ],
+    "image": "enchantedpickaxe"
+},
+{
+    "id": "10",
+    "name": "Bun Pack",
+    "type": "consumable",
+    "description": "Longer lasting buns! 3 hours!",
+    "value": 10,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 3 }
+    ],
+    "image": "bunpack"
+},
+{
+    "id": "11",
+    "name": "Mine Beer",
+    "type": "consumable",
+    "description": "Mining Beer to fight the lung cancer...",
+    "value": 20,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 5 }
+    ],
+    "image": "minebeer"
+},
+{
+    "id": "12",
+    "name": "DRICK",
+    "type": "pickAxe",
+    "description": "Styvec's DRICK",
+    "value": 20000,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 500 }
+    ],
+    "image": "drick"
+}
 ]
