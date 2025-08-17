@@ -84,8 +84,8 @@ class ShopHandler {
             await applyConsumableBuff(userId, item);
 
             await interaction.reply({
-                content: `✅ Used ${item.name}! Buff applied for ${item.duration} minutes.`,
-                ephemeral: true
+                content: `${interaction.member} ✅ Used ${item.name}! Buff applied for ${item.duration} minutes.`,
+                ephemeral: false
             });
             
             await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
@@ -203,8 +203,8 @@ class ShopHandler {
         await userInv.save();
 
         await interaction.reply({ 
-            content: `✅ Purchased ${quantity} x ${item.name} for ${totalCost} coins!`, 
-            ephemeral: true 
+            content: `${interaction.member} ✅ Purchased ${quantity} x ${item.name} for ${totalCost} coins!`, 
+            ephemeral: false 
         });
         
         await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
@@ -237,8 +237,8 @@ class ShopHandler {
         await userCurrency.save();
 
         await interaction.reply({ 
-            content: `💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! Your new balance: ${userCurrency.money}`, 
-            ephemeral: true 
+            content: `${interaction.member} 💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! Your new balance: ${userCurrency.money}`, 
+            ephemeral: false 
         });
         
         await this.updateShopDescription(interaction.message, shopInfo?.successSell);

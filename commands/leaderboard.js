@@ -21,7 +21,7 @@ module.exports = {
     }
 
     // Sort profiles by money descending
-    const sortedProfiles = allProfiles.sort((a, b) => b.money - a.money).slice(0, 100);
+    const sortedProfiles = allProfiles.sort((a, b) => b.money - a.money).slice(0, 15);
 
     const leaderboard = sortedProfiles.map((entry, index) => {
       return `**#${index + 1}** – <@${entry.userId}> — 💰 ${entry.money.toLocaleString()}`;
@@ -32,7 +32,7 @@ module.exports = {
       .setThumbnail('https://cdn.discordapp.com/attachments/1391742804237094972/1404748006233866402/01coin.gif')
       .setDescription(leaderboard.join('\n'))
       .setColor(0xf1c40f)
-      .setFooter({ text: 'Top 100 richest users' })
+      .setFooter({ text: 'Top 15 richest users' })
       .setTimestamp();
 
     const eatButton = new ButtonBuilder()

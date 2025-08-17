@@ -5,7 +5,7 @@ const messageDeletus = require('../models/tidyMessages'); // Adjust path accordi
 const ActiveVCS =  require ('../models/activevcs');
 const createCurrencyProfile = require('../patterns/currency/createCurrencyProfile');
 const registerBotMessage = require('./registerBotMessage');
-const rollPrice = 5;
+const rollPrice = 0;
 
 const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const generateShop = require('./generateShop');
@@ -27,7 +27,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
     if (existingProfile.money < rollPrice) {
         await roller.voice.disconnect();
-        return gachaRollChannel.send(`${roller} You're broke!`);
+        return gachaRollChannel.send(`${roller} You're broke!, You need ${rollPrice} coins to roll!`);
     }
 
     console.log ('roll price check succeeded!');
@@ -71,12 +71,6 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         console.log(`Created VC ${newGachaChannel.name} for ${rollerMember.user.tag}`);
 
         await gachaRollChannel.send(`**${rollerMember.user.tag}** Your rolling booth is ready: **${newGachaChannel.name}**`)
-        .then(sentMessage => {
-            registerBotMessage(sentMessage.guild.id, sentMessage.channel.id, sentMessage.id);
-        })
-        .catch(console.error);
-
-
 
         await newGachaChannel.send(`${rollerMember} You've found the ${chosenChannelType.name}!`);
 
