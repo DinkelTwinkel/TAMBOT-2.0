@@ -4,7 +4,7 @@
     "name": "Coal Ore",
     "type": "mineLoot",
     "description": "a piece of ore commonly found underground.",
-    "value": 1,
+    "value": 2,
     "vendable": false,
     "abilities": [],
     "image": "coal"
@@ -14,7 +14,7 @@
     "name": "Topaz",
     "type": "mineLoot",
     "description": "a shiny gem worth some money.",
-    "value": 3,
+    "value": 5,
     "vendable": false,
     "abilities": [],
     "image": "topaz"
@@ -62,9 +62,21 @@
     "name": "Diamond",
     "type": "mineLoot",
     "description": "a shiny gem worth some money.",
-    "value": 5,
+    "value": 10,
     "vendable": false,
     "abilities": [],
     "image": "topaz"
+  },
+  {
+    "id": "7",
+    "name": "Worn Iron Pickaxe",
+    "type": "pickAxe",
+    "description": "Pretty Okay at Mining, Moderately Used",
+    "value": 50,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 3 }
+    ],
+    "image": "ironpickaxe"
   }
 ]
