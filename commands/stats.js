@@ -35,7 +35,7 @@ module.exports = {
         .setColor(0x00AE86)
         .setThumbnail(target.displayAvatarURL({ dynamic: true }))
         .setTimestamp()
-        .setFooter({ text: 'TAMBOT 2.0 Mining System' });
+        .setFooter({ text: 'HELLUNGI Mining System' });
 
       // Add total stats field (includes equipment + buffs)
       if (Object.keys(stats).length > 0) {
