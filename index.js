@@ -61,7 +61,7 @@ client.once(Events.ClientReady, async c => {
     // Loop through all guilds your bot is in
     client.guilds.cache.forEach(async guild => {
 
-        //if (guild.id !== targetGuildId) return console.log ('skipping guild: ' + guild.id);
+        if (guild.id !== targetGuildId) return console.log ('skipping guild: ' + guild.id);
 
 
         // Fetch guild config from MongoDB
