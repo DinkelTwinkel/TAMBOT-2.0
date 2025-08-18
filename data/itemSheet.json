@@ -191,7 +191,7 @@
       { "name": "mining", "powerlevel": 9 }
     ],
     "image": "haunted_pixaxe",
-    "durability": 990
+    "durability": 95
   },
   {
     "id": "16",
@@ -204,7 +204,7 @@
       { "name": "mining", "powerlevel": 10 }
     ],
     "image": "pinkgem_axe",
-    "durability": 95
+    "durability": 85
   },
   {
     "id": "12",
@@ -217,7 +217,7 @@
       { "name": "mining", "powerlevel": 11 }
     ],
     "image": "drick",
-    "durability": 99
+    "durability": 90
   },
   {
     "id": "15",
@@ -230,7 +230,7 @@
       { "name": "mining", "powerlevel": 12 }
     ],
     "image": "hypickeon",
-    "durability": 99
+    "durability": 95
   },
   {
     "id": "19",
@@ -243,7 +243,7 @@
       { "name": "mining", "powerlevel": 13 }
     ],
     "image": "murderous_aura_pickaxe",
-    "durability": 99
+    "durability": 90
   },
   {
     "id": "9",
@@ -256,7 +256,7 @@
       { "name": "mining", "powerlevel": 15 }
     ],
     "image": "haunted_pixaxe",
-    "durability": 99
+    "durability": 95
   },
   {
     "id": "4",
