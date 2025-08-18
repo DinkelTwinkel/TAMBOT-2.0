@@ -953,8 +953,9 @@ module.exports = async (channel, dbEntry, json, client) => {
                 position.y = newY;
                 mapChanged = true;
 
+                
                 // 1% chance to find something on the floor.
-                if (Math.random() * 100 > 99.5) {
+                if (Math.random() * 100 > 99.5 || (miningPower <= 0 && Math.random() * 100 > 80 )) {
                     const item = pickWeightedItem(powerLevel);
                     eventLogs.push(`${member.displayName} found 1 ${item.name} on the floor!`);
                     await addItemToMinecart(dbEntry, member.id, item.itemId, 1);
