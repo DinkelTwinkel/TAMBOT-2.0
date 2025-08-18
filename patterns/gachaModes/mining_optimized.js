@@ -844,7 +844,7 @@ module.exports = async (channel, dbEntry, json, client) => {
 
                         // 1% chance to find something on the floor.
                         if (Math.random() * 100 > 99.9) {
-                            const item = pickWeightedItem(powerLevel);
+                            const { item, quantity } = await mineOreFromWall(member, miningPower, luckStat, powerLevel);
                             eventLogs.push(`🔥 ${member.displayName}'s will and determination broke through! They mined the ore with their raw fists!!! ${item.name} x${quantity} found`);
                             await addItemToMinecart(dbEntry, member.id, item.itemId, quantity);
                         }else {
@@ -932,7 +932,11 @@ module.exports = async (channel, dbEntry, json, client) => {
                 } else {
                     // Failed to break wall
                     if (miningPower <= 0) {
-                        eventLogs.push(`${member.displayName} tried to break a wall but has no pickaxe`);
+                        if (Math.random() * 100 > 99.9) {
+                            eventLogs.push(`🔥 ${member.displayName}'s will and determination broke through! They broke the wall with their bare hands!`);
+                        }else {
+                            eventLogs.push(`${member.displayName} tried to break a wall but has no pickaxe`);
+                        }
                     } else {
                         eventLogs.push(`${member.displayName} struck the wall but it held firm`);
                         
