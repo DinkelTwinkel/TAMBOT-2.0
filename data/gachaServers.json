@@ -7,7 +7,7 @@
     "spawnWeight": 100,
     "description": "Welcome to the coal mines... yada yada yada yada",
     "power": 1,
-    "script": "mining_optimized_v2.js",
+    "script": "mining_optimized_v3.js",
     "shop": 1,
     "colour": "000000",
     "image": "placeHolder"
@@ -20,7 +20,7 @@
     "spawnWeight": 10,
     "description": "WELCOME TO THE TOPAZ MINES ... yada yada yada yada",
     "power": 3,
-    "script": "mining_optimized_v2.js",
+    "script": "mining_optimized_v3.js",
     "shop": 3,
     "colour": "D69B22",
     "image": "placeHolder"
@@ -33,7 +33,7 @@
     "spawnWeight": 1,
     "description": "WELCOME TO THE DIAMOND MINES ... yada yada yada yada",
     "power": 2,
-    "script": "mining_optimized_v2.js",
+    "script": "mining_optimized_v3.js",
     "shop": 2,
     "colour": "D69B22",
     "image": "placeHolder"
