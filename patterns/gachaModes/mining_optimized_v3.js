@@ -178,7 +178,7 @@ async function logEvent(channel, eventText, forceNew = false) {
 // Check if currently in break period
 function isBreakPeriod(dbEntry) {
     const now = Date.now();
-    return now <= dbEntry.nextTrigger;
+    return now <= dbEntry.nextShopRefresh - 25 * 60 * 1000;
 }
 
 // Enhanced Main Mining Event
