@@ -6,7 +6,7 @@ const RARE_ORE_SPAWN_CHANCE = 0.02; // Reduced from 0.05
 const IMAGE_GENERATION_INTERVAL = 1;
 const MAX_SPEED_ACTIONS = 3; // Reduced from 4
 const MAX_MAP_SIZE = 1000;
-const EXPLORATION_BONUS_CHANCE = 0.01; // Reduced from 0.02
+const EXPLORATION_BONUS_CHANCE = 0.03; // Reduced from 0.02
 
 // Enhanced tile types
 const TILE_TYPES = {
