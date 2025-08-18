@@ -399,6 +399,12 @@ async function endBreak(channel, dbEntry, isLongBreak) {
             };
         }
     }
+
+    for (const member of members.values()) {
+    resetPositions[member.id] = {
+        isTent: false,
+    };
+    }
     // Calculate next break timing
     const cycleCount = (dbEntry.gameData?.cycleCount || 0) + 1;
     const nextBreakInfo = calculateNextBreakTime({ gameData: { cycleCount } });
