@@ -252,7 +252,7 @@ async function endThiefGame(channel, dbEntry) {
                 { name: 'Thief Reward', value: `<@${thiefId}> keeps ${share} coins for evading some suspicion!` }
             );
 
-        } else if (winners.length === totalPlayers) {
+        } else if (winners.length === totalPlayers && totalPlayers > 1) {
             // Complete success - thief gets nothing
             embed.setColor(0x00FF00);
             const share = Math.floor(totalStolen / winners.length);
@@ -269,6 +269,10 @@ async function endThiefGame(channel, dbEntry) {
             // Thief escapes - keeps everything
             embed.setColor(0xFF0000);
             embed.setTitle('🏃‍♂️ THIEF ESCAPED');
+            
+            // Give thief the stolen money
+            await rewardThief(thiefId, totalStolen);
+            
             embed.addFields({
                 name: 'Result',
                 value: `No one guessed correctly. The thief got away with ${totalStolen} coins.`
@@ -345,16 +349,25 @@ async function createJailImage(thiefMember) {
  * Reward winners with coins
  */
 async function rewardWinners(winners, amount) {
+    console.log(`Rewarding ${winners.length} winners with ${amount} coins each`);
     for (const winner of winners) {
-        let winnerMoney = await Currency.findOne({ userId: winner.userId });
-        if (!winnerMoney) {
-            winnerMoney = await Currency.create({
-                userId: winner.userId,
-                money: amount
-            });
-        } else {
-            winnerMoney.money += amount;
-            await winnerMoney.save();
+        try {
+            let winnerMoney = await Currency.findOne({ userId: winner.userId });
+            if (!winnerMoney) {
+                winnerMoney = await Currency.create({
+                    userId: winner.userId,
+                    usertag: `User-${winner.userId}`, // Add usertag field
+                    money: amount
+                });
+                console.log(`Created new currency record for ${winner.userId} with ${amount} coins`);
+            } else {
+                const oldAmount = winnerMoney.money;
+                winnerMoney.money += amount;
+                await winnerMoney.save();
+                console.log(`Updated ${winner.userId} from ${oldAmount} to ${winnerMoney.money} coins`);
+            }
+        } catch (error) {
+            console.error(`Error rewarding winner ${winner.userId}:`, error);
         }
     }
 }
@@ -363,15 +376,24 @@ async function rewardWinners(winners, amount) {
  * Reward thief with coins
  */
 async function rewardThief(thiefId, amount) {
-    let thiefMoney = await Currency.findOne({ userId: thiefId });
-    if (!thiefMoney) {
-        thiefMoney = await Currency.create({
-            userId: thiefId,
-            money: amount
-        });
-    } else {
-        thiefMoney.money += amount;
-        await thiefMoney.save();
+    console.log(`Rewarding thief ${thiefId} with ${amount} coins`);
+    try {
+        let thiefMoney = await Currency.findOne({ userId: thiefId });
+        if (!thiefMoney) {
+            thiefMoney = await Currency.create({
+                userId: thiefId,
+                usertag: `User-${thiefId}`, // Add usertag field
+                money: amount
+            });
+            console.log(`Created new currency record for thief ${thiefId} with ${amount} coins`);
+        } else {
+            const oldAmount = thiefMoney.money;
+            thiefMoney.money += amount;
+            await thiefMoney.save();
+            console.log(`Updated thief ${thiefId} from ${oldAmount} to ${thiefMoney.money} coins`);
+        }
+    } catch (error) {
+        console.error(`Error rewarding thief ${thiefId}:`, error);
     }
 }
 

@@ -567,7 +567,7 @@
       { "name": "luck", "powerlevel": 4 },
       { "name": "sight", "powerlevel": 2 }
     ],
-    "image": "prospectors_dream",
+    "image": "water",
     "durability": 95
   }
 ]

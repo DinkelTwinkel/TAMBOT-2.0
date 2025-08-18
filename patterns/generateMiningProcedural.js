@@ -413,9 +413,15 @@ function groupPlayersByTile(members, playerPositions) {
  * Check if we're currently in a break period
  */
 function isBreakPeriod(dbEntry) {
-    const now = Date.now();
-    const oneMinute = 60 * 1000; // milliseconds
-    return dbEntry.nextTrigger - now > oneMinute;
+    // Check the new break info structure
+    return dbEntry.gameData?.breakInfo?.inBreak || false;
+}
+
+/**
+ * Check if we're in a long break (for hiding avatars)
+ */
+function isLongBreak(dbEntry) {
+    return dbEntry.gameData?.breakInfo?.inBreak && dbEntry.gameData?.breakInfo?.isLongBreak;
 }
 
 /**
@@ -657,7 +663,32 @@ async function generateTileMapImage(channel) {
     // Draw players (as avatars or tents depending on break status)
     const refreshedEntry = await gachaVC.findOne({ channelId: channel.id });
     const inBreak = isBreakPeriod(refreshedEntry);
+    const inLongBreak = isLongBreak(refreshedEntry);
     const playerGroups = groupPlayersByTile(members, playerPositions);
+    
+    // During long breaks, don't draw any player avatars (they're at entrance but hidden)
+    if (inLongBreak) {
+        // Draw a special indicator at entrance instead
+        const entrancePixelX = mapData.entranceX * tileSize;
+        const entrancePixelY = mapData.entranceY * tileSize;
+        
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; // Semi-transparent gold
+        ctx.fillRect(entrancePixelX, entrancePixelY, tileSize, tileSize);
+        
+        if (tileSize >= 32) {
+            ctx.fillStyle = '#FFD700';
+            ctx.font = `bold ${Math.floor(tileSize * 0.3)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('BREAK', entrancePixelX + tileSize/2, entrancePixelY + tileSize/2);
+        }
+        ctx.restore();
+        
+        // Skip drawing individual players
+        ctx.restore();
+        return useJPEG ? canvas.toBuffer('image/jpeg', { quality: JPEG_QUALITY }) : canvas.toBuffer('image/png', { compressionLevel: 9 });
+    }
     
     for (const [tileKey, playersOnTile] of Object.entries(playerGroups)) {
         const [tileX, tileY] = tileKey.split(',').map(Number);
@@ -667,7 +698,7 @@ async function generateTileMapImage(channel) {
         if (playersOnTile.length === 1) {
             const {member, position} = playersOnTile[0];
             
-            if (inBreak && position.isTent) {
+            if (position.isTent) {
                 await drawTent(ctx, tileCenterX, tileCenterY, tileSize, member, imageSettings);
             } else {
                 await drawPlayerAvatar(ctx, member, tileCenterX, tileCenterY, playerAvatarSize, imageSettings);
@@ -689,7 +720,7 @@ async function generateTileMapImage(channel) {
             // Handle multiple players on same tile
             const totalPlayers = playersOnTile.length;
             
-            if (inBreak && playersOnTile[0].position.isTent) {
+            if (playersOnTile[0].position.isTent) {
                 // Draw camp with multiple tents
                 await drawCamp(ctx, tileCenterX, tileCenterY, tileSize, playersOnTile.map(p => p.member), imageSettings);
             } else if (tileSize >= 32) {
@@ -716,7 +747,7 @@ async function generateTileMapImage(channel) {
             }
             
             // Draw player count
-            if (!inBreak || !playersOnTile[0].position.isTent) {
+            if (!playersOnTile[0].position.isTent) {
                 ctx.fillStyle = '#FFD700';
                 ctx.strokeStyle = '#000000';
                 ctx.font = `bold ${Math.max(10, Math.floor(tileSize * 0.22))}px Arial`;

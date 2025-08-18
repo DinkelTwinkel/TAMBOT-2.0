@@ -178,7 +178,10 @@ async function logEvent(channel, eventText, forceNew = false) {
 // Check if currently in break period
 function isBreakPeriod(dbEntry) {
     const now = Date.now();
-    return now <= dbEntry.nextShopRefresh - 25 * 60 * 1000;
+    // Check if we're in the 25-minute break period before shop refresh
+    const timeUntilShopRefresh = dbEntry.nextShopRefresh - now;
+    const breakDuration = 25 * 60 * 1000; // 25 minutes in milliseconds
+    return timeUntilShopRefresh > 0 && timeUntilShopRefresh <= breakDuration;
 }
 
 // Enhanced Main Mining Event
@@ -524,7 +527,7 @@ module.exports = async (channel, dbEntry, json, client) => {
     // Handle shop breaks with enhanced summary
     if (now > dbEntry.nextShopRefresh) {
         const nextTrigger = new Date(now + 5 * 60 * 1000);
-        const nextShopRefresh = new Date(now + 30 * 60 * 1000);
+        const nextShopRefresh = new Date(now + 25 * 60 * 1000); // 25 minutes total break
         
         // Check if it's time for a long break event
         const currentBreakCount = (dbEntry.gameData.breakCount || 0) + 1;
