@@ -99,7 +99,8 @@
     "abilities": [
       { "name": "mining", "powerlevel": 1 }
     ],
-    "image": "rustypickaxe"
+    "image": "rustypickaxe",
+    "durability": 40
   },
   {
     "id": "13",
@@ -111,7 +112,8 @@
     "abilities": [
       { "name": "mining", "powerlevel": 2 }
     ],
-    "image": "banana_axe"
+    "image": "banana_axe",
+    "durability": 3
   },
   {
     "id": "7",
@@ -123,7 +125,8 @@
     "abilities": [
       { "name": "mining", "powerlevel": 3 }
     ],
-    "image": "ironpickaxe"
+    "image": "ironpickaxe",
+    "durability": 70
   },
   {
     "id": "8",
@@ -135,7 +138,8 @@
     "abilities": [
       { "name": "mining", "powerlevel": 5 }
     ],
-    "image": "robustpickaxe"
+    "image": "robustpickaxe",
+    "durability": 80
   },
   {
     "id": "17",
@@ -147,7 +151,8 @@
     "abilities": [
       { "name": "mining", "powerlevel": 6 }
     ],
-    "image": "pixter"
+    "image": "pixter",
+    "durability": 50
   },
   {
     "id": "18",
@@ -159,19 +164,21 @@
     "abilities": [
       { "name": "mining", "powerlevel": 7 }
     ],
-    "image": "robustpickaxe"
+    "image": "robustpickaxe",
+    "durability": 70
   },
   {
     "id": "20",
     "name": "Nature's Pickaxe",
     "type": "pickAxe",
-    "description": "A pickaxe intertwined with roots and vines, resonating with the earth’s essence.",
+    "description": "A pickaxe intertwined with roots and vines, resonating with the earth's essence.",
     "value": 450,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 8 }
     ],
-    "image": "natures_pickaxe"
+    "image": "natures_pickaxe",
+    "durability": 200
   },
   {
     "id": "14",
@@ -183,7 +190,8 @@
     "abilities": [
       { "name": "mining", "powerlevel": 9 }
     ],
-    "image": "haunted_pixaxe"
+    "image": "haunted_pixaxe",
+    "durability": 90
   },
   {
     "id": "16",
@@ -195,7 +203,8 @@
     "abilities": [
       { "name": "mining", "powerlevel": 10 }
     ],
-    "image": "pinkgem_axe"
+    "image": "pinkgem_axe",
+    "durability": 80
   },
   {
     "id": "12",
@@ -207,7 +216,8 @@
     "abilities": [
       { "name": "mining", "powerlevel": 11 }
     ],
-    "image": "drick"
+    "image": "drick",
+    "durability": 99
   },
   {
     "id": "15",
@@ -219,7 +229,8 @@
     "abilities": [
       { "name": "mining", "powerlevel": 12 }
     ],
-    "image": "hypickeon"
+    "image": "hypickeon",
+    "durability": 90
   },
   {
     "id": "19",
@@ -231,7 +242,8 @@
     "abilities": [
       { "name": "mining", "powerlevel": 13 }
     ],
-    "image": "murderous_aura_pickaxe"
+    "image": "murderous_aura_pickaxe",
+    "durability": 90
   },
   {
     "id": "9",
@@ -243,7 +255,8 @@
     "abilities": [
       { "name": "mining", "powerlevel": 15 }
     ],
-    "image": "haunted_pixaxe"
+    "image": "haunted_pixaxe",
+    "durability": 90
   },
   {
     "id": "4",
