@@ -84,7 +84,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         console.log(`🎉 Gacha rolled [${chosenChannelType.rarity.toUpperCase()}]: ${chosenChannelType.name}`);
         console.log(`Created VC ${newGachaChannel.name} for ${rollerMember.user.tag}`);
 
-        await gachaRollChannel.send(`**${rollerMember.user.tag}** Your rolling booth is ready: **${newGachaChannel.name}**`)
+        await gachaRollChannel.send(`**${rollerMember.user.tag}** Inserted ${rollPrice} Coins! Your rolling booth is ready: **${newGachaChannel.name}**`)
 
         await newGachaChannel.send(`${rollerMember} You've found the ${chosenChannelType.name}!`);
 
