@@ -703,7 +703,7 @@ async function logEvent(channel, eventText, forceNew = false) {
     const logEntry = eventText ? `[${timestamp}] ${eventText}` : null;
 
     try {
-        const messages = await channel.messages.fetch({ limit: 1 });
+        const messages = await channel.messages.fetch({ limit: 2 });
         let eventLogMessage = null;
 
         for (const [, message] of messages) {
