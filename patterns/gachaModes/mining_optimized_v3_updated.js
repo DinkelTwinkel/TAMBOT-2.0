@@ -419,6 +419,44 @@ async function endBreak(channel, dbEntry) {
     await logEvent(channel, '⛏️ Break ended! Mining resumed. All miners returned to entrance.', true);
 }
 
+// Handle break end Short
+async function endBreakShort(channel, dbEntry) {
+    const mapData = dbEntry.gameData.map;
+    const members = channel.members.filter(m => !m.user.bot);
+    
+    // // Reset all players to entrance
+    // const resetPositions = {};
+    // for (const member of members.values()) {
+    //     resetPositions[member.id] = {
+    //         x: mapData.entranceX,
+    //         y: mapData.entranceY,
+    //         isTent: false,
+    //         hidden: false
+    //     };
+    // }
+    
+    // Calculate next break timing
+    const cycleCount = (dbEntry.gameData?.cycleCount || 0) + 1;
+    const nextBreakInfo = calculateNextBreakTime({ gameData: { cycleCount } });
+    
+    // Clear break info and update positions
+    await gachaVC.updateOne(
+        { channelId: channel.id },
+        {
+            $set: {
+                'gameData.map.playerPositions': resetPositions,
+                'gameData.cycleCount': cycleCount,
+                nextShopRefresh: nextBreakInfo.nextShopRefresh
+            },
+            $unset: {
+                'gameData.breakInfo': 1
+            }
+        }
+    );
+    
+    await logEvent(channel, '⛏️ Break ended! Mining resumed.', true);
+}
+
 // Main Mining Event
 module.exports = async (channel, dbEntry, json, client) => {
     const now = Date.now();
@@ -438,7 +476,7 @@ module.exports = async (channel, dbEntry, json, client) => {
         
         // Check if break should end
         if (now >= breakInfo.breakEndTime) {
-            await endBreak(channel, dbEntry);
+            await endBreakShort(channel, dbEntry);
             return;
         }
         
