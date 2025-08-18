@@ -16,7 +16,17 @@ const channelData = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
 
 module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
-    const rollPrice = (await GuildConfig.findOne({ guildId: guild.id }))?.gachaCost ?? 0;
+    let guildConfig = await GuildConfig.findOne({ guildId: guild.id });
+
+    console.log (guildConfig);
+
+    if (guildConfig.gachaCost == null) {
+    // If config exists but gachaCost field is missing or null
+    guildConfig.gachaCost = 0;
+    await guildConfig.save();
+    }
+
+    const rollPrice = guildConfig.gachaCost;
 
     gachaRollChannel.setName(`🎰 𝙂𝘼𝘾𝙃𝘼 [ ${rollPrice} COINS ]`);
 

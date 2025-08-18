@@ -105,8 +105,8 @@ client.once(Events.ClientReady, async c => {
             })
             .catch(console.error);
 
-        // Ensure currency profiles
-        ensureMoneyProfilesForGuild(guild);
+        // // Ensure currency profiles
+        // ensureMoneyProfilesForGuild(guild);
 
         // Clean old messages
         botMessageDeletus(guild);
@@ -181,7 +181,7 @@ for (const file of commandFiles) {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isCommand()) return;
-  //if (interaction.guild.id !== targetGuildId) return;
+  if (interaction.guild.id !== targetGuildId) return;
 
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
