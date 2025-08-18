@@ -32,10 +32,10 @@ const guildConfigSchema = new mongoose.Schema({
     }
 });
 
-// Optional: auto-update updatedAt
-guildConfigSchema.pre('save', function(next) {
-    this.updatedAt = Date.now();
-    next();
-});
+// // Optional: auto-update updatedAt
+// guildConfigSchema.pre('save', function(next) {
+//     this.updatedAt = Date.now();
+//     next();
+// });
 
 module.exports = mongoose.model('GuildConfig', guildConfigSchema);
