@@ -952,6 +952,18 @@ module.exports = async (channel, dbEntry, json, client) => {
         }
     }
 
+     if (now > dbEntry.nextShopRefresh) {
+
+        // move all players to entrance.
+        for (const member of members.values()) {
+                mapData.playerPositions[member.id] = {
+                    x: mapData.entranceX,
+                    y: mapData.entranceY
+                };
+                mapChanged = true;
+         }
+    }
+
     // Batch all database operations
     if (mapChanged) {
         transaction.setMapUpdate(channel.id, mapData);
