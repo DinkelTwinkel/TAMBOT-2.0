@@ -735,7 +735,7 @@ async function logEvent(channel, eventText, forceNew = false) {
             }
 
             if (shouldGenerateImage) {
-                embed.setImage('attachment://mine_map.png');
+                //embed.setImage('attachment://mine_map.png');
             }
 
             if (eventLogMessage && forceNew === false) {
@@ -760,7 +760,7 @@ async function logEvent(channel, eventText, forceNew = false) {
                     .setTimestamp();
 
                 if (newDescription) updatedEmbed.setDescription(newDescription);
-                if (shouldGenerateImage) updatedEmbed.setImage('attachment://mine_map.png');
+                //if (shouldGenerateImage) updatedEmbed.setImage('attachment://mine_map.png');
 
                 await eventLogMessage.edit({ embeds: [updatedEmbed], files: attachment ? [attachment] : [] });
                 return;
