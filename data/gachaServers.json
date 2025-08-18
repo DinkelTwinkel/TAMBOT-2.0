@@ -7,7 +7,7 @@
     "spawnWeight": 100,
     "description": "Welcome to the coal mines... yada yada yada yada",
     "power": 1,
-    "script": "mining_optimized_v2js",
+    "script": "mining_optimized_v2.js",
     "shop": 1,
     "colour": "000000",
     "image": "placeHolder"
