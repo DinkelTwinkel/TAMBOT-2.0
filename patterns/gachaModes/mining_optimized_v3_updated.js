@@ -440,7 +440,7 @@ module.exports = async (channel, dbEntry, json, client) => {
         
         // Check if break should end
         if (now >= breakInfo.breakEndTime) {
-            await endBreakShort(channel, dbEntry, breakInfo.isLongBreak);
+            await endBreak(channel, dbEntry, breakInfo.isLongBreak);
             return;
         }
         
