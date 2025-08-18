@@ -382,13 +382,13 @@ async function startBreak(channel, dbEntry, isLongBreak = false) {
 }
 
 // Handle break end
-async function endBreak(channel, dbEntry, isLongBreak) {
+async function endBreak(channel, dbEntry) {
     const mapData = dbEntry.gameData.map;
     const members = channel.members.filter(m => !m.user.bot);
     
-    const resetPositions = mapData.playerPositions;
-    // Reset all players to entrance
     
+    // Reset all players to entrance
+    const resetPositions = {}
     for (const member of members.values()) {
         resetPositions[member.id] = {
             x: mapData.entranceX,
