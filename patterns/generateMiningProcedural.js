@@ -237,11 +237,11 @@ async function drawTileWithColors(ctx, tile, pixelX, pixelY, tileSize, isVisible
                 
                 ctx.fillRect(pixelX + oreOffset, pixelY + oreOffset, oreSize, oreSize);
                 
-                if (tileSize >= 24) {
-                    ctx.strokeStyle = '#FFD700';
-                    ctx.lineWidth = Math.max(1, Math.floor(tileSize / 32));
-                    ctx.strokeRect(pixelX + oreOffset, pixelY + oreOffset, oreSize, oreSize);
-                }
+                // if (tileSize >= 24) {
+                //     ctx.strokeStyle = '#FFD700';
+                //     ctx.lineWidth = Math.max(1, Math.floor(tileSize / 32));
+                //     ctx.strokeRect(pixelX + oreOffset, pixelY + oreOffset, oreSize, oreSize);
+                // }
                 return;
             } else {
                 tileColor = '#333300';
