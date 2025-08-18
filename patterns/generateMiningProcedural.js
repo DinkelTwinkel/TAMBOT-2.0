@@ -697,11 +697,11 @@ async function generateTileMapImage(channel) {
         
         if (playersOnTile.length === 1) {
             const {member, position} = playersOnTile[0];
-            
+
+
+            await drawPlayerAvatar(ctx, member, tileCenterX, tileCenterY, playerAvatarSize, imageSettings);
             if (position.isTent) {
                 await drawTent(ctx, tileCenterX, tileCenterY, tileSize, member, imageSettings);
-            } else {
-                await drawPlayerAvatar(ctx, member, tileCenterX, tileCenterY, playerAvatarSize, imageSettings);
             }
             
             // Draw player name for larger images
@@ -797,34 +797,34 @@ async function drawTent(ctx, centerX, centerY, tileSize, member, imageSettings) 
     ctx.closePath();
     ctx.fill();
     
-    // Draw tent entrance (dark rectangle)
-    const entranceWidth = tentSize * 0.3;
-    const entranceHeight = tentHeight * 0.6;
-    ctx.fillStyle = '#2F1B14';
-    ctx.fillRect(
-        centerX - entranceWidth/2, 
-        centerY - entranceHeight/2, 
-        entranceWidth, 
-        entranceHeight
-    );
+    // // Draw tent entrance (dark rectangle)
+    // const entranceWidth = tentSize * 0.3;
+    // const entranceHeight = tentHeight * 0.6;
+    // ctx.fillStyle = '#2F1B14';
+    // ctx.fillRect(
+    //     centerX - entranceWidth/2, 
+    //     centerY - entranceHeight/2, 
+    //     entranceWidth, 
+    //     entranceHeight
+    // );
     
     // Draw tent outline
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = Math.max(1, imageSettings.scaleFactor);
     ctx.strokeRect(centerX - tentSize/2, centerY - tentHeight/2, tentSize, tentHeight);
     
-    // Draw player initial in tent
-    if (tentSize >= 20) {
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = `bold ${Math.floor(tentSize * 0.3)}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(
-            member.displayName.charAt(0).toUpperCase(), 
-            centerX, 
-            centerY + tentHeight * 0.1
-        );
-    }
+    // // Draw player initial in tent
+    // if (tentSize >= 20) {
+    //     ctx.fillStyle = '#FFFFFF';
+    //     ctx.font = `bold ${Math.floor(tentSize * 0.3)}px Arial`;
+    //     ctx.textAlign = 'center';
+    //     ctx.textBaseline = 'middle';
+    //     ctx.fillText(
+    //         member.displayName.charAt(0).toUpperCase(), 
+    //         centerX, 
+    //         centerY + tentHeight * 0.1
+    //     );
+    // }
     
     ctx.restore();
 }
