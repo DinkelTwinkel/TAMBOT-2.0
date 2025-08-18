@@ -350,13 +350,33 @@ async function generateTileMapImage(channel) {
 
             // Entrance marker
             if (tile.type === TILE_TYPES.ENTRANCE && wasDiscovered && tileSize >= 20) {
+                // ctx.fillStyle = '#FFFFFF';
+                // ctx.font = `bold ${Math.floor(tileSize * 0.3)}px "MyFont"`;
+                // ctx.textAlign = 'center';
+                // ctx.textBaseline = 'middle';
+                // ctx.globalAlpha = isCurrentlyVisible ? 1.0 : 0.4;
+                // ctx.fillText('E', pixelX + tileSize/2, pixelY + tileSize/2);
+                // ctx.globalAlpha = 1.0;
+
+                const triangleX = pixelX + tileSize/2 
+                const triangleY =  pixelY + tileSize/2
+                const triangleSize = 15; // Size of the triangle
+                
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = `bold ${Math.floor(tileSize * 0.3)}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.globalAlpha = isCurrentlyVisible ? 1.0 : 0.4;
-                ctx.fillText('↓', pixelX + tileSize/2, pixelY + tileSize/2);
-                ctx.globalAlpha = 1.0;
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 1;
+                ctx.moveTo(triangleX, triangleY - triangleSize); // Top point
+                ctx.lineTo(triangleX - triangleSize, triangleY + triangleSize); // Bottom left
+                ctx.lineTo(triangleX + triangleSize, triangleY + triangleSize); // Bottom right
+                ctx.closePath();
+                
+                // Fill and stroke the triangle
+                ctx.fill();
+                ctx.stroke();
+                
+                // Reset stroke width
+                ctx.lineWidth = 3;
+
             }
         }
     }

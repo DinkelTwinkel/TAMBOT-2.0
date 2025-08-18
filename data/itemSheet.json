@@ -100,14 +100,14 @@
       { "name": "mining", "powerlevel": 1 }
     ],
     "image": "rustypickaxe",
-    "durability": 40
+    "durability": 60
   },
   {
     "id": "13",
     "name": "Banana Axe",
     "type": "pickAxe",
     "description": "A slippery axe made from a banana. Not very reliable.",
-    "value": 30,
+    "value": 3,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 2 }
@@ -126,7 +126,7 @@
       { "name": "mining", "powerlevel": 3 }
     ],
     "image": "ironpickaxe",
-    "durability": 70
+    "durability": 80
   },
   {
     "id": "8",
@@ -139,7 +139,7 @@
       { "name": "mining", "powerlevel": 5 }
     ],
     "image": "robustpickaxe",
-    "durability": 80
+    "durability": 90
   },
   {
     "id": "17",
@@ -152,7 +152,7 @@
       { "name": "mining", "powerlevel": 6 }
     ],
     "image": "pixter",
-    "durability": 50
+    "durability": 70
   },
   {
     "id": "18",
@@ -165,17 +165,17 @@
       { "name": "mining", "powerlevel": 7 }
     ],
     "image": "robustpickaxe",
-    "durability": 70
+    "durability": 90
   },
   {
     "id": "20",
     "name": "Nature's Pickaxe",
     "type": "pickAxe",
-    "description": "A pickaxe intertwined with roots and vines, resonating with the earth's essence.",
-    "value": 450,
+    "description": "A pickaxe intertwined with roots and vines, resonating with the earth's essence. Unbreakable but weak",
+    "value": 2000,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 8 }
+      { "name": "mining", "powerlevel": 1 }
     ],
     "image": "natures_pickaxe",
     "durability": 200
@@ -191,7 +191,7 @@
       { "name": "mining", "powerlevel": 9 }
     ],
     "image": "haunted_pixaxe",
-    "durability": 90
+    "durability": 990
   },
   {
     "id": "16",
@@ -204,7 +204,7 @@
       { "name": "mining", "powerlevel": 10 }
     ],
     "image": "pinkgem_axe",
-    "durability": 80
+    "durability": 95
   },
   {
     "id": "12",
@@ -230,7 +230,7 @@
       { "name": "mining", "powerlevel": 12 }
     ],
     "image": "hypickeon",
-    "durability": 90
+    "durability": 99
   },
   {
     "id": "19",
@@ -243,7 +243,7 @@
       { "name": "mining", "powerlevel": 13 }
     ],
     "image": "murderous_aura_pickaxe",
-    "durability": 90
+    "durability": 99
   },
   {
     "id": "9",
@@ -256,7 +256,7 @@
       { "name": "mining", "powerlevel": 15 }
     ],
     "image": "haunted_pixaxe",
-    "durability": 90
+    "durability": 99
   },
   {
     "id": "4",
