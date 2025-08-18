@@ -414,7 +414,8 @@ function groupPlayersByTile(members, playerPositions) {
  */
 function isBreakPeriod(dbEntry) {
     const now = Date.now();
-    return now <= dbEntry.nextShopRefresh - 25 * 60 * 1000;
+    const oneMinute = 60 * 1000; // milliseconds
+    return dbEntry.nextTrigger - now > oneMinute;
 }
 
 /**
