@@ -387,23 +387,15 @@ async function endBreak(channel, dbEntry, isLongBreak) {
     const members = channel.members.filter(m => !m.user.bot);
     
     const resetPositions = mapData.playerPositions;
-    if (isLongBreak){
     // Reset all players to entrance
-        
-        for (const member of members.values()) {
-            resetPositions[member.id] = {
-                x: mapData.entranceX,
-                y: mapData.entranceY,
-                isTent: false,
-                hidden: false
-            };
-        }
-    }
-
+    
     for (const member of members.values()) {
-    resetPositions[member.id] = {
-        isTent: false,
-    };
+        resetPositions[member.id] = {
+            x: mapData.entranceX,
+            y: mapData.entranceY,
+            isTent: false,
+            hidden: false
+        };
     }
     // Calculate next break timing
     const cycleCount = (dbEntry.gameData?.cycleCount || 0) + 1;
