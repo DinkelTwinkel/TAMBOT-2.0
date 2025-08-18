@@ -592,9 +592,9 @@ async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
 }
 
 // ---------------- Optimized Event Log System ----------------
-async function logEvent(channel, eventText, forceImage = true) {
+async function logEvent(channel, eventText, forceNew = false) {
     eventCounter++;
-    const shouldGenerateImage = forceImage || (eventCounter % IMAGE_GENERATION_INTERVAL === 0);
+    const shouldGenerateImage = forceNew || (eventCounter % IMAGE_GENERATION_INTERVAL === 0);
     
     // create break timer and minecart summary.
     const result = await gachaVC.findOne({ channelId: channel.id });
@@ -646,7 +646,7 @@ async function logEvent(channel, eventText, forceImage = true) {
                 embed.setDescription('```\n' + logEntry + '\n```');
             }
 
-            if (eventLogMessage) {
+            if (eventLogMessage && forceNew === false) {
                 // Update existing embed
                 const existingEmbed = eventLogMessage.embeds[0];
                 let currentDescription = existingEmbed.description || '';
@@ -972,7 +972,6 @@ module.exports = async (channel, dbEntry, json, client) => {
 
     // Handle shop breaks
     if (now > dbEntry.nextShopRefresh) {
-        await generateShop(channel, 5);
         
         const nextTrigger = new Date(now + 5 * 60 * 1000);
         const nextShopRefresh = new Date(now + 30 * 60 * 1000);
@@ -983,11 +982,11 @@ module.exports = async (channel, dbEntry, json, client) => {
             nextShopRefresh: nextShopRefresh
         });
         await vcTransaction.commit();
-        
-        await logEvent(channel, '🥪 Shop break! Mining resuming in 5mins!', true);
 
         const refreshedEntry = await gachaVC.findOne({ channelId: channel.id });
         await createMiningSummary(channel, refreshedEntry);
+        await logEvent(channel, '🥪 Shop break! Mining resuming in 5mins!', true);
+        await generateShop(channel, 5);
 
     }
 };
