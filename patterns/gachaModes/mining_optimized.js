@@ -941,8 +941,8 @@ module.exports = async (channel, dbEntry, json, client) => {
                 position.y = newY;
                 mapChanged = true;
 
-                // 5% chance to find something on the floor.
-                if (Math.random() * 100 > 98) {
+                // 1% chance to find something on the floor.
+                if (Math.random() * 100 > 99.5) {
                     const item = pickWeightedItem(powerLevel);
                     eventLogs.push(`${member.displayName} found 1 ${item.name} on the floor!`);
                     await addItemToMinecart(dbEntry, member.id, item.itemId, 1);
