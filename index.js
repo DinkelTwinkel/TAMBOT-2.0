@@ -55,14 +55,14 @@ client.once(Events.ClientReady, async c => {
     const eatTheRichListener = require('./patterns/eatTheRich');
     eatTheRichListener(client);
     const ShopHandler = require('./patterns/shopHandler'); 
-    shopHandler = new ShopHandler(client, targetGuildId);
+
     console.log('✅ Centralized shop handler initialized');
 
     // Loop through all guilds your bot is in
     client.guilds.cache.forEach(async guild => {
 
         //if (guild.id !== targetGuildId) return console.log ('skipping guild: ' + guild.id);
-
+        shopHandler = new ShopHandler(client, guild.id);
 
         // Fetch guild config from MongoDB
         let config = await GuildConfig.findOne({ guildId: guild.id });

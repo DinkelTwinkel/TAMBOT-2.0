@@ -94,7 +94,7 @@
     "name": "Rusty Pick Axe",
     "type": "pickAxe",
     "description": "Barely holds together. Better than nothing.",
-    "value": 10,
+    "value": 25,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 1 }
@@ -107,7 +107,7 @@
     "name": "Banana Axe",
     "type": "pickAxe",
     "description": "A slippery axe made from a banana. Not very reliable.",
-    "value": 3,
+    "value": 15,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 2 }
@@ -120,7 +120,7 @@
     "name": "Worn Iron Pickaxe",
     "type": "pickAxe",
     "description": "Sturdy enough to mine reliably, though worn.",
-    "value": 60,
+    "value": 120,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 3 }
@@ -133,10 +133,10 @@
     "name": "Robust Pickaxe",
     "type": "pickAxe",
     "description": "A solidly built pickaxe, dependable and effective.",
-    "value": 150,
+    "value": 300,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 5 }
+      { "name": "mining", "powerlevel": 4 }
     ],
     "image": "robustpickaxe",
     "durability": 90
@@ -146,10 +146,10 @@
     "name": "Pixter",
     "type": "pickAxe",
     "description": "A playful pickaxe, light but oddly effective in short bursts.",
-    "value": 220,
+    "value": 500,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 6 }
+      { "name": "mining", "powerlevel": 5 }
     ],
     "image": "pixter",
     "durability": 70
@@ -159,10 +159,10 @@
     "name": "Robust Pickaxe+",
     "type": "pickAxe",
     "description": "An upgraded version of the robust pickaxe, reinforced and refined.",
-    "value": 300,
+    "value": 750,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 7 }
+      { "name": "mining", "powerlevel": 6 }
     ],
     "image": "robustpickaxe",
     "durability": 90
@@ -185,10 +185,10 @@
     "name": "Haunted Pickaxe",
     "type": "pickAxe",
     "description": "Whispers of trapped souls echo from its blade.",
-    "value": 600,
+    "value": 1200,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 9 }
+      { "name": "mining", "powerlevel": 7 }
     ],
     "image": "haunted_pixaxe",
     "durability": 95
@@ -198,10 +198,10 @@
     "name": "Pinkgem Axe",
     "type": "pickAxe",
     "description": "Forged with glowing pink gemstones, it radiates elegance and strength.",
-    "value": 800,
+    "value": 2000,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 10 }
+      { "name": "mining", "powerlevel": 8 }
     ],
     "image": "pinkgem_axe",
     "durability": 85
@@ -211,10 +211,10 @@
     "name": "DRICK",
     "type": "pickAxe",
     "description": "Styvec's DRICK. Heavy and oddly shaped, but brutally efficient.",
-    "value": 1000,
+    "value": 3500,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 11 }
+      { "name": "mining", "powerlevel": 9 }
     ],
     "image": "drick",
     "durability": 90
@@ -224,10 +224,10 @@
     "name": "Hypickeon",
     "type": "pickAxe",
     "description": "A mysterious tool, its form seems unstable yet powerful.",
-    "value": 1200,
+    "value": 5000,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 12 }
+      { "name": "mining", "powerlevel": 10 }
     ],
     "image": "hypickeon",
     "durability": 95
@@ -237,10 +237,10 @@
     "name": "Murderous Aura Pickaxe",
     "type": "pickAxe",
     "description": "A cursed pickaxe radiating a murderous aura. The ground itself recoils at its touch.",
-    "value": 1500,
+    "value": 8000,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 13 }
+      { "name": "mining", "powerlevel": 11 }
     ],
     "image": "murderous_aura_pickaxe",
     "durability": 90
@@ -250,10 +250,10 @@
     "name": "Enchanted Pickaxe",
     "type": "pickAxe",
     "description": "Runic symbols decorate the surface of this pick.",
-    "value": 2000,
+    "value": 12000,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 15 }
+      { "name": "mining", "powerlevel": 12 }
     ],
     "image": "haunted_pixaxe",
     "durability": 95
@@ -263,7 +263,7 @@
     "name": "Mining Bun",
     "type": "consumable",
     "description": "Simple rations for the mine. Small boost.",
-    "value": 5,
+    "value": 8,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 1 }
@@ -276,39 +276,39 @@
     "name": "Bun Pack",
     "type": "consumable",
     "description": "Longer lasting buns! Moderate boost.",
-    "value": 20,
+    "value": 40,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 3 }
+      { "name": "mining", "powerlevel": 2 }
     ],
     "image": "bunpack",
-    "duration": 180
+    "duration": 90
   },
   {
     "id": "5",
     "name": "Water",
     "type": "consumable",
     "description": "Drink some water and stay sharp.",
-    "value": 3,
+    "value": 6,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 2 }
+      { "name": "mining", "powerlevel": 1 }
     ],
     "image": "water",
-    "duration": 30
+    "duration": 25
   },
   {
     "id": "11",
     "name": "Mine Beer",
     "type": "consumable",
     "description": "Brewed for miners. Greatly boosts morale and efficiency.",
-    "value": 50,
+    "value": 100,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 5 }
+      { "name": "mining", "powerlevel": 3 }
     ],
     "image": "minebeer",
-    "duration": 120
+    "duration": 60
   },
   {
     "id": "27",
