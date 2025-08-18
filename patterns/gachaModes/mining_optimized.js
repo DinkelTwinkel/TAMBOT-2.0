@@ -14,7 +14,6 @@ const generateTileMapImage = require('../generateMiningProcedural');
 // ---------------- Constants ----------------
 const INITIAL_MAP_WIDTH = 7;
 const INITIAL_MAP_HEIGHT = 5;
-const TILE_SIZE = 64;
 const ORE_SPAWN_CHANCE = 0.25;
 const IMAGE_GENERATION_INTERVAL = 1; // Generate image every event (adjustable)
 const MAX_SPEED_ACTIONS = 3; // Cap speed stat for performance
@@ -488,6 +487,10 @@ function initializeGameData(dbEntry, channelId) {
         dbEntry.gameData = {
             gamemode: 'mining',
             map: initializeMap(channelId),
+            minecart: {
+                items: {}, // itemId -> { quantity, contributors: { playerId -> amount } }
+                contributors: {} // playerId -> totalItemsContributed (for participation tracking)
+            },
             sessionStart: new Date(),
             breakCount: 0
         };
@@ -506,6 +509,86 @@ function initializeGameData(dbEntry, channelId) {
         dbEntry.gameData.map.playerPositions = {};
         dbEntry.markModified('gameData');
     }
+    // Ensure minecart structure exists
+    if (!dbEntry.gameData.minecart) {
+        dbEntry.gameData.minecart = {
+            items: {},
+            contributors: {}
+        };
+        dbEntry.markModified('gameData');
+    }
+    
+    if (!dbEntry.gameData.minecart.items) {
+        dbEntry.gameData.minecart.items = {};
+        dbEntry.markModified('gameData');
+    }
+    
+    if (!dbEntry.gameData.minecart.contributors) {
+        dbEntry.gameData.minecart.contributors = {};
+        dbEntry.markModified('gameData');
+    }
+}
+
+// Atomic minecart reset
+async function resetMinecart(channelId) {
+    await gachaVC.updateOne(
+        { channelId: channelId },
+        {
+            $set: {
+                'gameData.minecart.items': {},
+                'gameData.minecart.contributors': {},
+                'gameData.sessionStart': new Date()
+            }
+        }
+    );
+}
+
+// Atomic minecart item addition
+async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
+    const channelId = dbEntry.channelId;
+    
+    try {
+        // Try the increment operation first
+        await gachaVC.updateOne(
+            { channelId: channelId },
+            {
+                $inc: {
+                    [`gameData.minecart.items.${itemId}.quantity`]: amount,
+                    [`gameData.minecart.items.${itemId}.contributors.${playerId}`]: amount,
+                    [`gameData.minecart.contributors.${playerId}`]: amount
+                }
+            }
+        );
+    } catch (error) {
+        // If it fails due to missing path, initialize the structure first
+        if (error.code === 40 || error.message.includes('path') || error.message.includes('conflict')) {
+            // Get current document to merge with new structure
+            const currentDoc = await gachaVC.findOne({ channelId: channelId });
+            
+            // Initialize the minecart structure preserving existing data
+            const existingItems = currentDoc?.gameData?.minecart?.items || {};
+            const existingContributors = currentDoc?.gameData?.minecart?.contributors || {};
+            
+            // Set the new item structure
+            existingItems[itemId] = existingItems[itemId] || { quantity: 0, contributors: {} };
+            existingItems[itemId].quantity = (existingItems[itemId].quantity || 0) + amount;
+            existingItems[itemId].contributors[playerId] = (existingItems[itemId].contributors[playerId] || 0) + amount;
+            existingContributors[playerId] = (existingContributors[playerId] || 0) + amount;
+            
+            await gachaVC.updateOne(
+                { channelId: channelId },
+                {
+                    $set: {
+                        'gameData.minecart.items': existingItems,
+                        'gameData.minecart.contributors': existingContributors
+                    }
+                },
+                { upsert: true }
+            );
+        } else {
+            throw error; // Re-throw if it's a different error
+        }
+    }
 }
 
 // ---------------- Optimized Event Log System ----------------
@@ -513,6 +596,18 @@ async function logEvent(channel, eventText, forceImage = true) {
     eventCounter++;
     const shouldGenerateImage = forceImage || (eventCounter % IMAGE_GENERATION_INTERVAL === 0);
     
+    // create break timer and minecart summary.
+    const result = await gachaVC.findOne({ channelId: channel.id });
+    const now = new Date();
+    const nextRefreshTime = result.nextShopRefresh;
+
+    let diffMs = nextRefreshTime - now;
+    if (diffMs < 0) diffMs = 0;
+
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+    const minecartSummary = getMinecartSummary(result);
+
     const timestamp = new Date().toLocaleTimeString('en-US', { 
         hour12: false, 
         hour: '2-digit', 
@@ -544,6 +639,7 @@ async function logEvent(channel, eventText, forceImage = true) {
             const embed = new EmbedBuilder()
                 .setTitle('MINING MAP')
                 .setColor(0x8B4513)
+                .setFooter({ text: `MINECART: ${minecartSummary.summary} ~ NEXT BREAK IN ${diffMinutes} MINUTES` })
                 .setTimestamp();
 
             if (logEntry) {
@@ -567,6 +663,7 @@ async function logEvent(channel, eventText, forceImage = true) {
                 const updatedEmbed = new EmbedBuilder()
                     .setTitle('MINING MAP')
                     .setColor(0x8B4513)
+                    .setFooter({ text: `MINECART: ${minecartSummary.summary} ~ NEXT BREAK IN ${diffMinutes} MINUTES` })
                     .setTimestamp();
 
                 if (newDescription) updatedEmbed.setDescription(newDescription);
@@ -724,7 +821,8 @@ module.exports = async (channel, dbEntry, json, client) => {
                 if (await canBreakWall(member.id, miningPower)) {
                     const { item, quantity } = await mineOreFromWall(member, miningPower, luckStat, powerLevel);
                     
-                    transaction.addInventoryItem(member.id, member.user.tag, item.itemId, quantity);
+                    //transaction.addInventoryItem(member.id, member.user.tag, item.itemId, quantity);
+                    await addItemToMinecart(dbEntry, member.id, item.itemId, quantity);
                     
                     const mineY = adjacentOre.y < 0 ? 0 : adjacentOre.y;
                     const mineX = adjacentOre.x < 0 ? 0 : adjacentOre.x;
@@ -806,8 +904,8 @@ module.exports = async (channel, dbEntry, json, client) => {
                     // If it's an ore wall, mine it
                     if (targetTile.type === TILE_TYPES.WALL_WITH_ORE) {
                         const { item, quantity } = await mineOreFromWall(member, miningPower, luckStat, powerLevel);
-                        transaction.addInventoryItem(member.id, member.user.tag, item.itemId, quantity);
-                        
+                        //transaction.addInventoryItem(member.id, member.user.tag, item.itemId, quantity);
+                        await addItemToMinecart(dbEntry, member.id, item.itemId, quantity);
                         // Check for pickaxe break
                         if (bestPickaxe && checkPickaxeBreak(bestPickaxe)) {
                             transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
@@ -842,6 +940,14 @@ module.exports = async (channel, dbEntry, json, client) => {
                 position.x = newX;
                 position.y = newY;
                 mapChanged = true;
+
+                // 5% chance to find something on the floor.
+                if (Math.random() * 100 > 5) {
+                    const item = pickWeightedItem(powerLevel);
+                    eventLogs.push(`${member.displayName} found 1 ${item.name} on the floor!`);
+                    await addItemToMinecart(dbEntry, member.id, item.itemId, 1);
+                }
+
             }
         }
     }
@@ -879,5 +985,137 @@ module.exports = async (channel, dbEntry, json, client) => {
         await vcTransaction.commit();
         
         await logEvent(channel, '🥪 Shop break! Mining resuming in 5mins!', true);
+
+        const refreshedEntry = await gachaVC.findOne({ channelId: channel.id });
+        await createMiningSummary(channel, refreshedEntry);
+
     }
 };
+
+// ---------------- Mining Session Summary & Minecart Sale ----------------
+async function createMiningSummary(channel, dbEntry) {
+    const gameData = dbEntry.gameData;
+    if (!gameData || gameData.gamemode !== 'mining') return;
+
+    const minecart = gameData.minecart;
+    if (!minecart || !minecart.items) {
+        const embed = new EmbedBuilder()
+            .setTitle('🛒 Mining Session Complete')
+            .setDescription('The minecart is empty. No items to sell! Shop is now available!')
+            .setColor(0x8B4513)
+            .setTimestamp();
+        
+        await channel.send({ embeds: [embed] });
+        return;
+    }
+
+    // Calculate total value and create item breakdown
+    let totalValue = 0;
+    let totalItems = 0;
+    const itemBreakdown = [];
+    const contributorRewards = {};
+
+    // Process each item type in the minecart
+    for (const [itemId, itemData] of Object.entries(minecart.items)) {
+        const poolItem = miningItemPool.find(item => item.itemId === itemId);
+        if (!poolItem || itemData.quantity <= 0) continue;
+
+        const itemTotalValue = poolItem.value * itemData.quantity;
+        totalValue += itemTotalValue;
+        totalItems += itemData.quantity;
+        itemBreakdown.push(`${poolItem.name} x${itemData.quantity} = ${itemTotalValue} coins`);
+
+        // Calculate rewards for contributors of this specific item
+        const contributorCount = Object.keys(itemData.contributors || {}).length;
+        if (contributorCount > 0) {
+            const coinsPerContributor = Math.floor(itemTotalValue / contributorCount);
+            
+            for (const [playerId, contributed] of Object.entries(itemData.contributors)) {
+                if (!contributorRewards[playerId]) {
+                    contributorRewards[playerId] = { coins: 0, items: [] };
+                }
+                contributorRewards[playerId].coins += coinsPerContributor;
+                contributorRewards[playerId].items.push(`${poolItem.name} x${contributed}`);
+            }
+        }
+    }
+
+    if (totalItems === 0) {
+        const embed = new EmbedBuilder()
+            .setTitle('🛒 Mining Session Complete')
+            .setDescription('The minecart is empty. No items to sell! Shop is now available!')
+            .setColor(0x8B4513)
+            .setTimestamp();
+        
+        await channel.send({ embeds: [embed] });
+        return;
+    }
+
+    // Reward each contributor using atomic operations
+    const contributorLines = [];
+    for (const [playerId, reward] of Object.entries(contributorRewards)) {
+        try {
+            const member = await channel.guild.members.fetch(playerId);
+            
+            // Fixed atomic currency update - handle the case where money field doesn't exist
+            let userCurrency = await Currency.findOne({ userId: playerId });
+            
+            if (!userCurrency) {
+                // Create new currency document if it doesn't exist
+                userCurrency = await Currency.create({
+                    userId: playerId,
+                    money: reward.coins
+                });
+            } else {
+                // Update existing document safely
+                userCurrency.money = (userCurrency.money || 0) + reward.coins;
+                await userCurrency.save();
+            }
+            
+            contributorLines.push(`${member.displayName}: ${reward.items.join(', ')} → ${reward.coins} coins`);
+        } catch (error) {
+            console.error(`Error rewarding player ${playerId}:`, error);
+            // Continue processing other players even if one fails
+        }
+    }
+    const embed = new EmbedBuilder()
+        .setTitle('🛒 Mining Session Complete')
+        .setDescription(`The minecart has been sold to the shop!\n\n**Items Sold:**\n${itemBreakdown.join('\n')}\n\n**Total Value:** ${totalValue} coins`)
+        .addFields({
+            name: 'Contributors & Rewards',
+            value: contributorLines.join('\n') || 'None',
+            inline: false
+        })
+        .setColor(0xFFD700)
+        .setTimestamp();
+
+    await channel.send({ embeds: [embed] });
+
+    // Atomic minecart reset
+    await resetMinecart(channel.id);
+}
+
+function getMinecartSummary(dbEntry) {
+    const minecart = dbEntry.gameData?.minecart;
+    if (!minecart || !minecart.items) return { totalValue: 0, itemCount: 0, summary: "Empty minecart" };
+    
+    let totalValue = 0;
+    let totalItems = 0;
+    const itemSummaries = [];
+    
+    for (const [itemId, itemData] of Object.entries(minecart.items)) {
+        const poolItem = miningItemPool.find(item => item.itemId === itemId);
+        if (poolItem && itemData.quantity > 0) {
+            const itemValue = poolItem.value * itemData.quantity;
+            totalValue += itemValue;
+            totalItems += itemData.quantity;
+            itemSummaries.push(`${poolItem.name} x${itemData.quantity}`);
+        }
+    }
+    
+    return {
+        totalValue,
+        itemCount: totalItems,
+        summary: itemSummaries.length > 0 ? itemSummaries.join(', ') : "Empty minecart"
+    };
+}

@@ -142,7 +142,7 @@ async function generateShop(channel, closingTime) {
     // Send shop message first to get the message ID
     const shopMessage = await channel.send({ embeds: [embed], files: [attachment, thumbAttachment] });
 
-    registerBotMessage(shopMessage.guild.id, shopMessage.channel.id, shopMessage.id);
+    registerBotMessage(shopMessage.guild.id, shopMessage.channel.id, shopMessage.id, 5);
 
     // Create buy menu with fluctuated prices
     const buyMenu = new ActionRowBuilder().addComponents(
