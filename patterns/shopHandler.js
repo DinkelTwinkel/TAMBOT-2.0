@@ -102,12 +102,48 @@ class ShopHandler {
             userCurrency.money -= totalCost;
             await userCurrency.save();
 
-            // Apply buff
+            // Apply buff and get detailed information
             const applyConsumableBuff = require('./applyConsumeableBuff');
-            await applyConsumableBuff(userId, item);
+            const buffResult = await applyConsumableBuff(userId, item);
+
+            // Format buff effects for display
+            const buffEffects = [];
+            for (const [statName, powerLevel] of buffResult.effects) {
+                const statDisplay = this.formatStatName(statName);
+                buffEffects.push(`${statDisplay} +${powerLevel}`);
+            }
+
+            // Calculate remaining time
+            const remainingMs = buffResult.expiresAt.getTime() - Date.now();
+            const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
+
+            // Create response message
+            let responseMessage = `${interaction.member} ✅ **Used ${item.name}!**\n`;
+            
+            if (buffResult.refreshed) {
+                responseMessage += `🔄 **Buff Refreshed:** ${buffEffects.join(', ')}\n`;
+                responseMessage += `⏰ **Duration Extended:** ${remainingMinutes} minutes remaining`;
+            } else {
+                responseMessage += `⚡ **Buff Applied:** ${buffEffects.join(', ')}\n`;
+                responseMessage += `⏰ **Duration:** ${remainingMinutes} minutes`;
+            }
+
+            // Add a description of what the stats do
+            const statDescriptions = [];
+            for (const [statName] of buffResult.effects) {
+                const description = this.getStatDescription(statName);
+                if (description) statDescriptions.push(description);
+            }
+            
+            if (statDescriptions.length > 0) {
+                responseMessage += `\n💡 *${statDescriptions.join(', ')}*`;
+            }
+            
+            // Add remaining balance
+            responseMessage += `\n💰 **Balance:** ${userCurrency.money} coins`;
 
             await interaction.reply({
-                content: `${interaction.member} ✅ Used ${item.name}! Buff applied for ${item.duration} minutes.`,
+                content: responseMessage,
                 ephemeral: false
             });
             
@@ -255,8 +291,29 @@ class ShopHandler {
 
         const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
         
+        // Create enhanced response message
+        let responseMessage = `${interaction.member} ✅ Purchased ${quantity} x **${item.name}** for ${totalCost} coins! (${currentBuyPrice}c${priceIndicator} each)`;
+        
+        // Add stat information for equipment
+        if (item.abilities && item.abilities.length > 0) {
+            const statEffects = [];
+            for (const ability of item.abilities) {
+                const statDisplay = this.formatStatName(ability.name);
+                statEffects.push(`${statDisplay} +${ability.powerlevel}`);
+            }
+            responseMessage += `\n⚡ **Stats:** ${statEffects.join(', ')}`;
+            
+            // Add durability info if available
+            if (item.durability) {
+                responseMessage += ` | 🔧 Durability: ${item.durability}`;
+            }
+        }
+        
+        // Add remaining balance
+        responseMessage += `\n💰 **Balance:** ${userCurrency.money} coins`;
+        
         await interaction.reply({ 
-            content: `${interaction.member} ✅ Purchased ${quantity} x ${item.name} for ${totalCost} coins! (${currentBuyPrice}c${priceIndicator} each)`, 
+            content: responseMessage, 
             ephemeral: false 
         });
         
@@ -337,6 +394,28 @@ class ShopHandler {
             return str.slice(1, -1);
         }
         return `"${str}"`; // wrap in quotes otherwise
+    }
+
+    // Helper method to format stat names for display
+    formatStatName(statName) {
+        const statDisplayNames = {
+            'mining': '⛏️ Mining',
+            'sight': '🔍 Sight', 
+            'luck': '🍀 Luck',
+            'speed': '⚡ Speed'
+        };
+        return statDisplayNames[statName] || statName;
+    }
+
+    // Helper method to explain what each stat does
+    getStatDescription(statName) {
+        const statDescriptions = {
+            'mining': 'Increases mining power and ore yield',
+            'sight': 'Expands vision range to spot ore veins',
+            'luck': 'Boosts chance for bonus items when mining',
+            'speed': 'Enables multiple actions per mining cycle'
+        };
+        return statDescriptions[statName];
     }
 }
 

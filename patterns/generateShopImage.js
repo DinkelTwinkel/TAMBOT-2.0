@@ -112,15 +112,84 @@ async function generateShopImage(shopData, itemData, guildId = null) {
 
         const foundItemData = itemsheet.find(sheetItem => String(sheetItem.id) === String(itemId));
 
-        if (!foundItemData || !foundItemData.image) continue;
+        if (!foundItemData) continue;
 
-        const img = await loadImage(`./assets/items/${foundItemData.image}.png`);
-        const scale = shopData.itemDisplayScale;
-        const newWidth = img.width * scale;
-        const newHeight = img.height * scale;
+        let img = null;
+        let newWidth = 64; // Default size
+        let newHeight = 64;
+        let showItemName = false;
 
-        // Draw item
-        ctx.drawImage(img, point.x - newWidth / 2, point.y - newHeight / 2, newWidth, newHeight);
+        // Try to load the image
+        if (foundItemData.image) {
+            try {
+                img = await loadImage(`./assets/items/${foundItemData.image}.png`);
+                const scale = shopData.itemDisplayScale;
+                newWidth = img.width * scale;
+                newHeight = img.height * scale;
+            } catch (error) {
+                // Image not found, we'll show item name instead
+                console.warn(`Image not found for item ${foundItemData.name}: ${foundItemData.image}.png`);
+                showItemName = true;
+                // Use default size for text placeholder
+                newWidth = 80 * shopData.itemDisplayScale;
+                newHeight = 60 * shopData.itemDisplayScale;
+            }
+        } else {
+            // No image specified, show item name
+            showItemName = true;
+            newWidth = 80 * shopData.itemDisplayScale;
+            newHeight = 60 * shopData.itemDisplayScale;
+        }
+
+        if (img) {
+            // Draw the actual image
+            ctx.drawImage(img, point.x - newWidth / 2, point.y - newHeight / 2, newWidth, newHeight);
+        } else if (showItemName) {
+            // Draw item name placeholder
+            ctx.save();
+            
+            // Draw background rectangle
+            ctx.fillStyle = 'rgba(64, 64, 64, 0.9)';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.fillRect(point.x - newWidth / 2, point.y - newHeight / 2, newWidth, newHeight);
+            ctx.strokeRect(point.x - newWidth / 2, point.y - newHeight / 2, newWidth, newHeight);
+            
+            // Draw item name text
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Adjust font size based on name length and scale
+            const maxFontSize = Math.floor(12 * shopData.itemDisplayScale);
+            const minFontSize = Math.floor(8 * shopData.itemDisplayScale);
+            let fontSize = Math.max(minFontSize, maxFontSize - Math.floor(foundItemData.name.length / 3));
+            ctx.font = `${fontSize}px "MyFont"`;
+            
+            // Word wrap for long names
+            const words = foundItemData.name.split(' ');
+            const maxWordsPerLine = 2;
+            const lines = [];
+            
+            for (let i = 0; i < words.length; i += maxWordsPerLine) {
+                lines.push(words.slice(i, i + maxWordsPerLine).join(' '));
+            }
+            
+            // Draw each line
+            const lineHeight = fontSize + 2;
+            const totalHeight = lines.length * lineHeight;
+            const startY = point.y - totalHeight / 2 + lineHeight / 2;
+            
+            lines.forEach((line, index) => {
+                const y = startY + index * lineHeight;
+                ctx.strokeText(line, point.x, y);
+                ctx.fillText(line, point.x, y);
+            });
+            
+            ctx.restore();
+        }
 
         // Draw fluctuated cost text
         if (fluctuatedPrice && fluctuatedPrice > 0) {

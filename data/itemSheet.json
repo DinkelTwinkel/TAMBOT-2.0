@@ -309,5 +309,265 @@
     ],
     "image": "minebeer",
     "duration": 120
+  },
+  {
+    "id": "27",
+    "name": "Adamantite Ore",
+    "type": "mineLoot",
+    "description": "The ultimate metal, harder than diamond and lighter than air.",
+    "value": 300,
+    "vendable": false,
+    "abilities": [],
+    "image": "adamantite"
+  },
+  {
+    "id": "28",
+    "name": "Miner's Headlamp",
+    "type": "equipment",
+    "description": "A bright LED headlamp that illuminates dark mine tunnels.",
+    "value": 45,
+    "vendable": true,
+    "abilities": [
+      { "name": "sight", "powerlevel": 2 }
+    ],
+    "image": "miners_headlamp",
+    "durability": 85
+  },
+  {
+    "id": "29",
+    "name": "Crystal Lens Goggles",
+    "type": "equipment",
+    "description": "Precision goggles with crystal lenses that reveal hidden ore veins.",
+    "value": 120,
+    "vendable": true,
+    "abilities": [
+      { "name": "sight", "powerlevel": 4 }
+    ],
+    "image": "crystal_goggles",
+    "durability": 90
+  },
+  {
+    "id": "30",
+    "name": "Eagle Eye Visor",
+    "type": "equipment",
+    "description": "A legendary visor that grants the vision of an eagle, seeing through stone itself.",
+    "value": 350,
+    "vendable": true,
+    "abilities": [
+      { "name": "sight", "powerlevel": 6 }
+    ],
+    "image": "eagle_eye_visor",
+    "durability": 95
+  },
+  {
+    "id": "31",
+    "name": "Oracle's Third Eye",
+    "type": "equipment",
+    "description": "A mystical artifact that grants supernatural vision, revealing all secrets.",
+    "value": 800,
+    "vendable": true,
+    "abilities": [
+      { "name": "sight", "powerlevel": 8 }
+    ],
+    "image": "oracles_third_eye",
+    "durability": 100
+  },
+  {
+    "id": "32",
+    "name": "Lucky Charm Necklace",
+    "type": "equipment",
+    "description": "A simple charm that brings a bit of good fortune.",
+    "value": 35,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 1 }
+    ],
+    "image": "lucky_charm",
+    "durability": 75
+  },
+  {
+    "id": "33",
+    "name": "Rabbit's Foot Keychain",
+    "type": "equipment",
+    "description": "A genuine rabbit's foot that significantly improves your luck.",
+    "value": 85,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 3 }
+    ],
+    "image": "rabbits_foot",
+    "durability": 80
+  },
+  {
+    "id": "34",
+    "name": "Four-Leaf Clover Pin",
+    "type": "equipment",
+    "description": "A rare four-leaf clover preserved in amber, radiating fortune.",
+    "value": 200,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 5 }
+    ],
+    "image": "four_leaf_clover",
+    "durability": 90
+  },
+  {
+    "id": "35",
+    "name": "Fortune's Blessing Ring",
+    "type": "equipment",
+    "description": "A golden ring blessed by the goddess of fortune herself.",
+    "value": 500,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 7 }
+    ],
+    "image": "fortune_ring",
+    "durability": 95
+  },
+  {
+    "id": "36",
+    "name": "Probability Manipulator",
+    "type": "equipment",
+    "description": "A mysterious device that bends reality itself to your favor.",
+    "value": 1200,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 10 }
+    ],
+    "image": "probability_manipulator",
+    "durability": 100
+  },
+  {
+    "id": "37",
+    "name": "Swift Mining Boots",
+    "type": "equipment",
+    "description": "Lightweight boots that let you move quickly through mine tunnels.",
+    "value": 40,
+    "vendable": true,
+    "abilities": [
+      { "name": "speed", "powerlevel": 1 }
+    ],
+    "image": "swift_boots",
+    "durability": 70
+  },
+  {
+    "id": "38",
+    "name": "Hermes' Sandals",
+    "type": "equipment",
+    "description": "Winged sandals that grant the speed of the messenger god.",
+    "value": 150,
+    "vendable": true,
+    "abilities": [
+      { "name": "speed", "powerlevel": 3 }
+    ],
+    "image": "hermes_sandals",
+    "durability": 85
+  },
+  {
+    "id": "39",
+    "name": "Lightning Runner Gear",
+    "type": "equipment",
+    "description": "Electrified equipment that channels lightning energy into pure speed.",
+    "value": 300,
+    "vendable": true,
+    "abilities": [
+      { "name": "speed", "powerlevel": 5 }
+    ],
+    "image": "lightning_gear",
+    "durability": 90
+  },
+  {
+    "id": "40",
+    "name": "Time Dilation Device",
+    "type": "equipment",
+    "description": "A clockwork device that manipulates time around you, making you appear to move at impossible speeds.",
+    "value": 750,
+    "vendable": true,
+    "abilities": [
+      { "name": "speed", "powerlevel": 7 }
+    ],
+    "image": "time_device",
+    "durability": 95
+  },
+  {
+    "id": "41",
+    "name": "Quantum Tunneling Kit",
+    "type": "equipment",
+    "description": "Experimental technology that allows you to phase through obstacles, achieving ultimate mining efficiency.",
+    "value": 1500,
+    "vendable": true,
+    "abilities": [
+      { "name": "speed", "powerlevel": 10 }
+    ],
+    "image": "quantum_kit",
+    "durability": 100
+  },
+  {
+    "id": "42",
+    "name": "Energy Drink",
+    "type": "consumable",
+    "description": "A caffeinated boost that makes you move faster for a short time.",
+    "value": 15,
+    "vendable": true,
+    "abilities": [
+      { "name": "speed", "powerlevel": 2 }
+    ],
+    "image": "energy_drink",
+    "duration": 60
+  },
+  {
+    "id": "43",
+    "name": "Luck Potion",
+    "type": "consumable",
+    "description": "A bubbling green potion that temporarily improves your fortune.",
+    "value": 25,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 3 }
+    ],
+    "image": "luck_potion",
+    "duration": 90
+  },
+  {
+    "id": "44",
+    "name": "Vision Elixir",
+    "type": "consumable",
+    "description": "A crystal-clear elixir that sharpens your sight and reveals hidden details.",
+    "value": 20,
+    "vendable": true,
+    "abilities": [
+      { "name": "sight", "powerlevel": 3 }
+    ],
+    "image": "vision_elixir",
+    "duration": 75
+  },
+  {
+    "id": "45",
+    "name": "Miner's Multi-Tool",
+    "type": "pickAxe",
+    "description": "A versatile tool that provides balanced mining capabilities with enhanced efficiency.",
+    "value": 400,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 6 },
+      { "name": "speed", "powerlevel": 2 }
+    ],
+    "image": "miners_multitool",
+    "durability": 85
+  },
+  {
+    "id": "46",
+    "name": "Prospector's Dream Pickaxe",
+    "type": "pickAxe",
+    "description": "A legendary pickaxe that seems to know where the best ore is hidden.",
+    "value": 900,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 8 },
+      { "name": "luck", "powerlevel": 4 },
+      { "name": "sight", "powerlevel": 2 }
+    ],
+    "image": "prospectors_dream",
+    "durability": 95
   }
 ]

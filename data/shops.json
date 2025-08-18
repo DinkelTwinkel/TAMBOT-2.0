@@ -9,8 +9,8 @@
     "failureOther": ["Stop wasting my time..", "-HUFF", "scram!"],
     "cost": 0,
     "staticItems": [3],
-    "rotationalAmount": 2,
-    "itemPool": [1,2,5,21,22,4,3,13,7],
+    "rotationalAmount": 3,
+    "itemPool": [1,2,5,21,22,4,3,13,7,28,32,37,42,44],
     "image": "coalMineShop",
     "priceChangeFactor": 0.7,
     "itemDisplayScale": 1
@@ -25,8 +25,8 @@
     "failureOther": ["Stop wasting my time..", "-HUFF", "Scram!"],
     "cost": 0,
     "staticItems": [],
-    "rotationalAmount": 3,
-    "itemPool": [1,2,4,23,24,3,8,17,18,20,14],
+    "rotationalAmount": 4,
+    "itemPool": [1,2,4,23,24,3,8,17,18,20,14,29,33,34,38,39,43,45],
     "image": "coalMineShop",
     "priceChangeFactor": 0.5,
     "itemDisplayScale": 1
@@ -41,8 +41,8 @@
     "failureOther": ["Stop wasting my time..", "-HUFF", "Scram!"],
     "cost": 0,
     "staticItems": [],
-    "rotationalAmount": 3,
-    "itemPool": [6,25,26,1,2,4,16,12,15,19,9],
+    "rotationalAmount": 4,
+    "itemPool": [6,25,26,27,1,2,4,16,12,15,19,9,30,31,35,36,40,41,46],
     "image": "coalMineShop",
     "priceChangeFactor": 0.5,
     "itemDisplayScale": 1
