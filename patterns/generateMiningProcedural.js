@@ -403,10 +403,18 @@ function groupPlayersByTile(members, playerPositions) {
         if (!tileGroups[key]) {
             tileGroups[key] = [];
         }
-        tileGroups[key].push(member);
+        tileGroups[key].push({member, position});
     }
     
     return tileGroups;
+}
+
+/**
+ * Check if we're currently in a break period
+ */
+function isBreakPeriod(dbEntry) {
+    const now = Date.now();
+    return now <= dbEntry.nextTrigger;
 }
 
 /**
@@ -645,7 +653,9 @@ async function generateTileMapImage(channel) {
         ctx.globalAlpha = 1.0;
     }
 
-    // Draw players
+    // Draw players (as avatars or tents depending on break status)
+    const refreshedEntry = await gachaVC.findOne({ channelId: channel.id });
+    const inBreak = isBreakPeriod(refreshedEntry);
     const playerGroups = groupPlayersByTile(members, playerPositions);
     
     for (const [tileKey, playersOnTile] of Object.entries(playerGroups)) {
@@ -654,8 +664,13 @@ async function generateTileMapImage(channel) {
         const tileCenterY = tileY * tileSize + tileSize / 2;
         
         if (playersOnTile.length === 1) {
-            const member = playersOnTile[0];
-            await drawPlayerAvatar(ctx, member, tileCenterX, tileCenterY, playerAvatarSize, imageSettings);
+            const {member, position} = playersOnTile[0];
+            
+            if (inBreak && position.isTent) {
+                await drawTent(ctx, tileCenterX, tileCenterY, tileSize, member, imageSettings);
+            } else {
+                await drawPlayerAvatar(ctx, member, tileCenterX, tileCenterY, playerAvatarSize, imageSettings);
+            }
             
             // Draw player name for larger images
             if (tileSize >= 40) {
@@ -673,13 +688,16 @@ async function generateTileMapImage(channel) {
             // Handle multiple players on same tile
             const totalPlayers = playersOnTile.length;
             
-            if (tileSize >= 32) {
+            if (inBreak && playersOnTile[0].position.isTent) {
+                // Draw camp with multiple tents
+                await drawCamp(ctx, tileCenterX, tileCenterY, tileSize, playersOnTile.map(p => p.member), imageSettings);
+            } else if (tileSize >= 32) {
                 // Arrange in circle for larger images
                 const radius = Math.min(stackedOffset * Math.min(totalPlayers - 1, 5), tileSize * 0.3);
                 const angleStep = (Math.PI * 2) / totalPlayers;
                 
                 for (let i = 0; i < totalPlayers; i++) {
-                    const member = playersOnTile[i];
+                    const {member} = playersOnTile[i];
                     const angle = angleStep * i - Math.PI / 2;
                     const offsetX = Math.cos(angle) * radius;
                     const offsetY = Math.sin(angle) * radius;
@@ -692,20 +710,22 @@ async function generateTileMapImage(channel) {
                 }
             } else {
                 // Single avatar with count for smaller images
-                const member = playersOnTile[0];
+                const {member} = playersOnTile[0];
                 await drawPlayerAvatar(ctx, member, tileCenterX, tileCenterY, playerAvatarSize, imageSettings);
             }
             
             // Draw player count
-            ctx.fillStyle = '#FFD700';
-            ctx.strokeStyle = '#000000';
-            ctx.font = `bold ${Math.max(10, Math.floor(tileSize * 0.22))}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.lineWidth = Math.max(1, Math.floor(imageSettings.scaleFactor * 3));
-            const countText = `×${totalPlayers}`;
-            const countY = tileCenterY + tileSize/2 - Math.max(3, tileSize * 0.08);
-            ctx.strokeText(countText, tileCenterX, countY);
-            ctx.fillText(countText, tileCenterX, countY);
+            if (!inBreak || !playersOnTile[0].position.isTent) {
+                ctx.fillStyle = '#FFD700';
+                ctx.strokeStyle = '#000000';
+                ctx.font = `bold ${Math.max(10, Math.floor(tileSize * 0.22))}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.lineWidth = Math.max(1, Math.floor(imageSettings.scaleFactor * 3));
+                const countText = `×${totalPlayers}`;
+                const countY = tileCenterY + tileSize/2 - Math.max(3, tileSize * 0.08);
+                ctx.strokeText(countText, tileCenterX, countY);
+                ctx.fillText(countText, tileCenterX, countY);
+            }
         }
     }
 
@@ -716,6 +736,112 @@ async function generateTileMapImage(channel) {
         return canvas.toBuffer('image/jpeg', { quality: JPEG_QUALITY });
     } else {
         return canvas.toBuffer('image/png', { compressionLevel: 9 });
+    }
+}
+
+/**
+ * Draw a single tent for a player during breaks
+ */
+async function drawTent(ctx, centerX, centerY, tileSize, member, imageSettings) {
+    const tentSize = Math.min(tileSize * 0.8, imageSettings.playerAvatarSize * 1.2);
+    const tentHeight = tentSize * 0.8;
+    
+    // Draw tent shadow
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillRect(centerX - tentSize/2 + 2, centerY - tentHeight/2 + 2, tentSize, tentHeight);
+    
+    // Draw tent body
+    ctx.fillStyle = member.displayColor || '#8B4513'; // Use member's role color or brown
+    ctx.fillRect(centerX - tentSize/2, centerY - tentHeight/2, tentSize, tentHeight);
+    
+    // Draw tent roof (triangle)
+    const roofHeight = tentSize * 0.3;
+    ctx.fillStyle = '#654321'; // Darker brown for roof
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY - tentHeight/2 - roofHeight); // Top point
+    ctx.lineTo(centerX - tentSize/2, centerY - tentHeight/2); // Bottom left
+    ctx.lineTo(centerX + tentSize/2, centerY - tentHeight/2); // Bottom right
+    ctx.closePath();
+    ctx.fill();
+    
+    // Draw tent entrance (dark rectangle)
+    const entranceWidth = tentSize * 0.3;
+    const entranceHeight = tentHeight * 0.6;
+    ctx.fillStyle = '#2F1B14';
+    ctx.fillRect(
+        centerX - entranceWidth/2, 
+        centerY - entranceHeight/2, 
+        entranceWidth, 
+        entranceHeight
+    );
+    
+    // Draw tent outline
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = Math.max(1, imageSettings.scaleFactor);
+    ctx.strokeRect(centerX - tentSize/2, centerY - tentHeight/2, tentSize, tentHeight);
+    
+    // Draw player initial in tent
+    if (tentSize >= 20) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `bold ${Math.floor(tentSize * 0.3)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(
+            member.displayName.charAt(0).toUpperCase(), 
+            centerX, 
+            centerY + tentHeight * 0.1
+        );
+    }
+    
+    ctx.restore();
+}
+
+/**
+ * Draw a camp (multiple tents) for multiple players on same tile during breaks
+ */
+async function drawCamp(ctx, centerX, centerY, tileSize, members, imageSettings) {
+    const memberCount = members.length;
+    const tentSize = Math.min(tileSize * 0.6 / Math.sqrt(memberCount), imageSettings.playerAvatarSize);
+    
+    if (memberCount <= 4) {
+        // Arrange tents in a small circle
+        const radius = Math.min(tileSize * 0.2, tentSize * 0.6);
+        const angleStep = (Math.PI * 2) / memberCount;
+        
+        for (let i = 0; i < memberCount; i++) {
+            const member = members[i];
+            const angle = angleStep * i;
+            const tentX = centerX + Math.cos(angle) * radius;
+            const tentY = centerY + Math.sin(angle) * radius;
+            
+            await drawTent(ctx, tentX, tentY, tentSize, member, {
+                ...imageSettings,
+                playerAvatarSize: tentSize
+            });
+        }
+    } else {
+        // For many players, draw a large camp tent with count
+        const largeTentSize = Math.min(tileSize * 0.9, imageSettings.playerAvatarSize * 1.5);
+        
+        // Draw large tent representing the camp
+        await drawTent(ctx, centerX, centerY, largeTentSize, members[0], {
+            ...imageSettings,
+            playerAvatarSize: largeTentSize
+        });
+        
+        // Draw camp size indicator
+        ctx.save();
+        ctx.fillStyle = '#FFD700';
+        ctx.strokeStyle = '#000000';
+        ctx.font = `bold ${Math.max(10, Math.floor(largeTentSize * 0.25))}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 2;
+        const countText = `${memberCount} campers`;
+        const textY = centerY + largeTentSize/2 + 15;
+        ctx.strokeText(countText, centerX, textY);
+        ctx.fillText(countText, centerX, textY);
+        ctx.restore();
     }
 }
 

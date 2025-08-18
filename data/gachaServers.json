@@ -40,13 +40,13 @@
     },
     {
     "id": "4",
-    "name": "⛏️ Procedural Mine (WIP)",
+    "name": "⛏️ PROTOTYPE MINE (WIP)",
     "type": "mining",
     "rarity": "rare",
     "spawnWeight": 20,
     "description": "WELCOME TO THE Procedural MINES ... yada yada yada yada",
     "power": 2,
-    "script": "mining_optimized_v2.js",
+    "script": "mining_optimized_v3.js",
     "shop": 2,
     "colour": "D69B22",
     "image": "placeHolder"
