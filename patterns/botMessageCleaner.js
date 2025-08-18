@@ -14,8 +14,12 @@ module.exports = async (guild) => {
         }
 
         for (const entry of messagesToDelete) {
-            const { channelId, messageId, _id } = entry; // Get the MongoDB _id
+            const { channelId, messageId, _id, expireTime } = entry; // Get the MongoDB _id
             console.log(`Processing message ${messageId} in channel ${channelId}`);
+
+            const now = new Date();
+            console.log (expireTime);
+            if (now < expireTime) continue;
 
             try {
                 // Fetch the channel
