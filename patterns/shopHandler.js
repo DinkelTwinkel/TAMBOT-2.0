@@ -12,12 +12,40 @@ const { calculateFluctuatedPrice, getShopPrices } = require('./generateShop');
 class ShopHandler {
     constructor(client, guildId) {
         this.client = client;
-        this.setupListeners(guildId);
+        this.guildId = guildId;
+        
+        // Create a unique listener name for this guild
+        this.listenerName = `shopHandler_${guildId}`;
+        
+        // Remove any existing listeners for this guild before setting up new ones
+        this.removeExistingListeners();
+        
+        // Setup new listeners
+        this.setupListeners();
+        
+        // Store the handler reference on the client to track it
+        if (!this.client.shopHandlers) {
+            this.client.shopHandlers = new Map();
+        }
+        this.client.shopHandlers.set(guildId, this);
     }
 
-    setupListeners(guildId) {
-        this.client.on('interactionCreate', async (interaction) => {
-            if (interaction.guild.id !== guildId) return;
+    removeExistingListeners() {
+        // Get all existing listeners for interactionCreate
+        const listeners = this.client.listeners('interactionCreate');
+        
+        // Remove listeners that match our naming pattern for this guild
+        listeners.forEach(listener => {
+            if (listener.shopHandlerGuildId === this.guildId) {
+                this.client.removeListener('interactionCreate', listener);
+            }
+        });
+    }
+
+    setupListeners() {
+        // Create a named function so we can track it
+        const interactionHandler = async (interaction) => {
+            if (interaction.guild.id !== this.guildId) return;
             if (!interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
 
             // Handle shop select menus
@@ -31,7 +59,21 @@ class ShopHandler {
                 (interaction.customId.includes('buy_modal_') || interaction.customId.includes('sell_modal_'))) {
                 await this.handleModalSubmit(interaction);
             }
-        });
+        };
+        
+        // Tag the handler with the guild ID so we can identify it later
+        interactionHandler.shopHandlerGuildId = this.guildId;
+        
+        // Add the listener
+        this.client.on('interactionCreate', interactionHandler);
+    }
+
+    // Add a cleanup method to remove listeners when needed
+    cleanup() {
+        this.removeExistingListeners();
+        if (this.client.shopHandlers) {
+            this.client.shopHandlers.delete(this.guildId);
+        }
     }
 
     // Helper function to get current shop prices using guild config
@@ -80,7 +122,6 @@ class ShopHandler {
             await this.handleSellInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId, fluctuatedPrices[selectedItemId]);
         }
     }
-
 
     async handleBuyInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId, fluctuatedPrice) {
         const userId = interaction.user.id;
@@ -276,48 +317,64 @@ class ShopHandler {
             });
         }
 
-        // Deduct money
-        userCurrency.money -= totalCost;
-        await userCurrency.save();
+        // Use a transaction or atomic operation to prevent duplicate processing
+        try {
+            // Deduct money
+            userCurrency.money -= totalCost;
+            await userCurrency.save();
 
-        // Add items to inventory
-        const existing = userInv.items.find(it => it.itemId === item.id);
-        if (existing) {
-            existing.quantity += quantity;
-        } else {
-            userInv.items.push({ itemId: item.id, quantity });
-        }
-        await userInv.save();
-
-        const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
-        
-        // Create enhanced response message
-        let responseMessage = `${interaction.member} ✅ Purchased ${quantity} x **${item.name}** for ${totalCost} coins! (${currentBuyPrice}c${priceIndicator} each)`;
-        
-        // Add stat information for equipment
-        if (item.abilities && item.abilities.length > 0) {
-            const statEffects = [];
-            for (const ability of item.abilities) {
-                const statDisplay = this.formatStatName(ability.name);
-                statEffects.push(`${statDisplay} +${ability.powerlevel}`);
+            // Add items to inventory with duplicate prevention
+            const existing = userInv.items.find(it => it.itemId === item.id);
+            if (existing) {
+                existing.quantity += quantity;
+            } else {
+                userInv.items.push({ itemId: item.id, quantity });
             }
-            responseMessage += `\n⚡ **Stats:** ${statEffects.join(', ')}`;
             
-            // Add durability info if available
-            if (item.durability) {
-                responseMessage += ` | 🔧 Durability: ${item.durability}`;
+            // Mark as modified to ensure save
+            userInv.markModified('items');
+            await userInv.save();
+
+            const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
+            
+            // Create enhanced response message
+            let responseMessage = `${interaction.member} ✅ Purchased ${quantity} x **${item.name}** for ${totalCost} coins! (${currentBuyPrice}c${priceIndicator} each)`;
+            
+            // Add stat information for equipment
+            if (item.abilities && item.abilities.length > 0) {
+                const statEffects = [];
+                for (const ability of item.abilities) {
+                    const statDisplay = this.formatStatName(ability.name);
+                    statEffects.push(`${statDisplay} +${ability.powerlevel}`);
+                }
+                responseMessage += `\n⚡ **Stats:** ${statEffects.join(', ')}`;
+                
+                // Add durability info if available
+                if (item.durability) {
+                    responseMessage += ` | 🔧 Durability: ${item.durability}`;
+                }
             }
+            
+            // Add remaining balance
+            responseMessage += `\n💰 **Balance:** ${userCurrency.money} coins`;
+            
+            await interaction.reply({ 
+                content: responseMessage, 
+                ephemeral: false 
+            });
+            
+            await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
+        } catch (error) {
+            console.error('Error processing purchase:', error);
+            // Rollback money if inventory save failed
+            userCurrency.money += totalCost;
+            await userCurrency.save();
+            
+            await interaction.reply({ 
+                content: '⚘ An error occurred processing your purchase. Your money has been refunded.', 
+                ephemeral: true 
+            });
         }
-        
-        // Add remaining balance
-        responseMessage += `\n💰 **Balance:** ${userCurrency.money} coins`;
-        
-        await interaction.reply({ 
-            content: responseMessage, 
-            ephemeral: false 
-        });
-        
-        await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
     }
 
     async handleSellModal(interaction, item, quantity, userCurrency, userInv, shopInfo, fluctuatedPrice) {
@@ -333,29 +390,38 @@ class ShopHandler {
             });
         }
 
-        // Remove items from inventory
-        if (ownedItem) {
-            ownedItem.quantity -= quantity;
-            if (ownedItem.quantity <= 0) {
-                userInv.items = userInv.items.filter(it => it.itemId !== item.id);
+        try {
+            // Remove items from inventory
+            if (ownedItem) {
+                ownedItem.quantity -= quantity;
+                if (ownedItem.quantity <= 0) {
+                    userInv.items = userInv.items.filter(it => it.itemId !== item.id);
+                }
+                userInv.markModified('items');
+                await userInv.save();
             }
-            await userInv.save();
+
+            // Add money using fluctuated sell price
+            const totalSell = currentSellPrice * quantity;
+            userCurrency.money += totalSell;
+            await userCurrency.save();
+
+            const originalSellPrice = Math.floor(item.value / 2);
+            const priceIndicator = currentSellPrice > originalSellPrice ? ' ▲' : currentSellPrice < originalSellPrice ? ' ▼' : '';
+
+            await interaction.reply({ 
+                content: `${interaction.member}💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! (${currentSellPrice}c${priceIndicator} each) | Balance: ${userCurrency.money}c`, 
+                ephemeral: false 
+            });
+            
+            await this.updateShopDescription(interaction.message, shopInfo?.successSell);
+        } catch (error) {
+            console.error('Error processing sale:', error);
+            await interaction.reply({ 
+                content: '⚘ An error occurred processing your sale.', 
+                ephemeral: true 
+            });
         }
-
-        // Add money using fluctuated sell price
-        const totalSell = currentSellPrice * quantity;
-        userCurrency.money += totalSell;
-        await userCurrency.save();
-
-        const originalSellPrice = Math.floor(item.value / 2);
-        const priceIndicator = currentSellPrice > originalSellPrice ? ' ▲' : currentSellPrice < originalSellPrice ? ' ▼' : '';
-
-        await interaction.reply({ 
-            content: `${interaction.member}💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! (${currentSellPrice}c${priceIndicator} each) | Balance: ${userCurrency.money}c`, 
-            ephemeral: false 
-        });
-        
-        await this.updateShopDescription(interaction.message, shopInfo?.successSell);
     }
 
     async updateShopDescription(shopMessage, descriptions) {
