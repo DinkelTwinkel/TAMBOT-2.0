@@ -473,7 +473,7 @@ async function generateTileMapImage(channel) {
         } else {
             // Simplified stacking for small images
             const totalPlayers = playersOnTile.length;
-            const radius = Math.min(stackedOffset * Math.min(totalPlayers - 1, 3), tileSize * 0.3);
+            const radius = Math.min(stackedOffset * Math.min(totalPlayers - 1, 5), tileSize * 0.3);
             
             if (tileSize >= 32) {
                 // Full stacking for larger images
