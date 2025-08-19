@@ -707,6 +707,12 @@ module.exports = async (channel, dbEntry, json, client) => {
                         }
                     }
                     else {
+                                                const tileTypeNames = {
+                            [TILE_TYPES.WALL]: 'wall',
+                            [TILE_TYPES.REINFORCED_WALL]: 'reinforced wall',
+                            [TILE_TYPES.WALL_WITH_ORE]: 'ore wall',
+                            [TILE_TYPES.RARE_ORE]: 'rare ore vein'
+                        };
                         eventLogs.push(`${member.displayName} broke through ${tileTypeNames[targetTile.type] || 'wall'}!`);
                     }
                     
