@@ -554,8 +554,8 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
                 const pickaxeImagePath = `./assets/items/${bestPickaxe.image}.png`;
                 const pickaxeImage = await loadImage(pickaxeImagePath);
                 
-                const pickaxeSize = size * 0.8;
-                const pickaxeX = centerX - radius * 1.5;
+                const pickaxeSize = size * 1;
+                const pickaxeX = centerX - radius * 1.7;
                 const pickaxeY = centerY - pickaxeSize/3;
                 
                 ctx.save();
