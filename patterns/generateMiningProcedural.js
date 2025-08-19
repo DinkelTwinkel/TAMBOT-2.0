@@ -425,7 +425,7 @@ function isLongBreak(dbEntry) {
 }
 
 /**
- * Enhanced avatar drawing with pickaxe display
+ * Enhanced avatar drawing with pickaxe display and headlamp indicator
  */
 async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettings) {
     try {
@@ -459,6 +459,51 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
         ctx.strokeStyle = '#FFFFFF';
         ctx.lineWidth = Math.max(1, Math.floor(imageSettings.scaleFactor * 2));
         ctx.stroke();
+
+        // Draw headlamp indicator if equipped
+        try {
+            const playerData = await getPlayerStats(member.user.id);
+            const hasHeadlamp = playerData.equippedItems && playerData.equippedItems['28']; // Check for Miner's Headlamp (id: 28)
+            
+            if (hasHeadlamp && size > 20) {
+                // Position headlamp indicator above the avatar
+                const headlampSize = Math.max(8, size * 0.25);
+                const headlampX = centerX - headlampSize/2;
+                const headlampY = centerY - radius - headlampSize - 2; // Position above avatar
+                
+                // TODO: Replace this square with actual headlamp image
+                // const headlampImagePath = './assets/items/miners_headlamp.png';
+                // const headlampImage = await loadImage(headlampImagePath);
+                // ctx.drawImage(headlampImage, headlampX, headlampY, headlampSize, headlampSize);
+                
+                // For now, draw a yellow square to represent the headlamp
+                ctx.save();
+                
+                // Draw background/outline
+                ctx.fillStyle = '#2C2C2C';
+                ctx.fillRect(headlampX - 1, headlampY - 1, headlampSize + 2, headlampSize + 2);
+                
+                // Draw headlamp square (yellow to represent light)
+                ctx.fillStyle = '#FFD700';
+                ctx.fillRect(headlampX, headlampY, headlampSize, headlampSize);
+                
+                // Add a small "light beam" effect
+                if (size > 30) {
+                    ctx.globalAlpha = 0.3;
+                    ctx.fillStyle = '#FFFF00';
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, headlampY + headlampSize);
+                    ctx.lineTo(centerX - headlampSize * 0.8, headlampY + headlampSize * 2);
+                    ctx.lineTo(centerX + headlampSize * 0.8, headlampY + headlampSize * 2);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            }
+        } catch (error) {
+            console.error(`Error checking headlamp for user ${member.user.username}:`, error);
+        }
 
         // Draw pickaxe if available
         try {

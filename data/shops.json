@@ -8,9 +8,9 @@
     "failureTooPoor": ["If you're broke get out of here!", "Scram Pauper!"],
     "failureOther": ["Stop wasting my time..", "-HUFF", "scram!"],
     "cost": 0,
-    "staticItems": [3],
+    "staticItems": [28],
     "rotationalAmount": 2,
-    "itemPool": [1,2,5,21,22,4,3,13,7,28,32,37,42,44],
+    "itemPool": [1,2,5,21,22,4,3,13,7,3,32,37,42,44],
     "image": "coalMineShop",
     "priceChangeFactor": 0.7,
     "itemDisplayScale": 1
