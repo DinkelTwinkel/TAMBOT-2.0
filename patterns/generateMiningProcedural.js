@@ -478,8 +478,8 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
             if (sightTool && size > 20) {
                 // Position sight tool indicator above the avatar
                 const sightToolSize = Math.max(8, size * 0.25);
-                const sightToolX = centerX - sightToolSize/2;
-                const sightToolY = centerY - radius - sightToolSize - 2; // Position above avatar
+                const sightToolX = centerX - sightToolSize/1.5;
+                const sightToolY = centerY - radius/2 - sightToolSize; // Position above avatar
                 
                 // TODO: Replace this square with actual sight tool image based on item
                 // const sightToolItem = itemSheet.find(i => i.id === sightTool.itemId);
@@ -550,13 +550,13 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
         // Draw pickaxe if available
         try {
             const bestPickaxe = await getBestMiningPickaxe(member.user.id);
-            if (bestPickaxe && bestPickaxe.image && size > 24) {
+            if (bestPickaxe && bestPickaxe.image && size > 2) {
                 const pickaxeImagePath = `./assets/items/${bestPickaxe.image}.png`;
                 const pickaxeImage = await loadImage(pickaxeImagePath);
                 
                 const pickaxeSize = size * 0.8;
-                const pickaxeX = centerX - radius - 35;
-                const pickaxeY = centerY - pickaxeSize/2;
+                const pickaxeX = centerX - radius * 1.5;
+                const pickaxeY = centerY - pickaxeSize/3;
                 
                 ctx.save();
                 ctx.globalAlpha = 0.9;
