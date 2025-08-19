@@ -63,7 +63,7 @@ client.once(Events.ClientReady, async c => {
     // Loop through all guilds your bot is in
     client.guilds.cache.forEach(async guild => {
 
-        //if (guild.id !== targetGuildId) return console.log ('skipping guild: ' + guild.id);
+        if (guild.id !== targetGuildId) return console.log ('skipping guild: ' + guild.id);
         shopHandler = new ShopHandler(client, guild.id);
 
         // Fetch guild config from MongoDB
@@ -223,7 +223,7 @@ for (const file of commandFiles) {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isCommand()) return;
-  //if (interaction.guild.id !== targetGuildId) return;
+  if (interaction.guild.id !== targetGuildId) return;
 
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
