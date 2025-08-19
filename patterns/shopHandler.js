@@ -89,6 +89,9 @@ class ShopHandler {
     }
 
     async handleShopSelectMenu(interaction) {
+        // Defer the update immediately to prevent timeout
+        await interaction.deferUpdate();
+        
         const userId = interaction.user.id;
         const channelId = interaction.channel.id;
         const guildId = interaction.guild.id;
@@ -99,13 +102,13 @@ class ShopHandler {
 
         const item = itemSheet.find(it => it.id === selectedItemId);
         if (!item) {
-            return interaction.reply({ content: '⚘ Item not found', ephemeral: true });
+            return interaction.followUp({ content: '⚘ Item not found', ephemeral: true });
         }
 
         // Get fluctuated prices using guild config
         const fluctuatedPrices = await this.getShopFluctuatedPrices(channelId, guildId);
         if (!fluctuatedPrices || !fluctuatedPrices[selectedItemId]) {
-            return interaction.reply({ content: '⚘ Could not get current prices', ephemeral: true });
+            return interaction.followUp({ content: '⚘ Could not get current prices', ephemeral: true });
         }
 
         // Get user currency and inventory
@@ -133,7 +136,7 @@ class ShopHandler {
             
             if (userCurrency.money < totalCost) {
                 await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor);
-                return interaction.reply({ 
+                return interaction.followUp({ 
                     content: `⚘ You need ${totalCost} coins but only have ${userCurrency.money}.`, 
                     ephemeral: true 
                 });
@@ -183,7 +186,7 @@ class ShopHandler {
             // Add remaining balance
             responseMessage += `\n💰 **Balance:** ${userCurrency.money} coins`;
 
-            await interaction.reply({
+            await interaction.followUp({
                 content: responseMessage,
                 ephemeral: false
             });
@@ -217,6 +220,7 @@ class ShopHandler {
                 )
             );
 
+        // ShowModal acts as the response to the deferred update
         await interaction.showModal(modal);
     }
 
@@ -227,7 +231,7 @@ class ShopHandler {
         const maxQty = ownedItem?.quantity || 0;
 
         if (maxQty === 0) {
-            return interaction.reply({ 
+            return interaction.followUp({ 
                 content: `⚘ You don't own any ${item.name} to sell.`, 
                 ephemeral: true 
             });
@@ -257,10 +261,13 @@ class ShopHandler {
                 )
             );
 
+        // ShowModal acts as the response to the deferred update
         await interaction.showModal(modal);
     }
 
     async handleModalSubmit(interaction) {
+        // Defer reply for modal submissions to prevent timeout
+        await interaction.deferReply({ ephemeral: false });
         const customIdParts = interaction.customId.split('_');
         const action = customIdParts[0]; // 'buy' or 'sell'
         const itemId = customIdParts[2];
@@ -269,24 +276,24 @@ class ShopHandler {
 
         // Verify the user is the one who initiated the modal
         if (interaction.user.id !== userId) {
-            return interaction.reply({ content: '⚘ This modal is not for you.', ephemeral: true });
+            return interaction.editReply({ content: '⚘ This modal is not for you.', ephemeral: true });
         }
 
         const item = itemSheet.find(it => it.id === itemId);
         if (!item) {
-            return interaction.reply({ content: '⚘ Item not found', ephemeral: true });
+            return interaction.editReply({ content: '⚘ Item not found', ephemeral: true });
         }
 
         const quantity = Number(interaction.fields.getTextInputValue('quantity'));
         if (isNaN(quantity) || quantity <= 0) {
             await this.updateShopDescription(interaction.message, null, 'failure');
-            return interaction.reply({ content: '⚘ Invalid quantity.', ephemeral: true });
+            return interaction.editReply({ content: '⚘ Invalid quantity.' });
         }
 
         // Get fluctuated prices using guild config
         const fluctuatedPrices = await this.getShopFluctuatedPrices(interaction.channel.id, interaction.guild.id);
         if (!fluctuatedPrices || !fluctuatedPrices[itemId]) {
-            return interaction.reply({ content: '⚘ Could not get current prices', ephemeral: true });
+            return interaction.editReply({ content: '⚘ Could not get current prices' });
         }
 
         // console.log (interaction);
@@ -312,9 +319,8 @@ class ShopHandler {
         
         if (userCurrency.money < totalCost) {
             await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor);
-            return interaction.reply({ 
-                content: `⚘ You need ${totalCost} coins but only have ${userCurrency.money}.`, 
-                ephemeral: true 
+            return interaction.editReply({ 
+                content: `⚘ You need ${totalCost} coins but only have ${userCurrency.money}.`
             });
         }
 
@@ -359,9 +365,8 @@ class ShopHandler {
             // Add remaining balance
             responseMessage += `\n💰 **Balance:** ${userCurrency.money} coins`;
             
-            await interaction.reply({ 
-                content: responseMessage, 
-                ephemeral: false 
+            await interaction.editReply({ 
+                content: responseMessage
             });
             
             await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
@@ -371,9 +376,8 @@ class ShopHandler {
             userCurrency.money += totalCost;
             await userCurrency.save();
             
-            await interaction.reply({ 
-                content: '⚘ An error occurred processing your purchase. Your money has been refunded.', 
-                ephemeral: true 
+            await interaction.editReply({ 
+                content: '⚘ An error occurred processing your purchase. Your money has been refunded.'
             });
         }
     }
@@ -385,9 +389,8 @@ class ShopHandler {
 
         if (quantity > maxQty) {
             await this.updateShopDescription(interaction.message, shopInfo?.failureOther);
-            return interaction.reply({ 
-                content: `⚘ Invalid quantity. You can sell between 1 and ${maxQty}.`, 
-                ephemeral: true 
+            return interaction.editReply({ 
+                content: `⚘ Invalid quantity. You can sell between 1 and ${maxQty}.`
             });
         }
 
@@ -410,17 +413,15 @@ class ShopHandler {
             const originalSellPrice = Math.floor(item.value / 2);
             const priceIndicator = currentSellPrice > originalSellPrice ? ' ▲' : currentSellPrice < originalSellPrice ? ' ▼' : '';
 
-            await interaction.reply({ 
-                content: `${interaction.member}💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! (${currentSellPrice}c${priceIndicator} each) | Balance: ${userCurrency.money}c`, 
-                ephemeral: false 
+            await interaction.editReply({ 
+                content: `${interaction.member}💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! (${currentSellPrice}c${priceIndicator} each) | Balance: ${userCurrency.money}c`
             });
             
             await this.updateShopDescription(interaction.message, shopInfo?.successSell);
         } catch (error) {
             console.error('Error processing sale:', error);
-            await interaction.reply({ 
-                content: '⚘ An error occurred processing your sale.', 
-                ephemeral: true 
+            await interaction.editReply({ 
+                content: '⚘ An error occurred processing your sale.'
             });
         }
     }
