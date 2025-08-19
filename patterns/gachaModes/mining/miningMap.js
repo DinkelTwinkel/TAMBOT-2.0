@@ -15,8 +15,8 @@ function generateTileType(channelId, x, y) {
     
     if (random < 0.01) return TILE_TYPES.TREASURE_CHEST;
     if (random < 0.03) return TILE_TYPES.RARE_ORE;
-    if (random < 0.05) return TILE_TYPES.HAZARD;
-    if (random < 0.15) return TILE_TYPES.REINFORCED_WALL;
+    //if (random < 0.05) return TILE_TYPES.HAZARD;
+    //if (random < 0.15) return TILE_TYPES.REINFORCED_WALL;
     if (random < BASE_ORE_SPAWN_CHANCE + 0.15) return TILE_TYPES.WALL_WITH_ORE;
     
     return TILE_TYPES.WALL;
