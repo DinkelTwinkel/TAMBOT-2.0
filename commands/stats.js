@@ -21,8 +21,8 @@ module.exports = {
     await interaction.deferReply();
 
     try {
-      // Get player stats and best items
-      const { stats, bestItems } = await getPlayerStats(target.id);
+      // Get player stats and equipped items
+      const { stats, equippedItems } = await getPlayerStats(target.id);
       
       // Get active buffs for display
       const buffDoc = await PlayerBuffs.findOne({ playerId: target.id });
@@ -31,87 +31,62 @@ module.exports = {
 
       // Create the embed
       const embed = new EmbedBuilder()
-        .setTitle(`⛏️ ${target.username}'s Mining Stats`)
+        .setTitle(`⛏️ ${target.username}'s Stats`)
         .setColor(0x00AE86)
         .setThumbnail(target.displayAvatarURL({ dynamic: true }))
-        .setTimestamp()
-        .setFooter({ text: 'HELLUNGI Mining System' });
+        .setTimestamp();
 
-      // Add total stats field (includes equipment + buffs)
+      // Add combined stats display (equipment + buffs)
       if (Object.keys(stats).length > 0) {
         const statsDisplay = Object.entries(stats)
           .sort(([a], [b]) => a.localeCompare(b))
-          .map(([ability, power]) => {
-            // Add appropriate emoji for each stat type
-            const emoji = getStatEmoji(ability);
-            return `${emoji} **${capitalize(ability)}:** ${power}`;
-          })
-          .join('\n');
+          .map(([ability, power]) => `${getStatEmoji(ability)} **${capitalize(ability)}:** ${power}`)
+          .join(' | ');
         
         embed.addFields({
-          name: '📊 Total Stats',
-          value: statsDisplay || '*No stats yet*',
+          name: '💎 Total Power',
+          value: statsDisplay,
           inline: false
         });
       } else {
         embed.addFields({
-          name: '📊 Total Stats',
+          name: '💎 Total Power',
           value: '*No stats yet - visit the shop to get started!*',
           inline: false
         });
       }
 
-      // Add best equipment field
-      if (Object.keys(bestItems).length > 0) {
-        const equipmentDisplay = Object.entries(bestItems)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([ability, item]) => {
-            const emoji = getStatEmoji(ability);
-            const durabilityInfo = item.durability ? ` (${item.durability} durability)` : '';
-            return `${emoji} **${capitalize(ability)}:** ${item.name} (+${item.power})${durabilityInfo}`;
+      // Add equipped items field (simplified)
+      if (Object.keys(equippedItems).length > 0) {
+        const itemsList = Object.values(equippedItems)
+          .map(item => {
+            const statsStr = item.abilities
+              .map(a => `${a.name} +${a.power}`)
+              .join(', ');
+            return `• **${item.name}** (${statsStr})`;
           })
           .join('\n');
         
         embed.addFields({
-          name: '🎒 Best Equipment',
-          value: equipmentDisplay,
+          name: '🎒 Equipment',
+          value: itemsList,
           inline: false
         });
       }
 
-      // Add active buffs field
+      // Add active buffs field (simplified)
       if (activeBuffs.length > 0) {
         const buffsDisplay = activeBuffs.map(buff => {
           const timeLeft = getTimeRemaining(buff.expiresAt);
           const effects = Array.from(buff.effects.entries())
-            .map(([ability, power]) => `${getStatEmoji(ability)} ${capitalize(ability)} +${power}`)
+            .map(([ability, power]) => `${ability} +${power}`)
             .join(', ');
-          return `✨ **${buff.name}**\n   ${effects}\n   *Expires in ${timeLeft}*`;
-        }).join('\n\n');
+          return `• **${buff.name}** (${effects}) - *${timeLeft}*`;
+        }).join('\n');
         
         embed.addFields({
-          name: '🔮 Active Buffs',
+          name: '✨ Active Buffs',
           value: buffsDisplay,
-          inline: false
-        });
-      }
-
-      // Add a summary field with key stats
-      const miningPower = stats.mining || 0;
-      const luckPower = stats.luck || 0;
-      const speedPower = stats.speed || 0;
-      const sightPower = stats.sight || 0;
-      
-      let summaryText = [];
-      if (miningPower > 0) summaryText.push(`Mining Power: **${miningPower}**`);
-      if (luckPower > 0) summaryText.push(`Luck Bonus: **${luckPower}**`);
-      if (speedPower > 0) summaryText.push(`Speed Boost: **${speedPower}**`);
-      if (sightPower > 0) summaryText.push(`Vision Range: **${sightPower}**`);
-      
-      if (summaryText.length > 0) {
-        embed.addFields({
-          name: '💎 Quick Summary',
-          value: summaryText.join(' | '),
           inline: false
         });
       }

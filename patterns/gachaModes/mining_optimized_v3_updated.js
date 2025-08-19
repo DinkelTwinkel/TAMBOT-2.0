@@ -733,7 +733,7 @@ module.exports = async (channel, dbEntry, json, client) => {
                 }
             } else if (targetTile.type === TILE_TYPES.HAZARD) {
 
-
+                mapData.tiles[clampedY][clampedX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                 
                 // Handle hazard tiles
                 if (Math.random() < 0.7) {

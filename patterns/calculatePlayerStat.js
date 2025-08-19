@@ -4,11 +4,11 @@ const itemSheet = require('../data/itemSheet.json');
 
 /**
  * Builds a player's stats based on their inventory and all active buffs.
+ * Stacks all equipment stats together (only counts each unique item ID once).
  * Removes expired buffs from the database, ignores them in calculations.
- * Also returns the best non-consumable items for each ability type.
  * 
  * @param {string} playerId - Discord user ID or player identifier
- * @returns {Promise<Object>} - Object with stats and bestItems
+ * @returns {Promise<Object>} - Object with stats and equippedItems
  */
 async function getPlayerStats(playerId) {
     const now = new Date();
@@ -17,36 +17,45 @@ async function getPlayerStats(playerId) {
     const inv = await PlayerInventory.findOne({ playerId }).lean();
     const invItems = Array.isArray(inv?.items) ? inv.items : [];
 
-    // Build base stats from inventory (take highest power per ability)
+    // Build base stats from inventory (stack all unique equipment)
     const playerStats = {};
-    const bestItems = {}; // Track best non-consumable item for each ability
+    const equippedItems = {}; // Track all equipped items by ID
+    const processedItemIds = new Set(); // Track which item IDs we've already processed
     
     for (const invItem of invItems) {
         const itemData = itemSheet.find(it => String(it.id) === String(invItem.itemId));
         if (!itemData || !Array.isArray(itemData.abilities)) continue;
 
-        // Only track non-consumable items for bestItems
-        const isNonConsumable = itemData.type !== 'consumable';
+        // Skip if we've already processed this item ID (only count each unique item once)
+        if (processedItemIds.has(String(itemData.id))) continue;
+        processedItemIds.add(String(itemData.id));
 
+        // Only process non-consumable items for equipment stats
+        const isNonConsumable = itemData.type !== 'consumable';
+        if (!isNonConsumable) continue;
+
+        // Track this item for display
+        equippedItems[itemData.id] = {
+            itemId: itemData.id,
+            name: itemData.name,
+            abilities: [],
+            durability: itemData.durability || 0,
+            inventoryQuantity: invItem.quantity
+        };
+
+        // Stack all abilities from this item
         for (const abilityObj of itemData.abilities) {
             const ability = abilityObj.name;
             const power = Number(abilityObj.powerlevel) || 0;
 
-            // Update stats if this is higher power
-            if (!playerStats[ability] || power > playerStats[ability]) {
-                playerStats[ability] = power;
-                
-                // Only update bestItems for non-consumables
-                if (isNonConsumable) {
-                    bestItems[ability] = {
-                        itemId: itemData.id,
-                        name: itemData.name,
-                        power: power,
-                        durability: itemData.durability || 0,
-                        inventoryQuantity: invItem.quantity
-                    };
-                }
-            }
+            // Add to total stats (stacking)
+            playerStats[ability] = (playerStats[ability] || 0) + power;
+            
+            // Track abilities for this item
+            equippedItems[itemData.id].abilities.push({
+                name: ability,
+                power: power
+            });
         }
     }
 
@@ -73,7 +82,7 @@ async function getPlayerStats(playerId) {
 
     return {
         stats: playerStats,
-        bestItems: bestItems
+        equippedItems: equippedItems
     };
 }
 
