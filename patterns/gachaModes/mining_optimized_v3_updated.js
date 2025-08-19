@@ -366,8 +366,9 @@ async function startBreak(channel, dbEntry, isLongBreak = false) {
         // Get updated dbEntry after database changes
         const updatedDbEntry = await gachaVC.findOne({ channelId: channel.id });
         
-        // Start long event
-        const selectedEvent = pickLongBreakEvent();
+        // Start long event - pass player count for event selection
+        const playerCount = members.size;
+        const selectedEvent = pickLongBreakEvent(playerCount);
         const eventResult = await selectedEvent(channel, updatedDbEntry);
         
         await logEvent(channel, `🎪 LONG BREAK: ${eventResult || 'Event started'}`, true);

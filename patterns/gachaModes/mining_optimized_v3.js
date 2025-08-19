@@ -91,6 +91,13 @@ async function logEvent(channel, eventText, forceNew = false) {
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
     const minecartSummary = getMinecartSummary(result);
     const sessionStats = result.gameData?.stats || { totalOreFound: 0, wallsBroken: 0, treasuresFound: 0 };
+    
+    // Calculate next long break (assuming every 4th break is long)
+    const currentBreakCount = result.gameData?.breakCount || 0;
+    const breaksUntilLong = ((4 - (currentBreakCount % 4)) % 4) || 4;
+    const msPerCycle = 30 * 60 * 1000; // 30 minutes per mining + break cycle
+    const nextLongBreakMs = diffMs + ((breaksUntilLong - 1) * msPerCycle);
+    const nextLongBreakTimestamp = Math.floor((now + nextLongBreakMs) / 1000);
 
     const timestamp = new Date().toLocaleTimeString('en-US', { 
         hour12: false, 
@@ -119,8 +126,14 @@ async function logEvent(channel, eventText, forceNew = false) {
         }
 
         if (logEntry || shouldGenerateImage) {
+            // Build title with long break timer if not in special event
+            let title = '🗺️ MINING MAP';
+            if (!result.gameData?.specialEvent && breaksUntilLong > 0) {
+                title += ` | Long break <t:${nextLongBreakTimestamp}:R>`;
+            }
+            
             const embed = new EmbedBuilder()
-                .setTitle('🗺️ MINING MAP')
+                .setTitle(title)
                 .setColor(0x8B4513)
                 .setFooter({ 
                     text: `MINECART: ${minecartSummary.summary} | ORE: ${sessionStats.totalOreFound} | WALLS: ${sessionStats.wallsBroken} | NEXT BREAK: ${diffMinutes}m`
@@ -148,8 +161,14 @@ async function logEvent(channel, eventText, forceNew = false) {
 
                 const newDescription = lines.length > 0 ? '```\n' + lines.join('\n') + '\n```' : null;
 
+                // Build updated title with long break timer
+                let updatedTitle = '🗺️ MINING MAP';
+                if (!result.gameData?.specialEvent && breaksUntilLong > 0) {
+                    updatedTitle += ` | Long break <t:${nextLongBreakTimestamp}:R>`;
+                }
+                
                 const updatedEmbed = new EmbedBuilder()
-                    .setTitle('🗺️ MINING MAP')
+                    .setTitle(updatedTitle)
                     .setColor(0x8B4513)
                     .setFooter({ 
                         text: `MINECART: ${minecartSummary.summary} | ORE: ${sessionStats.totalOreFound} | WALLS: ${sessionStats.wallsBroken} | NEXT BREAK: ${diffMinutes}m`

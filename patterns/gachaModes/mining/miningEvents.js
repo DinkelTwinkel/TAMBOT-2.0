@@ -108,12 +108,17 @@ async function startThiefGame(channel, dbEntry) {
 
 /**
  * Mine Collapse Event - Floor tiles collapse and transform into various tile types
+ * Enhanced for solo players with guaranteed rewards
  */
 async function startMineCollapseEvent(channel, dbEntry) {
     if (!channel?.isVoiceBased()) return;
     
     const { TILE_TYPES } = require('./miningConstants');
     const gachaVC = require('../../../models/activevcs');
+    
+    // Check player count for solo mode enhancements
+    const members = channel.members.filter(m => !m.user.bot);
+    const isSolo = members.size === 1;
     
     // Get current map data
     const mapData = dbEntry.gameData?.map;
@@ -212,21 +217,48 @@ async function startMineCollapseEvent(channel, dbEntry) {
         `• ${zone.type} collapse at (${zone.center.x}, ${zone.center.y}) - radius ${zone.radius}`
     );
     
+    // Enhanced rewards for solo players
+    let bonusMessage = '';
+    if (isSolo) {
+        // Give solo player a bonus for surviving the collapse
+        const Currency = require('../../../models/currency');
+        const soloPlayer = members.first();
+        const survivalBonus = 100 + Math.floor(Math.random() * 200);
+        
+        let playerMoney = await Currency.findOne({ userId: soloPlayer.id });
+        if (!playerMoney) {
+            playerMoney = await Currency.create({
+                userId: soloPlayer.id,
+                usertag: soloPlayer.user.tag,
+                money: survivalBonus
+            });
+        } else {
+            playerMoney.money += survivalBonus;
+            await playerMoney.save();
+        }
+        
+        bonusMessage = `\n\n💰 **Solo Survivor Bonus**: ${survivalBonus} coins for weathering the collapse alone!`;
+        
+        // Guarantee at least one treasure chest for solo players
+        if (collapsedZones.length > 0) {
+            const treasureZone = collapsedZones[0];
+            mapData.tiles[treasureZone.center.y][treasureZone.center.x] = {
+                type: TILE_TYPES.TREASURE_CHEST,
+                discovered: true,
+                hardness: 2
+            };
+            bonusMessage += `\n📍 **Treasure detected at (${treasureZone.center.x}, ${treasureZone.center.y})**`;
+        }
+    }
+    
     const embed = new EmbedBuilder()
         .setTitle('⛰️ MINE COLLAPSE! ⛰️')
         .setDescription(`The mine structure has become unstable! Multiple sections have collapsed and transformed:\n\n` +
                        collapseDescriptions.join('\n') +
                        `\n\n${affectedTiles.size} tiles affected!\n` +
-                       `⚠️ Collapsed areas may contain valuable ores... or dangerous hazards!`)
+                       `⚠️ Collapsed areas may contain valuable ores... or dangerous hazards!` +
+                       bonusMessage)
         .setColor(0x8B4513)
-        // .addFields({
-        //     name: 'Collapse Types',
-        //     value: '🟦 **Rich Vein** - Mostly ores and rare materials\n' +
-        //            '🟫 **Cave-in** - Mix of walls and regular ores\n' +
-        //            '⚫ **Dead Zone** - Mostly walls and reinforced walls\n' +
-        //            '🟥 **Danger Zone** - Contains hazards\n' +
-        //            '💎 **Crystal Cave** - Rare ores and treasures'
-        // })
         .setTimestamp();
     
     await channel.send({ embeds: [embed] });
@@ -589,20 +621,90 @@ async function checkAndEndSpecialEvent(channel, dbEntry) {
 // ============ EVENT CONFIGURATION ============
 
 /**
- * Available long break events with weights
+ * Available long break events with weights and player requirements
  */
 const longBreakEvents = [
-    { func: startThiefGame, weight: 30, name: 'Thief Game' },
-    { func: startMineCollapseEvent, weight: 25, name: 'Mine Collapse' }
+    { 
+        func: startThiefGame, 
+        weight: 30, 
+        name: 'Thief Game',
+        minPlayers: 2,  // Need at least 2 players for voting
+        maxPlayers: null, // No upper limit
+        optimalPlayers: { min: 3, max: 8 } // Works best with 3-8 players
+    },
+    { 
+        func: startMineCollapseEvent, 
+        weight: 25, 
+        name: 'Mine Collapse',
+        minPlayers: 1,  // Can work with any number
+        maxPlayers: null,
+        optimalPlayers: { min: 1, max: 20 } // Works for any size
+    }
+    // Future events can be added here with their requirements:
+    // { 
+    //     func: startTreasureHunt, 
+    //     weight: 20, 
+    //     name: 'Treasure Hunt',
+    //     minPlayers: 3,  // Need teams
+    //     maxPlayers: 12, // Too chaotic with more
+    //     optimalPlayers: { min: 4, max: 10 }
+    // }
 ];
 
 /**
- * Pick a random long break event based on weights
+ * Pick a random long break event based on weights and player count
+ * @param {number} playerCount - Number of players in the channel
+ * @returns {Function} The selected event function
  */
-function pickLongBreakEvent() {
-    const totalWeight = longBreakEvents.reduce((sum, e) => sum + e.weight, 0);
+function pickLongBreakEvent(playerCount = 1) {
+    // Filter events based on player requirements
+    const eligibleEvents = longBreakEvents.filter(event => {
+        // Check minimum players
+        if (event.minPlayers && playerCount < event.minPlayers) {
+            console.log(`${event.name} requires min ${event.minPlayers} players, have ${playerCount}`);
+            return false;
+        }
+        
+        // Check maximum players
+        if (event.maxPlayers && playerCount > event.maxPlayers) {
+            console.log(`${event.name} allows max ${event.maxPlayers} players, have ${playerCount}`);
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // If no events are eligible, fall back to mine collapse (works with any count)
+    if (eligibleEvents.length === 0) {
+        console.log('No eligible events for player count, defaulting to Mine Collapse');
+        return startMineCollapseEvent;
+    }
+    
+    // Adjust weights based on optimal player counts
+    const adjustedEvents = eligibleEvents.map(event => {
+        let adjustedWeight = event.weight;
+        
+        // Boost weight if within optimal range
+        if (event.optimalPlayers) {
+            if (playerCount >= event.optimalPlayers.min && 
+                playerCount <= event.optimalPlayers.max) {
+                adjustedWeight *= 1.5; // 50% boost for optimal player count
+                console.log(`${event.name} weight boosted from ${event.weight} to ${adjustedWeight} (optimal player count)`);
+            }
+        }
+        
+        return { ...event, adjustedWeight };
+    });
+    
+    // Calculate total weight
+    const totalWeight = adjustedEvents.reduce((sum, e) => sum + e.adjustedWeight, 0);
+    
+    // Pick random event based on adjusted weights
     let rand = Math.random() * totalWeight;
-    return longBreakEvents.find(e => (rand -= e.weight) < 0)?.func || longBreakEvents[0].func;
+    const selected = adjustedEvents.find(e => (rand -= e.adjustedWeight) < 0) || adjustedEvents[0];
+    
+    console.log(`Selected ${selected.name} for ${playerCount} players`);
+    return selected.func;
 }
 
 /**
@@ -610,6 +712,45 @@ function pickLongBreakEvent() {
  */
 function shouldTriggerLongBreak(breakCount) {
     return breakCount % 4 === 0;
+}
+
+/**
+ * Get list of available events for a given player count
+ * Useful for debugging and information
+ * @param {number} playerCount - Number of players
+ * @returns {Array} Array of available event names with their selection chances
+ */
+function getAvailableEvents(playerCount) {
+    const eligible = longBreakEvents.filter(event => {
+        if (event.minPlayers && playerCount < event.minPlayers) return false;
+        if (event.maxPlayers && playerCount > event.maxPlayers) return false;
+        return true;
+    });
+    
+    const totalWeight = eligible.reduce((sum, e) => {
+        let weight = e.weight;
+        if (e.optimalPlayers && 
+            playerCount >= e.optimalPlayers.min && 
+            playerCount <= e.optimalPlayers.max) {
+            weight *= 1.5;
+        }
+        return sum + weight;
+    }, 0);
+    
+    return eligible.map(event => {
+        let weight = event.weight;
+        let status = '';
+        
+        if (event.optimalPlayers && 
+            playerCount >= event.optimalPlayers.min && 
+            playerCount <= event.optimalPlayers.max) {
+            weight *= 1.5;
+            status = ' (optimal)';
+        }
+        
+        const chance = ((weight / totalWeight) * 100).toFixed(1);
+        return `${event.name}: ${chance}%${status}`;
+    });
 }
 
 // ============ BREAK PLAYER POSITIONING ============
@@ -682,6 +823,7 @@ module.exports = {
     // Event selection
     pickLongBreakEvent,
     shouldTriggerLongBreak,
+    getAvailableEvents,
     
     // Break positioning
     scatterPlayersForBreak,
