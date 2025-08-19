@@ -209,53 +209,173 @@ async function resetMinecart(channelId) {
 
 async function breakPickaxe(playerId, playerTag, pickaxe) {
     console.log('Attempting to break pickaxe:', pickaxe.name, 'for player:', playerId);
+    console.log('Pickaxe object:', pickaxe);
     
-    console.log (pickaxe);
-
-    // The pickaxe object has 'id' not 'itemId'
-    const pickaxeId = pickaxe.id || pickaxe.itemId;
+    // Handle different possible field names for the ID
+    const pickaxeId = pickaxe.id || pickaxe.itemId || pickaxe._id;
     
-    console.log (pickaxeId);
-
+    console.log('Pickaxe ID to search for:', pickaxeId);
+    
     if (!pickaxeId) {
         console.error('No pickaxe ID found in:', pickaxe);
         return;
     }
     
     try {
-        // First try to decrement quantity if > 1
-        const result = await PlayerInventory.findOneAndUpdate(
-            { 
-                playerId, 
-                'items.itemId': pickaxeId,
-                'items.quantity': { $gt: 1 }
-            },
-            { 
-                $inc: { 'items.$.quantity': -1 } 
-            },
-            { new: true }
-        );
+        // First, let's check what the actual structure is
+        const inventory = await PlayerInventory.findOne({ playerId });
+        console.log('Current inventory items:', JSON.stringify(inventory?.items, null, 2));
         
-        if (!result) {
-            // If quantity is 1, remove the item entirely
-            const removeResult = await PlayerInventory.findOneAndUpdate(
-                { playerId },
-                { 
-                    $pull: { items: { itemId: pickaxeId } } 
-                }
+        // Find the actual item to see its structure
+        const actualItem = inventory?.items?.find(item => 
+            (item.itemId?.toString() === pickaxeId.toString()) || 
+            (item.id?.toString() === pickaxeId.toString()) ||
+            (item._id?.toString() === pickaxeId.toString())
+        );
+        console.log('Found item in inventory:', actualItem);
+        
+        if (!actualItem) {
+            console.log(`Pickaxe ${pickaxe.name} not found in inventory`);
+            return;
+        }
+        
+        // Determine the correct field name based on what we found
+        let idFieldName = 'itemId';
+        if (actualItem.id && !actualItem.itemId) {
+            idFieldName = 'id';
+        } else if (actualItem._id && !actualItem.itemId && !actualItem.id) {
+            idFieldName = '_id';
+        }
+        
+        console.log(`Using field name: items.${idFieldName}`);
+        console.log('Current quantity:', actualItem.quantity);
+        
+        // Now perform the update with the correct field name
+        if (actualItem.quantity > 1) {
+            // Decrement quantity
+            const updateQuery = { 
+                playerId,
+                [`items.${idFieldName}`]: pickaxeId
+            };
+            
+            const updateOperation = {
+                $inc: { 'items.$.quantity': -1 }
+            };
+            
+            console.log('Update query:', updateQuery);
+            console.log('Update operation:', updateOperation);
+            
+            const result = await PlayerInventory.findOneAndUpdate(
+                updateQuery,
+                updateOperation,
+                { new: true }
             );
             
-            if (removeResult) {
-                console.log(`Successfully removed ${pickaxe.name} from ${playerTag}'s inventory`);
+            if (result) {
+                // Verify the update actually happened
+                const updatedItem = result.items.find(item => 
+                    (item[idFieldName]?.toString() === pickaxeId.toString())
+                );
+                console.log(`Successfully decremented ${pickaxe.name} quantity from ${actualItem.quantity} to ${updatedItem?.quantity}`);
             } else {
-                console.log(`Failed to remove ${pickaxe.name} - might already be removed`);
+                console.log('Update failed - no document matched');
             }
         } else {
-            console.log(`Decremented ${pickaxe.name} quantity for ${playerTag}`);
+            // Remove the item entirely if quantity is 1 or less
+            const pullQuery = {};
+            pullQuery[idFieldName] = pickaxeId;
+            
+            console.log('Removing item with pull query:', pullQuery);
+            
+            const result = await PlayerInventory.findOneAndUpdate(
+                { playerId },
+                { 
+                    $pull: { items: pullQuery }
+                },
+                { new: true }
+            );
+            
+            if (result) {
+                // Verify the item was removed
+                const stillExists = result.items.find(item => 
+                    (item[idFieldName]?.toString() === pickaxeId.toString())
+                );
+                
+                if (!stillExists) {
+                    console.log(`Successfully removed ${pickaxe.name} from ${playerTag}'s inventory`);
+                } else {
+                    console.log(`Failed to remove ${pickaxe.name} - item still exists`);
+                }
+            } else {
+                console.log('Remove failed - no document found');
+            }
         }
     } catch (error) {
         console.error(`Error breaking pickaxe for player ${playerId}:`, error);
         // Don't throw - just log the error to prevent mining from stopping
+    }
+}
+
+// Alternative simpler version using arrayFilters (MongoDB 3.6+)
+async function breakPickaxeWithArrayFilters(playerId, playerTag, pickaxe) {
+    console.log('Attempting to break pickaxe:', pickaxe.name, 'for player:', playerId);
+    
+    const pickaxeId = pickaxe.id || pickaxe.itemId || pickaxe._id;
+    
+    if (!pickaxeId) {
+        console.error('No pickaxe ID found in:', pickaxe);
+        return;
+    }
+    
+    try {
+        // First attempt: Try to decrement if quantity > 1
+        const decrementResult = await PlayerInventory.findOneAndUpdate(
+            { playerId },
+            { 
+                $inc: { 'items.$[elem].quantity': -1 }
+            },
+            { 
+                arrayFilters: [
+                    { 
+                        $or: [
+                            { 'elem.itemId': pickaxeId, 'elem.quantity': { $gt: 1 } },
+                            { 'elem.id': pickaxeId, 'elem.quantity': { $gt: 1 } }
+                        ]
+                    }
+                ],
+                new: true 
+            }
+        );
+        
+        if (decrementResult) {
+            console.log(`Decremented ${pickaxe.name} quantity for ${playerTag}`);
+            return;
+        }
+        
+        // Second attempt: Remove if quantity is 1
+        const removeResult = await PlayerInventory.findOneAndUpdate(
+            { playerId },
+            { 
+                $pull: { 
+                    items: { 
+                        $or: [
+                            { itemId: pickaxeId, quantity: { $lte: 1 } },
+                            { id: pickaxeId, quantity: { $lte: 1 } }
+                        ]
+                    }
+                }
+            },
+            { new: true }
+        );
+        
+        if (removeResult) {
+            console.log(`Removed ${pickaxe.name} from ${playerTag}'s inventory`);
+        } else {
+            console.log(`No changes made - pickaxe may not exist in inventory`);
+        }
+        
+    } catch (error) {
+        console.error(`Error breaking pickaxe for player ${playerId}:`, error);
     }
 }
 
