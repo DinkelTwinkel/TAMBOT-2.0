@@ -513,7 +513,7 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
                 const pickaxeImage = await loadImage(pickaxeImagePath);
                 
                 const pickaxeSize = size * 0.8;
-                const pickaxeX = centerX - radius - 35;
+                const pickaxeX = centerX - radius;
                 const pickaxeY = centerY - pickaxeSize/2;
                 
                 ctx.save();
