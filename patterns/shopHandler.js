@@ -89,9 +89,6 @@ class ShopHandler {
     }
 
     async handleShopSelectMenu(interaction) {
-        // Defer the update immediately to prevent timeout
-        await interaction.deferUpdate();
-        
         const userId = interaction.user.id;
         const channelId = interaction.channel.id;
         const guildId = interaction.guild.id;
@@ -102,12 +99,14 @@ class ShopHandler {
 
         const item = itemSheet.find(it => it.id === selectedItemId);
         if (!item) {
+            await interaction.deferUpdate();
             return interaction.followUp({ content: '⚘ Item not found', ephemeral: true });
         }
 
         // Get fluctuated prices using guild config
         const fluctuatedPrices = await this.getShopFluctuatedPrices(channelId, guildId);
         if (!fluctuatedPrices || !fluctuatedPrices[selectedItemId]) {
+            await interaction.deferUpdate();
             return interaction.followUp({ content: '⚘ Could not get current prices', ephemeral: true });
         }
 
@@ -132,6 +131,9 @@ class ShopHandler {
 
         // Handle consumables - buy 1 immediately
         if (item.type === 'consumable') {
+            // Defer for consumables since we're sending a message
+            await interaction.deferUpdate();
+            
             const totalCost = currentBuyPrice;
             
             if (userCurrency.money < totalCost) {
@@ -195,7 +197,7 @@ class ShopHandler {
             return;
         }
 
-        // Handle non-consumables - show modal for quantity
+        // Handle non-consumables - show modal for quantity (no defer needed)
         const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
         
         // Create a shorter label that fits within Discord's 45 character limit
@@ -231,12 +233,14 @@ class ShopHandler {
         const maxQty = ownedItem?.quantity || 0;
 
         if (maxQty === 0) {
+            await interaction.deferUpdate();
             return interaction.followUp({ 
                 content: `⚘ You don't own any ${item.name} to sell.`, 
                 ephemeral: true 
             });
         }
 
+        // No defer needed when showing modal
         const priceIndicator = currentSellPrice > Math.floor(item.value / 2) ? ' ▲' : currentSellPrice < Math.floor(item.value / 2) ? ' ▼' : '';
 
         // Create a shorter label that fits within Discord's 45 character limit
