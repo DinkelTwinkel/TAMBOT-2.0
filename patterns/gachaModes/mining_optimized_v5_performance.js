@@ -394,9 +394,9 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
             // Add power level description if available
             if (powerLevelInfo && forceNew) {
                 let description = logEntry ? `\`\`\`\n${logEntry}\n\`\`\`` : '';
-                if (powerLevelInfo.specialBonus) {
-                    description += `\n🎯 **${powerLevelInfo.specialBonus}**`;
-                }
+                // if (powerLevelInfo.specialBonus) {
+                //     description += `\n🎯 **${powerLevelInfo.specialBonus}**`;
+                // }
                 if (description) {
                     embed.setDescription(description);
                 }
@@ -598,7 +598,7 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
     const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
     await logEvent(channel, '⛏️ Break ended! Mining resumed.', true, {
         level: powerLevel,
-        name: powerLevelConfig?.name || 'Unknown Miner',
+        name: powerLevelConfig?.name || 'Unknown Mine',
         specialBonus: powerLevelConfig?.description || 'Mining efficiency active'
     });
 }
@@ -817,6 +817,9 @@ module.exports = async (channel, dbEntry, json, client) => {
     }
 };
 
+// Track recent movements to prevent straight-line behavior
+const playerMovementHistory = new Map();
+
 // Enhanced player action processing with full power level integration
 async function processPlayerActionsEnhanced(member, playerData, mapData, teamVisibleTiles, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry) {
     const miningPower = playerData.stats.mining || 0;
@@ -826,6 +829,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     let wallsBroken = 0;
     let treasuresFound = 0;
     let mapChanged = false;
+    
+    // Get or initialize movement history for this player
+    if (!playerMovementHistory.has(member.id)) {
+        playerMovementHistory.set(member.id, { lastDirection: null, sameDirectionCount: 0 });
+    }
+    const moveHistory = playerMovementHistory.get(member.id);
     
     // Find best pickaxe
     let bestPickaxe = null;
@@ -948,17 +957,54 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             continue;
         }
         
-        // Enhanced pathfinding and movement (same logic as before)
+        // Enhanced pathfinding and movement with better randomization
         const visibleTargets = [TILE_TYPES.TREASURE_CHEST, TILE_TYPES.RARE_ORE, TILE_TYPES.WALL_WITH_ORE];
         const nearestTarget = findNearestTarget(position, teamVisibleTiles, mapData.tiles, visibleTargets);
         
         let direction;
         if (nearestTarget) {
             direction = getDirectionToTarget(position, nearestTarget);
+            // Add some randomness to avoid always going in straight lines (20% chance to deviate)
+            if (Math.random() < 0.2) {
+                const randomOffsets = [
+                    { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
+                    { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
+                ];
+                const randomDir = randomOffsets[Math.floor(Math.random() * randomOffsets.length)];
+                direction = randomDir;
+            }
         } else {
-            const seed = createPlayerSeed(dbEntry.channelId, member.id) + Math.floor(Date.now() / 30000) + actionNum;
-            direction = getRandomDirection(seed);
+            // Use true randomness instead of seed-based for exploration
+            const directions = [
+                { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
+                { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
+            ];
+            direction = directions[Math.floor(Math.random() * directions.length)];
         }
+        
+        // Check if we've been moving in the same direction too long
+        if (moveHistory.lastDirection && 
+            moveHistory.lastDirection.dx === direction.dx && 
+            moveHistory.lastDirection.dy === direction.dy) {
+            moveHistory.sameDirectionCount++;
+            
+            // Force a direction change after 3-5 moves in the same direction
+            if (moveHistory.sameDirectionCount >= 3 + Math.floor(Math.random() * 3)) {
+                const allDirections = [
+                    { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
+                    { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
+                ];
+                // Filter out the current direction
+                const newDirections = allDirections.filter(d => 
+                    d.dx !== direction.dx || d.dy !== direction.dy
+                );
+                direction = newDirections[Math.floor(Math.random() * newDirections.length)];
+                moveHistory.sameDirectionCount = 0;
+            }
+        } else {
+            moveHistory.sameDirectionCount = 0;
+        }
+        moveHistory.lastDirection = { dx: direction.dx, dy: direction.dy };
         
         if (direction.dx === 0 && direction.dy === 0) continue;
         
@@ -977,10 +1023,14 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         const targetTile = mapData.tiles[newY] && mapData.tiles[newY][newX];
         if (!targetTile) continue;
         
-        // Handle different tile types (same logic as before but with enhanced messaging)
+        // Handle different tile types with occasional direction changes
         if ([TILE_TYPES.WALL, TILE_TYPES.REINFORCED_WALL, TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE, TILE_TYPES.TREASURE_CHEST].includes(targetTile.type)) {
             const canBreak = await canBreakTile(member.id, miningPower, targetTile);
             if (canBreak) {
+                // 15% chance to stop digging in a straight line and change direction next action
+                if (Math.random() < 0.15 && targetTile.type === TILE_TYPES.WALL) {
+                    continue; // Skip this wall and try a different direction next action
+                }
                 if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE, TILE_TYPES.TREASURE_CHEST].includes(targetTile.type)) {
                     const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, targetTile.type, availableItems, efficiency);
                     
