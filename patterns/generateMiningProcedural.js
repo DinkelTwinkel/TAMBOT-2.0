@@ -12,9 +12,9 @@ const PLAYER_AVATAR_SIZE = 50;
 const STACKED_OFFSET = 10;
 
 // Image optimization constants
-const MAX_IMAGE_WIDTH = 5000;
-const MAX_IMAGE_HEIGHT = 5000;
-const MIN_TILE_SIZE = 16;
+const MAX_IMAGE_WIDTH = 1000;
+const MAX_IMAGE_HEIGHT = 1000;
+const MIN_TILE_SIZE = 5;
 const JPEG_QUALITY = 0.8;
 const USE_JPEG_THRESHOLD = 300;
 const BORDER_SIZE = 5;
