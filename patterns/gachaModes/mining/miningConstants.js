@@ -4,7 +4,7 @@ const INITIAL_MAP_HEIGHT = 7;
 const BASE_ORE_SPAWN_CHANCE = 0.25; // Reduced from 0.3
 const RARE_ORE_SPAWN_CHANCE = 0.02; // Reduced from 0.05
 const IMAGE_GENERATION_INTERVAL = 1;
-const MAX_SPEED_ACTIONS = 3; // Reduced from 4
+const MAX_SPEED_ACTIONS = 10; // Reduced from 4
 const MAX_MAP_SIZE = 1000;
 const EXPLORATION_BONUS_CHANCE = 0.03; // Reduced from 0.02
 
