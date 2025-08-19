@@ -48,6 +48,10 @@ module.exports = {
             return interaction.reply({ content: 'You must be in a voice channel to use mining debug commands!', ephemeral: true });
         }
 
+        if (interaction.member.id !== '865147754358767627') {
+          return interaction.reply({ content: 'You cant use this.', ephemeral: true });
+        }
+
         const channelId = voiceChannel.id;
         const subcommand = interaction.options.getSubcommand();
 
