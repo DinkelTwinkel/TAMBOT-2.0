@@ -531,7 +531,7 @@ module.exports = async (channel, dbEntry, json, client) => {
         const miningPower = playerData.stats.mining || 0;
         const luckStat = playerData.stats.luck || 0;
         const speedStat = Math.min(playerData.stats.speed || 1, MAX_SPEED_ACTIONS);
-        const bestPickaxe = playerData.bestItems.mining || null;
+        const bestPickaxe = playerData.stats.mining || null;
         
         const numActions = speedStat > 0 ? Math.floor(Math.random() * speedStat) + 1 : 1;
         
