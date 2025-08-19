@@ -219,7 +219,8 @@ async function canBreakTile(playerId, miningPower, tile) {
     
     const breakChance = Math.min(0.95, (miningPower / hardness) * 0.25);
     const seed = parseInt(playerId) + Date.now();
-    return seededRandom(seed) < breakChance;
+    // return seededRandom(seed) < breakChance;
+    return Math.random() < 0.5;
 }
 
 // Enhanced Pickaxe System
