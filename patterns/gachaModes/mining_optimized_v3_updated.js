@@ -531,7 +531,17 @@ module.exports = async (channel, dbEntry, json, client) => {
         const miningPower = playerData.stats.mining || 0;
         const luckStat = playerData.stats.luck || 0;
         const speedStat = Math.min(playerData.stats.speed || 1, MAX_SPEED_ACTIONS);
-        const bestPickaxe = playerData.stats.mining || null;
+        
+        // Find the best pickaxe from equipped items (item with highest mining power)
+        let bestPickaxe = null;
+        for (const item of Object.values(playerData.equippedItems || {})) {
+            const miningAbility = item.abilities.find(a => a.name === 'mining');
+            if (miningAbility) {
+                if (!bestPickaxe || miningAbility.power > (bestPickaxe.abilities.find(a => a.name === 'mining')?.power || 0)) {
+                    bestPickaxe = item;
+                }
+            }
+        }
         
         const numActions = speedStat > 0 ? Math.floor(Math.random() * speedStat) + 1 : 1;
         
