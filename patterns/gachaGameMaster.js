@@ -43,8 +43,6 @@ module.exports = async (guild) => {
         // begin vc check cycle
         const activeVCs = await ActiveVCS.find(); // Fetch live DB entries
 
-        console.log('1');
-
         for (const vc of activeVCs) {
             const nextTrigger = vc.nextTrigger ? new Date(vc.nextTrigger).getTime() : 0;
 

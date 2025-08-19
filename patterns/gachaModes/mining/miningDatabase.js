@@ -210,9 +210,13 @@ async function resetMinecart(channelId) {
 async function breakPickaxe(playerId, playerTag, pickaxe) {
     console.log('Attempting to break pickaxe:', pickaxe.name, 'for player:', playerId);
     
+    console.log (pickaxe);
+
     // The pickaxe object has 'id' not 'itemId'
     const pickaxeId = pickaxe.id || pickaxe.itemId;
     
+    console.log (pickaxeId);
+
     if (!pickaxeId) {
         console.error('No pickaxe ID found in:', pickaxe);
         return;
