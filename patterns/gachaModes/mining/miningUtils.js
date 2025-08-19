@@ -229,13 +229,22 @@ async function canBreakTile(playerId, miningPower, tile) {
 
 // Enhanced Pickaxe System
 function checkPickaxeBreak(pickaxe, tileHardness = 1) {
-    if (!pickaxe || !pickaxe.durability) return false;
+    if (!pickaxe) return false;
+    
+    // Handle both durability formats
+    const durability = pickaxe.durability || pickaxe.stats?.durability || 100;
     
     const hardnessPenalty = tileHardness * 1;
-    const adjustedDurability = Math.max(10, pickaxe.durability - hardnessPenalty);
+    const adjustedDurability = Math.max(10, durability - hardnessPenalty);
     
     const roll = Math.floor(Math.random() * 100) + 1;
-    return roll > adjustedDurability;
+    const shouldBreak = roll > adjustedDurability;
+    
+    if (shouldBreak) {
+        console.log(`Pickaxe ${pickaxe.name} broke! Roll: ${roll} > Durability: ${adjustedDurability}`);
+    }
+    
+    return shouldBreak;
 }
 
 // Minecart Summary Helper

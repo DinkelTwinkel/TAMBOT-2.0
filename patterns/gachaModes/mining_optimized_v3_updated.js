@@ -347,14 +347,14 @@ async function startBreak(channel, dbEntry, isLongBreak = false) {
             }
         );
         
-        // Move all players to entrance without drawing avatars (they'll be hidden)
+        // Move all players to entrance
         const mapData = dbEntry.gameData.map;
         const updatedPositions = {};
         for (const member of members.values()) {
             updatedPositions[member.id] = {
                 x: mapData.entranceX,
                 y: mapData.entranceY,
-                hidden: true // Mark as hidden during long break
+                hidden: true
             };
         }
         
@@ -363,11 +363,14 @@ async function startBreak(channel, dbEntry, isLongBreak = false) {
             { $set: { 'gameData.map.playerPositions': updatedPositions } }
         );
         
+        // Get updated dbEntry after database changes
+        const updatedDbEntry = await gachaVC.findOne({ channelId: channel.id });
+        
         // Start long event
         const selectedEvent = pickLongBreakEvent();
-        const eventResult = await selectedEvent(channel, dbEntry);
+        const eventResult = await selectedEvent(channel, updatedDbEntry);
         
-        await logEvent(channel, `🎪 LONG BREAK: ${eventResult}`, true);
+        await logEvent(channel, `🎪 LONG BREAK: ${eventResult || 'Event started'}`, true);
         
         // Schedule shop opening after event (15 minutes)
         setTimeout(async () => {
@@ -471,16 +474,19 @@ module.exports = async (channel, dbEntry, json, client) => {
         
         // Check if break should end
         if (now >= breakInfo.breakEndTime) {
-            await endBreak(channel, dbEntry, breakInfo.isLongBreak);
+            await endBreak(channel, dbEntry);
             return;
         }
         
-        // During long break, check if event should transition to shop
-        if (breakInfo.isLongBreak && breakInfo.eventEndTime && now >= breakInfo.eventEndTime) {
-            const eventEndResult = await checkAndEndSpecialEvent(channel, dbEntry);
-            if (eventEndResult) {
-                await logEvent(channel, eventEndResult, true);
-                await generateShop(channel, Math.floor((breakInfo.breakEndTime - now) / (1000 * 60)));
+        // During long break, check if special event should end
+        if (breakInfo.isLongBreak && dbEntry.gameData?.specialEvent) {
+            const specialEvent = dbEntry.gameData.specialEvent;
+            if (now >= specialEvent.endTime) {
+                const eventEndResult = await checkAndEndSpecialEvent(channel, dbEntry);
+                if (eventEndResult) {
+                    await logEvent(channel, eventEndResult, true);
+                    // Don't regenerate shop here - it's already handled in checkAndEndSpecialEvent
+                }
             }
         }
         
@@ -568,10 +574,15 @@ module.exports = async (channel, dbEntry, json, client) => {
         // Find the best pickaxe from equipped items (item with highest mining power)
         let bestPickaxe = null;
         for (const item of Object.values(playerData.equippedItems || {})) {
+            if (!item || !item.abilities) continue; // Add null check
+            
             const miningAbility = item.abilities.find(a => a.name === 'mining');
             if (miningAbility) {
                 if (!bestPickaxe || miningAbility.power > (bestPickaxe.abilities.find(a => a.name === 'mining')?.power || 0)) {
-                    bestPickaxe = item;
+                    bestPickaxe = {
+                        ...item,
+                        itemId: item.id // Ensure itemId is set for compatibility
+                    };
                 }
             }
         }

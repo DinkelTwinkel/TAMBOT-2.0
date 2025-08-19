@@ -208,14 +208,22 @@ async function resetMinecart(channelId) {
 }
 
 async function breakPickaxe(playerId, playerTag, pickaxe) {
-
-    console.log ('attempting to break pickaxe');
+    console.log('Attempting to break pickaxe:', pickaxe.name, 'for player:', playerId);
+    
+    // The pickaxe object has 'id' not 'itemId'
+    const pickaxeId = pickaxe.id || pickaxe.itemId;
+    
+    if (!pickaxeId) {
+        console.error('No pickaxe ID found in:', pickaxe);
+        return;
+    }
+    
     try {
         // First try to decrement quantity if > 1
         const result = await PlayerInventory.findOneAndUpdate(
             { 
                 playerId, 
-                'items.itemId': pickaxe.itemId,
+                'items.itemId': pickaxeId,
                 'items.quantity': { $gt: 1 }
             },
             { 
@@ -226,12 +234,20 @@ async function breakPickaxe(playerId, playerTag, pickaxe) {
         
         if (!result) {
             // If quantity is 1, remove the item entirely
-            await PlayerInventory.findOneAndUpdate(
+            const removeResult = await PlayerInventory.findOneAndUpdate(
                 { playerId },
                 { 
-                    $pull: { items: { itemId: pickaxe.itemId } } 
+                    $pull: { items: { itemId: pickaxeId } } 
                 }
             );
+            
+            if (removeResult) {
+                console.log(`Successfully removed ${pickaxe.name} from ${playerTag}'s inventory`);
+            } else {
+                console.log(`Failed to remove ${pickaxe.name} - might already be removed`);
+            }
+        } else {
+            console.log(`Decremented ${pickaxe.name} quantity for ${playerTag}`);
         }
     } catch (error) {
         console.error(`Error breaking pickaxe for player ${playerId}:`, error);

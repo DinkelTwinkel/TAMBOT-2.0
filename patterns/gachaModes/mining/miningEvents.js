@@ -19,9 +19,9 @@ async function startThiefGame(channel, dbEntry) {
         .filter(member => member.voice.channelId === channel.id && !member.user.bot)
         .map(member => member);
 
-    if (humansArray.length < 3) {
-        await logEvent(channel, '⚠️ Not enough players for thief event. Extending break...');
-        return;
+    if (humansArray.length < 2) { // Changed to 2 for easier testing
+        await logEvent(channel, '⚠️ Not enough players for thief event. Need at least 2 players.');
+        return '⚠️ Not enough players for thief event';
     }
 
     const thief = humansArray[Math.floor(Math.random() * humansArray.length)];
@@ -52,35 +52,46 @@ async function startThiefGame(channel, dbEntry) {
         }
     }
 
-    // Store thief info using atomic operation
+    // Store thief info with proper time
+    const endTime = Date.now() + 10 * 60 * 1000; // 10 minutes from now
     await setSpecialEvent(channel.id, {
         type: 'thief',
         thiefId: thief.id,
         amount: stealAmount,
-        endTime: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+        endTime: endTime
     });
 
-    // Create vote entries for each user
+    // Create vote entries for each user with random voting (temporary until /vote command is implemented)
     const Vote = require('../../../models/votes');
+    
+    // Clear any existing votes first
+    await Vote.deleteMany({ channelId: channel.id });
+    
+    // Create new votes (for now, random voting as placeholder)
     for (const user of humansArray) {
+        // Random vote - 30% chance to vote correctly
+        const targetId = Math.random() < 0.3 ? thief.id : 
+                        humansArray[Math.floor(Math.random() * humansArray.length)].id;
+        
         await Vote.create({
             channelId: channel.id,
             userId: user.id,
-            targetId: 'novote'
+            targetId: targetId
         });
     }
 
     // Build public embed
     const embed = new EmbedBuilder()
         .setTitle('⚠️ THIEF ALERT! ⚠️')
-        .setDescription(`In the darkness of the mines, someone has stolen everyone's coins! Use /vote to catch the thief.\n\n` +
-                        lossDescriptions.join('\n') +
-                        `\n\n💰 Total stolen: ${stealAmount}`)
+        .setDescription(`In the darkness of the mines, someone has stolen everyone's coins!\n\n` +
+                        (lossDescriptions.length > 0 ? lossDescriptions.join('\n') : 'No coins were stolen') +
+                        `\n\n💰 Total stolen: ${stealAmount} coins\n\n` +
+                        `*Note: Auto-voting enabled until /vote command is implemented*`)
         .setColor(0xff0000)
         .setTimestamp();
 
-    const endTimeSeconds = Math.floor((Date.now() + 10 * 60 * 1000) / 1000);
-    embed.addFields({ name: 'Hurry!', value: `The thief is getting away... <t:${endTimeSeconds}:R>` });
+    const endTimeSeconds = Math.floor(endTime / 1000);
+    embed.addFields({ name: 'Event Ends', value: `<t:${endTimeSeconds}:R>` });
 
     await channel.send({ embeds: [embed] });
 
@@ -91,7 +102,7 @@ async function startThiefGame(channel, dbEntry) {
         console.log(`Could not DM thief: ${thief.user.tag}`);
     }
 
-    return `⚠️ SPECIAL EVENT: Thief game started! ${stealAmount} coins stolen.`;
+    return `⚠️ THIEF EVENT: ${stealAmount} coins stolen!`;
 }
 
 
