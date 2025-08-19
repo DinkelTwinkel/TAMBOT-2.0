@@ -49,6 +49,9 @@ const {
 // Global event counter for image generation
 let eventCounter = 0;
 
+// Track users who have been announced in this session
+const announcedUsers = new Set();
+
 // TIMING CONFIGURATION
 const MINING_DURATION = 25 * 60 * 1000; // 25 minutes
 const SHORT_BREAK_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -422,17 +425,44 @@ async function startBreak(channel, dbEntry, isLongBreak = false) {
 async function endBreak(channel, dbEntry) {
     const mapData = dbEntry.gameData.map;
     const members = channel.members.filter(m => !m.user.bot);
+    const breakInfo = dbEntry.gameData.breakInfo;
     
+    // Determine where players should return to
+    const resetPositions = {};
     
-    // Reset all players to entrance
-    const resetPositions = {}
-    for (const member of members.values()) {
-        resetPositions[member.id] = {
-            x: mapData.entranceX,
-            y: mapData.entranceY,
-            isTent: false,
-            hidden: false
-        };
+    if (breakInfo.isLongBreak) {
+        // Long break - reset all players to entrance
+        for (const member of members.values()) {
+            resetPositions[member.id] = {
+                x: mapData.entranceX,
+                y: mapData.entranceY,
+                isTent: false,
+                hidden: false
+            };
+        }
+    } else {
+        // Short break - return players to their camping positions
+        const currentPositions = mapData.playerPositions || {};
+        for (const member of members.values()) {
+            const currentPos = currentPositions[member.id];
+            if (currentPos) {
+                // Keep their camping position but remove tent status
+                resetPositions[member.id] = {
+                    x: currentPos.x,
+                    y: currentPos.y,
+                    isTent: false,
+                    hidden: false
+                };
+            } else {
+                // Fallback to entrance if no position found
+                resetPositions[member.id] = {
+                    x: mapData.entranceX,
+                    y: mapData.entranceY,
+                    isTent: false,
+                    hidden: false
+                };
+            }
+        }
     }
     // Calculate next break timing
     const cycleCount = (dbEntry.gameData?.cycleCount || 0) + 1;
@@ -521,6 +551,10 @@ module.exports = async (channel, dbEntry, json, client) => {
     let mapData = dbEntry.gameData.map;
     let mapChanged = false;
     const transaction = new DatabaseTransaction();
+    const eventLogs = [];
+    const powerLevel = json.power || 1;
+    let wallsBroken = 0;
+    let treasuresFound = 0;
     
     // Initialize map if not present
     if (!mapData) {
@@ -531,20 +565,31 @@ module.exports = async (channel, dbEntry, json, client) => {
     // Initialize/update player positions
     mapData = initializeBreakPositions(mapData, members, false);
     mapChanged = true;
+    
+    // Check for new users joining and announce them
+    for (const member of members.values()) {
+        if (!announcedUsers.has(member.id)) {
+            announcedUsers.add(member.id);
+            eventLogs.push(`👋 ${member.displayName} has joined the mining expedition!`);
+        }
+    }
 
     // Remove positions for players no longer in VC
     const currentPlayerIds = Array.from(members.keys());
     mapData = cleanupPlayerPositions(mapData, currentPlayerIds);
 
-    // Calculate enhanced team sight radius
-    let totalSight = 0;
-    let playerCount = 0;
-    for (const member of members.values()) {
-        const playerData = playerStatsCache.get(member.id);
-        totalSight += playerData.stats.sight || 0;
-        playerCount++;
+    // Calculate enhanced team sight radius (reduced to 1 during breaks)
+    let teamSightRadius = 1;
+    if (!inBreak) {
+        let totalSight = 0;
+        let playerCount = 0;
+        for (const member of members.values()) {
+            const playerData = playerStatsCache.get(member.id);
+            totalSight += playerData.stats.sight || 0;
+            playerCount++;
+        }
+        teamSightRadius = Math.floor(totalSight / playerCount) + 1;
     }
-    const teamSightRadius = Math.floor(totalSight / playerCount) + 1;
 
     // Calculate team visibility
     const teamVisibleTiles = calculateTeamVisibility(mapData.playerPositions, teamSightRadius, mapData.tiles);
@@ -560,11 +605,6 @@ module.exports = async (channel, dbEntry, json, client) => {
         }
     }
 
-    const eventLogs = [];
-    const powerLevel = json.power || 1;
-    let wallsBroken = 0;
-    let treasuresFound = 0;
-
     // Process actions for each player
     for (const member of members.values()) {
         const playerData = playerStatsCache.get(member.id);
@@ -576,35 +616,28 @@ module.exports = async (channel, dbEntry, json, client) => {
         let bestPickaxe = null;
         // First pass: Look for actual mining tools (type: "tool", slot: "mining")
         for (const [key, item] of Object.entries(playerData.equippedItems || {})) {
-        if (!item) continue;
+            if (!item) continue;
 
-        // Skip if not a mining tool
-        if (item.type !== 'tool' || item.slot !== 'mining') continue;
+            // Skip if not a mining tool
+            if (item.type !== 'tool' || item.slot !== 'mining') continue;
 
-        const miningAbility = item.abilities?.find(a => a.name === 'mining');
-        if (miningAbility) {
-            // Handle both old 'power' and new 'powerlevel' format
-            const currentPower = miningAbility.powerlevel || miningAbility.power || 0;
-            const bestPower = bestPickaxe?.abilities?.find(a => a.name === 'mining')?.powerlevel || 
-                                bestPickaxe?.abilities?.find(a => a.name === 'mining')?.power || 0;
-            
-            if (!bestPickaxe || currentPower > bestPower) {
-                // Try to find the item ID from the itemSheet if it's missing
-                let itemId = item.itemId || item.id || key;
-                if (!itemId || itemId === 'undefined') {
-                    const matchingItem = itemSheet.find(sheetItem => 
-                        sheetItem.name === item.name && 
-                        sheetItem.type === item.type
-                    );
-                    itemId = matchingItem?.id || key;
-                }
+            const miningAbility = item.abilities?.find(a => a.name === 'mining');
+            if (miningAbility) {
+                // Handle both old 'power' and new 'powerlevel' format
+                const currentPower = miningAbility.powerlevel || miningAbility.power || 0;
+                const bestPower = bestPickaxe?.abilities?.find(a => a.name === 'mining')?.powerlevel || 
+                                    bestPickaxe?.abilities?.find(a => a.name === 'mining')?.power || 0;
                 
-                bestPickaxe = {
-                    ...item,
-                    itemId: itemId
-                };
+                if (!bestPickaxe || currentPower > bestPower) {
+                    // Use the item ID that's already present or use the key as fallback
+                    let itemId = item.itemId || item.id || key;
+                    
+                    bestPickaxe = {
+                        ...item,
+                        itemId: itemId
+                    };
+                }
             }
-        }
         }
         
         const numActions = speedStat > 0 ? Math.floor(Math.random() * speedStat) + 1 : 1;
