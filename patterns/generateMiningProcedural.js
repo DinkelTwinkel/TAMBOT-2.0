@@ -894,7 +894,7 @@ async function getBestMiningPickaxe(userId) {
             if (invItem.quantity <= 0) continue;
 
             const item = itemSheet.find(i => i.id === invItem.itemId);
-            if (!item || item.type !== 'pickAxe') continue;
+            if (!item || item.type !== 'tool' || item.slot !== 'mining') continue;
 
             const miningAbility = item.abilities?.find(a => a.name === 'mining');
             if (!miningAbility || !miningAbility.powerlevel) continue;
