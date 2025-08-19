@@ -94,7 +94,7 @@
     "name": "Rusty Pick Axe",
     "type": "pickAxe",
     "description": "Barely holds together. Better than nothing.",
-    "value": 25,
+    "value": 10,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 1 }
