@@ -592,7 +592,7 @@ async function checkAndEndSpecialEvent(channel, dbEntry) {
  * Available long break events with weights
  */
 const longBreakEvents = [
-    { func: startThiefGame, weight: 30, name: 'Thief Game' },
+   // { func: startThiefGame, weight: 30, name: 'Thief Game' },
     { func: startMineCollapseEvent, weight: 25, name: 'Mine Collapse' }
 ];
 

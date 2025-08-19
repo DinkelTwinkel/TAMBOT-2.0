@@ -573,18 +573,37 @@ module.exports = async (channel, dbEntry, json, client) => {
         
         // Find the best pickaxe from equipped items (item with highest mining power)
         let bestPickaxe = null;
-        for (const item of Object.values(playerData.equippedItems || {})) {
-            if (!item || !item.abilities) continue; // Add null check
+        // First pass: Look for actual mining tools (type: "tool", slot: "mining")
+        for (const [key, item] of Object.entries(playerData.equippedItems || {})) {
+        if (!item) continue;
+
+        // Skip if not a mining tool
+        if (item.type !== 'tool' || item.slot !== 'mining') continue;
+
+        const miningAbility = item.abilities?.find(a => a.name === 'mining');
+        if (miningAbility) {
+            // Handle both old 'power' and new 'powerlevel' format
+            const currentPower = miningAbility.powerlevel || miningAbility.power || 0;
+            const bestPower = bestPickaxe?.abilities?.find(a => a.name === 'mining')?.powerlevel || 
+                                bestPickaxe?.abilities?.find(a => a.name === 'mining')?.power || 0;
             
-            const miningAbility = item.abilities.find(a => a.name === 'mining');
-            if (miningAbility) {
-                if (!bestPickaxe || miningAbility.power > (bestPickaxe.abilities.find(a => a.name === 'mining')?.power || 0)) {
-                    bestPickaxe = {
-                        ...item,
-                        itemId: item.id // Ensure itemId is set for compatibility
-                    };
+            if (!bestPickaxe || currentPower > bestPower) {
+                // Try to find the item ID from the itemSheet if it's missing
+                let itemId = item.itemId || item.id || key;
+                if (!itemId || itemId === 'undefined') {
+                    const matchingItem = itemSheet.find(sheetItem => 
+                        sheetItem.name === item.name && 
+                        sheetItem.type === item.type
+                    );
+                    itemId = matchingItem?.id || key;
                 }
+                
+                bestPickaxe = {
+                    ...item,
+                    itemId: itemId
+                };
             }
+        }
         }
         
         const numActions = speedStat > 0 ? Math.floor(Math.random() * speedStat) + 1 : 1;
