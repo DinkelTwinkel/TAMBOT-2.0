@@ -316,69 +316,6 @@ async function breakPickaxe(playerId, playerTag, pickaxe) {
     }
 }
 
-// Alternative simpler version using arrayFilters (MongoDB 3.6+)
-async function breakPickaxeWithArrayFilters(playerId, playerTag, pickaxe) {
-    console.log('Attempting to break pickaxe:', pickaxe.name, 'for player:', playerId);
-    
-    const pickaxeId = pickaxe.id || pickaxe.itemId || pickaxe._id;
-    
-    if (!pickaxeId) {
-        console.error('No pickaxe ID found in:', pickaxe);
-        return;
-    }
-    
-    try {
-        // First attempt: Try to decrement if quantity > 1
-        const decrementResult = await PlayerInventory.findOneAndUpdate(
-            { playerId },
-            { 
-                $inc: { 'items.$[elem].quantity': -1 }
-            },
-            { 
-                arrayFilters: [
-                    { 
-                        $or: [
-                            { 'elem.itemId': pickaxeId, 'elem.quantity': { $gt: 1 } },
-                            { 'elem.id': pickaxeId, 'elem.quantity': { $gt: 1 } }
-                        ]
-                    }
-                ],
-                new: true 
-            }
-        );
-        
-        if (decrementResult) {
-            console.log(`Decremented ${pickaxe.name} quantity for ${playerTag}`);
-            return;
-        }
-        
-        // Second attempt: Remove if quantity is 1
-        const removeResult = await PlayerInventory.findOneAndUpdate(
-            { playerId },
-            { 
-                $pull: { 
-                    items: { 
-                        $or: [
-                            { itemId: pickaxeId, quantity: { $lte: 1 } },
-                            { id: pickaxeId, quantity: { $lte: 1 } }
-                        ]
-                    }
-                }
-            },
-            { new: true }
-        );
-        
-        if (removeResult) {
-            console.log(`Removed ${pickaxe.name} from ${playerTag}'s inventory`);
-        } else {
-            console.log(`No changes made - pickaxe may not exist in inventory`);
-        }
-        
-    } catch (error) {
-        console.error(`Error breaking pickaxe for player ${playerId}:`, error);
-    }
-}
-
 // Game Data Helpers
 function initializeGameData(dbEntry, channelId) {
     if (!dbEntry.gameData || dbEntry.gameData.gamemode !== 'mining') {

@@ -62,7 +62,7 @@ let eventCounter = 0;
 const announcedUsers = new Set();
 
 // Performance: Reduce image generation frequency
-const REDUCED_IMAGE_INTERVAL = 5; // Generate image every 5 events instead of 1
+const REDUCED_IMAGE_INTERVAL = 1; // Generate image every 5 events instead of 1
 
 // TIMING CONFIGURATION
 const MINING_DURATION = 25 * 60 * 1000; // 25 minutes
@@ -204,127 +204,100 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType)
 
 // Optimized Event Log System with batching
 async function logEvent(channel, eventText, forceNew = false) {
-    // Add event to batcher
-    if (eventText) {
-        eventBatcher.addEvent(eventText);
-    }
+    eventCounter++;
+    const shouldGenerateImage = forceNew || (eventCounter % REDUCED_IMAGE_INTERVAL === 0);
+        
+    const result = await getCachedDBEntry(channel.id);
+    const now = new Date();
     
-    // Use throttled message updates
-    await messageThrottler.scheduleUpdate(channel, async () => {
-        const batchedEvents = eventBatcher.flush();
-        if (!batchedEvents && !forceNew) return;
-        
-        eventCounter++;
-        const shouldGenerateImage = forceNew || (eventCounter % REDUCED_IMAGE_INTERVAL === 0);
-        
-        const result = await getCachedDBEntry(channel.id);
-        const now = new Date();
-        
-        let timeStatus = "MINING";
-        let timeRemaining = 0;
-        let endTimestamp = null;
+    let timeStatus = "MINING";
+    let timeRemaining = 0;
+    let endTimestamp = null;
 
-        if (result.gameData?.breakInfo?.inBreak) {
-            const breakEndTime = result.gameData.breakInfo.breakEndTime;
-            timeRemaining = Math.max(0, Math.floor((breakEndTime - now) / (1000 * 60)));
-            endTimestamp = Math.floor(breakEndTime / 1000); // convert to seconds
+    if (result.gameData?.breakInfo?.inBreak) {
+        const breakEndTime = result.gameData.breakInfo.breakEndTime;
+        timeRemaining = Math.max(0, Math.floor((breakEndTime - now) / (1000 * 60)));
+        endTimestamp = Math.floor(breakEndTime / 1000); // convert to seconds
 
-            if (result.gameData.breakInfo.isLongBreak) {
-                if (result.gameData?.specialEvent) {
-                    timeStatus = "LONG BREAK (EVENT)";
-                } else {
-                    timeStatus = "LONG BREAK (SHOP)";
-                }
+        if (result.gameData.breakInfo.isLongBreak) {
+            if (result.gameData?.specialEvent) {
+                timeStatus = "LONG BREAK (EVENT)";
             } else {
-                timeStatus = "SHORT BREAK";
+                timeStatus = "LONG BREAK (SHOP)";
             }
-        } else if (result.nextShopRefresh) {
-            timeRemaining = Math.max(0, Math.floor((result.nextShopRefresh - now) / (1000 * 60)));
-            endTimestamp = Math.floor(result.nextShopRefresh / 1000);
-            timeStatus = "MINING";
+        } else {
+            timeStatus = "SHORT BREAK";
+        }
+    } else if (result.nextShopRefresh) {
+        timeRemaining = Math.max(0, Math.floor((result.nextShopRefresh - now) / (1000 * 60)));
+        endTimestamp = Math.floor(result.nextShopRefresh / 1000);
+        timeStatus = "MINING";
+    }
+
+    const minecartSummary = getMinecartSummary(result);
+
+    const timestamp = new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    const logEntry = eventText ? `[${timestamp}] ${eventText}` : null;
+
+    try {
+        const messages = await channel.messages.fetch({ limit: 2 });
+        let eventLogMessage = null;
+
+        for (const [, message] of messages) {
+            if (
+                message.embeds.length > 0 &&
+                message.embeds[0].title &&
+                message.embeds[0].title.includes('MINING MAP') &&
+                message.author.bot
+            ) {
+                eventLogMessage = message;
+                break;
+            }
         }
 
-        const minecartSummary = getMinecartSummary(result);
+        let attachment = null;
+        if (shouldGenerateImage) {
+            const mapBuffer = await generateTileMapImage(channel);
+            attachment = new AttachmentBuilder(mapBuffer, { name: 'mine_map.png' });
+        }
 
-        const timestamp = new Date().toLocaleTimeString('en-US', { 
-            hour12: false, 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
-        const logEntry = batchedEvents ? `[${timestamp}] ${batchedEvents}` : null;
+        if (logEntry || shouldGenerateImage) {
+            const titleText = endTimestamp
+                ? `🗺️ MINING MAP | ${timeStatus} ends <t:${endTimestamp}:R>`
+                : `🗺️ MINING MAP | ${timeStatus}`;
 
-        try {
-            const messages = await channel.messages.fetch({ limit: 2 });
-            let eventLogMessage = null;
+            const embed = new EmbedBuilder()
+                .setTitle(titleText)
+                .setColor(0x8B4513)
+                .setFooter({ 
+                    text: `MINECART: ${minecartSummary.summary}`
+                })
+                .setTimestamp();
 
-            for (const [, message] of messages) {
-                if (
-                    message.embeds.length > 0 &&
-                    message.embeds[0].title &&
-                    message.embeds[0].title.includes('MINING MAP') &&
-                    message.author.bot
-                ) {
-                    eventLogMessage = message;
-                    break;
-                }
+            if (logEntry) {
+                embed.setDescription('```\n' + logEntry + '\n```');
             }
 
-            let attachment = null;
-            if (shouldGenerateImage) {
-                const mapBuffer = await generateTileMapImage(channel);
-                attachment = new AttachmentBuilder(mapBuffer, { name: 'mine_map.png' });
-            }
-
-            if (logEntry || shouldGenerateImage) {
-                const titleText = endTimestamp
-                    ? `🗺️ MINING MAP | ${timeStatus} ends <t:${endTimestamp}:R>`
-                    : `🗺️ MINING MAP | ${timeStatus}`;
-
-                const embed = new EmbedBuilder()
-                    .setTitle(titleText)
-                    .setColor(0x8B4513)
-                    .setFooter({ 
-                        text: `MINECART: ${minecartSummary.summary}`
-                    })
-                    .setTimestamp();
-
+            if (eventLogMessage && forceNew === false) {
+                const existingEmbed = eventLogMessage.embeds[0];
+                let currentDescription = existingEmbed.description || '';
+                currentDescription = currentDescription.replace(/^```\n?|```$/g, '');
+                
+                const lines = currentDescription.split('\n').filter(line => line.trim());
                 if (logEntry) {
-                    embed.setDescription('```\n' + logEntry + '\n```');
+                    if (lines.length >= 12) lines.shift();
+                    lines.push(logEntry);
                 }
 
-                if (eventLogMessage && forceNew === false) {
-                    const existingEmbed = eventLogMessage.embeds[0];
-                    let currentDescription = existingEmbed.description || '';
-                    currentDescription = currentDescription.replace(/^```\n?|```$/g, '');
-                    
-                    const lines = currentDescription.split('\n').filter(line => line.trim());
-                    if (logEntry) {
-                        if (lines.length >= 12) lines.shift();
-                        lines.push(logEntry);
-                    }
+                const newDescription = lines.length > 0 ? '```\n' + lines.join('\n') + '\n```' : null;
 
-                    const newDescription = lines.length > 0 ? '```\n' + lines.join('\n') + '\n```' : null;
-
-                    // Check if description would exceed 4000 chars
-                    if (newDescription && newDescription.length > 4000) {
-                        const newEmbed = new EmbedBuilder()
-                            .setTitle(titleText)
-                            .setColor(0x8B4513)
-                            .setFooter({ 
-                                text: `MINECART: ${minecartSummary.summary}`
-                            })
-                            .setTimestamp();
-
-                        if (logEntry) newEmbed.setDescription('```\n' + logEntry + '\n```');
-
-                        const messageOptions = { embeds: [newEmbed] };
-                        if (attachment) messageOptions.files = [attachment];
-
-                        await channel.send(messageOptions);
-                        return;
-                    }
-
-                    const updatedEmbed = new EmbedBuilder()
+                // Check if description would exceed 4000 chars
+                if (newDescription && newDescription.length > 4000) {
+                    const newEmbed = new EmbedBuilder()
                         .setTitle(titleText)
                         .setColor(0x8B4513)
                         .setFooter({ 
@@ -332,23 +305,39 @@ async function logEvent(channel, eventText, forceNew = false) {
                         })
                         .setTimestamp();
 
-                    if (newDescription) updatedEmbed.setDescription(newDescription);
+                    if (logEntry) newEmbed.setDescription('```\n' + logEntry + '\n```');
 
-                    await eventLogMessage.edit({ embeds: [updatedEmbed], files: attachment ? [attachment] : [] });
+                    const messageOptions = { embeds: [newEmbed] };
+                    if (attachment) messageOptions.files = [attachment];
+
+                    await channel.send(messageOptions);
                     return;
                 }
 
-                const messageOptions = { embeds: [embed] };
-                if (attachment) messageOptions.files = [attachment];
+                const updatedEmbed = new EmbedBuilder()
+                    .setTitle(titleText)
+                    .setColor(0x8B4513)
+                    .setFooter({ 
+                        text: `MINECART: ${minecartSummary.summary}`
+                    })
+                    .setTimestamp();
 
-                await channel.send(messageOptions);
+                if (newDescription) updatedEmbed.setDescription(newDescription);
+
+                await eventLogMessage.edit({ embeds: [updatedEmbed], files: attachment ? [attachment] : [] });
+                return;
             }
 
-        } catch (error) {
-            console.error('Error updating mining map:', error);
-            if (batchedEvents) await channel.send(`\`${logEntry}\``);
+            const messageOptions = { embeds: [embed] };
+            if (attachment) messageOptions.files = [attachment];
+
+            await channel.send(messageOptions);
         }
-    });
+
+    } catch (error) {
+        console.error('Error updating mining map:', error);
+        if (eventText) await channel.send(`\`${logEntry}\``);
+    }
 }
 
 // Handle break start with optimized database operations
@@ -640,7 +629,8 @@ module.exports = async (channel, dbEntry, json, client) => {
             teamVisibleTiles, 
             powerLevel,
             transaction,
-            eventLogs
+            eventLogs,
+            dbEntry
         ));
     }
     
@@ -679,7 +669,7 @@ module.exports = async (channel, dbEntry, json, client) => {
 };
 
 // Extracted player action processing for parallel execution
-async function processPlayerActions(member, playerData, mapData, teamVisibleTiles, powerLevel, transaction, eventLogs) {
+async function processPlayerActions(member, playerData, mapData, teamVisibleTiles, powerLevel, transaction, eventLogs, dbEntry) {
     const miningPower = playerData.stats.mining || 0;
     const luckStat = playerData.stats.luck || 0;
     const speedStat = Math.min(playerData.stats.speed || 1, MAX_SPEED_ACTIONS);
@@ -775,8 +765,146 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
             continue;
         }
         
-        // Movement and exploration logic (simplified for space)
-        // ... rest of the movement logic ...
+        // Enhanced pathfinding with target priorities
+        const visibleTargets = [
+            TILE_TYPES.TREASURE_CHEST,
+            TILE_TYPES.RARE_ORE,
+            TILE_TYPES.WALL_WITH_ORE
+        ];
+        
+        const nearestTarget = findNearestTarget(position, teamVisibleTiles, mapData.tiles, visibleTargets);
+        
+        let direction;
+        if (nearestTarget) {
+            direction = getDirectionToTarget(position, nearestTarget);
+        } else {
+            const now = Date.now();
+            const seed = createPlayerSeed(dbEntry.channelId, member.id) + Math.floor(now / 30000) + actionNum;
+            direction = getRandomDirection(seed);
+        }
+        
+        if (direction.dx === 0 && direction.dy === 0) continue;
+        
+        const newX = position.x + direction.dx;
+        const newY = position.y + direction.dy;
+        
+        // Enhanced map expansion with size limits
+        const expandedMap = checkMapExpansion(mapData, newX, newY, dbEntry.channelId);
+        if (expandedMap !== mapData) {
+            mapData = expandedMap;
+            mapChanged = true;
+        }
+        
+        // Ensure we're within bounds after expansion
+        const clampedX = Math.max(0, Math.min(newX, mapData.width - 1));
+        const clampedY = Math.max(0, Math.min(newY, mapData.height - 1));
+        
+        const targetTile = mapData.tiles[clampedY] && mapData.tiles[clampedY][clampedX];
+        if (!targetTile) continue;
+        
+        // Enhanced wall breaking
+        if (targetTile.type === TILE_TYPES.WALL || 
+            targetTile.type === TILE_TYPES.REINFORCED_WALL ||
+            targetTile.type === TILE_TYPES.WALL_WITH_ORE ||
+            targetTile.type === TILE_TYPES.RARE_ORE ||
+            targetTile.type === TILE_TYPES.TREASURE_CHEST) {
+            
+            if (await canBreakTile(member.id, miningPower, targetTile)) {
+                // Special handling for different tile types
+                if (targetTile.type === TILE_TYPES.WALL_WITH_ORE ||
+                    targetTile.type === TILE_TYPES.RARE_ORE ||
+                    targetTile.type === TILE_TYPES.TREASURE_CHEST) {
+                    
+                    const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, targetTile.type);
+                    await addItemToMinecart(dbEntry, member.id, item.itemId, quantity);
+                    
+                    let findMessage;
+                    if (targetTile.type === TILE_TYPES.TREASURE_CHEST) {
+                        findMessage = `🏆 ${member.displayName} opened a treasure chest! Found ${item.name} x${quantity}!`;
+                        treasuresFound++;
+                    } else if (targetTile.type === TILE_TYPES.RARE_ORE) {
+                        findMessage = `✨ ${member.displayName} mined rare ore! Found ${item.name} x${quantity}!`;
+                    } else {
+                        findMessage = `💎 ${member.displayName} found ${item.name} x${quantity}`;
+                    }
+                    
+                    if (bestPickaxe && checkPickaxeBreak(bestPickaxe, targetTile.hardness)) {
+                        transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
+                        eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered!`);
+                        eventLogs.push(findMessage);
+                    } else {
+                        eventLogs.push(findMessage);
+                    }
+                } else {
+                    const tileTypeNames = {
+                        [TILE_TYPES.WALL]: 'wall',
+                        [TILE_TYPES.REINFORCED_WALL]: 'reinforced wall',
+                        [TILE_TYPES.WALL_WITH_ORE]: 'ore wall',
+                        [TILE_TYPES.RARE_ORE]: 'rare ore vein'
+                    };
+                    eventLogs.push(`${member.displayName} broke through ${tileTypeNames[targetTile.type] || 'wall'}!`);
+                }
+                
+                // Convert to floor and move player
+                mapData.tiles[clampedY][clampedX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+                position.x = clampedX;
+                position.y = clampedY;
+                mapChanged = true;
+                wallsBroken++;
+            } else {
+                // Failed to break wall
+                if (miningPower <= 0) {
+                    if (Math.random() < 0.001) {
+                        eventLogs.push(`🔥 ${member.displayName} broke through with sheer willpower!`);
+                        mapData.tiles[clampedY][clampedX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+                        position.x = clampedX;
+                        position.y = clampedY;
+                        mapChanged = true;
+                        wallsBroken++;
+                    } else {
+                        eventLogs.push(`${member.displayName} tried to break a ${targetTile.type.replace('_', ' ')} but has no pickaxe`);
+                    }
+                } else {
+                    const tileTypeNames = {
+                        [TILE_TYPES.WALL]: 'wall',
+                        [TILE_TYPES.REINFORCED_WALL]: 'reinforced wall',
+                        [TILE_TYPES.WALL_WITH_ORE]: 'ore wall',
+                        [TILE_TYPES.RARE_ORE]: 'rare ore vein'
+                    };
+                    eventLogs.push(`${member.displayName} struck the ${tileTypeNames[targetTile.type] || 'wall'} but it held firm`);
+                    
+                    if (bestPickaxe && checkPickaxeBreak(bestPickaxe, targetTile.hardness)) {
+                        transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
+                        eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered from the impact`);
+                    }
+                }
+            }
+        } else if (targetTile.type === TILE_TYPES.HAZARD) {
+            mapData.tiles[clampedY][clampedX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+            
+            // Handle hazard tiles
+            if (Math.random() < 0.7) {
+                eventLogs.push(`⚠️ ${member.displayName} avoided a dangerous hazard`);
+            } else {
+                eventLogs.push(`💥 ${member.displayName} triggered a hazard and was sent back to the entrance!!`);
+                // Send back to entrance
+                position.x = mapData.entranceX;
+                position.y = mapData.entranceY;
+                mapChanged = true;
+            }
+        } else {
+            // Free movement on floor/entrance tiles
+            position.x = clampedX;
+            position.y = clampedY;
+            mapChanged = true;
+            
+            // Enhanced exploration rewards
+            if (Math.random() < EXPLORATION_BONUS_CHANCE) {
+                const bonusItem = pickWeightedItem(1, TILE_TYPES.WALL_WITH_ORE);
+                eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
+                await addItemToMinecart(dbEntry, member.id, bonusItem.itemId, 1);
+            }
+        }
     }
     
     return { mapChanged, wallsBroken, treasuresFound };
