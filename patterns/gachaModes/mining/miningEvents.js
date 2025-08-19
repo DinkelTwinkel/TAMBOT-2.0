@@ -41,7 +41,7 @@ async function startThiefGame(channel, dbEntry) {
         }
 
         if (userMoney.money > 0) {
-            const percentToSteal = Math.floor(Math.random() * 10) + 10; // 10-20%
+            const percentToSteal = Math.floor(Math.random() * 2) + 1 // 10-20%
             const stolen = Math.floor((percentToSteal / 100) * userMoney.money);
 
             userMoney.money -= stolen;
@@ -592,7 +592,7 @@ async function checkAndEndSpecialEvent(channel, dbEntry) {
  * Available long break events with weights
  */
 const longBreakEvents = [
-   // { func: startThiefGame, weight: 30, name: 'Thief Game' },
+    { func: startThiefGame, weight: 30, name: 'Thief Game' },
     { func: startMineCollapseEvent, weight: 25, name: 'Mine Collapse' }
 ];
 
