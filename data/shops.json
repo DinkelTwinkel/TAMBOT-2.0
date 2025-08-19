@@ -59,7 +59,7 @@
     "staticItems": [23],
     "rotationalAmount": 3,
     "itemPool": [23,24,6,2,4,8,17,18,20,14,29,33,34,38,39,43,45,47,48],
-    "image": "emeraldCavernShop",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.4,
     "itemDisplayScale": 1
   },
@@ -75,7 +75,7 @@
     "staticItems": [24],
     "rotationalAmount": 3,
     "itemPool": [24,6,25,23,4,16,12,15,19,9,30,31,35,36,40,41,46,49,50],
-    "image": "rubyDepthsShop",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.3,
     "itemDisplayScale": 1
   },
@@ -91,7 +91,7 @@
     "staticItems": [25],
     "rotationalAmount": 4,
     "itemPool": [25,26,6,24,16,12,15,19,9,30,31,35,36,40,41,46,49,50,51],
-    "image": "obsidianForgeShop",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.25,
     "itemDisplayScale": 1
   },
@@ -107,7 +107,7 @@
     "staticItems": [26],
     "rotationalAmount": 4,
     "itemPool": [26,27,25,6,30,31,35,36,40,41,46,49,50,51,52,53,54],
-    "image": "mythrilSanctumShop",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.2,
     "itemDisplayScale": 1
   },
@@ -123,7 +123,7 @@
     "staticItems": [27],
     "rotationalAmount": 5,
     "itemPool": [27,26,25,35,36,40,41,46,49,50,51,52,53,54,55,56,57,58],
-    "image": "adamantiteAbyssShop",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.15,
     "itemDisplayScale": 1
   },
@@ -139,7 +139,7 @@
     "staticItems": [21],
     "rotationalAmount": 2,
     "itemPool": [21,1,2,5,22,4,3,13,7,28,32,37,42,44],
-    "image": "copperQuarryShop",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.8,
     "itemDisplayScale": 1
   },
@@ -155,7 +155,7 @@
     "staticItems": [22],
     "rotationalAmount": 3,
     "itemPool": [22,21,1,2,4,23,3,8,17,18,20,14,29,33,34,38,39,43],
-    "image": "ironStrongholdShop",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.6,
     "itemDisplayScale": 1
   },
@@ -171,7 +171,7 @@
     "staticItems": [102],
     "rotationalAmount": 3,
     "itemPool": [102,103,101,6,25,23,24,16,12,15,19,30,31,35,36,40,41],
-    "image": "crystalGrottoShop",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.35,
     "itemDisplayScale": 1
   },
@@ -187,7 +187,7 @@
     "staticItems": [103],
     "rotationalAmount": 2,
     "itemPool": [103,101,102,22,21,1,2,4,8,17,18,20,14,29,33,34],
-    "image": "fossilExcavationShop",
+    "image": "coalMineShop",
     "priceChangeFactor": 0.65,
     "itemDisplayScale": 1
   }

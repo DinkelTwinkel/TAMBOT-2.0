@@ -7,7 +7,7 @@
         "spawnWeight": 100,
         "description": "Dark tunnels echo with the sound of pickaxes against coal seams. The air is thick with dust, but honest work awaits those brave enough to venture into these depths.",
         "power": 1,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 1,
         "colour": "2C2C2C",
         "image": "placeHolder"
@@ -20,7 +20,7 @@
         "spawnWeight": 20,
         "description": "Golden veins of topaz gleam in the lamplight. These crystalline chambers offer more precious rewards for miners willing to delve deeper.",
         "power": 2,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 2,
         "colour": "FFB347",
         "image": "placeHolder"
@@ -33,7 +33,7 @@
         "spawnWeight": 15,
         "description": "Brilliant diamonds sparkle in the darkness of these legendary caverns. Only the most skilled miners dare venture into these perilous depths for the ultimate prize.",
         "power": 3,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 3,
         "colour": "B9F2FF",
         "image": "placeHolder"
@@ -46,7 +46,7 @@
         "spawnWeight": 12,
         "description": "Ancient emerald formations line these mystical caverns. The green glow emanating from the walls hints at treasures beyond imagination.",
         "power": 3,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 4,
         "colour": "50C878",
         "image": "placeHolder"
@@ -59,7 +59,7 @@
         "spawnWeight": 8,
         "description": "Crimson ruby veins pulse with an otherworldly energy. These scorching depths test even the most experienced miners with their intense heat and valuable rewards.",
         "power": 4,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 5,
         "colour": "E0115F",
         "image": "placeHolder"
@@ -72,7 +72,7 @@
         "spawnWeight": 5,
         "description": "Volcanic glass formations create treacherous terrain in these ancient forges. The obsidian here is sharper than any blade and more valuable than gold.",
         "power": 5,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 6,
         "colour": "36454F",
         "image": "placeHolder"
@@ -85,7 +85,7 @@
         "spawnWeight": 3,
         "description": "The legendary mythril ore glows with ethereal blue light in these sacred chambers. Only the chosen few have ever laid eyes upon these otherworldly deposits.",
         "power": 6,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 7,
         "colour": "4169E1",
         "image": "placeHolder"
@@ -98,7 +98,7 @@
         "spawnWeight": 1,
         "description": "The deepest and most dangerous mining location known to mortalkind. Adamantite ore, harder than diamond and rarer than dreams, awaits in this abyssal realm.",
         "power": 7,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 8,
         "colour": "800080",
         "image": "placeHolder"
@@ -111,7 +111,7 @@
         "spawnWeight": 80,
         "description": "Weathered copper veins run through these open-air quarries. A perfect starting point for apprentice miners to hone their skills on reliable ore deposits.",
         "power": 1,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 9,
         "colour": "B87333",
         "image": "placeHolder"
@@ -124,7 +124,7 @@
         "spawnWeight": 25,
         "description": "Massive iron ore deposits fortify these underground strongholds. The metallic ring of hammers on iron echoes through these industrial mining halls.",
         "power": 2,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 10,
         "colour": "708090",
         "image": "placeHolder"
@@ -137,7 +137,7 @@
         "spawnWeight": 10,
         "description": "Iridescent crystal formations create a maze of glittering passages. Each crystal shard harvested here pulses with raw magical energy.",
         "power": 4,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 11,
         "colour": "FF69B4",
         "image": "placeHolder"
@@ -150,7 +150,7 @@
         "spawnWeight": 18,
         "description": "Ancient fossils and prehistoric treasures lie buried in these archaeological dig sites. History and wealth await those patient enough to uncover the past.",
         "power": 2,
-        "script": "mining_optimized_v4_performance.js",
+        "script": "mining_optimized_v5_performance.js",
         "shop": 12,
         "colour": "DEB887",
         "image": "placeHolder"
