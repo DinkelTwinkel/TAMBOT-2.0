@@ -460,49 +460,91 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
         ctx.lineWidth = Math.max(1, Math.floor(imageSettings.scaleFactor * 2));
         ctx.stroke();
 
-        // Draw headlamp indicator if equipped
+        // Draw sight tool indicator (headlamp, goggles, etc.) if equipped
         try {
             const playerData = await getPlayerStats(member.user.id);
-            const hasHeadlamp = playerData.equippedItems && playerData.equippedItems['28']; // Check for Miner's Headlamp (id: 28)
             
-            if (hasHeadlamp && size > 20) {
-                // Position headlamp indicator above the avatar
-                const headlampSize = Math.max(8, size * 0.25);
-                const headlampX = centerX - headlampSize/2;
-                const headlampY = centerY - radius - headlampSize; // Position above avatar
+            // Check if player has any sight tool equipped
+            let sightTool = null;
+            if (playerData.equippedItems) {
+                for (const equipped of Object.values(playerData.equippedItems)) {
+                    if (equipped.type === 'tool' && equipped.slot === 'sight') {
+                        sightTool = equipped;
+                        break;
+                    }
+                }
+            }
+            
+            if (sightTool && size > 20) {
+                // Position sight tool indicator above the avatar
+                const sightToolSize = Math.max(8, size * 0.25);
+                const sightToolX = centerX - sightToolSize/2;
+                const sightToolY = centerY - radius - sightToolSize - 2; // Position above avatar
                 
-                // TODO: Replace this square with actual headlamp image
-                // const headlampImagePath = './assets/items/miners_headlamp.png';
-                // const headlampImage = await loadImage(headlampImagePath);
-                // ctx.drawImage(headlampImage, headlampX, headlampY, headlampSize, headlampSize);
+                // TODO: Replace this square with actual sight tool image based on item
+                // const sightToolItem = itemSheet.find(i => i.id === sightTool.itemId);
+                // if (sightToolItem && sightToolItem.image) {
+                //     const sightToolImagePath = `./assets/items/${sightToolItem.image}.png`;
+                //     const sightToolImage = await loadImage(sightToolImagePath);
+                //     ctx.drawImage(sightToolImage, sightToolX, sightToolY, sightToolSize, sightToolSize);
+                // }
                 
-                // For now, draw a yellow square to represent the headlamp
+                // For now, draw a colored square to represent the sight tool
                 ctx.save();
                 
                 // Draw background/outline
                 ctx.fillStyle = '#2C2C2C';
-                ctx.fillRect(headlampX - 1, headlampY - 1, headlampSize + 2, headlampSize + 2);
+                ctx.fillRect(sightToolX - 1, sightToolY - 1, sightToolSize + 2, sightToolSize + 2);
                 
-                // Draw headlamp square (yellow to represent light)
-                ctx.fillStyle = '#FFD700';
-                ctx.fillRect(headlampX, headlampY, headlampSize, headlampSize);
+                // Draw sight tool square (color based on sight power level)
+                const sightPower = sightTool.abilities?.find(a => a.name === 'sight')?.power || 0;
+                let toolColor = '#FFD700'; // Default gold
                 
-                // Add a small "light beam" effect
+                // Color gradient based on sight power
+                if (sightPower <= 2) {
+                    toolColor = '#FFD700'; // Gold for basic headlamp
+                } else if (sightPower <= 4) {
+                    toolColor = '#00CED1'; // Dark turquoise for crystal goggles
+                } else if (sightPower <= 6) {
+                    toolColor = '#FF6347'; // Tomato red for eagle eye
+                } else {
+                    toolColor = '#9932CC'; // Purple for oracle's third eye
+                }
+                
+                ctx.fillStyle = toolColor;
+                ctx.fillRect(sightToolX, sightToolY, sightToolSize, sightToolSize);
+                
+                // Add a small "light beam" or "vision" effect
                 if (size > 30) {
                     ctx.globalAlpha = 0.3;
-                    ctx.fillStyle = '#FFFF00';
+                    ctx.fillStyle = toolColor;
                     ctx.beginPath();
-                    ctx.moveTo(centerX, headlampY + headlampSize);
-                    ctx.lineTo(centerX - headlampSize * 0.8, headlampY + headlampSize * 2);
-                    ctx.lineTo(centerX + headlampSize * 0.8, headlampY + headlampSize * 2);
+                    ctx.moveTo(centerX, sightToolY + sightToolSize);
+                    ctx.lineTo(centerX - sightToolSize * 0.8, sightToolY + sightToolSize * 2);
+                    ctx.lineTo(centerX + sightToolSize * 0.8, sightToolY + sightToolSize * 2);
                     ctx.closePath();
                     ctx.fill();
+                }
+                
+                // Show sight power level if large enough
+                if (size > 40 && sightPower > 0) {
+                    ctx.globalAlpha = 1.0;
+                    ctx.font = `bold ${Math.floor(sightToolSize * 0.4)}px Arial`;
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineWidth = 1;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    const powerText = `${sightPower}`;
+                    ctx.strokeText(powerText, centerX, sightToolY + sightToolSize/2);
+                    ctx.fillText(powerText, centerX, sightToolY + sightToolSize/2);
                 }
                 
                 ctx.restore();
             }
         } catch (error) {
-            console.error(`Error checking headlamp for user ${member.user.username}:`, error);
+            console.error(`Error checking sight tool for user ${member.user.username}:`, error);
         }
 
         // Draw pickaxe if available
@@ -513,7 +555,7 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
                 const pickaxeImage = await loadImage(pickaxeImagePath);
                 
                 const pickaxeSize = size * 0.8;
-                const pickaxeX = centerX - radius;
+                const pickaxeX = centerX - radius - 35;
                 const pickaxeY = centerY - pickaxeSize/2;
                 
                 ctx.save();
