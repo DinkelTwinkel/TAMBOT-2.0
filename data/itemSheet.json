@@ -94,7 +94,7 @@
     "name": "Rusty Pick Axe",
     "type": "pickAxe",
     "description": "Barely holds together. Better than nothing.",
-    "value": 10,
+    "value": 5,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 1 }
@@ -544,7 +544,7 @@
   {
     "id": "45",
     "name": "Miner's Multi-Tool",
-    "type": "pickAxe",
+    "type": "equipment",
     "description": "A versatile tool that provides balanced mining capabilities with enhanced efficiency.",
     "value": 400,
     "vendable": true,
@@ -557,9 +557,9 @@
   },
   {
     "id": "46",
-    "name": "Prospector's Dream Pickaxe",
-    "type": "pickAxe",
-    "description": "A legendary pickaxe that seems to know where the best ore is hidden.",
+    "name": "Prospector's Dream Scanner",
+    "type": "equipment",
+    "description": "A legendary scanner that seems to know where the best ore is hidden.",
     "value": 900,
     "vendable": true,
     "abilities": [
