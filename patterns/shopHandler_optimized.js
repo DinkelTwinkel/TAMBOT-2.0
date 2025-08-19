@@ -1,7 +1,4 @@
-// shopHandler.js - Centralized shop interaction handler with guild config price fluctuation
-// BACKUP YOUR ORIGINAL FILE BEFORE REPLACING
-// This version includes all performance optimizations
-
+// shopHandler_optimized.js - Performance-optimized shop handler with all fixes applied
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const Currency = require('../models/currency');
 const PlayerInventory = require('../models/inventory');

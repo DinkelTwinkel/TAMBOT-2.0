@@ -20,8 +20,16 @@ const registerCommands = require ('./registerCommands');
 
 const mongoose = require('mongoose');
 
-  mongoose.connect(mongourl, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('connected to mayoDB'))
+  mongoose.connect(mongourl, { 
+    useNewUrlParser: true, 
+    useUnifiedTopology: true,
+    // Performance optimizations
+    maxPoolSize: 10,        // Maximum connections in pool
+    minPoolSize: 2,         // Minimum connections to maintain
+    socketTimeoutMS: 45000, // Socket timeout
+    serverSelectionTimeoutMS: 5000, // Server selection timeout
+  })
+    .then(() => console.log('connected to mayoDB with optimized settings'))
     .then (registerCommands)
     .catch((err) => console.log(err));
 
