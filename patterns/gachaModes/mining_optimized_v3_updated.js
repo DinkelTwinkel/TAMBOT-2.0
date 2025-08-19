@@ -732,12 +732,19 @@ module.exports = async (channel, dbEntry, json, client) => {
                     }
                 }
             } else if (targetTile.type === TILE_TYPES.HAZARD) {
+
+
+                
                 // Handle hazard tiles
-                // if (Math.random() < 0.7) {
-                //     eventLogs.push(`⚠️ ${member.displayName} avoided a dangerous hazard`);
-                // } else {
-                //     eventLogs.push(`💥 ${member.displayName} triggered a hazard and was knocked back!`);
-                // }
+                if (Math.random() < 0.7) {
+                    eventLogs.push(`⚠️ ${member.displayName} avoided a dangerous hazard`);
+                } else {
+                    eventLogs.push(`💥 ${member.displayName} triggered a hazard and was sent back to the entrance!!`);
+                    // Free movement on floor/entrance tiles
+                    position.x = mapData.entranceX;
+                    position.y = mapData.entranceX;
+                    mapChanged = true;
+                }
             } else {
                 // Free movement on floor/entrance tiles
                 position.x = clampedX;
