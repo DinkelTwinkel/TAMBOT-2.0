@@ -217,7 +217,8 @@ async function canBreakTile(playerId, miningPower, tile) {
         return Math.random() < 0.05;
     }
     
-    const breakChance = Math.min(0.95, (miningPower / hardness) * 0.25);
+    //const breakChance = Math.min(0.95, (miningPower / hardness) * 0.25);
+    const breakChance = (Math.random() *seededRandom(seed)) + miningPower;
     const seed = parseInt(playerId) + Date.now();
     return seededRandom(seed) < breakChance;
 }
