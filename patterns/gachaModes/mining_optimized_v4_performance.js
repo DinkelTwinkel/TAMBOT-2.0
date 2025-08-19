@@ -600,7 +600,7 @@ module.exports = async (channel, dbEntry, json, client) => {
     }
 
     // Use optimized visibility calculation
-    const teamVisibleTiles = visibilityCalculator.calculateTeamVisibility(
+    let teamVisibleTiles = visibilityCalculator.calculateTeamVisibility(
         mapData.playerPositions, 
         teamSightRadius, 
         mapData.tiles
@@ -617,12 +617,10 @@ module.exports = async (channel, dbEntry, json, client) => {
         }
     }
 
-    // Process actions for each player (optimized with parallel processing where possible)
-    const playerActions = [];
-    
+    // Process actions for each player sequentially to avoid map expansion conflicts
     for (const member of members.values()) {
         const playerData = playerStatsMap.get(member.id);
-        playerActions.push(processPlayerActions(
+        const result = await processPlayerActions(
             member, 
             playerData, 
             mapData, 
@@ -631,15 +629,21 @@ module.exports = async (channel, dbEntry, json, client) => {
             transaction,
             eventLogs,
             dbEntry
-        ));
-    }
-    
-    // Wait for all player actions to complete
-    const actionResults = await Promise.all(playerActions);
-    
-    // Aggregate results
-    for (const result of actionResults) {
-        if (result.mapChanged) mapChanged = true;
+        );
+        
+        // Update map data if it changed (including expansions)
+        if (result.mapChanged) {
+            mapChanged = true;
+            if (result.mapData) {
+                mapData = result.mapData;
+                // Recalculate visibility after map changes
+                teamVisibleTiles = visibilityCalculator.calculateTeamVisibility(
+                    mapData.playerPositions, 
+                    teamSightRadius, 
+                    mapData.tiles
+                );
+            }
+        }
         wallsBroken += result.wallsBroken;
         treasuresFound += result.treasuresFound;
     }
@@ -652,12 +656,39 @@ module.exports = async (channel, dbEntry, json, client) => {
         });
     }
 
-    // Commit all database changes
+    // Commit all database changes with the final map state
     if (mapChanged) {
+        console.log(`[MINING] Map changed for channel ${channel.id}`);
+        console.log(`[MINING] Final map size: ${mapData.width}x${mapData.height}`);
+        console.log(`[MINING] Player positions:`, Object.keys(mapData.playerPositions || {}));
+        
+        // Clear the visibility cache since map has changed
+        visibilityCalculator.invalidate();
+        
+        // Save the final map state
         transaction.setMapUpdate(channel.id, mapData);
+        
+        // Also clear the ore cache since map changed
+        const { clearOreCache } = require('./mining/miningUtils');
+        clearOreCache();
     }
-    await transaction.commit();
+    
+    // Commit the transaction
+    try {
+        await transaction.commit();
+        if (mapChanged) {
+            console.log(`[MINING] Map update committed successfully for channel ${channel.id}`);
+        }
+    } catch (error) {
+        console.error(`[MINING] Error committing transaction for channel ${channel.id}:`, error);
+    }
+    
     await batchDB.flush();
+    
+    // Clear the DB cache to ensure fresh data next time
+    if (mapChanged) {
+        dbCache.delete(channel.id);
+    }
 
     // Enhanced event logging with batching
     if (eventLogs.length > 0) {
@@ -713,15 +744,42 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
         
         let adjacentTarget = null;
         for (const adj of adjacentPositions) {
-            // Only check tiles that are within bounds
-            if (adj.y >= 0 && adj.y < mapData.height && 
-                adj.x >= 0 && adj.x < mapData.width) {
+            // Check if we need to expand the map for this adjacent position
+            let checkX = adj.x;
+            let checkY = adj.y;
+            
+            // Try to expand map if adjacent tile is out of bounds
+            if (checkX < 0 || checkX >= mapData.width || checkY < 0 || checkY >= mapData.height) {
+                const originalHeight = mapData.height;
+                const originalWidth = mapData.width;
+                const expandedMap = checkMapExpansion(mapData, checkX, checkY, dbEntry.channelId);
                 
-                const tile = mapData.tiles[adj.y][adj.x];
+                if (expandedMap !== mapData) {
+                    // Map was expanded, adjust coordinates
+                    if (checkY < 0 && expandedMap.height > originalHeight) {
+                        checkY = 0;
+                    }
+                    if (checkX < 0 && expandedMap.width > originalWidth) {
+                        checkX = 0;
+                    }
+                    mapData = expandedMap;
+                    mapChanged = true;
+                    
+                    // Log map expansion for adjacent check
+                    const expansionDir = checkY < 0 ? 'NORTH' : checkX < 0 ? 'WEST' : checkX >= originalWidth ? 'EAST' : 'SOUTH';
+                    eventLogs.push(`🗺️ MAP EXPANDED ${expansionDir} (adjacent check)! New size: ${expandedMap.width}x${expandedMap.height}`);
+                }
+            }
+            
+            // Now check if the tile is within bounds and mineable
+            if (checkY >= 0 && checkY < mapData.height && 
+                checkX >= 0 && checkX < mapData.width) {
+                
+                const tile = mapData.tiles[checkY][checkX];
                 if (tile && (tile.type === TILE_TYPES.WALL_WITH_ORE || 
                            tile.type === TILE_TYPES.RARE_ORE ||
                            tile.type === TILE_TYPES.TREASURE_CHEST)) {
-                    adjacentTarget = { ...adj, tile };
+                    adjacentTarget = { x: checkX, y: checkY, tile };
                     break;
                 }
             }
@@ -735,14 +793,8 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
                 
                 await addItemToMinecart(dbEntry, member.id, item.itemId, quantity);
                 
-                // Make sure the adjacent tile is within bounds before mining
-                if (adjacentTarget.y >= 0 && adjacentTarget.y < mapData.height && 
-                    adjacentTarget.x >= 0 && adjacentTarget.x < mapData.width) {
-                    mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
-                } else {
-                    // Adjacent tile is out of bounds, skip mining
-                    continue;
-                }
+                // Update the mined tile to floor (coordinates already validated)
+                mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                 mapChanged = true;
                 wallsBroken++;
                 
@@ -807,21 +859,52 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
         
         if (direction.dx === 0 && direction.dy === 0) continue;
         
-        const newX = position.x + direction.dx;
-        const newY = position.y + direction.dy;
+        let newX = position.x + direction.dx;
+        let newY = position.y + direction.dy;
+        
+        // Store the original position for comparison
+        let adjustedX = newX;
+        let adjustedY = newY;
         
         // First, try to expand the map if needed
+        const originalHeight = mapData.height;
+        const originalWidth = mapData.width;
         const expandedMap = checkMapExpansion(mapData, newX, newY, dbEntry.channelId);
         if (expandedMap !== mapData) {
+            // Map was expanded, need to adjust coordinates
+            if (newY < 0 && expandedMap.height > originalHeight) {
+                // Expanded north - all Y coordinates increased by 1
+                adjustedY = 0; // The new position is now at Y=0
+            }
+            if (newX < 0 && expandedMap.width > originalWidth) {
+                // Expanded west - all X coordinates increased by 1
+                adjustedX = 0; // The new position is now at X=0
+            }
+            // For south/east expansions, coordinates don't need adjustment
+            if (newY >= originalHeight) {
+                adjustedY = newY; // Keep the same since map expanded south
+            }
+            if (newX >= originalWidth) {
+                adjustedX = newX; // Keep the same since map expanded east
+            }
+            
             mapData = expandedMap;
             mapChanged = true;
+            
+            // Log map expansion
+            const expansionDir = newY < 0 ? 'NORTH' : newX < 0 ? 'WEST' : newX >= originalWidth ? 'EAST' : 'SOUTH';
+            eventLogs.push(`🗺️ MAP EXPANDED ${expansionDir}! New size: ${expandedMap.width}x${expandedMap.height}`);
         }
         
         // After expansion (or if expansion failed), check if position is valid
-        // If the new position is out of bounds, don't move
-        if (newX < 0 || newX >= mapData.width || newY < 0 || newY >= mapData.height) {
+        // If the adjusted position is out of bounds, don't move
+        if (adjustedX < 0 || adjustedX >= mapData.width || adjustedY < 0 || adjustedY >= mapData.height) {
             continue; // Skip this movement - can't go out of bounds
         }
+        
+        // Update newX and newY to use the adjusted values
+        newX = adjustedX;
+        newY = adjustedY;
         
         const targetTile = mapData.tiles[newY] && mapData.tiles[newY][newX];
         if (!targetTile) continue;
@@ -982,7 +1065,7 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
         }
     }
     
-    return { mapChanged, wallsBroken, treasuresFound };
+    return { mapChanged, wallsBroken, treasuresFound, mapData };
 }
 
 // Export utility functions for testing

@@ -78,8 +78,11 @@ function initializeMap(channelId) {
 function expandMap(mapData, direction, channelId) {
     const { tiles, width, height } = mapData;
     
+    console.log(`[MAP] Attempting to expand map ${direction} from ${width}x${height}`);
+    
     // Prevent infinite expansion
     if (width >= MAX_MAP_SIZE || height >= MAX_MAP_SIZE) {
+        console.log(`[MAP] Cannot expand - reached MAX_MAP_SIZE (${MAX_MAP_SIZE})`);
         return mapData;
     }
     
@@ -157,6 +160,8 @@ function expandMap(mapData, direction, channelId) {
     // Clear ore cache since map changed
     const { clearOreCache } = require('./miningUtils');
     clearOreCache();
+    
+    console.log(`[MAP] Map expanded ${direction}: ${width}x${height} -> ${newWidth}x${newHeight}`);
     
     return {
         ...mapData,
@@ -256,6 +261,7 @@ function checkMapExpansion(mapData, newX, newY, channelId) {
     }
     
     if (needsExpansion && expansionDirection) {
+        console.log(`[MAP] Expansion needed at (${newX}, ${newY}) - direction: ${expansionDirection}`);
         return expandMap(mapData, expansionDirection, channelId);
     }
     

@@ -10,6 +10,8 @@ module.exports = {
 
   async execute(interaction) {
 
+    await interaction.deferReply();
+
      const embed = new EmbedBuilder()
             .setTitle(`🛒 MINE CART}`)
             .setColor('Gold')
@@ -18,7 +20,7 @@ module.exports = {
     const buffer = await generateMinecartImage(interaction.channel);
     const attachment = new AttachmentBuilder(buffer, { name: 'cart.png' });
     // Send shop message first to get the message ID
-    return interaction.reply({ embeds: [embed], files: [attachment] });
+    return interaction.editReply({ embeds: [embed], files: [attachment] });
 
   }
 };

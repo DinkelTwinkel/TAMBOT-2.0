@@ -253,7 +253,42 @@ async function resetMinecart(channelId) {
 // Update item durability in inventory
 async function updateItemDurability(playerId, itemId, newDurability) {
     try {
-        // First check if item exists and update durability
+        console.log(`[DURABILITY UPDATE] Updating item ${itemId} to durability ${newDurability}`);
+        
+        // If durability is 0 or less, handle as a break
+        if (newDurability <= 0) {
+            console.log(`[DURABILITY UPDATE] Durability hit 0, breaking item`);
+            
+            // Get the inventory to check quantity
+            const inventory = await PlayerInventory.findOne({ playerId });
+            if (!inventory) return;
+            
+            const item = inventory.items.find(item => 
+                (item.itemId?.toString() === itemId.toString()) || 
+                (item.id?.toString() === itemId.toString())
+            );
+            
+            if (!item) {
+                console.log(`[DURABILITY UPDATE] Item not found in inventory`);
+                return;
+            }
+            
+            // Get max durability from itemSheet
+            const itemSheet = require('../../../data/itemSheet.json');
+            const itemData = itemSheet.find(it => String(it.id) === String(itemId));
+            const maxDurability = itemData?.durability || 100;
+            
+            // Handle the break
+            await breakPickaxe(playerId, '', { 
+                id: itemId, 
+                itemId: itemId, 
+                name: itemData?.name || 'Unknown'
+            });
+            
+            return;
+        }
+        
+        // Normal durability update
         const result = await PlayerInventory.findOneAndUpdate(
             { 
                 playerId,
@@ -266,7 +301,7 @@ async function updateItemDurability(playerId, itemId, newDurability) {
         );
         
         if (result) {
-            console.log(`Updated durability for item ${itemId} to ${newDurability}`);
+            console.log(`[DURABILITY UPDATE] Updated durability for item ${itemId} to ${newDurability}`);
         } else {
             // Try with 'id' field if 'itemId' didn't work
             const resultAlt = await PlayerInventory.findOneAndUpdate(
@@ -281,122 +316,74 @@ async function updateItemDurability(playerId, itemId, newDurability) {
             );
             
             if (resultAlt) {
-                console.log(`Updated durability for item ${itemId} to ${newDurability} (using 'id' field)`);
+                console.log(`[DURABILITY UPDATE] Updated durability for item ${itemId} to ${newDurability} (using 'id' field)`);
             } else {
-                console.log(`Could not find item ${itemId} to update durability`);
+                console.log(`[DURABILITY UPDATE] Could not find item ${itemId} to update durability`);
             }
         }
     } catch (error) {
-        console.error(`Error updating durability for item ${itemId}:`, error);
+        console.error(`[DURABILITY UPDATE] Error updating durability for item ${itemId}:`, error);
     }
 }
 
 async function breakPickaxe(playerId, playerTag, pickaxe) {
-    console.log('Attempting to break pickaxe:', pickaxe.name, 'for player:', playerId);
-    console.log('Pickaxe object:', pickaxe);
+    console.log('[PICKAXE BREAK] Processing broken pickaxe:', pickaxe.name, 'for player:', playerId);
     
-    // Handle different possible field names for the ID
     const pickaxeId = pickaxe.id || pickaxe.itemId || pickaxe._id;
     
-    console.log('Pickaxe ID to search for:', pickaxeId);
-    
     if (!pickaxeId) {
-        console.error('No pickaxe ID found in:', pickaxe);
+        console.error('[PICKAXE BREAK] No pickaxe ID found in:', pickaxe);
         return;
     }
     
     try {
-        // First, let's check what the actual structure is
+        // Get the inventory
         const inventory = await PlayerInventory.findOne({ playerId });
-        console.log('Current inventory items:', JSON.stringify(inventory?.items, null, 2));
-        
-        // Find the actual item to see its structure
-        const actualItem = inventory?.items?.find(item => 
-            (item.itemId?.toString() === pickaxeId.toString()) || 
-            (item.id?.toString() === pickaxeId.toString()) ||
-            (item._id?.toString() === pickaxeId.toString())
-        );
-        console.log('Found item in inventory:', actualItem);
-        
-        if (!actualItem) {
-            console.log(`Pickaxe ${pickaxe.name} not found in inventory`);
+        if (!inventory) {
+            console.error('[PICKAXE BREAK] No inventory found for player');
             return;
         }
         
-        // Determine the correct field name based on what we found
-        let idFieldName = 'itemId';
-        if (actualItem.id && !actualItem.itemId) {
-            idFieldName = 'id';
-        } else if (actualItem._id && !actualItem.itemId && !actualItem.id) {
-            idFieldName = '_id';
+        // Find the item in inventory
+        const itemIndex = inventory.items.findIndex(item => 
+            (item.itemId?.toString() === pickaxeId.toString()) || 
+            (item.id?.toString() === pickaxeId.toString())
+        );
+        
+        if (itemIndex === -1) {
+            console.log(`[PICKAXE BREAK] Pickaxe ${pickaxe.name} not found in inventory`);
+            return;
         }
         
-        console.log(`Using field name: items.${idFieldName}`);
-        console.log('Current quantity:', actualItem.quantity);
+        const currentItem = inventory.items[itemIndex];
+        const currentQuantity = currentItem.quantity || 1;
         
-        // Now perform the update with the correct field name
-        if (actualItem.quantity > 1) {
-            // Decrement quantity
-            const updateQuery = { 
-                playerId,
-                [`items.${idFieldName}`]: pickaxeId
-            };
+        // Get max durability from itemSheet for resetting
+        const itemSheet = require('../../../data/itemSheet.json');
+        const itemData = itemSheet.find(it => String(it.id) === String(pickaxeId));
+        const maxDurability = itemData?.durability || 100;
+        
+        console.log(`[PICKAXE BREAK] Current quantity: ${currentQuantity}`);
+        
+        if (currentQuantity > 1) {
+            // Reduce quantity by 1 and RESET durability to max
+            inventory.items[itemIndex].quantity = currentQuantity - 1;
+            inventory.items[itemIndex].currentDurability = maxDurability;
             
-            const updateOperation = {
-                $inc: { 'items.$.quantity': -1 }
-            };
-            
-            console.log('Update query:', updateQuery);
-            console.log('Update operation:', updateOperation);
-            
-            const result = await PlayerInventory.findOneAndUpdate(
-                updateQuery,
-                updateOperation,
-                { new: true }
-            );
-            
-            if (result) {
-                // Verify the update actually happened
-                const updatedItem = result.items.find(item => 
-                    (item[idFieldName]?.toString() === pickaxeId.toString())
-                );
-                console.log(`Successfully decremented ${pickaxe.name} quantity from ${actualItem.quantity} to ${updatedItem?.quantity}`);
-            } else {
-                console.log('Update failed - no document matched');
-            }
+            console.log(`[PICKAXE BREAK] Reduced quantity to ${currentQuantity - 1}, reset durability to ${maxDurability}`);
         } else {
-            // Remove the item entirely if quantity is 1 or less
-            const pullQuery = {};
-            pullQuery[idFieldName] = pickaxeId;
-            
-            console.log('Removing item with pull query:', pullQuery);
-            
-            const result = await PlayerInventory.findOneAndUpdate(
-                { playerId },
-                { 
-                    $pull: { items: pullQuery }
-                },
-                { new: true }
-            );
-            
-            if (result) {
-                // Verify the item was removed
-                const stillExists = result.items.find(item => 
-                    (item[idFieldName]?.toString() === pickaxeId.toString())
-                );
-                
-                if (!stillExists) {
-                    console.log(`Successfully removed ${pickaxe.name} from ${playerTag}'s inventory`);
-                } else {
-                    console.log(`Failed to remove ${pickaxe.name} - item still exists`);
-                }
-            } else {
-                console.log('Remove failed - no document found');
-            }
+            // Remove the item entirely
+            inventory.items.splice(itemIndex, 1);
+            console.log(`[PICKAXE BREAK] Removed ${pickaxe.name} from inventory (quantity was 1)`);
         }
+        
+        // Mark as modified and save
+        inventory.markModified('items');
+        await inventory.save();
+        
+        console.log(`[PICKAXE BREAK] Successfully processed broken pickaxe`);
     } catch (error) {
-        console.error(`Error breaking pickaxe for player ${playerId}:`, error);
-        // Don't throw - just log the error to prevent mining from stopping
+        console.error(`[PICKAXE BREAK] Error breaking pickaxe for player ${playerId}:`, error);
     }
 }
 

@@ -45,8 +45,19 @@ async function initializeDurabilityForAllPlayers() {
             
             // Save the inventory if we made any updates
             if (needsUpdate) {
+                // Mark the items array as modified so Mongoose knows to save it
+                inventory.markModified('items');
                 await inventory.save();
                 playersUpdated++;
+                
+                // Verify the save worked
+                const verification = await PlayerInventory.findOne({ playerId: inventory.playerId });
+                const verifyCount = verification.items.filter(item => {
+                    const itemData = itemSheet.find(it => String(it.id) === String(item.itemId || item.id));
+                    return itemData && (itemData.type === 'tool' || itemData.type === 'equipment' || itemData.type === 'charm') && 
+                           item.currentDurability !== undefined;
+                }).length;
+                console.log(`  Saved changes for player ${inventory.playerId} - Verified ${verifyCount} items have durability`);
             }
         }
         
@@ -100,8 +111,19 @@ async function initializeDurabilityForPlayer(playerId) {
         }
         
         if (needsUpdate) {
+            // Mark the items array as modified so Mongoose knows to save it
+            inventory.markModified('items');
             await inventory.save();
             console.log(`Updated ${itemsUpdated} items for player ${playerId}`);
+            
+            // Verify the save worked
+            const verification = await PlayerInventory.findOne({ playerId });
+            const verifyCount = verification.items.filter(item => {
+                const itemData = itemSheet.find(it => String(it.id) === String(item.itemId || item.id));
+                return itemData && (itemData.type === 'tool' || itemData.type === 'equipment' || itemData.type === 'charm') && 
+                       item.currentDurability !== undefined;
+            }).length;
+            console.log(`  Verification: ${verifyCount} items now have durability in database`);
         }
         
         return { itemsUpdated };
@@ -179,9 +201,53 @@ async function repairItem(playerId, itemId) {
     }
 }
 
+/**
+ * Debug function to check durability status for a player
+ * @param {string} playerId - The player's Discord ID
+ */
+async function checkDurabilityStatus(playerId) {
+    try {
+        const inventory = await PlayerInventory.findOne({ playerId });
+        
+        if (!inventory) {
+            console.log(`No inventory found for player ${playerId}`);
+            return;
+        }
+        
+        console.log(`\nDurability Status for Player ${playerId}:`);
+        console.log(`Total items: ${inventory.items.length}`);
+        
+        let toolsWithDurability = 0;
+        let toolsWithoutDurability = 0;
+        
+        for (const invItem of inventory.items) {
+            const itemId = invItem.itemId || invItem.id;
+            const itemData = itemSheet.find(it => String(it.id) === String(itemId));
+            
+            if (itemData && (itemData.type === 'tool' || itemData.type === 'equipment' || itemData.type === 'charm')) {
+                if (invItem.currentDurability !== undefined && invItem.currentDurability !== null) {
+                    toolsWithDurability++;
+                    console.log(`  ✓ ${itemData.name}: ${invItem.currentDurability}/${itemData.durability || 100}`);
+                } else {
+                    toolsWithoutDurability++;
+                    console.log(`  ✗ ${itemData.name}: NO DURABILITY SET`);
+                }
+            }
+        }
+        
+        console.log(`\nSummary:`);
+        console.log(`  Tools/Equipment with durability: ${toolsWithDurability}`);
+        console.log(`  Tools/Equipment WITHOUT durability: ${toolsWithoutDurability}`);
+        
+    } catch (error) {
+        console.error(`Error checking durability status for player ${playerId}:`, error);
+    }
+}
+
 module.exports = {
     initializeDurabilityForAllPlayers,
     initializeDurabilityForPlayer,
     needsRepair,
-    repairItem
+    repairItem,
+    checkDurabilityStatus
 };
