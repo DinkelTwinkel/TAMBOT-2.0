@@ -469,7 +469,7 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
                 // Position headlamp indicator above the avatar
                 const headlampSize = Math.max(8, size * 0.25);
                 const headlampX = centerX - headlampSize/2;
-                const headlampY = centerY - radius - headlampSize - 2; // Position above avatar
+                const headlampY = centerY - radius - headlampSize; // Position above avatar
                 
                 // TODO: Replace this square with actual headlamp image
                 // const headlampImagePath = './assets/items/miners_headlamp.png';
