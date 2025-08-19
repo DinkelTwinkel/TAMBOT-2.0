@@ -706,6 +706,9 @@ module.exports = async (channel, dbEntry, json, client) => {
                             eventLogs.push(findMessage);
                         }
                     }
+                    else {
+                        eventLogs.push(`${member.displayName} broke through ${tileTypeNames[targetTile.type] || 'wall'}!`);
+                    }
                     
                     // Convert to floor and move player
                     mapData.tiles[clampedY][clampedX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
