@@ -234,7 +234,7 @@ function checkPickaxeBreak(pickaxe, tileHardness = 1) {
     // Handle both durability formats
     const durability = pickaxe.durability || pickaxe.stats?.durability || 100;
     
-    const hardnessPenalty = tileHardness * 1;
+    const hardnessPenalty = tileHardness * 5;
     const adjustedDurability = Math.max(10, durability - hardnessPenalty);
     
     const roll = Math.floor(Math.random() * 100) + 1;
