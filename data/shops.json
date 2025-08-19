@@ -155,7 +155,7 @@
     "staticItems": [22],
     "rotationalAmount": 3,
     "itemPool": [22,21,1,2,4,23,3,8,17,18,20,14,29,33,34,38,39,43],
-    "image": "coalMineShop",
+    "image": "ironStrongholdShop",
     "priceChangeFactor": 0.6,
     "itemDisplayScale": 1
   },
