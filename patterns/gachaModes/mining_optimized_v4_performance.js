@@ -713,11 +713,11 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
         
         let adjacentTarget = null;
         for (const adj of adjacentPositions) {
-            const tileY = Math.max(0, Math.min(adj.y, mapData.height - 1));
-            const tileX = Math.max(0, Math.min(adj.x, mapData.width - 1));
-            
-            if (mapData.tiles[tileY] && mapData.tiles[tileY][tileX]) {
-                const tile = mapData.tiles[tileY][tileX];
+            // Only check tiles that are within bounds
+            if (adj.y >= 0 && adj.y < mapData.height && 
+                adj.x >= 0 && adj.x < mapData.width) {
+                
+                const tile = mapData.tiles[adj.y][adj.x];
                 if (tile && (tile.type === TILE_TYPES.WALL_WITH_ORE || 
                            tile.type === TILE_TYPES.RARE_ORE ||
                            tile.type === TILE_TYPES.TREASURE_CHEST)) {
@@ -735,10 +735,14 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
                 
                 await addItemToMinecart(dbEntry, member.id, item.itemId, quantity);
                 
-                const mineY = Math.max(0, Math.min(adjacentTarget.y, mapData.height - 1));
-                const mineX = Math.max(0, Math.min(adjacentTarget.x, mapData.width - 1));
-                
-                mapData.tiles[mineY][mineX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+                // Make sure the adjacent tile is within bounds before mining
+                if (adjacentTarget.y >= 0 && adjacentTarget.y < mapData.height && 
+                    adjacentTarget.x >= 0 && adjacentTarget.x < mapData.width) {
+                    mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+                } else {
+                    // Adjacent tile is out of bounds, skip mining
+                    continue;
+                }
                 mapChanged = true;
                 wallsBroken++;
                 
@@ -753,11 +757,29 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
                     findMessage = `💎 ${member.displayName} found ${item.name} x${quantity}`;
                 }
                 
-                // Check for pickaxe break
-                if (bestPickaxe && checkPickaxeBreak(bestPickaxe, tile.hardness)) {
-                    transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
-                    eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered!`);
-                    eventLogs.push(findMessage);
+                // Check for pickaxe durability
+                if (bestPickaxe) {
+                    const durabilityCheck = checkPickaxeBreak(bestPickaxe, tile.hardness);
+                    if (durabilityCheck.shouldBreak) {
+                        transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
+                        eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered!`);
+                        eventLogs.push(findMessage);
+                    } else {
+                        // Update durability in transaction
+                        transaction.updatePickaxeDurability(member.id, bestPickaxe.itemId, durabilityCheck.newDurability);
+                        
+                        // Add durability warning if low
+                        const maxDurability = bestPickaxe.durability || 100;
+                        const durabilityPercent = (durabilityCheck.newDurability / maxDurability) * 100;
+                        
+                        if (durabilityPercent <= 10) {
+                            eventLogs.push(`${findMessage} ⚠️ [${bestPickaxe.name}: ${durabilityCheck.newDurability}/${maxDurability} durability]`);
+                        } else if (durabilityPercent <= 25) {
+                            eventLogs.push(`${findMessage} [${bestPickaxe.name}: ${durabilityCheck.newDurability}/${maxDurability} durability]`);
+                        } else {
+                            eventLogs.push(findMessage);
+                        }
+                    }
                 } else {
                     eventLogs.push(findMessage);
                 }
@@ -788,18 +810,20 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
         const newX = position.x + direction.dx;
         const newY = position.y + direction.dy;
         
-        // Enhanced map expansion with size limits
+        // First, try to expand the map if needed
         const expandedMap = checkMapExpansion(mapData, newX, newY, dbEntry.channelId);
         if (expandedMap !== mapData) {
             mapData = expandedMap;
             mapChanged = true;
         }
         
-        // Ensure we're within bounds after expansion
-        const clampedX = Math.max(0, Math.min(newX, mapData.width - 1));
-        const clampedY = Math.max(0, Math.min(newY, mapData.height - 1));
+        // After expansion (or if expansion failed), check if position is valid
+        // If the new position is out of bounds, don't move
+        if (newX < 0 || newX >= mapData.width || newY < 0 || newY >= mapData.height) {
+            continue; // Skip this movement - can't go out of bounds
+        }
         
-        const targetTile = mapData.tiles[clampedY] && mapData.tiles[clampedY][clampedX];
+        const targetTile = mapData.tiles[newY] && mapData.tiles[newY][newX];
         if (!targetTile) continue;
         
         // Enhanced wall breaking
@@ -809,7 +833,8 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
             targetTile.type === TILE_TYPES.RARE_ORE ||
             targetTile.type === TILE_TYPES.TREASURE_CHEST) {
             
-            if (await canBreakTile(member.id, miningPower, targetTile)) {
+            const canBreak = await canBreakTile(member.id, miningPower, targetTile);
+            if (canBreak) {
                 // Special handling for different tile types
                 if (targetTile.type === TILE_TYPES.WALL_WITH_ORE ||
                     targetTile.type === TILE_TYPES.RARE_ORE ||
@@ -828,10 +853,28 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
                         findMessage = `💎 ${member.displayName} found ${item.name} x${quantity}`;
                     }
                     
-                    if (bestPickaxe && checkPickaxeBreak(bestPickaxe, targetTile.hardness)) {
-                        transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
-                        eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered!`);
-                        eventLogs.push(findMessage);
+                    if (bestPickaxe) {
+                        const durabilityCheck = checkPickaxeBreak(bestPickaxe, targetTile.hardness);
+                        if (durabilityCheck.shouldBreak) {
+                            transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
+                            eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered!`);
+                            eventLogs.push(findMessage);
+                        } else {
+                            // Update durability in transaction
+                            transaction.updatePickaxeDurability(member.id, bestPickaxe.itemId, durabilityCheck.newDurability);
+                            
+                            // Add durability warning if low
+                            const maxDurability = bestPickaxe.durability || 100;
+                            const durabilityPercent = (durabilityCheck.newDurability / maxDurability) * 100;
+                            
+                            if (durabilityPercent <= 10) {
+                                eventLogs.push(`${findMessage} ⚠️ [${bestPickaxe.name}: ${durabilityCheck.newDurability}/${maxDurability} durability]`);
+                            } else if (durabilityPercent <= 25) {
+                                eventLogs.push(`${findMessage} [${bestPickaxe.name}: ${durabilityCheck.newDurability}/${maxDurability} durability]`);
+                            } else {
+                                eventLogs.push(findMessage);
+                            }
+                        }
                     } else {
                         eventLogs.push(findMessage);
                     }
@@ -842,23 +885,46 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
                         [TILE_TYPES.WALL_WITH_ORE]: 'ore wall',
                         [TILE_TYPES.RARE_ORE]: 'rare ore vein'
                     };
-                    eventLogs.push(`${member.displayName} broke through ${tileTypeNames[targetTile.type] || 'wall'}!`);
+                    
+                    // Check pickaxe durability for regular wall breaking
+                    if (bestPickaxe) {
+                        const durabilityCheck = checkPickaxeBreak(bestPickaxe, targetTile.hardness);
+                        if (durabilityCheck.shouldBreak) {
+                            transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
+                            eventLogs.push(`${member.displayName} broke through ${tileTypeNames[targetTile.type] || 'wall'} but their ${bestPickaxe.name} shattered!`);
+                        } else {
+                            transaction.updatePickaxeDurability(member.id, bestPickaxe.itemId, durabilityCheck.newDurability);
+                            
+                            const maxDurability = bestPickaxe.durability || 100;
+                            const durabilityPercent = (durabilityCheck.newDurability / maxDurability) * 100;
+                            
+                            if (durabilityPercent <= 10) {
+                                eventLogs.push(`${member.displayName} broke through ${tileTypeNames[targetTile.type] || 'wall'}! ⚠️ [${bestPickaxe.name}: ${durabilityCheck.newDurability}/${maxDurability}]`);
+                            } else if (durabilityPercent <= 25) {
+                                eventLogs.push(`${member.displayName} broke through ${tileTypeNames[targetTile.type] || 'wall'}! [${bestPickaxe.name}: ${durabilityCheck.newDurability}/${maxDurability}]`);
+                            } else {
+                                eventLogs.push(`${member.displayName} broke through ${tileTypeNames[targetTile.type] || 'wall'}!`);
+                            }
+                        }
+                    } else {
+                        eventLogs.push(`${member.displayName} broke through ${tileTypeNames[targetTile.type] || 'wall'}!`);
+                    }
                 }
                 
                 // Convert to floor and move player
-                mapData.tiles[clampedY][clampedX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
-                position.x = clampedX;
-                position.y = clampedY;
+                mapData.tiles[newY][newX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+                position.x = newX;
+                position.y = newY;
                 mapChanged = true;
                 wallsBroken++;
             } else {
-                // Failed to break wall
+                // Failed to break wall - DON'T MOVE THE PLAYER
                 if (miningPower <= 0) {
                     if (Math.random() < 0.001) {
                         eventLogs.push(`🔥 ${member.displayName} broke through with sheer willpower!`);
-                        mapData.tiles[clampedY][clampedX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
-                        position.x = clampedX;
-                        position.y = clampedY;
+                        mapData.tiles[newY][newX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+                        position.x = newX;
+                        position.y = newY;
                         mapChanged = true;
                         wallsBroken++;
                     } else {
@@ -873,18 +939,27 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
                     };
                     eventLogs.push(`${member.displayName} struck the ${tileTypeNames[targetTile.type] || 'wall'} but it held firm`);
                     
-                    if (bestPickaxe && checkPickaxeBreak(bestPickaxe, targetTile.hardness)) {
-                        transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
-                        eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered from the impact`);
+                    if (bestPickaxe) {
+                        const durabilityCheck = checkPickaxeBreak(bestPickaxe, targetTile.hardness);
+                        if (durabilityCheck.shouldBreak) {
+                            transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
+                            eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered from the impact`);
+                        } else {
+                            // Update durability even on failed breaks
+                            transaction.updatePickaxeDurability(member.id, bestPickaxe.itemId, durabilityCheck.newDurability);
+                        }
                     }
                 }
             }
         } else if (targetTile.type === TILE_TYPES.HAZARD) {
-            mapData.tiles[clampedY][clampedX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+            mapData.tiles[newY][newX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
             
             // Handle hazard tiles
             if (Math.random() < 0.7) {
                 eventLogs.push(`⚠️ ${member.displayName} avoided a dangerous hazard`);
+                position.x = newX;
+                position.y = newY;
+                mapChanged = true;
             } else {
                 eventLogs.push(`💥 ${member.displayName} triggered a hazard and was sent back to the entrance!!`);
                 // Send back to entrance
@@ -892,10 +967,10 @@ async function processPlayerActions(member, playerData, mapData, teamVisibleTile
                 position.y = mapData.entranceY;
                 mapChanged = true;
             }
-        } else {
-            // Free movement on floor/entrance tiles
-            position.x = clampedX;
-            position.y = clampedY;
+        } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
+            // Free movement ONLY on floor/entrance tiles
+            position.x = newX;
+            position.y = newY;
             mapChanged = true;
             
             // Enhanced exploration rewards

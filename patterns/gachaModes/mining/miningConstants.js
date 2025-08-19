@@ -1,6 +1,6 @@
 // miningConstants.js - Rebalanced for slower progression
-const INITIAL_MAP_WIDTH = 9;
-const INITIAL_MAP_HEIGHT = 7;
+const INITIAL_MAP_WIDTH = 3;
+const INITIAL_MAP_HEIGHT = 3;
 const BASE_ORE_SPAWN_CHANCE = 0.25; // Reduced from 0.3
 const RARE_ORE_SPAWN_CHANCE = 0.02; // Reduced from 0.05
 const IMAGE_GENERATION_INTERVAL = 1;

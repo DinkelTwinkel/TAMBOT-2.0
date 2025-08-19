@@ -226,26 +226,36 @@ function cleanupPlayerPositions(mapData, currentPlayerIds) {
 
 /**
  * Check if map expansion is needed and perform it
+ * Returns the expanded map if expansion occurred, or the original map if not
  */
 function checkMapExpansion(mapData, newX, newY, channelId) {
     let needsExpansion = false;
     let expansionDirection = '';
     
-    if (newY < 0 && mapData.height < MAX_MAP_SIZE) {
-        needsExpansion = true;
-        expansionDirection = 'north';
-    } else if (newX < 0 && mapData.width < MAX_MAP_SIZE) {
-        needsExpansion = true;
-        expansionDirection = 'west';
-    } else if (newX >= mapData.width && mapData.width < MAX_MAP_SIZE) {
-        needsExpansion = true;
-        expansionDirection = 'east';
-    } else if (newY >= mapData.height && mapData.height < MAX_MAP_SIZE) {
-        needsExpansion = true;
-        expansionDirection = 'south';
+    // Check if expansion is needed and possible
+    if (newY < 0) {
+        if (mapData.height < MAX_MAP_SIZE) {
+            needsExpansion = true;
+            expansionDirection = 'north';
+        }
+    } else if (newX < 0) {
+        if (mapData.width < MAX_MAP_SIZE) {
+            needsExpansion = true;
+            expansionDirection = 'west';
+        }
+    } else if (newX >= mapData.width) {
+        if (mapData.width < MAX_MAP_SIZE) {
+            needsExpansion = true;
+            expansionDirection = 'east';
+        }
+    } else if (newY >= mapData.height) {
+        if (mapData.height < MAX_MAP_SIZE) {
+            needsExpansion = true;
+            expansionDirection = 'south';
+        }
     }
     
-    if (needsExpansion) {
+    if (needsExpansion && expansionDirection) {
         return expandMap(mapData, expansionDirection, channelId);
     }
     

@@ -36,6 +36,10 @@ async function getPlayerStats(playerId) {
 
         // Skip consumables
         if (itemData.type === 'consumable') continue;
+        
+        // Get current durability from inventory, or use default from itemSheet
+        const currentDurability = invItem.currentDurability !== undefined ? 
+            invItem.currentDurability : (itemData.durability || 100);
 
         // Categorize by type
         if (itemData.type === 'tool' && itemData.slot) {
@@ -44,7 +48,8 @@ async function getPlayerStats(playerId) {
             }
             toolsBySlot[itemData.slot].push({
                 ...itemData,
-                inventoryQuantity: invItem.quantity
+                inventoryQuantity: invItem.quantity,
+                currentDurability: currentDurability
             });
         } else if (itemData.type === 'equipment' && itemData.slot) {
             if (!equipmentBySlot[itemData.slot]) {
@@ -52,7 +57,8 @@ async function getPlayerStats(playerId) {
             }
             equipmentBySlot[itemData.slot].push({
                 ...itemData,
-                inventoryQuantity: invItem.quantity
+                inventoryQuantity: invItem.quantity,
+                currentDurability: currentDurability
             });
         } else if (itemData.type === 'charm') {
             // Only add each unique charm once
@@ -60,7 +66,8 @@ async function getPlayerStats(playerId) {
                 processedCharmIds.add(String(itemData.id));
                 charms.push({
                     ...itemData,
-                    inventoryQuantity: invItem.quantity
+                    inventoryQuantity: invItem.quantity,
+                    currentDurability: currentDurability
                 });
             }
         }
@@ -101,7 +108,8 @@ async function getPlayerStats(playerId) {
                 type: 'tool',
                 slot: slot,
                 abilities: appliedAbilities,
-                durability: bestTool.durability || 0,
+                durability: bestTool.durability || 100,
+                currentDurability: bestTool.currentDurability,
                 inventoryQuantity: bestTool.inventoryQuantity
             };
         }
@@ -144,7 +152,8 @@ async function getPlayerStats(playerId) {
                 type: 'equipment',
                 slot: slot,
                 abilities: appliedAbilities,
-                durability: bestEquip.durability || 0,
+                durability: bestEquip.durability || 100,
+                currentDurability: bestEquip.currentDurability,
                 inventoryQuantity: bestEquip.inventoryQuantity
             };
         }
@@ -169,7 +178,8 @@ async function getPlayerStats(playerId) {
                 name: charm.name,
                 type: 'charm',
                 abilities: appliedAbilities,
-                durability: charm.durability || 0,
+                durability: charm.durability || 100,
+                currentDurability: charm.currentDurability,
                 inventoryQuantity: charm.inventoryQuantity
             };
         }

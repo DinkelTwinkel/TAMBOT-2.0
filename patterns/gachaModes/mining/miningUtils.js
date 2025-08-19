@@ -227,24 +227,33 @@ async function canBreakTile(playerId, miningPower, tile) {
 
 
 
-// Enhanced Pickaxe System
+// Enhanced Pickaxe Durability System
+function calculateDurabilityLoss(tileHardness = 1) {
+    // Base durability loss is 1, multiplied by tile hardness
+    // Harder tiles cause more durability damage
+    const baseLoss = 1;
+    const hardnessMultiplier = Math.max(1, tileHardness / 2); // Scale hardness impact
+    return Math.ceil(baseLoss * hardnessMultiplier);
+}
+
 function checkPickaxeBreak(pickaxe, tileHardness = 1) {
-    if (!pickaxe) return false;
+    if (!pickaxe) return { shouldBreak: false, durabilityLoss: 0 };
     
-    // Handle both durability formats
-    const durability = pickaxe.durability || pickaxe.stats?.durability || 100;
+    // Get current durability (check various possible locations)
+    const currentDurability = pickaxe.currentDurability || pickaxe.durability || pickaxe.stats?.durability || 0;
     
-    const hardnessPenalty = tileHardness * 5;
-    const adjustedDurability = Math.max(10, durability - hardnessPenalty);
+    // Calculate how much durability is lost from this mining action
+    const durabilityLoss = calculateDurabilityLoss(tileHardness);
     
-    const roll = Math.floor(Math.random() * 100) + 1;
-    const shouldBreak = roll > adjustedDurability;
+    // Check if pickaxe should break (durability would go to 0 or below)
+    const newDurability = currentDurability - durabilityLoss;
+    const shouldBreak = newDurability <= 0;
     
     if (shouldBreak) {
-        console.log(`Pickaxe ${pickaxe.name} broke! Roll: ${roll} > Durability: ${adjustedDurability}`);
+        console.log(`Pickaxe ${pickaxe.name} broke! Durability: ${currentDurability} - ${durabilityLoss} = ${newDurability}`);
     }
     
-    return shouldBreak;
+    return { shouldBreak, durabilityLoss, newDurability };
 }
 
 // Minecart Summary Helper
@@ -302,6 +311,7 @@ module.exports = {
     getDirectionToTarget,
     getRandomDirection,
     canBreakTile,
+    calculateDurabilityLoss,
     checkPickaxeBreak,
     getMinecartSummary
 };

@@ -11,6 +11,7 @@ class DatabaseTransaction {
         this.mapUpdate = null;
         this.vcUpdates = {};
         this.pickaxeBreaks = [];
+        this.durabilityUpdates = new Map();
     }
     
     addInventoryItem(playerId, playerTag, itemId, quantity) {
@@ -24,6 +25,11 @@ class DatabaseTransaction {
     
     addPickaxeBreak(playerId, playerTag, pickaxe) {
         this.pickaxeBreaks.push({ playerId, playerTag, pickaxe });
+    }
+    
+    updatePickaxeDurability(playerId, itemId, newDurability) {
+        const key = `${playerId}-${itemId}`;
+        this.durabilityUpdates.set(key, { playerId, itemId, newDurability });
     }
     
     setMapUpdate(channelId, mapData) {
@@ -45,6 +51,11 @@ class DatabaseTransaction {
             for (const removal of ops.removals) {
                 await breakPickaxe(ops.playerId, ops.playerTag, removal);
             }
+            
+            // Process all durability updates for this player
+            for (const durabilityUpdate of ops.durabilityUpdates) {
+                await updateItemDurability(ops.playerId, durabilityUpdate.itemId, durabilityUpdate.newDurability);
+            }
         } catch (error) {
             console.error(`Error in inventory operations for player ${ops.playerId}:`, error);
         }
@@ -52,6 +63,11 @@ class DatabaseTransaction {
     
     async addItemAtomic(playerId, playerTag, itemId, quantity) {
         try {
+            // Get item data from itemSheet to check if it should have durability
+            const itemData = require('../../../data/itemSheet.json').find(it => String(it.id) === String(itemId));
+            const shouldHaveDurability = itemData && (itemData.type === 'tool' || itemData.type === 'equipment' || itemData.type === 'charm');
+            const maxDurability = itemData?.durability || 100;
+            
             // Try to update existing item
             const updated = await PlayerInventory.findOneAndUpdate(
                 { 
@@ -67,10 +83,17 @@ class DatabaseTransaction {
             
             if (!updated) {
                 // Item doesn't exist, try to add it
+                const newItem = { itemId, quantity };
+                
+                // Add durability for tools, equipment, and charms
+                if (shouldHaveDurability) {
+                    newItem.currentDurability = maxDurability;
+                }
+                
                 const added = await PlayerInventory.findOneAndUpdate(
                     { playerId },
                     {
-                        $push: { items: { itemId, quantity } },
+                        $push: { items: newItem },
                         $set: { playerTag }
                     },
                     { new: true, upsert: true }
@@ -81,7 +104,7 @@ class DatabaseTransaction {
                     await PlayerInventory.create({
                         playerId,
                         playerTag,
-                        items: [{ itemId, quantity }]
+                        items: [newItem]
                     });
                 }
             }
@@ -103,7 +126,8 @@ class DatabaseTransaction {
                     playerId: update.playerId,
                     playerTag: update.playerTag,
                     additions: [],
-                    removals: []
+                    removals: [],
+                    durabilityUpdates: []
                 });
             }
             playerInventoryOps.get(update.playerId).additions.push({
@@ -119,10 +143,29 @@ class DatabaseTransaction {
                     playerId: breakData.playerId,
                     playerTag: breakData.playerTag,
                     additions: [],
-                    removals: []
+                    removals: [],
+                    durabilityUpdates: []
                 });
             }
             playerInventoryOps.get(breakData.playerId).removals.push(breakData.pickaxe);
+        }
+        
+        // Add durability updates to the same player operations
+        for (const [key, update] of this.durabilityUpdates) {
+            const { playerId, itemId, newDurability } = update;
+            if (!playerInventoryOps.has(playerId)) {
+                playerInventoryOps.set(playerId, {
+                    playerId: playerId,
+                    playerTag: '',
+                    additions: [],
+                    removals: [],
+                    durabilityUpdates: []
+                });
+            }
+            playerInventoryOps.get(playerId).durabilityUpdates.push({
+                itemId: itemId,
+                newDurability: newDurability
+            });
         }
         
         // Execute all operations for each player atomically
@@ -205,6 +248,47 @@ async function resetMinecart(channelId) {
             }
         }
     );
+}
+
+// Update item durability in inventory
+async function updateItemDurability(playerId, itemId, newDurability) {
+    try {
+        // First check if item exists and update durability
+        const result = await PlayerInventory.findOneAndUpdate(
+            { 
+                playerId,
+                'items.itemId': itemId
+            },
+            {
+                $set: { 'items.$.currentDurability': newDurability }
+            },
+            { new: true }
+        );
+        
+        if (result) {
+            console.log(`Updated durability for item ${itemId} to ${newDurability}`);
+        } else {
+            // Try with 'id' field if 'itemId' didn't work
+            const resultAlt = await PlayerInventory.findOneAndUpdate(
+                { 
+                    playerId,
+                    'items.id': itemId
+                },
+                {
+                    $set: { 'items.$.currentDurability': newDurability }
+                },
+                { new: true }
+            );
+            
+            if (resultAlt) {
+                console.log(`Updated durability for item ${itemId} to ${newDurability} (using 'id' field)`);
+            } else {
+                console.log(`Could not find item ${itemId} to update durability`);
+            }
+        }
+    } catch (error) {
+        console.error(`Error updating durability for item ${itemId}:`, error);
+    }
 }
 
 async function breakPickaxe(playerId, playerTag, pickaxe) {
@@ -524,6 +608,7 @@ module.exports = {
     addItemToMinecart,
     resetMinecart,
     breakPickaxe,
+    updateItemDurability,
     initializeGameData,
     createMiningSummary
 };
