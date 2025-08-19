@@ -227,7 +227,7 @@ async function canBreakTile(playerId, miningPower, tile) {
 function checkPickaxeBreak(pickaxe, tileHardness = 1) {
     if (!pickaxe || !pickaxe.durability) return false;
     
-    const hardnessPenalty = tileHardness * 5;
+    const hardnessPenalty = tileHardness * 1;
     const adjustedDurability = Math.max(10, pickaxe.durability - hardnessPenalty);
     
     const roll = Math.floor(Math.random() * 100) + 1;
