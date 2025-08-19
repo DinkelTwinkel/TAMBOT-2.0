@@ -69,7 +69,7 @@ module.exports = async (guild) => {
                 console.log('running gameVC script');
 
                 const now = Date.now();
-                vc.nextTrigger = new Date(now + 30 * 1000);
+                vc.nextTrigger = new Date(now + 15 * 1000);
                 await vc.save();
 
                 await gameScript(gachaVC, vc, serverData);
