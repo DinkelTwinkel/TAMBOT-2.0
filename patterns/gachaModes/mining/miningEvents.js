@@ -94,92 +94,217 @@ async function startThiefGame(channel, dbEntry) {
     return `⚠️ SPECIAL EVENT: Thief game started! ${stealAmount} coins stolen.`;
 }
 
-/**
- * Cave-in Event - Players must work together to clear debris
- */
-async function startCaveInEvent(channel, dbEntry) {
-    if (!channel?.isVoiceBased()) return;
-
-    const guild = channel.guild;
-    const humansArray = guild.members.cache
-        .filter(member => member.voice.channelId === channel.id && !member.user.bot)
-        .map(member => member);
-
-    if (humansArray.length < 2) {
-        await logEvent(channel, '⚠️ Not enough players for cave-in event. Extending break...');
-        return;
-    }
-
-    const debrisCount = Math.floor(humansArray.length * 1.5) + 3; // Scale with player count
-    const rewardPool = humansArray.length * 50; // Base reward pool
-
-    await setSpecialEvent(channel.id, {
-        type: 'cavein',
-        debrisRemaining: debrisCount,
-        rewardPool: rewardPool,
-        participants: {},
-        endTime: new Date(Date.now() + 10 * 60 * 1000)
-    });
-
-    const embed = new EmbedBuilder()
-        .setTitle('💥 CAVE-IN! 💥')
-        .setDescription(`The mine ceiling collapsed! Work together to clear ${debrisCount} pieces of debris.\n\n` +
-                       `Use any mining command to help clear debris!\n` +
-                       `💰 Reward pool: ${rewardPool} coins`)
-        .setColor(0x8B4513)
-        .setTimestamp();
-
-    const endTimeSeconds = Math.floor((Date.now() + 10 * 60 * 1000) / 1000);
-    embed.addFields({ name: 'Time Limit', value: `Clear the debris before time runs out! <t:${endTimeSeconds}:R>` });
-
-    await channel.send({ embeds: [embed] });
-
-    return `💥 SPECIAL EVENT: Cave-in! Players must clear ${debrisCount} debris pieces.`;
-}
 
 /**
- * Treasure Rush Event - Hidden treasure spawns, first to find wins
+ * Mine Collapse Event - Floor tiles collapse and transform into various tile types
  */
-async function startTreasureRushEvent(channel, dbEntry) {
+async function startMineCollapseEvent(channel, dbEntry) {
     if (!channel?.isVoiceBased()) return;
-
-    const guild = channel.guild;
-    const humansArray = guild.members.cache
-        .filter(member => member.voice.channelId === channel.id && !member.user.bot)
-        .map(member => member);
-
-    if (humansArray.length < 2) {
-        await logEvent(channel, '⚠️ Not enough players for treasure rush. Extending break...');
-        return;
+    
+    const { TILE_TYPES } = require('./miningConstants');
+    const gachaVC = require('../../../models/activevcs');
+    
+    // Get current map data
+    const mapData = dbEntry.gameData?.map;
+    if (!mapData || !mapData.tiles) {
+        console.log('No map data available for mine collapse');
+        return 'Map not initialized for mine collapse event';
     }
-
-    const treasureValue = Math.floor(Math.random() * 200) + 100; // 100-300 coins
-    const winner = humansArray[Math.floor(Math.random() * humansArray.length)];
-
-    // Award treasure immediately
-    let winnerMoney = await Currency.findOne({ userId: winner.id });
-    if (!winnerMoney) {
-        winnerMoney = await Currency.create({
-            userId: winner.id,
-            usertag: winner.user.tag,
-            money: treasureValue
+    
+    // Find all floor tiles
+    const floorTiles = [];
+    for (let y = 0; y < mapData.height; y++) {
+        for (let x = 0; x < mapData.width; x++) {
+            const tile = mapData.tiles[y]?.[x];
+            if (tile && tile.type === TILE_TYPES.FLOOR && tile.discovered) {
+                // Don't collapse entrance area
+                const distFromEntrance = Math.abs(x - mapData.entranceX) + Math.abs(y - mapData.entranceY);
+                if (distFromEntrance > 2) {
+                    floorTiles.push({ x, y });
+                }
+            }
+        }
+    }
+    
+    if (floorTiles.length < 10) {
+        console.log('Not enough floor tiles for collapse event');
+        return 'Mine too small for collapse event';
+    }
+    
+    // Determine number of collapse zones (1-5 based on map size)
+    const numCollapses = Math.min(5, Math.max(1, Math.floor(floorTiles.length / 15)));
+    const collapsedZones = [];
+    const affectedTiles = new Set();
+    
+    // Create collapse zones
+    for (let i = 0; i < numCollapses; i++) {
+        // Pick random center point from floor tiles
+        const centerIndex = Math.floor(Math.random() * floorTiles.length);
+        const center = floorTiles[centerIndex];
+        
+        // Random radius (1-3 tiles)
+        const radius = Math.floor(Math.random() * 3) + 1;
+        
+        // Determine collapse pattern for this zone
+        const collapseType = pickCollapseType();
+        
+        // Track this collapse zone
+        collapsedZones.push({
+            center,
+            radius,
+            type: collapseType.name
         });
-    } else {
-        winnerMoney.money += treasureValue;
-        await winnerMoney.save();
+        
+        // Apply collapse in radius
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                // Check if within circular radius
+                if (Math.sqrt(dx * dx + dy * dy) <= radius) {
+                    const tileX = center.x + dx;
+                    const tileY = center.y + dy;
+                    
+                    // Ensure within bounds
+                    if (tileX >= 0 && tileX < mapData.width && 
+                        tileY >= 0 && tileY < mapData.height) {
+                        
+                        const currentTile = mapData.tiles[tileY][tileX];
+                        // Only collapse floor tiles
+                        if (currentTile && currentTile.type === TILE_TYPES.FLOOR) {
+                            // Don't collapse entrance
+                            const distFromEntrance = Math.abs(tileX - mapData.entranceX) + 
+                                                    Math.abs(tileY - mapData.entranceY);
+                            if (distFromEntrance > 2) {
+                                // Apply random transformation based on collapse type
+                                const newTileType = getRandomTileFromCollapseType(collapseType);
+                                mapData.tiles[tileY][tileX] = {
+                                    type: newTileType,
+                                    discovered: true,
+                                    hardness: getTileHardness(newTileType)
+                                };
+                                affectedTiles.add(`${tileX},${tileY}`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
-
+    
+    // Save updated map
+    await gachaVC.updateOne(
+        { channelId: channel.id },
+        { $set: { 'gameData.map': mapData } }
+    );
+    
+    // Build event description
+    const collapseDescriptions = collapsedZones.map(zone => 
+        `• ${zone.type} collapse at (${zone.center.x}, ${zone.center.y}) - radius ${zone.radius}`
+    );
+    
     const embed = new EmbedBuilder()
-        .setTitle('🏆 TREASURE RUSH! 🏆')
-        .setDescription(`Ancient treasure has been discovered in the mines!\n\n` +
-                       `🎉 **${winner.displayName}** found the treasure and won **${treasureValue} coins**!`)
-        .setColor(0xFFD700)
+        .setTitle('⛰️ MINE COLLAPSE! ⛰️')
+        .setDescription(`The mine structure has become unstable! Multiple sections have collapsed and transformed:\n\n` +
+                       collapseDescriptions.join('\n') +
+                       `\n\n${affectedTiles.size} tiles affected!\n` +
+                       `⚠️ Collapsed areas may contain valuable ores... or dangerous hazards!`)
+        .setColor(0x8B4513)
+        // .addFields({
+        //     name: 'Collapse Types',
+        //     value: '🟦 **Rich Vein** - Mostly ores and rare materials\n' +
+        //            '🟫 **Cave-in** - Mix of walls and regular ores\n' +
+        //            '⚫ **Dead Zone** - Mostly walls and reinforced walls\n' +
+        //            '🟥 **Danger Zone** - Contains hazards\n' +
+        //            '💎 **Crystal Cave** - Rare ores and treasures'
+        // })
         .setTimestamp();
-
+    
     await channel.send({ embeds: [embed] });
-
-    return `🏆 SPECIAL EVENT: ${winner.displayName} won ${treasureValue} coins in treasure rush!`;
+    
+    return `⛰️ MINE COLLAPSE: ${numCollapses} zones collapsed, ${affectedTiles.size} tiles affected!`;
 }
+
+/**
+ * Determine the type of collapse (what tiles will appear)
+ */
+function pickCollapseType() {
+    const types = [
+        { name: 'Rich Vein', weight: 25, distribution: { ore: 60, rare: 20, wall: 15, reinforced: 5 } },
+        { name: 'Cave-in', weight: 35, distribution: { wall: 50, ore: 30, reinforced: 15, hazard: 5 } },
+        { name: 'Dead Zone', weight: 20, distribution: { wall: 60, reinforced: 30, hazard: 10 } },
+        { name: 'Danger Zone', weight: 10, distribution: { hazard: 40, wall: 30, reinforced: 20, ore: 10 } },
+        { name: 'Crystal Cave', weight: 10, distribution: { rare: 40, treasure: 20, ore: 30, wall: 10 } }
+    ];
+    
+    const totalWeight = types.reduce((sum, t) => sum + t.weight, 0);
+    let rand = Math.random() * totalWeight;
+    
+    for (const type of types) {
+        rand -= type.weight;
+        if (rand <= 0) return type;
+    }
+    
+    return types[0]; // Fallback
+}
+
+/**
+ * Get a random tile type based on collapse type distribution
+ */
+function getRandomTileFromCollapseType(collapseType) {
+    const { TILE_TYPES } = require('./miningConstants');
+    const dist = collapseType.distribution;
+    const rand = Math.random() * 100;
+    
+    let accumulated = 0;
+    
+    if (dist.ore) {
+        accumulated += dist.ore;
+        if (rand < accumulated) return TILE_TYPES.WALL_WITH_ORE;
+    }
+    
+    if (dist.rare) {
+        accumulated += dist.rare;
+        if (rand < accumulated) return TILE_TYPES.RARE_ORE;
+    }
+    
+    if (dist.treasure) {
+        accumulated += dist.treasure;
+        if (rand < accumulated) return TILE_TYPES.TREASURE_CHEST;
+    }
+    
+    if (dist.hazard) {
+        accumulated += dist.hazard;
+        if (rand < accumulated) return TILE_TYPES.HAZARD;
+    }
+    
+    if (dist.reinforced) {
+        accumulated += dist.reinforced;
+        if (rand < accumulated) return TILE_TYPES.REINFORCED_WALL;
+    }
+    
+    // Default to regular wall
+    return TILE_TYPES.WALL;
+}
+
+/**
+ * Get tile hardness value
+ */
+function getTileHardness(tileType) {
+    const { TILE_TYPES } = require('./miningConstants');
+    
+    const hardnessMap = {
+        [TILE_TYPES.WALL]: 1,
+        [TILE_TYPES.WALL_WITH_ORE]: 2,
+        [TILE_TYPES.RARE_ORE]: 3,
+        [TILE_TYPES.REINFORCED_WALL]: 5,
+        [TILE_TYPES.TREASURE_CHEST]: 2,
+        [TILE_TYPES.HAZARD]: 0,
+        [TILE_TYPES.FLOOR]: 0
+    };
+    
+    return hardnessMap[tileType] || 1;
+}
+
+
 
 /**
  * End Thief Game and distribute rewards
@@ -456,9 +581,8 @@ async function checkAndEndSpecialEvent(channel, dbEntry) {
  * Available long break events with weights
  */
 const longBreakEvents = [
-    { func: startThiefGame, weight: 40, name: 'Thief Game' },
-    { func: startCaveInEvent, weight: 30, name: 'Cave-in' },
-    { func: startTreasureRushEvent, weight: 30, name: 'Treasure Rush' }
+    { func: startThiefGame, weight: 30, name: 'Thief Game' },
+    { func: startMineCollapseEvent, weight: 25, name: 'Mine Collapse' }
 ];
 
 /**
@@ -536,8 +660,7 @@ function scatterPlayersForBreak(playerPositions, entranceX, entranceY, playerCou
 module.exports = {
     // Event functions
     startThiefGame,
-    startCaveInEvent,
-    startTreasureRushEvent,
+    startMineCollapseEvent,
     endThiefGame,
     
     // Event management

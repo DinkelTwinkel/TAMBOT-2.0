@@ -181,11 +181,13 @@ async function logEvent(channel, eventText, forceNew = false) {
     
     let timeStatus = "MINING";
     let timeRemaining = 0;
-    
+    let endTimestamp = null;
+
     if (result.gameData?.breakInfo?.inBreak) {
         const breakEndTime = result.gameData.breakInfo.breakEndTime;
         timeRemaining = Math.max(0, Math.floor((breakEndTime - now) / (1000 * 60)));
-        
+        endTimestamp = Math.floor(breakEndTime / 1000); // convert to seconds
+
         if (result.gameData.breakInfo.isLongBreak) {
             if (result.gameData?.specialEvent) {
                 timeStatus = "LONG BREAK (EVENT)";
@@ -197,6 +199,7 @@ async function logEvent(channel, eventText, forceNew = false) {
         }
     } else if (result.nextShopRefresh) {
         timeRemaining = Math.max(0, Math.floor((result.nextShopRefresh - now) / (1000 * 60)));
+        endTimestamp = Math.floor(result.nextShopRefresh / 1000);
         timeStatus = "MINING";
     }
 
@@ -215,9 +218,12 @@ async function logEvent(channel, eventText, forceNew = false) {
         let eventLogMessage = null;
 
         for (const [, message] of messages) {
-            if (message.embeds.length > 0 && 
-                message.embeds[0].title === '🗺️ MINING MAP' && 
-                message.author.bot) {
+            if (
+                message.embeds.length > 0 &&
+                message.embeds[0].title &&
+                message.embeds[0].title.includes('MINING MAP') && // contains instead of exact match
+                message.author.bot
+            ) {
                 eventLogMessage = message;
                 break;
             }
@@ -230,11 +236,17 @@ async function logEvent(channel, eventText, forceNew = false) {
         }
 
         if (logEntry || shouldGenerateImage) {
+            const titleText = endTimestamp
+                ? `🗺️ MINING MAP | ${timeStatus} ends <t:${endTimestamp}:R>`
+                : `🗺️ MINING MAP | ${timeStatus}`;
+
+                // saving this for another time  | ORE: ${sessionStats.totalOreFound} | WALLS: ${sessionStats.wallsBroken}
+
             const embed = new EmbedBuilder()
-                .setTitle('🗺️ MINING MAP')
+                .setTitle(titleText)
                 .setColor(0x8B4513)
                 .setFooter({ 
-                    text: `${timeStatus}: ${timeRemaining}m | MINECART: ${minecartSummary.summary} | ORE: ${sessionStats.totalOreFound} | WALLS: ${sessionStats.wallsBroken}`
+                    text: `MINECART: ${minecartSummary.summary}`
                 })
                 .setTimestamp();
 
@@ -243,7 +255,7 @@ async function logEvent(channel, eventText, forceNew = false) {
             }
 
             if (shouldGenerateImage) {
-                embed.setImage('attachment://mine_map.png');
+                //embed.setImage('attachment://mine_map.png');
             }
 
             if (eventLogMessage && forceNew === false) {
@@ -259,16 +271,37 @@ async function logEvent(channel, eventText, forceNew = false) {
 
                 const newDescription = lines.length > 0 ? '```\n' + lines.join('\n') + '\n```' : null;
 
+                // ✅ Check if description would exceed 4000 chars
+                if (newDescription && newDescription.length > 4000) {
+                    const newEmbed = new EmbedBuilder()
+                        .setTitle(titleText)
+                        .setColor(0x8B4513)
+                        .setFooter({ 
+                            text: `MINECART: ${minecartSummary.summary}`
+                        })
+                        .setTimestamp();
+
+                    if (logEntry) newEmbed.setDescription('```\n' + logEntry + '\n```');
+                    //if (shouldGenerateImage) newEmbed.setImage('attachment://mine_map.png');
+
+                    const messageOptions = { embeds: [newEmbed] };
+                    if (attachment) messageOptions.files = [attachment];
+
+                    await channel.send(messageOptions);
+                    return;
+                }
+
+                // saving for later  | ORE: ${sessionStats.totalOreFound} | WALLS: ${sessionStats.wallsBroken}
                 const updatedEmbed = new EmbedBuilder()
-                    .setTitle('🗺️ MINING MAP')
+                    .setTitle(titleText)
                     .setColor(0x8B4513)
                     .setFooter({ 
-                        text: `${timeStatus}: ${timeRemaining}m | MINECART: ${minecartSummary.summary} | ORE: ${sessionStats.totalOreFound} | WALLS: ${sessionStats.wallsBroken}`
+                        text: `MINECART: ${minecartSummary.summary}`
                     })
                     .setTimestamp();
 
                 if (newDescription) updatedEmbed.setDescription(newDescription);
-                if (shouldGenerateImage) updatedEmbed.setImage('attachment://mine_map.png');
+                //if (shouldGenerateImage) updatedEmbed.setImage('attachment://mine_map.png');
 
                 await eventLogMessage.edit({ embeds: [updatedEmbed], files: attachment ? [attachment] : [] });
                 return;

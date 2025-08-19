@@ -40,7 +40,12 @@ module.exports = {
       .setLabel('🍴 Eat the Rich')
       .setStyle(ButtonStyle.Danger);
 
-    const row = new ActionRowBuilder().addComponents(eatButton);
+    const donateJairus = new ButtonBuilder()
+      .setCustomId('donate_jairus')
+      .setLabel('donate to jalito [1 coin]')
+      .setStyle(ButtonStyle.Success);
+
+    const row = new ActionRowBuilder().addComponents(eatButton, donateJairus);
 
     await interaction.editReply({
       embeds: [embed],

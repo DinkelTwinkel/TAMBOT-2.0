@@ -210,17 +210,22 @@ function getRandomDirection(seed) {
 // Tile Breaking Logic
 async function canBreakTile(playerId, miningPower, tile) {
     if (!tile || !tile.hardness) return true;
-    
+
     const hardness = tile.hardness;
-    
+
+    // Flat 5% chance if mining power is 0 or below
     if (miningPower <= 0) {
         return Math.random() < 0.05;
     }
+
+    // Increased multiplier: easier to break at low power
+    const breakChance = Math.min(0.95, (miningPower / hardness) * 0.5);
+
     const seed = parseInt(playerId) + Date.now();
-    //const breakChance = Math.min(0.95, (miningPower / hardness) * 0.25);
-    const breakChance = (Math.random() *seededRandom(seed)) + miningPower;
     return seededRandom(seed) < breakChance;
 }
+
+
 
 // Enhanced Pickaxe System
 function checkPickaxeBreak(pickaxe, tileHardness = 1) {
@@ -238,6 +243,8 @@ function getMinecartSummary(dbEntry) {
     const minecart = dbEntry.gameData?.minecart;
     if (!minecart || !minecart.items) return { totalValue: 0, itemCount: 0, summary: "Empty" };
     
+
+    const showAmount = 10;
     let totalValue = 0;
     let totalItems = 0;
     const itemSummaries = [];
@@ -252,7 +259,7 @@ function getMinecartSummary(dbEntry) {
             totalItems += itemData.quantity;
             
             // Show only top 3 items in summary to keep it concise
-            if (itemSummaries.length < 3) {
+            if (itemSummaries.length < showAmount) {
                 itemSummaries.push(`${poolItem.name} x${itemData.quantity}`);
             }
         }
@@ -263,8 +270,8 @@ function getMinecartSummary(dbEntry) {
         summary = "Empty";
     } else {
         summary = itemSummaries.join(', ');
-        if (Object.keys(minecart.items).length > 3) {
-            summary += `, +${Object.keys(minecart.items).length - 3} more`;
+        if (Object.keys(minecart.items).length > showAmount) {
+            summary += `, +${Object.keys(minecart.items).length - showAmount} more`;
         }
     }
     

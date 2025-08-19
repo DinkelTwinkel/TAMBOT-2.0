@@ -92,7 +92,8 @@
   {
     "id": "3",
     "name": "Rusty Pick Axe",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "Barely holds together. Better than nothing.",
     "value": 5,
     "vendable": true,
@@ -105,7 +106,8 @@
   {
     "id": "13",
     "name": "Banana Axe",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "A slippery axe made from a banana. Not very reliable.",
     "value": 15,
     "vendable": true,
@@ -118,7 +120,8 @@
   {
     "id": "7",
     "name": "Worn Iron Pickaxe",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "Sturdy enough to mine reliably, though worn.",
     "value": 120,
     "vendable": true,
@@ -131,7 +134,8 @@
   {
     "id": "8",
     "name": "Robust Pickaxe",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "A solidly built pickaxe, dependable and effective.",
     "value": 300,
     "vendable": true,
@@ -144,20 +148,23 @@
   {
     "id": "17",
     "name": "Pixter",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "A playful pickaxe, light but oddly effective in short bursts.",
     "value": 500,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 5 }
+      { "name": "mining", "powerlevel": 5 },
+      { "name": "luck", "powerlevel": 20 }
     ],
     "image": "pixter",
-    "durability": 70
+    "durability": 50
   },
   {
     "id": "18",
     "name": "Robust Pickaxe+",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "An upgraded version of the robust pickaxe, reinforced and refined.",
     "value": 750,
     "vendable": true,
@@ -170,7 +177,8 @@
   {
     "id": "20",
     "name": "Nature's Pickaxe",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "A pickaxe intertwined with roots and vines, resonating with the earth's essence. Unbreakable but weak",
     "value": 2000,
     "vendable": true,
@@ -183,7 +191,8 @@
   {
     "id": "14",
     "name": "Haunted Pickaxe",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "Whispers of trapped souls echo from its blade.",
     "value": 1200,
     "vendable": true,
@@ -196,7 +205,8 @@
   {
     "id": "16",
     "name": "Pinkgem Axe",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "Forged with glowing pink gemstones, it radiates elegance and strength.",
     "value": 2000,
     "vendable": true,
@@ -209,7 +219,8 @@
   {
     "id": "12",
     "name": "DRICK",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "Styvec's DRICK. Heavy and oddly shaped, but brutally efficient.",
     "value": 3500,
     "vendable": true,
@@ -222,7 +233,8 @@
   {
     "id": "15",
     "name": "Hypickeon",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "A mysterious tool, its form seems unstable yet powerful.",
     "value": 5000,
     "vendable": true,
@@ -235,7 +247,8 @@
   {
     "id": "19",
     "name": "Murderous Aura Pickaxe",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "A cursed pickaxe radiating a murderous aura. The ground itself recoils at its touch.",
     "value": 8000,
     "vendable": true,
@@ -248,7 +261,8 @@
   {
     "id": "9",
     "name": "Enchanted Pickaxe",
-    "type": "pickAxe",
+    "type": "tool",
+    "slot": "mining",
     "description": "Runic symbols decorate the surface of this pick.",
     "value": 12000,
     "vendable": true,
@@ -323,7 +337,8 @@
   {
     "id": "28",
     "name": "Miner's Headlamp",
-    "type": "equipment",
+    "type": "tool",
+    "slot": "sight",
     "description": "A bright LED headlamp that illuminates dark mine tunnels.",
     "value": 45,
     "vendable": true,
@@ -336,7 +351,8 @@
   {
     "id": "29",
     "name": "Crystal Lens Goggles",
-    "type": "equipment",
+    "type": "tool",
+    "slot": "sight",
     "description": "Precision goggles with crystal lenses that reveal hidden ore veins.",
     "value": 120,
     "vendable": true,
@@ -349,7 +365,8 @@
   {
     "id": "30",
     "name": "Eagle Eye Visor",
-    "type": "equipment",
+    "type": "tool",
+    "slot": "sight",
     "description": "A legendary visor that grants the vision of an eagle, seeing through stone itself.",
     "value": 350,
     "vendable": true,
@@ -362,7 +379,8 @@
   {
     "id": "31",
     "name": "Oracle's Third Eye",
-    "type": "equipment",
+    "type": "tool",
+    "slot": "sight",
     "description": "A mystical artifact that grants supernatural vision, revealing all secrets.",
     "value": 800,
     "vendable": true,
@@ -375,7 +393,7 @@
   {
     "id": "32",
     "name": "Lucky Charm Necklace",
-    "type": "equipment",
+    "type": "charm",
     "description": "A simple charm that brings a bit of good fortune.",
     "value": 35,
     "vendable": true,
@@ -388,7 +406,7 @@
   {
     "id": "33",
     "name": "Rabbit's Foot Keychain",
-    "type": "equipment",
+    "type": "charm",
     "description": "A genuine rabbit's foot that significantly improves your luck.",
     "value": 85,
     "vendable": true,
@@ -401,7 +419,7 @@
   {
     "id": "34",
     "name": "Four-Leaf Clover Pin",
-    "type": "equipment",
+    "type": "charm",
     "description": "A rare four-leaf clover preserved in amber, radiating fortune.",
     "value": 200,
     "vendable": true,
@@ -414,7 +432,7 @@
   {
     "id": "35",
     "name": "Fortune's Blessing Ring",
-    "type": "equipment",
+    "type": "charm",
     "description": "A golden ring blessed by the goddess of fortune herself.",
     "value": 500,
     "vendable": true,
@@ -427,7 +445,7 @@
   {
     "id": "36",
     "name": "Probability Manipulator",
-    "type": "equipment",
+    "type": "charm",
     "description": "A mysterious device that bends reality itself to your favor.",
     "value": 1200,
     "vendable": true,
@@ -441,6 +459,7 @@
     "id": "37",
     "name": "Swift Mining Boots",
     "type": "equipment",
+    "slot": "feet",
     "description": "Lightweight boots that let you move quickly through mine tunnels.",
     "value": 40,
     "vendable": true,
@@ -454,6 +473,7 @@
     "id": "38",
     "name": "Hermes' Sandals",
     "type": "equipment",
+    "slot": "feet",
     "description": "Winged sandals that grant the speed of the messenger god.",
     "value": 150,
     "vendable": true,
@@ -466,7 +486,7 @@
   {
     "id": "39",
     "name": "Lightning Runner Gear",
-    "type": "equipment",
+    "type": "charm",
     "description": "Electrified equipment that channels lightning energy into pure speed.",
     "value": 300,
     "vendable": true,
@@ -479,7 +499,7 @@
   {
     "id": "40",
     "name": "Time Dilation Device",
-    "type": "equipment",
+    "type": "charm",
     "description": "A clockwork device that manipulates time around you, making you appear to move at impossible speeds.",
     "value": 750,
     "vendable": true,
@@ -492,7 +512,7 @@
   {
     "id": "41",
     "name": "Quantum Tunneling Kit",
-    "type": "equipment",
+    "type": "charm",
     "description": "Experimental technology that allows you to phase through obstacles, achieving ultimate mining efficiency.",
     "value": 1500,
     "vendable": true,
@@ -544,7 +564,7 @@
   {
     "id": "45",
     "name": "Miner's Multi-Tool",
-    "type": "equipment",
+    "type": "charm",
     "description": "A versatile tool that provides balanced mining capabilities with enhanced efficiency.",
     "value": 400,
     "vendable": true,
@@ -558,7 +578,7 @@
   {
     "id": "46",
     "name": "Prospector's Dream Scanner",
-    "type": "equipment",
+    "type": "charm",
     "description": "A legendary scanner that seems to know where the best ore is hidden.",
     "value": 900,
     "vendable": true,

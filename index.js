@@ -37,6 +37,7 @@ process.on('uncaughtException', (err) => {
 });
 
 const { scanMagentaPixels, getMagentaCoordinates } = require('./fileStoreMapData');
+const inventory = require('./models/inventory');
 scanMagentaPixels();
 
 let shopHandler;
@@ -48,6 +49,7 @@ client.once(Events.ClientReady, async c => {
     client.user.setPresence({ status: "away" });
     
     const ensureMoneyProfilesForGuild = require('./patterns/currency/ensureMoneyProfile');
+    await removeDuplicateInventoryItems();
     const botMessageDeletus = require('./patterns/botMessageCleaner');
     const gachaGM = require('./patterns/gachaGameMaster');
 
@@ -61,7 +63,7 @@ client.once(Events.ClientReady, async c => {
     // Loop through all guilds your bot is in
     client.guilds.cache.forEach(async guild => {
 
-        //if (guild.id !== targetGuildId) return console.log ('skipping guild: ' + guild.id);
+        if (guild.id !== targetGuildId) return console.log ('skipping guild: ' + guild.id);
         shopHandler = new ShopHandler(client, guild.id);
 
         // Fetch guild config from MongoDB
@@ -145,6 +147,46 @@ client.once(Events.ClientReady, async c => {
 
 });
 
+/**
+ * Removes duplicate items in all player inventories
+ */
+async function removeDuplicateInventoryItems() {
+    try {
+        const allInventories = await inventory.find();
+
+        for (const inv of allInventories) {
+            const seen = new Map(); // Map<itemId, totalQuantity>
+            const cleanedItems = [];
+
+            for (const item of inv.items) {
+                if (seen.has(item.itemId)) {
+                    // Aggregate quantity if you want to keep one entry
+                    const currentQty = seen.get(item.itemId);
+                    seen.set(item.itemId, currentQty + item.quantity);
+                } else {
+                    seen.set(item.itemId, item.quantity);
+                }
+            }
+
+            // Rebuild items array from Map
+            for (const [itemId, quantity] of seen.entries()) {
+                cleanedItems.push({ itemId, quantity });
+            }
+
+            // Only update if there was a change
+            if (cleanedItems.length !== inv.items.length) {
+                inv.items = cleanedItems;
+                await inv.save();
+                console.log(`Cleaned duplicates for player ${inv.playerId}`);
+            }
+        }
+
+        console.log('Inventory deduplication complete.');
+    } catch (err) {
+        console.error('Error cleaning inventories:', err);
+    }
+}
+
 client.on(Events.GuildMemberAdd, async (member) => {
     try {
         // Check if the user already has a profile in this guild
@@ -181,7 +223,7 @@ for (const file of commandFiles) {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isCommand()) return;
-  //if (interaction.guild.id !== targetGuildId) return;
+  if (interaction.guild.id !== targetGuildId) return;
 
   const command = client.commands.get(interaction.commandName);
   if (!command) return;

@@ -289,9 +289,10 @@ class ShopHandler {
             return interaction.reply({ content: '⚘ Could not get current prices', ephemeral: true });
         }
 
+        // console.log (interaction);
         // Get user data
         let userCurrency = await Currency.findOne({ userId }) || new Currency({ userId, money: 0 });
-        let userInv = await PlayerInventory.findOne({ playerId: userId }) || new PlayerInventory({ playerId: userId, items: [] });
+        let userInv = await PlayerInventory.findOne({ playerId: userId }) || new PlayerInventory({ playerId: userId, playerTag: interaction.member.user.tag, items: [] });
 
         // Get shop info for description updates
         const channelId = interaction.channel.id;

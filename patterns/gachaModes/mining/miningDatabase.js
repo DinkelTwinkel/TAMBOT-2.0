@@ -34,41 +34,100 @@ class DatabaseTransaction {
         this.vcUpdates[channelId] = updates;
     }
     
+    async executePlayerInventoryOps(ops) {
+        try {
+            // Process all additions for this player
+            for (const addition of ops.additions) {
+                await this.addItemAtomic(ops.playerId, ops.playerTag, addition.itemId, addition.quantity);
+            }
+            
+            // Process all removals (pickaxe breaks) for this player
+            for (const removal of ops.removals) {
+                await breakPickaxe(ops.playerId, ops.playerTag, removal);
+            }
+        } catch (error) {
+            console.error(`Error in inventory operations for player ${ops.playerId}:`, error);
+        }
+    }
+    
+    async addItemAtomic(playerId, playerTag, itemId, quantity) {
+        try {
+            // Try to update existing item
+            const updated = await PlayerInventory.findOneAndUpdate(
+                { 
+                    playerId,
+                    'items.itemId': itemId
+                },
+                {
+                    $inc: { 'items.$.quantity': quantity },
+                    $set: { playerTag }
+                },
+                { new: true }
+            );
+            
+            if (!updated) {
+                // Item doesn't exist, try to add it
+                const added = await PlayerInventory.findOneAndUpdate(
+                    { playerId },
+                    {
+                        $push: { items: { itemId, quantity } },
+                        $set: { playerTag }
+                    },
+                    { new: true, upsert: true }
+                );
+                
+                if (!added) {
+                    // Create new document
+                    await PlayerInventory.create({
+                        playerId,
+                        playerTag,
+                        items: [{ itemId, quantity }]
+                    });
+                }
+            }
+        } catch (error) {
+            console.error(`Error adding item ${itemId} for player ${playerId}:`, error);
+        }
+    }
+    
     async commit() {
         const promises = [];
         
-        if (this.inventoryUpdates.size > 0) {
-            const inventoryPromises = Array.from(this.inventoryUpdates.values()).map(async (update) => {
-                let inv = await PlayerInventory.findOne({ 
-                    playerId: update.playerId, 
-                    playerTag: update.playerTag 
+        // Group inventory operations by player to avoid conflicts
+        const playerInventoryOps = new Map();
+        
+        // Collect all inventory updates by player
+        for (const update of this.inventoryUpdates.values()) {
+            if (!playerInventoryOps.has(update.playerId)) {
+                playerInventoryOps.set(update.playerId, {
+                    playerId: update.playerId,
+                    playerTag: update.playerTag,
+                    additions: [],
+                    removals: []
                 });
-                
-                if (!inv) {
-                    inv = new PlayerInventory({ 
-                        playerId: update.playerId, 
-                        playerTag: update.playerTag, 
-                        items: [{ itemId: update.itemId, quantity: update.quantity }] 
-                    });
-                } else {
-                    const existing = inv.items.find(i => i.itemId === update.itemId);
-                    if (existing) {
-                        existing.quantity += update.quantity;
-                    } else {
-                        inv.items.push({ itemId: update.itemId, quantity: update.quantity });
-                    }
-                }
-                
-                return inv.save();
+            }
+            playerInventoryOps.get(update.playerId).additions.push({
+                itemId: update.itemId,
+                quantity: update.quantity
             });
-            promises.push(...inventoryPromises);
         }
         
-        if (this.pickaxeBreaks.length > 0) {
-            const breakPromises = this.pickaxeBreaks.map(breakData => 
-                breakPickaxe(breakData.playerId, breakData.playerTag, breakData.pickaxe)
-            );
-            promises.push(...breakPromises);
+        // Add pickaxe breaks to the same player operations
+        for (const breakData of this.pickaxeBreaks) {
+            if (!playerInventoryOps.has(breakData.playerId)) {
+                playerInventoryOps.set(breakData.playerId, {
+                    playerId: breakData.playerId,
+                    playerTag: breakData.playerTag,
+                    additions: [],
+                    removals: []
+                });
+            }
+            playerInventoryOps.get(breakData.playerId).removals.push(breakData.pickaxe);
+        }
+        
+        // Execute all operations for each player atomically
+        for (const ops of playerInventoryOps.values()) {
+            promises.push(this.executePlayerInventoryOps(ops));
         }
         
         if (this.mapUpdate) {
@@ -149,17 +208,34 @@ async function resetMinecart(channelId) {
 }
 
 async function breakPickaxe(playerId, playerTag, pickaxe) {
-    const inv = await PlayerInventory.findOne({ playerId });
-    if (inv) {
-        const itemIndex = inv.items.findIndex(i => i.itemId === pickaxe.itemId);
-        if (itemIndex !== -1) {
-            if (inv.items[itemIndex].quantity > 1) {
-                inv.items[itemIndex].quantity -= 1;
-            } else {
-                inv.items.splice(itemIndex, 1);
-            }
-            await inv.save();
+
+    console.log ('attempting to break pickaxe');
+    try {
+        // First try to decrement quantity if > 1
+        const result = await PlayerInventory.findOneAndUpdate(
+            { 
+                playerId, 
+                'items.itemId': pickaxe.itemId,
+                'items.quantity': { $gt: 1 }
+            },
+            { 
+                $inc: { 'items.$.quantity': -1 } 
+            },
+            { new: true }
+        );
+        
+        if (!result) {
+            // If quantity is 1, remove the item entirely
+            await PlayerInventory.findOneAndUpdate(
+                { playerId },
+                { 
+                    $pull: { items: { itemId: pickaxe.itemId } } 
+                }
+            );
         }
+    } catch (error) {
+        console.error(`Error breaking pickaxe for player ${playerId}:`, error);
+        // Don't throw - just log the error to prevent mining from stopping
     }
 }
 
@@ -283,8 +359,10 @@ async function createMiningSummary(channel, dbEntry) {
         return;
     }
 
-    // Apply team bonuses
-    const teamBonus = Math.floor(totalValue * 0.1); // 10% team bonus
+    // Calculate team bonus (1% per additional player, only if more than 1 player)
+    const playerCount = Object.keys(contributorRewards).length;
+    const teamBonusPercent = playerCount > 1 ? (playerCount - 1) * 0.01 : 0;
+    const teamBonus = Math.floor(totalValue * teamBonusPercent);
     const finalValue = totalValue + teamBonus;
 
     // Reward contributors with enhanced error handling
@@ -293,20 +371,29 @@ async function createMiningSummary(channel, dbEntry) {
         try {
             const member = await channel.guild.members.fetch(playerId);
             
+            // Calculate individual reward including team bonus share
+            const bonusShare = playerCount > 1 ? Math.floor(teamBonus / playerCount) : 0;
+            const totalReward = reward.coins + bonusShare;
+            
             let userCurrency = await Currency.findOne({ userId: playerId });
             
             if (!userCurrency) {
                 userCurrency = await Currency.create({
                     userId: playerId,
                     usertag: member.user.tag,
-                    money: reward.coins
+                    money: totalReward
                 });
             } else {
-                userCurrency.money = (userCurrency.money || 0) + reward.coins;
+                userCurrency.money = (userCurrency.money || 0) + totalReward;
                 await userCurrency.save();
             }
             
-            contributorLines.push(`${member.displayName}: ${reward.contribution} items → ${reward.coins} coins`);
+            // Show bonus in contributor line if applicable
+            if (playerCount > 1) {
+                contributorLines.push(`${member.displayName}: ${reward.contribution} items → ${reward.coins} coins (+${bonusShare} bonus)`);
+            } else {
+                contributorLines.push(`${member.displayName}: ${reward.contribution} items → ${reward.coins} coins`);
+            }
         } catch (error) {
             console.error(`Error rewarding player ${playerId}:`, error);
         }
@@ -321,7 +408,11 @@ async function createMiningSummary(channel, dbEntry) {
     const { EmbedBuilder } = require('discord.js');
     const embed = new EmbedBuilder()
         .setTitle('🛒 Mining Session Complete')
-        .setDescription(`The minecart has been sold to the shop!\n\n**Total Value:** ${finalValue} coins (${totalValue} + ${teamBonus} team bonus)`)
+        .setDescription(
+            playerCount > 1 
+                ? `The minecart has been sold to the shop!\n\n**Total Value:** ${finalValue} coins (${totalValue} + ${teamBonus} team bonus [${playerCount}p × ${Math.round(teamBonusPercent * 100)}%])`
+                : `The minecart has been sold to the shop!\n\n**Total Value:** ${finalValue} coins`
+        )
         .addFields(
             {
                 name: '📦 Items Sold',
