@@ -75,19 +75,27 @@ const POWER_LEVEL_CONFIG = {
     }
 };
 
-// Enhanced tile types
+// Enhanced tile types (treasure removed - now part of encounters)
 const TILE_TYPES = {
     WALL: 'wall',
     FLOOR: 'floor', 
     ENTRANCE: 'entrance',
     WALL_WITH_ORE: 'wall_ore',
     RARE_ORE: 'rare_ore',
-    TREASURE_CHEST: 'treasure',
-    HAZARD: 'hazard',
     REINFORCED_WALL: 'reinforced'
 };
 
-// Hazard Types
+// Encounter Types (hazards and treasures)
+const ENCOUNTER_TYPES = {
+    PORTAL_TRAP: 'portal_trap',
+    BOMB_TRAP: 'bomb_trap',
+    GREEN_FOG: 'green_fog',
+    WALL_TRAP: 'wall_trap',
+    TREASURE: 'treasure',
+    RARE_TREASURE: 'rare_treasure'
+};
+
+// Keep legacy HAZARD_TYPES for backward compatibility
 const HAZARD_TYPES = {
     PORTAL_TRAP: 'portal_trap',
     BOMB_TRAP: 'bomb_trap',
@@ -95,46 +103,118 @@ const HAZARD_TYPES = {
     WALL_TRAP: 'wall_trap'
 };
 
-// Hazard Configurations
-const HAZARD_CONFIG = {
-    [HAZARD_TYPES.PORTAL_TRAP]: {
+// Encounter Configurations (includes hazards and treasures)
+const ENCOUNTER_CONFIG = {
+    [ENCOUNTER_TYPES.PORTAL_TRAP]: {
         name: 'Portal Trap',
         symbol: '⊕',
         color: '#9932CC',  // Purple
+        image: 'portal_trap',  // Image filename without extension
         description: 'Teleports to random location',
         powerRequirement: 1,
-        weight: 30
+        weight: 30,
+        isHazard: true
     },
-    [HAZARD_TYPES.BOMB_TRAP]: {
+    [ENCOUNTER_TYPES.BOMB_TRAP]: {
         name: 'Bomb Trap',
         symbol: '💣',
         color: '#FF4500',  // Orange Red
+        image: 'bomb_trap',  // Image filename without extension
         description: 'Explodes surrounding walls, knocks out player for 5 minutes',
         powerRequirement: 2,
         weight: 25,
         blastRadius: 2,
-        knockoutDuration: 5 * 60 * 1000  // 5 minutes in milliseconds
+        knockoutDuration: 5 * 60 * 1000,  // 5 minutes in milliseconds
+        isHazard: true
     },
-    [HAZARD_TYPES.GREEN_FOG]: {
+    [ENCOUNTER_TYPES.GREEN_FOG]: {
         name: 'Toxic Fog',
         symbol: '☁',
         color: '#00FF00',  // Green
+        image: 'toxic_fog',  // Image filename without extension
         description: 'Damages equipment durability',
         powerRequirement: 3,
         weight: 20,
-        durabilityDamage: 1
+        durabilityDamage: 1,
+        isHazard: true
     },
-    [HAZARD_TYPES.WALL_TRAP]: {
+    [ENCOUNTER_TYPES.WALL_TRAP]: {
         name: 'Wall Trap',
         symbol: '▦',
         color: '#8B4513',  // Saddle Brown
+        image: 'wall_trap',  // Image filename without extension
         description: 'Converts floors to walls',
         powerRequirement: 4,
-        weight: 15
+        weight: 15,
+        isHazard: true
+    },
+    [ENCOUNTER_TYPES.TREASURE]: {
+        name: 'Treasure Chest',
+        symbol: '💰',
+        color: '#FFD700',  // Gold
+        image: 'treasure_chest',  // Image filename without extension
+        description: 'Contains valuable items and resources',
+        powerRequirement: 1,
+        weight: 20,
+        isHazard: false,
+        minItems: 1,
+        maxItems: 3
+    },
+    [ENCOUNTER_TYPES.RARE_TREASURE]: {
+        name: 'Rare Treasure',
+        symbol: '👑',
+        color: '#B8860B',  // Dark golden rod
+        image: 'rare_treasure',  // Image filename without extension
+        description: 'Contains rare and epic items',
+        powerRequirement: 3,
+        weight: 5,
+        isHazard: false,
+        minItems: 2,
+        maxItems: 5
     }
 };
 
-// Power level hazard spawn configurations
+// Keep legacy HAZARD_CONFIG for backward compatibility
+const HAZARD_CONFIG = {
+    [HAZARD_TYPES.PORTAL_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.PORTAL_TRAP],
+    [HAZARD_TYPES.BOMB_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.BOMB_TRAP],
+    [HAZARD_TYPES.GREEN_FOG]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.GREEN_FOG],
+    [HAZARD_TYPES.WALL_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.WALL_TRAP]
+};
+
+// Power level encounter spawn configurations (includes hazards and treasures)
+const ENCOUNTER_SPAWN_CONFIG = {
+    1: { 
+        spawnChance: 0.02, 
+        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.TREASURE] 
+    },
+    2: { 
+        spawnChance: 0.025, 
+        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.TREASURE] 
+    },
+    3: { 
+        spawnChance: 0.03, 
+        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
+    },
+    4: { 
+        spawnChance: 0.035, 
+        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.WALL_TRAP, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
+    },
+    5: { 
+        spawnChance: 0.04, 
+        availableTypes: Object.values(ENCOUNTER_TYPES) 
+    },
+    6: { 
+        spawnChance: 0.045, 
+        availableTypes: Object.values(ENCOUNTER_TYPES) 
+    },
+    7: { 
+        spawnChance: 0.05, 
+        availableTypes: Object.values(ENCOUNTER_TYPES) 
+    }
+};
+
+// Keep legacy HAZARD_SPAWN_CONFIG for backward compatibility
 const HAZARD_SPAWN_CONFIG = {
     1: { spawnChance: 0.01, availableTypes: [HAZARD_TYPES.PORTAL_TRAP] },
     2: { spawnChance: 0.015, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP] },
@@ -417,6 +497,39 @@ function getHazardSpawnChance(powerLevel) {
     return config.spawnChance;
 }
 
+// Function to get encounter type based on power level (replaces getHazardTypeForPowerLevel)
+function getEncounterTypeForPowerLevel(powerLevel) {
+    const config = ENCOUNTER_SPAWN_CONFIG[powerLevel] || ENCOUNTER_SPAWN_CONFIG[1];
+    const availableTypes = config.availableTypes;
+    
+    if (!availableTypes || availableTypes.length === 0) return null;
+    
+    // Weighted random selection
+    const eligibleEncounters = availableTypes
+        .map(type => ({ type, config: ENCOUNTER_CONFIG[type] }))
+        .filter(e => e.config.powerRequirement <= powerLevel);
+    
+    if (eligibleEncounters.length === 0) return null;
+    
+    const totalWeight = eligibleEncounters.reduce((sum, e) => sum + e.config.weight, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (const encounter of eligibleEncounters) {
+        random -= encounter.config.weight;
+        if (random <= 0) {
+            return encounter.type;
+        }
+    }
+    
+    return eligibleEncounters[0].type;
+}
+
+// Function to get encounter spawn chance for power level
+function getEncounterSpawnChance(powerLevel) {
+    const config = ENCOUNTER_SPAWN_CONFIG[powerLevel] || ENCOUNTER_SPAWN_CONFIG[1];
+    return config.spawnChance;
+}
+
 module.exports = {
     INITIAL_MAP_WIDTH,
     INITIAL_MAP_HEIGHT,
@@ -427,6 +540,10 @@ module.exports = {
     MAX_MAP_SIZE,
     EXPLORATION_BONUS_CHANCE,
     TILE_TYPES,
+    ENCOUNTER_TYPES,
+    ENCOUNTER_CONFIG,
+    ENCOUNTER_SPAWN_CONFIG,
+    // Legacy exports for backward compatibility
     HAZARD_TYPES,
     HAZARD_CONFIG,
     HAZARD_SPAWN_CONFIG,
@@ -437,6 +554,9 @@ module.exports = {
     calculateMiningEfficiency,
     getAvailableItems,
     getAvailableTreasures,
-    getHazardTypeForPowerLevel,
-    getHazardSpawnChance
+    getEncounterTypeForPowerLevel,
+    getEncounterSpawnChance,
+    // Legacy function names for backward compatibility
+    getHazardTypeForPowerLevel: getEncounterTypeForPowerLevel,
+    getHazardSpawnChance: getEncounterSpawnChance
 };

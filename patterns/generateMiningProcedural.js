@@ -1,3 +1,7 @@
+// NOTE: For the new layered rendering system with auto-generated images, use:
+// require('./gachaModes/mining/imageProcessing/mining-layered-render')
+// This provides better visuals with proper Y-sorting, wall connections, and theme support
+
 // generateMiningProcedural_enhanced.js - Enhanced with new tile types and separate rail storage
 const { createCanvas, loadImage } = require('canvas');
 const gachaVC = require('../models/activevcs');
