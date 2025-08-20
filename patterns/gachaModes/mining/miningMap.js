@@ -9,6 +9,7 @@ const {
 } = require('./miningConstants');
 const hazardStorage = require('./hazardStorage');
 const { createMapSeed, seededRandom } = require('./miningUtils');
+const coordinateManager = require('./coordinateManager');
 
 // Enhanced Map Generation
 function generateTileType(channelId, x, y) {
@@ -241,9 +242,13 @@ function cleanupPlayerPositions(mapData, currentPlayerIds) {
  * @param {Object} hazardsData - Optional hazards data to generate hazards for new area
  * @param {number} serverPowerLevel - Optional server power level for hazard generation
  */
-function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = null, serverPowerLevel = 1) {
+async function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = null, serverPowerLevel = 1) {
     let needsExpansion = false;
     let expansionDirection = '';
+    
+    // Store original dimensions for coordinate updates
+    const originalEntranceX = mapData.entranceX;
+    const originalEntranceY = mapData.entranceY;
     
     // Check if expansion is needed and possible
     if (newY < 0) {
@@ -271,6 +276,22 @@ function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = null, s
     if (needsExpansion && expansionDirection) {
         console.log(`[MAP] Expansion needed at (${newX}, ${newY}) - direction: ${expansionDirection}`);
         const expandedMap = expandMap(mapData, expansionDirection, channelId);
+        
+        // Calculate coordinate shift
+        const shiftX = expandedMap.entranceX - originalEntranceX;
+        const shiftY = expandedMap.entranceY - originalEntranceY;
+        
+        // Update rail and hazard coordinates if they shifted
+        if (shiftX !== 0 || shiftY !== 0) {
+            console.log(`[MAP] Coordinate shift detected: (${shiftX}, ${shiftY})`);
+            await Promise.all([
+                coordinateManager.updateRailCoordinates(channelId, shiftX, shiftY),
+                coordinateManager.updateHazardCoordinates(channelId, shiftX, shiftY)
+            ]);
+        }
+        
+        // Store new map dimensions
+        await coordinateManager.storeMapDimensions(channelId, expandedMap);
         
         // Generate hazards for the new expanded area if hazardsData provided
         if (hazardsData && serverPowerLevel) {

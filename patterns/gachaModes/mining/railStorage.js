@@ -125,7 +125,8 @@ function getAllRailPositions(railsData) {
 }
 
 /**
- * Build rails along a path
+ * Build rails along a path (REPLACES all existing rails)
+ * Use mergeRailPath to preserve existing rails
  * @param {string} channelId - The channel ID
  * @param {Array} path - Array of {x, y} positions forming the path
  */
@@ -153,7 +154,8 @@ async function buildRailPath(channelId, path) {
 }
 
 /**
- * Merge existing rails with new rails (preserves existing rails)
+ * Merge existing rails with new rails (PRESERVES existing rails)
+ * This is the preferred method for adding new rails
  * @param {string} channelId - The channel ID
  * @param {Array} newPath - Array of {x, y} positions to add
  */

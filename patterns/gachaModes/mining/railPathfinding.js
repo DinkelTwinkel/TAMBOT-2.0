@@ -179,8 +179,8 @@ async function buildMinecartRails(dbEntry, start, end) {
             };
         }
         
-        // Build rails along the path using the new storage system
-        await railStorage.buildRailPath(dbEntry.channelId, path);
+        // Build rails along the path using merge to preserve existing rails
+        await railStorage.mergeRailPath(dbEntry.channelId, path);
         
         return {
             success: true,

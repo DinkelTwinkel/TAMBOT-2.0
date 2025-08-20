@@ -5,6 +5,7 @@ const generateTileMapImage = require('../patterns/generateMiningProcedural');
 const { clearAllRails, getRailPositions } = require('../patterns/gachaModes/mining/railPathfinding');
 const railStorage = require('../patterns/gachaModes/mining/railStorage');
 const { findOptimalRailStart, getRailNetworkStats } = require('../patterns/gachaModes/mining/railPathfindingExtended');
+const { checkAndHandleMapChanges } = require('../patterns/gachaModes/mining/coordinateManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -71,6 +72,12 @@ module.exports = {
                         });
                     }
 
+                    // Check for map changes and update coordinates if needed
+                    const coordinateUpdate = await checkAndHandleMapChanges(voiceChannel.id, mapData);
+                    if (coordinateUpdate.updated) {
+                        console.log(`[DEBUG RAILS] Map expanded, coordinates updated with shift (${coordinateUpdate.shiftX}, ${coordinateUpdate.shiftY})`);
+                    }
+
                     // Find optimal starting point (closest rail or entrance)
                     console.log(`[DEBUG RAILS] Finding optimal starting point for player at (${playerPosition.x}, ${playerPosition.y})`);
                     const startPoint = await findOptimalRailStart(mapData, playerPosition, voiceChannel.id);
@@ -82,8 +89,8 @@ module.exports = {
                         });
                     }
 
-                    // Build rails along the path using the new storage system
-                    await railStorage.buildRailPath(voiceChannel.id, startPoint.path);
+                    // Build rails along the path using merge to preserve existing rails
+                    await railStorage.mergeRailPath(voiceChannel.id, startPoint.path);
                     
                     // Clear any mining system caches if they exist
                     if (global.dbCache) {

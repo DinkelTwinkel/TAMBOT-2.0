@@ -1001,7 +1001,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             let checkX = adj.x, checkY = adj.y;
             
             if (checkX < 0 || checkX >= mapData.width || checkY < 0 || checkY >= mapData.height) {
-                const expandedMap = checkMapExpansion(mapData, checkX, checkY, dbEntry.channelId, hazardsData, powerLevel);
+                const expandedMap = await checkMapExpansion(mapData, checkX, checkY, dbEntry.channelId, hazardsData, powerLevel);
                 if (expandedMap !== mapData) {
                     mapData = expandedMap;
                     mapChanged = true;
@@ -1141,7 +1141,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         let newX = position.x + direction.dx;
         let newY = position.y + direction.dy;
         
-        const expandedMap = checkMapExpansion(mapData, newX, newY, dbEntry.channelId, hazardsData, powerLevel);
+        const expandedMap = await checkMapExpansion(mapData, newX, newY, dbEntry.channelId, hazardsData, powerLevel);
         if (expandedMap !== mapData) {
             mapData = expandedMap;
             mapChanged = true;
