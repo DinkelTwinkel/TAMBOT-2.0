@@ -77,8 +77,10 @@ client.once(Events.ClientReady, async c => {
         // Fetch guild config from MongoDB
         let config = await GuildConfig.findOne({ guildId: guild.id });
         if (!config) {
-            config = new GuildConfig({ guildId: guild.id });
-            await config.save();
+
+            return;
+            //config = new GuildConfig({ guildId: guild.id });
+            //await config.save();
         }
 
         // FRIENDSHIP ID (optional)
