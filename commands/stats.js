@@ -56,29 +56,98 @@ module.exports = {
         });
       }
 
-      // Add equipped items field with durability
+      // Add equipped items field with durability (split into categories to avoid field limit)
       if (Object.keys(equippedItems).length > 0) {
-        const itemsList = Object.values(equippedItems)
-          .map(item => {
-            const statsStr = item.abilities
-              .map(a => `${a.name} +${a.power}`)
-              .join(', ');
-            
-            // Calculate durability percentage and add visual indicator
-            const maxDurability = item.durability || 100;
-            const currentDurability = item.currentDurability !== undefined ? item.currentDurability : maxDurability;
-            const durabilityPercent = Math.round((currentDurability / maxDurability) * 100);
-            const durabilityBar = getDurabilityBar(durabilityPercent);
-            
-            return `• **${item.name}** (${statsStr})\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)`;
-          })
-          .join('\n');
+        // Group items by type
+        const tools = [];
+        const equipment = [];
+        const charms = [];
         
-        embed.addFields({
-          name: '🎒 Equipment',
-          value: itemsList,
-          inline: false
-        });
+        for (const item of Object.values(equippedItems)) {
+          const statsStr = item.abilities
+            .map(a => `${a.name} +${a.power}`)
+            .join(', ');
+          
+          // Calculate durability percentage
+          const maxDurability = item.durability || 100;
+          const currentDurability = item.currentDurability !== undefined ? item.currentDurability : maxDurability;
+          const durabilityPercent = Math.round((currentDurability / maxDurability) * 100);
+          
+          // Compact display format
+          const durabilityEmoji = getDurabilityEmoji(durabilityPercent);
+          const itemDisplay = `${durabilityEmoji} **${item.name}** [${currentDurability}/${maxDurability}]\n└ ${statsStr}`;
+          
+          // Categorize by type
+          if (item.type === 'tool') {
+            tools.push(itemDisplay);
+          } else if (item.type === 'equipment') {
+            equipment.push(itemDisplay);
+          } else if (item.type === 'charm') {
+            charms.push(itemDisplay);
+          }
+        }
+        
+        // Add fields for each category that has items
+        if (tools.length > 0) {
+          const toolsText = tools.join('\n');
+          if (toolsText.length <= 1024) {
+            embed.addFields({
+              name: '⛏️ Tools',
+              value: toolsText,
+              inline: false
+            });
+          } else {
+            // Split into multiple fields if too long
+            const chunks = splitIntoChunks(tools, 1024);
+            chunks.forEach((chunk, i) => {
+              embed.addFields({
+                name: i === 0 ? '⛏️ Tools' : '⛏️ Tools (continued)',
+                value: chunk,
+                inline: false
+              });
+            });
+          }
+        }
+        
+        if (equipment.length > 0) {
+          const equipText = equipment.join('\n');
+          if (equipText.length <= 1024) {
+            embed.addFields({
+              name: '🛡️ Equipment',
+              value: equipText,
+              inline: false
+            });
+          } else {
+            const chunks = splitIntoChunks(equipment, 1024);
+            chunks.forEach((chunk, i) => {
+              embed.addFields({
+                name: i === 0 ? '🛡️ Equipment' : '🛡️ Equipment (continued)',
+                value: chunk,
+                inline: false
+              });
+            });
+          }
+        }
+        
+        if (charms.length > 0) {
+          const charmsText = charms.join('\n');
+          if (charmsText.length <= 1024) {
+            embed.addFields({
+              name: '✨ Charms',
+              value: charmsText,
+              inline: false
+            });
+          } else {
+            const chunks = splitIntoChunks(charms, 1024);
+            chunks.forEach((chunk, i) => {
+              embed.addFields({
+                name: i === 0 ? '✨ Charms' : '✨ Charms (continued)',
+                value: chunk,
+                inline: false
+              });
+            });
+          }
+        }
       }
 
       // Add active buffs field (simplified)
@@ -151,31 +220,36 @@ function getTimeRemaining(expiresAt) {
   return `${seconds}s`;
 }
 
-// Helper function to create a visual durability bar
-function getDurabilityBar(percent) {
-  const barLength = 10;
-  const filled = Math.round((percent / 100) * barLength);
-  const empty = barLength - filled;
+// Helper function to get durability emoji indicator
+function getDurabilityEmoji(percent) {
+  if (percent > 75) return '🟢';
+  if (percent > 50) return '🟡';
+  if (percent > 25) return '🟠';
+  return '🔴';
+}
+
+// Helper function to split items into chunks that fit Discord's field limit
+function splitIntoChunks(items, maxLength) {
+  const chunks = [];
+  let currentChunk = [];
+  let currentLength = 0;
   
-  let barChar, emptyChar, emoji;
-  
-  if (percent > 75) {
-    barChar = '🟩';
-    emptyChar = '⬜';
-    emoji = '🛡️';
-  } else if (percent > 50) {
-    barChar = '🟨';
-    emptyChar = '⬜';
-    emoji = '⚠️';
-  } else if (percent > 25) {
-    barChar = '🟧';
-    emptyChar = '⬜';
-    emoji = '⚠️';
-  } else {
-    barChar = '🟥';
-    emptyChar = '⬜';
-    emoji = '🔨';
+  for (const item of items) {
+    const itemLength = item.length + 1; // +1 for newline
+    
+    if (currentLength + itemLength > maxLength && currentChunk.length > 0) {
+      chunks.push(currentChunk.join('\n'));
+      currentChunk = [item];
+      currentLength = itemLength;
+    } else {
+      currentChunk.push(item);
+      currentLength += itemLength;
+    }
   }
   
-  return `${emoji} ${barChar.repeat(filled)}${emptyChar.repeat(empty)}`;
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk.join('\n'));
+  }
+  
+  return chunks;
 }
