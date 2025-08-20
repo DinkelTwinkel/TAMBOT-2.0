@@ -832,9 +832,9 @@ module.exports = async (channel, dbEntry, json, client) => {
     // Process actions for each player with power level enhancements
     for (const member of members.values()) {
         // Skip disabled players (knocked out from hazards)
-        // if (hazardEffects.isPlayerDisabled(member.id, dbEntry)) {
-        //     continue;
-        // }
+        if (hazardEffects.isPlayerDisabled(member.id, dbEntry)) {
+            continue;
+        }
         
         const playerData = playerStatsMap.get(member.id);
         const playerLevel = playerData.level || 1;
@@ -977,6 +977,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     for (let actionNum = 0; actionNum < numActions; actionNum++) {
         const position = mapData.playerPositions[member.id];
         if (!position) break;
+        
+        // Check if player is stuck (from portal trap into wall) - they cannot do anything!
+        if (position.stuck || position.trapped) {
+            // Player is stuck/trapped and cannot take any actions
+            break;
+        }
         
         // Enhanced treasure generation with power level
         if (Math.random() < efficiency.treasureChance) {
@@ -1194,15 +1200,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 wallsBroken++;
             }
         } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
-            // Check if player is stuck (from portal trap)
-            // if (hazardEffects.isPlayerStuck(position, mapData)) {
-            //     // Try to rescue stuck player
-            //     hazardEffects.rescuePlayer(position, mapData);
-            //     eventLogs.push(`🆘 ${member.displayName} escaped from being stuck!`);
-            //     mapChanged = true;
-            //     continue;
-            // }
-            
             position.x = newX;
             position.y = newY;
             mapChanged = true;

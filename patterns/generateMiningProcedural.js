@@ -755,25 +755,25 @@ function drawRails(ctx, pixelX, pixelY, tileSize, railsData, mapData, tileX, til
     }
 
     // Add subtle shine effect for larger tiles (only when visible)
-    if (tileSize >= 32 && isVisible) {
-        ctx.globalAlpha = 0.3;
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = Math.max(1, railWidth * 0.3);
+    // if (tileSize >= 32 && isVisible) {
+    //     ctx.globalAlpha = 0.3;
+    //     ctx.strokeStyle = '#FFFFFF';
+    //     ctx.lineWidth = Math.max(1, railWidth * 0.3);
         
-        // Draw highlight on top rail
-        if (connections.north || connections.south) {
-            ctx.beginPath();
-            ctx.moveTo(centerX - railOffset + 1, pixelY + tileSize * 0.2);
-            ctx.lineTo(centerX - railOffset + 1, pixelY + tileSize * 0.8);
-            ctx.stroke();
-        }
-        if (connections.east || connections.west) {
-            ctx.beginPath();
-            ctx.moveTo(pixelX + tileSize * 0.2, centerY - railOffset + 1);
-            ctx.lineTo(pixelX + tileSize * 0.8, centerY - railOffset + 1);
-            ctx.stroke();
-        }
-    }
+    //     // Draw highlight on top rail
+    //     if (connections.north || connections.south) {
+    //         ctx.beginPath();
+    //         ctx.moveTo(centerX - railOffset + 1, pixelY + tileSize * 0.2);
+    //         ctx.lineTo(centerX - railOffset + 1, pixelY + tileSize * 0.8);
+    //         ctx.stroke();
+    //     }
+    //     if (connections.east || connections.west) {
+    //         ctx.beginPath();
+    //         ctx.moveTo(pixelX + tileSize * 0.2, centerY - railOffset + 1);
+    //         ctx.lineTo(pixelX + tileSize * 0.8, centerY - railOffset + 1);
+    //         ctx.stroke();
+    //     }
+    // }
 
     // Restore original alpha
     ctx.globalAlpha = 1.0;
@@ -799,20 +799,20 @@ async function addTileEffects(ctx, tile, pixelX, pixelY, tileSize, isVisible) {
             }
             break;
             
-        case TILE_TYPES.RARE_ORE:
-            // Add crystal shine effect
-            ctx.save();
-            ctx.globalAlpha = 0.3;
-            ctx.fillStyle = '#FFFFFF';
-            const shineSize = tileSize * 0.2;
-            ctx.fillRect(
-                pixelX + tileSize * 0.7, 
-                pixelY + tileSize * 0.2, 
-                shineSize, 
-                shineSize * 3
-            );
-            ctx.restore();
-            break;
+        // case TILE_TYPES.RARE_ORE:
+        //     // Add crystal shine effect
+        //     ctx.save();
+        //     ctx.globalAlpha = 0.3;
+        //     ctx.fillStyle = '#FFFFFF';
+        //     const shineSize = tileSize * 0.2;
+        //     ctx.fillRect(
+        //         pixelX + tileSize * 0.7, 
+        //         pixelY + tileSize * 0.2, 
+        //         shineSize, 
+        //         shineSize * 3
+        //     );
+        //     ctx.restore();
+        //     break;
             
         case TILE_TYPES.HAZARD:
             // Add warning symbols

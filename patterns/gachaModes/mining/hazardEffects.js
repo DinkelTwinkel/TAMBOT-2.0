@@ -1,7 +1,6 @@
 // hazardEffects.js - Handle hazard triggering and effects
 const { HAZARD_TYPES, HAZARD_CONFIG, TILE_TYPES } = require('./miningConstants');
 const hazardStorage = require('./hazardStorage');
-const getPlayerStats = require('../../calculatePlayerStat');
 
 /**
  * Process hazard trigger when player steps on it
@@ -13,6 +12,9 @@ async function processHazardTrigger(member, position, mapData, hazardsData, dbEn
     // Trigger and reveal the hazard
     const triggeredHazard = hazardStorage.triggerHazard(hazardsData, position.x, position.y);
     if (!triggeredHazard) return null;
+    
+    // Remove the hazard after triggering (one-time use)
+    hazardStorage.removeHazard(hazardsData, position.x, position.y);
     
     const config = HAZARD_CONFIG[triggeredHazard.type];
     let result = {
@@ -133,13 +135,13 @@ async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
             // Don't destroy entrance
             if (tile.type === TILE_TYPES.ENTRANCE) continue;
             
-            // Convert ore walls and reinforced walls to floor
+            // Convert ore walls and reinforced walls to regular walls
             if (tile.type === TILE_TYPES.WALL_WITH_ORE || 
                 tile.type === TILE_TYPES.RARE_ORE ||
                 tile.type === TILE_TYPES.REINFORCED_WALL ||
                 tile.type === TILE_TYPES.TREASURE_CHEST) {
                 mapData.tiles[targetY][targetX] = {
-                    type: TILE_TYPES.FLOOR,
+                    type: TILE_TYPES.WALL,
                     discovered: true,
                     hardness: 1
                 };
@@ -177,12 +179,14 @@ async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
 async function handleGreenFog(member, position, transaction, eventLogs) {
     const durabilityDamage = HAZARD_CONFIG[HAZARD_TYPES.GREEN_FOG].durabilityDamage || 1;
     const PlayerInventory = require('../../../models/inventory');
-    const playerEquipped = getPlayerStats(member.id).equippedItems
+    const getPlayerStats = require('../../calculatePlayerStat');
     
     try {
-        // Get player's equipped items
-        const playerInv = await PlayerInventory.findOne({ userId: member.id });
-        if (!playerInv || !playerEquipped) {
+        // Get player's equipped items using the proper system
+        const playerData = await getPlayerStats(member.id);
+        const equippedItems = playerData.equippedItems;
+        
+        if (!equippedItems || Object.keys(equippedItems).length === 0) {
             return {
                 mapChanged: false,
                 playerMoved: false,
@@ -190,17 +194,36 @@ async function handleGreenFog(member, position, transaction, eventLogs) {
             };
         }
         
+        // Get the player's inventory for updating
+        const playerInv = await PlayerInventory.findOne({ playerId: member.id });
+        if (!playerInv || !playerInv.items) {
+            return {
+                mapChanged: false,
+                playerMoved: false,
+                message: "No inventory found!"
+            };
+        }
+        
         const damagedItems = [];
         const brokenItems = [];
+        const itemsToUpdate = [];
+        const itemsToRemove = [];
         
         // Process each equipped item
-        for (const [slot, item] of Object.entries(playerEquipped)) {
-            if (!item || typeof item !== 'object') continue;
+        for (const [itemId, equippedItem] of Object.entries(equippedItems)) {
+            // Find the item in inventory
+            const invItemIndex = playerInv.items.findIndex(item => 
+                String(item.itemId) === String(equippedItem.itemId)
+            );
+            
+            if (invItemIndex === -1) continue;
+            
+            const invItem = playerInv.items[invItemIndex];
             
             // Get current durability
-            let currentDurability = item.currentDurability;
+            let currentDurability = invItem.currentDurability;
             if (currentDurability === undefined || currentDurability === null) {
-                currentDurability = item.durability || 100;
+                currentDurability = equippedItem.durability || 100;
             }
             
             // Apply damage
@@ -208,28 +231,49 @@ async function handleGreenFog(member, position, transaction, eventLogs) {
             
             if (newDurability <= 0) {
                 // Item breaks
-                brokenItems.push(item.name || 'Unknown Item');
+                brokenItems.push(equippedItem.name || 'Unknown Item');
                 
-                // Check if item has quantity
-                if (item.quantity && item.quantity > 1) {
-                    // Reduce quantity
-                    transaction.addInventoryUpdate(member.id, {
-                        [`equippedItems.${slot}.quantity`]: item.quantity - 1,
-                        [`equippedItems.${slot}.currentDurability`]: item.durability || 100
+                // Check if item has quantity > 1
+                if (invItem.quantity && invItem.quantity > 1) {
+                    // Reduce quantity and reset durability
+                    itemsToUpdate.push({
+                        index: invItemIndex,
+                        updates: {
+                            quantity: invItem.quantity - 1,
+                            currentDurability: equippedItem.durability || 100
+                        }
                     });
                 } else {
                     // Remove item completely
-                    transaction.addInventoryUpdate(member.id, {
-                        [`equippedItems.${slot}`]: null
-                    });
+                    itemsToRemove.push(invItemIndex);
                 }
             } else {
                 // Just damage the item
-                damagedItems.push(item.name || 'Unknown Item');
-                transaction.addInventoryUpdate(member.id, {
-                    [`equippedItems.${slot}.currentDurability`]: newDurability
+                damagedItems.push(equippedItem.name || 'Unknown Item');
+                itemsToUpdate.push({
+                    index: invItemIndex,
+                    updates: {
+                        currentDurability: newDurability
+                    }
                 });
             }
+        }
+        
+        // Apply updates to inventory
+        if (itemsToUpdate.length > 0 || itemsToRemove.length > 0) {
+            // Update items
+            for (const update of itemsToUpdate) {
+                Object.assign(playerInv.items[update.index], update.updates);
+            }
+            
+            // Remove items (process in reverse order to maintain indices)
+            itemsToRemove.sort((a, b) => b - a);
+            for (const index of itemsToRemove) {
+                playerInv.items.splice(index, 1);
+            }
+            
+            // Save the inventory
+            await playerInv.save();
         }
         
         let message = "Toxic fog corrodes equipment!";
@@ -323,7 +367,7 @@ async function handleWallTrap(member, position, mapData, eventLogs) {
 }
 
 /**
- * Check if player is stuck and needs rescue
+ * Check if player is stuck (trapped in wall or by walls)
  */
 function isPlayerStuck(position, mapData) {
     if (position.stuck) return true;
@@ -338,17 +382,6 @@ function isPlayerStuck(position, mapData) {
     }
     
     return false;
-}
-
-/**
- * Rescue stuck player
- */
-function rescuePlayer(position, mapData) {
-    position.x = mapData.entranceX;
-    position.y = mapData.entranceY;
-    position.stuck = false;
-    position.trapped = false;
-    return position;
 }
 
 /**
@@ -381,7 +414,6 @@ module.exports = {
     handleGreenFog,
     handleWallTrap,
     isPlayerStuck,
-    rescuePlayer,
     isPlayerDisabled,
     enablePlayersAfterBreak
 };
