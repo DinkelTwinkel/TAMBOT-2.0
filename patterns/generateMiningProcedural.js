@@ -528,20 +528,20 @@ function drawHazard(ctx, pixelX, pixelY, tileSize, hazardsData, tileX, tileY, is
         }
         
         // Draw triggered indicator if hazard has been triggered
-        if (hazard.triggered && tileSize >= 16) {
-            ctx.globalAlpha = alpha * 0.8;
-            ctx.strokeStyle = '#FF0000';
-            ctx.lineWidth = Math.max(2, tileSize * 0.08);
+        // if (hazard.triggered && tileSize >= 16) {
+        //     ctx.globalAlpha = alpha * 0.8;
+        //     ctx.strokeStyle = '#FF0000';
+        //     ctx.lineWidth = Math.max(2, tileSize * 0.08);
             
-            // Draw X over triggered hazard
-            const crossSize = hazardSize * 0.8;
-            ctx.beginPath();
-            ctx.moveTo(centerX - crossSize/2, centerY - crossSize/2);
-            ctx.lineTo(centerX + crossSize/2, centerY + crossSize/2);
-            ctx.moveTo(centerX + crossSize/2, centerY - crossSize/2);
-            ctx.lineTo(centerX - crossSize/2, centerY + crossSize/2);
-            ctx.stroke();
-        }
+        //     // Draw X over triggered hazard
+        //     const crossSize = hazardSize * 0.8;
+        //     ctx.beginPath();
+        //     ctx.moveTo(centerX - crossSize/2, centerY - crossSize/2);
+        //     ctx.lineTo(centerX + crossSize/2, centerY + crossSize/2);
+        //     ctx.moveTo(centerX + crossSize/2, centerY - crossSize/2);
+        //     ctx.lineTo(centerX - crossSize/2, centerY + crossSize/2);
+        //     ctx.stroke();
+        // }
     }
     
     ctx.restore();

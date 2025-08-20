@@ -9,6 +9,126 @@ const Canvas = require('canvas');
 // ============ LONG BREAK SPECIAL EVENTS ============
 
 /**
+ * Rail Building Event - Builds rails from entrance to a random player position
+ */
+async function startRailBuildingEvent(channel, dbEntry) {
+    if (!channel?.isVoiceBased()) return;
+    
+    const { EmbedBuilder } = require('discord.js');
+    const { buildMinecartRails } = require('./railPathfinding');
+    const railStorage = require('./railStorage');
+    const { TILE_TYPES } = require('./miningConstants');
+    
+    // Get active players in the channel
+    const members = channel.members.filter(m => !m.user.bot);
+    if (members.size === 0) {
+        await logEvent(channel, '⚠️ No players to build rails to.');
+        return '⚠️ No players for rail building';
+    }
+    
+    // Get current map data
+    const mapData = dbEntry.gameData?.map;
+    if (!mapData || !mapData.tiles) {
+        console.log('No map data available for rail building');
+        return 'Map not initialized for rail building';
+    }
+    
+    // Get player positions BEFORE they're reset to entrance
+    const playerPositions = mapData.playerPositions || {};
+    
+    // Filter for valid player positions (not at entrance)
+    const validPlayers = [];
+    for (const [playerId, position] of Object.entries(playerPositions)) {
+        // Don't build rails to players already at entrance
+        const distFromEntrance = Math.abs(position.x - mapData.entranceX) + Math.abs(position.y - mapData.entranceY);
+        if (distFromEntrance > 1) { // At least 2 blocks away from entrance
+            const member = members.get(playerId);
+            if (member) {
+                validPlayers.push({ member, position, distance: distFromEntrance });
+            }
+        }
+    }
+    
+    if (validPlayers.length === 0) {
+        await logEvent(channel, '⚠️ All players are too close to entrance for rail building.');
+        return '⚠️ No valid rail destinations';
+    }
+    
+    // Sort by distance and pick one of the furthest players (makes rails more useful)
+    validPlayers.sort((a, b) => b.distance - a.distance);
+    
+    // Pick from the top 50% furthest players for variety
+    const topHalfCount = Math.max(1, Math.floor(validPlayers.length / 2));
+    const selectedIndex = Math.floor(Math.random() * topHalfCount);
+    const selectedPlayer = validPlayers[selectedIndex];
+    
+    // Starting position is one block away from entrance (not on the entrance itself)
+    const entranceNeighbors = [
+        { x: mapData.entranceX, y: mapData.entranceY - 1 }, // North
+        { x: mapData.entranceX + 1, y: mapData.entranceY }, // East
+        { x: mapData.entranceX, y: mapData.entranceY + 1 }, // South
+        { x: mapData.entranceX - 1, y: mapData.entranceY }  // West
+    ];
+    
+    // Find the best starting position (floor tile closest to target)
+    let startPos = null;
+    let shortestDistance = Infinity;
+    
+    for (const neighbor of entranceNeighbors) {
+        // Check if this neighbor is valid and is a floor tile
+        if (neighbor.x >= 0 && neighbor.x < mapData.width && 
+            neighbor.y >= 0 && neighbor.y < mapData.height) {
+            const tile = mapData.tiles[neighbor.y]?.[neighbor.x];
+            if (tile && tile.type === TILE_TYPES.FLOOR) {
+                const dist = Math.abs(neighbor.x - selectedPlayer.position.x) + 
+                           Math.abs(neighbor.y - selectedPlayer.position.y);
+                if (dist < shortestDistance) {
+                    shortestDistance = dist;
+                    startPos = neighbor;
+                }
+            }
+        }
+    }
+    
+    if (!startPos) {
+        await logEvent(channel, '⚠️ Could not find valid starting position for rails.');
+        return '⚠️ No valid rail start position';
+    }
+    
+    // Build the rails
+    const result = await buildMinecartRails(dbEntry, startPos, selectedPlayer.position);
+    
+    if (!result.success) {
+        await logEvent(channel, `⚠️ Failed to build rails: ${result.error}`);
+        return `⚠️ Rail building failed: ${result.error}`;
+    }
+    
+    // Calculate rail network stats
+    const railsData = await railStorage.getRailsData(channel.id);
+    const railCount = railStorage.countRails(railsData);
+    
+    // Create announcement embed
+    const embed = new EmbedBuilder()
+        .setTitle('🚂 RAIL CONSTRUCTION EVENT! 🚂')
+        .setDescription(
+            `The mining company has invested in infrastructure!\n\n` +
+            `Rails have been constructed from the **entrance** to **${selectedPlayer.member.displayName}'s position**!\n\n` +
+            `📍 **Destination:** (${selectedPlayer.position.x}, ${selectedPlayer.position.y})\n` +
+            `🛤️ **New Rails:** ${result.pathLength} segments\n` +
+            `📊 **Total Rails:** ${railCount} segments\n\n` +
+            `⚡ **Rail Boost:** Players within 3 blocks of rails get **2x speed boost** for more actions per round!`
+        )
+        .setColor(0x4169E1)
+        .setTimestamp()
+        .setFooter({ text: 'Rails persist until manually cleared!' });
+    
+    await channel.send({ embeds: [embed] });
+    await logEvent(channel, `🚂 RAIL EVENT: Built ${result.pathLength} rails to ${selectedPlayer.member.displayName}'s position!`);
+    
+    return `🚂 Rail building complete: ${result.pathLength} segments`;
+}
+
+/**
  * Thief Game - Players must vote to catch the thief
  */
 async function startThiefGame(channel, dbEntry) {
@@ -806,6 +926,14 @@ const longBreakEvents = [
         minPlayers: 1,  // Can work with any number
         maxPlayers: null,
         optimalPlayers: { min: 1, max: 20 } // Works for any size
+    },
+    { 
+        func: startRailBuildingEvent, 
+        weight: 35, 
+        name: 'Rail Building',
+        minPlayers: 1,  // Can work with any number
+        maxPlayers: null,
+        optimalPlayers: { min: 1, max: 20 } // Works for any size
     }
     // Future events can be added here with their requirements:
     // { 
@@ -1070,6 +1198,7 @@ module.exports = {
     // Event functions
     startThiefGame,
     startMineCollapseEvent,
+    startRailBuildingEvent,
     endThiefGame,
     
     // Event management

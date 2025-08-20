@@ -813,6 +813,13 @@ for (const [playerId, reward] of Object.entries(contributorRewards)) {
     await resetMinecart(channel.id);
 }
 
+// ---------------- Import Long Break Events ----------------
+const { 
+    startThiefGame: importedStartThiefGame, 
+    startRailBuildingEvent,
+    pickLongBreakEvent: importedPickLongBreakEvent
+} = require('./mining/miningEvents');
+
 // ---------------- Long Break Events ----------------
 async function startThiefGame(channel, dbEntry) {
     if (!channel?.isVoiceBased()) return;
@@ -1100,6 +1107,49 @@ function pickLongBreakEvent(events) {
     return events.find(e => (rand -= e.weight) < 0)?.func || events[0].func;
 }
 
+// ---------------- Rail Speed Boost System ----------------
+/**
+ * Check if a player is within range of any rail and return speed multiplier
+ * @param {Object} mapData - The map data with player positions
+ * @param {string} playerId - The player ID to check
+ * @param {string} channelId - The channel ID for rail data
+ * @returns {number} Speed multiplier (2 if near rails, 1 otherwise)
+ */
+async function getRailSpeedBoost(mapData, playerId, channelId) {
+    try {
+        const railStorage = require('./mining/railStorage');
+        const { hasRailAt } = require('./mining/railPathfinding');
+        
+        // Get player position
+        const playerPos = mapData?.playerPositions?.[playerId];
+        if (!playerPos) return 1;
+        
+        // Check for rails within 3 block radius
+        const RAIL_BOOST_RADIUS = 3;
+        
+        for (let dy = -RAIL_BOOST_RADIUS; dy <= RAIL_BOOST_RADIUS; dy++) {
+            for (let dx = -RAIL_BOOST_RADIUS; dx <= RAIL_BOOST_RADIUS; dx++) {
+                // Check if within circular radius
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance <= RAIL_BOOST_RADIUS) {
+                    const checkX = playerPos.x + dx;
+                    const checkY = playerPos.y + dy;
+                    
+                    // Check if this position has a rail
+                    if (await hasRailAt(channelId, checkX, checkY)) {
+                        return 2; // 2x speed boost when near rails
+                    }
+                }
+            }
+        }
+        
+        return 1; // No boost
+    } catch (error) {
+        console.error('[RAIL BOOST] Error checking rail proximity:', error);
+        return 1; // Default to no boost on error
+    }
+}
+
 // ---------------- Main Mining Event ----------------
 const miningEvents = [
     { func: giveFindResource, weight: 70 },
@@ -1155,17 +1205,34 @@ module.exports = async (channel, dbEntry, json, client) => {
     const baseTimes = Math.floor(Math.random() * humans.size) + 1;
     const timesToRun = Math.min(humans.size * 2, Math.floor(baseTimes * efficiency.speedMultiplier));
 
+    // Track players who got rail boosts this round
+    const railBoostedPlayers = new Set();
+
     // Run mining events (these now use atomic operations internally)
     for (let i = 0; i < timesToRun; i++) {
         const winner = humans.random();
         const winnerData = await getPlayerStats(winner.id);
         const winnerSpeed = winnerData.stats.speed || 0;
         
+        // Check for rail speed boost
+        const railBoost = await getRailSpeedBoost(dbEntry.gameData.map, winner.id, channel.id);
+        
+        // Apply rail boost to speed calculations
+        const effectiveSpeed = winnerSpeed * railBoost;
+        
         // Speed stat gives chance for bonus actions (double mining)
-        const bonusActionChance = Math.min(0.5, winnerSpeed * 0.02); // 2% per speed point, max 50%
+        const bonusActionChance = Math.min(0.5, effectiveSpeed * 0.02); // 2% per effective speed point, max 50%
+        
+        // Log rail boost once per player per round
+        if (railBoost > 1 && !railBoostedPlayers.has(winner.id)) {
+            railBoostedPlayers.add(winner.id);
+            await logEvent(channel, `🚂 RAIL BOOST! ${winner.displayName} is near rails and gets 2x speed!`);
+        }
+        
         if (Math.random() < bonusActionChance) {
             await pickEvent(miningEvents)(winner, channel, serverPowerLevel, dbEntry);
-            await logEvent(channel, `💨 SPEED BONUS! ${winner.displayName} moves so fast they get an extra swing!`);
+            const speedBonusText = railBoost > 1 ? ' (Rail-enhanced!)' : '';
+            await logEvent(channel, `💨 SPEED BONUS${speedBonusText}! ${winner.displayName} moves so fast they get an extra swing!`);
         }
         
         await pickEvent(miningEvents)(winner, channel, serverPowerLevel, dbEntry);
@@ -1187,8 +1254,15 @@ module.exports = async (channel, dbEntry, json, client) => {
             // Refresh dbEntry to get latest minecart data for summary
             console.log ('running Long Break');
             const refreshedEntry = await gachaVC.findOne({ channelId: channel.id });
+            
+            // Get player count for event selection
+            const playerCount = channel.members.filter(m => !m.user.bot).size;
+            
+            // Use the enhanced event picker from miningEvents.js
+            const selectedEvent = importedPickLongBreakEvent(playerCount);
+            
             await createMiningSummary(channel, refreshedEntry);
-            await pickLongBreakEvent(longBreakEvents)(channel, refreshedEntry);
+            await selectedEvent(channel, refreshedEntry);
             
             await updateTimers(channel.id, null, new Date(now + 30 * 60 * 1000));
             await logEvent(channel, '🎭 LONG BREAK: Special event starting! (10min event + 5min shop)');
