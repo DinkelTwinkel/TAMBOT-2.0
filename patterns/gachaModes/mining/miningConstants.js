@@ -87,6 +87,63 @@ const TILE_TYPES = {
     REINFORCED_WALL: 'reinforced'
 };
 
+// Hazard Types
+const HAZARD_TYPES = {
+    PORTAL_TRAP: 'portal_trap',
+    BOMB_TRAP: 'bomb_trap',
+    GREEN_FOG: 'green_fog',
+    WALL_TRAP: 'wall_trap'
+};
+
+// Hazard Configurations
+const HAZARD_CONFIG = {
+    [HAZARD_TYPES.PORTAL_TRAP]: {
+        name: 'Portal Trap',
+        symbol: '⊕',
+        color: '#9932CC',  // Purple
+        description: 'Teleports to random location',
+        powerRequirement: 1,
+        weight: 30
+    },
+    [HAZARD_TYPES.BOMB_TRAP]: {
+        name: 'Bomb Trap',
+        symbol: '💣',
+        color: '#FF4500',  // Orange Red
+        description: 'Explodes surrounding walls',
+        powerRequirement: 2,
+        weight: 25,
+        blastRadius: 2
+    },
+    [HAZARD_TYPES.GREEN_FOG]: {
+        name: 'Toxic Fog',
+        symbol: '☁',
+        color: '#00FF00',  // Green
+        description: 'Damages equipment durability',
+        powerRequirement: 3,
+        weight: 20,
+        durabilityDamage: 1
+    },
+    [HAZARD_TYPES.WALL_TRAP]: {
+        name: 'Wall Trap',
+        symbol: '▦',
+        color: '#8B4513',  // Saddle Brown
+        description: 'Converts floors to walls',
+        powerRequirement: 4,
+        weight: 15
+    }
+};
+
+// Power level hazard spawn configurations
+const HAZARD_SPAWN_CONFIG = {
+    1: { spawnChance: 0.01, availableTypes: [HAZARD_TYPES.PORTAL_TRAP] },
+    2: { spawnChance: 0.015, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP] },
+    3: { spawnChance: 0.02, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP, HAZARD_TYPES.GREEN_FOG] },
+    4: { spawnChance: 0.025, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP, HAZARD_TYPES.GREEN_FOG, HAZARD_TYPES.WALL_TRAP] },
+    5: { spawnChance: 0.03, availableTypes: Object.values(HAZARD_TYPES) },
+    6: { spawnChance: 0.035, availableTypes: Object.values(HAZARD_TYPES) },
+    7: { spawnChance: 0.04, availableTypes: Object.values(HAZARD_TYPES) }
+};
+
 // Enhanced mining item pool with power level assignments
 const miningItemPool = [
     // Power Level 1 - Common tier
@@ -326,6 +383,39 @@ function getAvailableTreasures(powerLevel) {
     return treasureItems.filter(treasure => treasure.powerRequirement <= powerLevel);
 }
 
+// Function to get hazard type based on power level
+function getHazardTypeForPowerLevel(powerLevel) {
+    const config = HAZARD_SPAWN_CONFIG[powerLevel] || HAZARD_SPAWN_CONFIG[1];
+    const availableTypes = config.availableTypes;
+    
+    if (!availableTypes || availableTypes.length === 0) return null;
+    
+    // Weighted random selection
+    const eligibleHazards = availableTypes
+        .map(type => ({ type, config: HAZARD_CONFIG[type] }))
+        .filter(h => h.config.powerRequirement <= powerLevel);
+    
+    if (eligibleHazards.length === 0) return null;
+    
+    const totalWeight = eligibleHazards.reduce((sum, h) => sum + h.config.weight, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (const hazard of eligibleHazards) {
+        random -= hazard.config.weight;
+        if (random <= 0) {
+            return hazard.type;
+        }
+    }
+    
+    return eligibleHazards[0].type;
+}
+
+// Function to get hazard spawn chance for power level
+function getHazardSpawnChance(powerLevel) {
+    const config = HAZARD_SPAWN_CONFIG[powerLevel] || HAZARD_SPAWN_CONFIG[1];
+    return config.spawnChance;
+}
+
 module.exports = {
     INITIAL_MAP_WIDTH,
     INITIAL_MAP_HEIGHT,
@@ -336,11 +426,16 @@ module.exports = {
     MAX_MAP_SIZE,
     EXPLORATION_BONUS_CHANCE,
     TILE_TYPES,
+    HAZARD_TYPES,
+    HAZARD_CONFIG,
+    HAZARD_SPAWN_CONFIG,
     miningItemPool,
     treasureItems,
     POWER_LEVEL_CONFIG,
     SERVER_POWER_MODIFIERS,
     calculateMiningEfficiency,
     getAvailableItems,
-    getAvailableTreasures
+    getAvailableTreasures,
+    getHazardTypeForPowerLevel,
+    getHazardSpawnChance
 };

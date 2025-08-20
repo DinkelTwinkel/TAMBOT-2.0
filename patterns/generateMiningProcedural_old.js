@@ -6,8 +6,6 @@ const itemSheet = require('../data/itemSheet.json');
 const PlayerInventory = require('../models/inventory');
 const path = require('path');
 const railStorage = require('./gachaModes/mining/railStorage');
-const hazardStorage = require('./gachaModes/mining/hazardStorage');
-const { HAZARD_TYPES, HAZARD_CONFIG } = require('./gachaModes/mining/miningConstants');
 
 // Constants
 const BASE_TILE_SIZE = 64;
@@ -323,228 +321,6 @@ async function drawTileWithColors(ctx, tile, pixelX, pixelY, tileSize, isVisible
     // Draw the base tile
     ctx.fillStyle = tileColor;
     ctx.fillRect(pixelX, pixelY, tileSize, tileSize);
-}
-
-/**
- * Draw hazard on a tile
- * @param {CanvasRenderingContext2D} ctx - Canvas context
- * @param {number} pixelX - X position in pixels
- * @param {number} pixelY - Y position in pixels
- * @param {number} tileSize - Size of the tile
- * @param {Object} hazardsData - Hazards data from separate storage
- * @param {number} tileX - Tile X coordinate
- * @param {number} tileY - Tile Y coordinate
- * @param {boolean} isVisible - Whether the tile is currently visible
- * @param {boolean} wasDiscovered - Whether the tile was previously discovered
- */
-function drawHazard(ctx, pixelX, pixelY, tileSize, hazardsData, tileX, tileY, isVisible, wasDiscovered) {
-    // Check if this tile has a hazard
-    const hazard = hazardStorage.getHazard(hazardsData, tileX, tileY);
-    if (!hazard) return;
-    
-    // Only draw if visible or revealed
-    if (!isVisible && !hazard.revealed) return;
-    
-    ctx.save();
-    
-    const centerX = pixelX + tileSize / 2;
-    const centerY = pixelY + tileSize / 2;
-    
-    // Apply transparency for discovered but not visible hazards
-    const alpha = isVisible ? 1.0 : 0.6;
-    ctx.globalAlpha = alpha;
-    
-    if (!hazard.revealed) {
-        // Unrevealed hazard - show generic danger indicator
-        const hazardSize = Math.max(8, tileSize * 0.6);
-        
-        // Draw danger background (dark red circle)
-        ctx.fillStyle = '#8B0000';
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, hazardSize / 2, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Draw exclamation mark
-        if (tileSize >= 16) {
-            ctx.fillStyle = '#FFD700';
-            ctx.font = `bold ${Math.floor(hazardSize * 0.8)}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('!', centerX, centerY);
-        } else {
-            // For small tiles, just draw a dot
-            ctx.fillStyle = '#FFD700';
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, Math.max(2, hazardSize * 0.2), 0, Math.PI * 2);
-            ctx.fill();
-        }
-    } else {
-        // Revealed hazard - show specific hazard type
-        const config = HAZARD_CONFIG[hazard.type];
-        if (!config) {
-            ctx.restore();
-            return;
-        }
-        
-        const hazardSize = Math.max(10, tileSize * 0.7);
-        
-        // Draw hazard-specific visuals
-        switch (hazard.type) {
-            case HAZARD_TYPES.PORTAL_TRAP:
-                // Draw portal (swirling purple vortex)
-                const gradient = ctx.createRadialGradient(
-                    centerX, centerY, 0,
-                    centerX, centerY, hazardSize / 2
-                );
-                gradient.addColorStop(0, '#E6E6FA'); // Lavender center
-                gradient.addColorStop(0.5, '#9932CC'); // Purple
-                gradient.addColorStop(1, '#4B0082'); // Indigo edge
-                
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, hazardSize / 2, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Add swirl effect
-                if (tileSize >= 24) {
-                    ctx.strokeStyle = '#FFFFFF';
-                    ctx.lineWidth = Math.max(1, tileSize * 0.05);
-                    ctx.globalAlpha = alpha * 0.5;
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, hazardSize / 3, 0, Math.PI);
-                    ctx.stroke();
-                }
-                break;
-                
-            case HAZARD_TYPES.BOMB_TRAP:
-                // Draw bomb (black sphere with fuse)
-                ctx.fillStyle = '#1C1C1C';
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, hazardSize / 2, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Add highlight
-                ctx.fillStyle = '#404040';
-                ctx.beginPath();
-                ctx.arc(centerX - hazardSize/4, centerY - hazardSize/4, hazardSize / 6, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Draw fuse
-                if (tileSize >= 20) {
-                    ctx.strokeStyle = '#8B4513';
-                    ctx.lineWidth = Math.max(2, tileSize * 0.08);
-                    ctx.beginPath();
-                    ctx.moveTo(centerX, centerY - hazardSize/2);
-                    ctx.lineTo(centerX, centerY - hazardSize/2 - hazardSize/4);
-                    ctx.stroke();
-                    
-                    // Fuse spark
-                    ctx.fillStyle = '#FF4500';
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY - hazardSize/2 - hazardSize/4, Math.max(2, tileSize * 0.08), 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                break;
-                
-            case HAZARD_TYPES.GREEN_FOG:
-                // Draw toxic fog cloud
-                const fogGradient = ctx.createRadialGradient(
-                    centerX, centerY, 0,
-                    centerX, centerY, hazardSize / 2
-                );
-                fogGradient.addColorStop(0, 'rgba(0, 255, 0, 0.8)');
-                fogGradient.addColorStop(0.5, 'rgba(0, 200, 0, 0.5)');
-                fogGradient.addColorStop(1, 'rgba(0, 150, 0, 0.2)');
-                
-                ctx.fillStyle = fogGradient;
-                
-                // Draw multiple overlapping circles for cloud effect
-                const cloudOffsets = [
-                    [0, 0],
-                    [-hazardSize/4, -hazardSize/6],
-                    [hazardSize/4, -hazardSize/6],
-                    [0, hazardSize/4]
-                ];
-                
-                for (const [dx, dy] of cloudOffsets) {
-                    ctx.beginPath();
-                    ctx.arc(centerX + dx, centerY + dy, hazardSize / 3, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                // Add toxic symbol if large enough
-                if (tileSize >= 32) {
-                    ctx.fillStyle = '#001100';
-                    ctx.font = `bold ${Math.floor(hazardSize * 0.4)}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('☠', centerX, centerY);
-                }
-                break;
-                
-            case HAZARD_TYPES.WALL_TRAP:
-                // Draw pressure plate/trap door
-                const plateSize = hazardSize * 0.8;
-                
-                // Draw outer frame
-                ctx.fillStyle = '#654321';
-                ctx.fillRect(centerX - plateSize/2, centerY - plateSize/2, plateSize, plateSize);
-                
-                // Draw inner plate
-                ctx.fillStyle = '#8B4513';
-                const innerSize = plateSize * 0.7;
-                ctx.fillRect(centerX - innerSize/2, centerY - innerSize/2, innerSize, innerSize);
-                
-                // Add pressure lines
-                if (tileSize >= 20) {
-                    ctx.strokeStyle = '#4A2C17';
-                    ctx.lineWidth = Math.max(1, tileSize * 0.03);
-                    
-                    // Draw X pattern
-                    ctx.beginPath();
-                    ctx.moveTo(centerX - innerSize/3, centerY - innerSize/3);
-                    ctx.lineTo(centerX + innerSize/3, centerY + innerSize/3);
-                    ctx.moveTo(centerX + innerSize/3, centerY - innerSize/3);
-                    ctx.lineTo(centerX - innerSize/3, centerY + innerSize/3);
-                    ctx.stroke();
-                }
-                break;
-                
-            default:
-                // Generic hazard appearance
-                ctx.fillStyle = config.color || '#FF0000';
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, hazardSize / 2, 0, Math.PI * 2);
-                ctx.fill();
-                
-                if (tileSize >= 20 && config.symbol) {
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.font = `bold ${Math.floor(hazardSize * 0.6)}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(config.symbol, centerX, centerY);
-                }
-                break;
-        }
-        
-        // Draw triggered indicator if hazard has been triggered
-        if (hazard.triggered && tileSize >= 16) {
-            ctx.globalAlpha = alpha * 0.8;
-            ctx.strokeStyle = '#FF0000';
-            ctx.lineWidth = Math.max(2, tileSize * 0.08);
-            
-            // Draw X over triggered hazard
-            const crossSize = hazardSize * 0.8;
-            ctx.beginPath();
-            ctx.moveTo(centerX - crossSize/2, centerY - crossSize/2);
-            ctx.lineTo(centerX + crossSize/2, centerY + crossSize/2);
-            ctx.moveTo(centerX + crossSize/2, centerY - crossSize/2);
-            ctx.lineTo(centerX - crossSize/2, centerY + crossSize/2);
-            ctx.stroke();
-        }
-    }
-    
-    ctx.restore();
 }
 
 /**
@@ -1111,9 +887,6 @@ async function generateTileMapImage(channel) {
     // Get rails data from separate storage
     const railsData = await railStorage.getRailsData(channel.id);
     
-    // Get hazards data from separate storage
-    const hazardsData = await hazardStorage.getHazardsData(channel.id);
-    
     const imageSettings = calculateOptimalImageSettings(width, height);
     const { tileSize, outputWidth, outputHeight, finalWidth, finalHeight, useJPEG, playerAvatarSize, stackedOffset } = imageSettings;
     
@@ -1175,11 +948,6 @@ async function generateTileMapImage(channel) {
             // Draw rails if present (from separate storage)
             if (railStorage.hasRail(railsData, x, y) && (isCurrentlyVisible || wasDiscovered)) {
                 drawRails(ctx, pixelX, pixelY, tileSize, railsData, mapData, x, y, isCurrentlyVisible, wasDiscovered);
-            }
-            
-            // Draw hazards if present (from separate storage)
-            if (hazardStorage.hasHazard(hazardsData, x, y)) {
-                drawHazard(ctx, pixelX, pixelY, tileSize, hazardsData, x, y, isCurrentlyVisible, wasDiscovered);
             }
             
             // Draw entrance marker

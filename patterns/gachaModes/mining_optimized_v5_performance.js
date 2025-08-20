@@ -53,6 +53,11 @@ const {
     scatterPlayersForBreak
 } = require('./mining/miningEvents');
 
+// Import hazard systems
+const hazardStorage = require('./mining/hazardStorage');
+const hazardEffects = require('./mining/hazardEffects');
+const { getHazardSpawnChance } = require('./mining/miningConstants');
+
 // Import performance optimizations
 const {
     batchDB,
@@ -619,6 +624,7 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
     batchDB.queueUpdate(channel.id, {
         'gameData.map.playerPositions': resetPositions,
         'gameData.cycleCount': cycleCount,
+        'gameData.breakInfo.justEnded': true,  // Mark that break just ended for hazard system
         nextShopRefresh: nextBreakInfo.nextShopRefresh
     });
     
@@ -725,11 +731,28 @@ module.exports = async (channel, dbEntry, json, client) => {
     let wallsBroken = 0;
     let treasuresFound = 0;
     
+    // Get or initialize hazards data
+    let hazardsData = await hazardStorage.getHazardsData(channel.id);
+    let hazardsChanged = false;
+    
     // Rails are now stored separately in gameData.rails, no need to preserve them here
     
     if (!mapData) {
         mapData = initializeMap(channel.id);
         mapChanged = true;
+        
+        // Generate initial hazards for the starting map
+        const hazardSpawnChance = getHazardSpawnChance(serverPowerLevel);
+        hazardsData = hazardStorage.generateHazardsForArea(
+            hazardsData,
+            0,
+            0,
+            mapData.width,
+            mapData.height,
+            hazardSpawnChance,
+            serverPowerLevel
+        );
+        hazardsChanged = true;
     }
 
     // Check for new players BEFORE initializing their positions
@@ -797,8 +820,20 @@ module.exports = async (channel, dbEntry, json, client) => {
         }
     }
 
+    // Re-enable players after break if needed
+    if (dbEntry.gameData?.breakInfo?.justEnded) {
+        hazardEffects.enablePlayersAfterBreak(dbEntry);
+        delete dbEntry.gameData.breakInfo.justEnded;
+        await dbEntry.save();
+    }
+    
     // Process actions for each player with power level enhancements
     for (const member of members.values()) {
+        // Skip disabled players (knocked out from hazards)
+        if (hazardEffects.isPlayerDisabled(member.id, dbEntry)) {
+            continue;
+        }
+        
         const playerData = playerStatsMap.get(member.id);
         const playerLevel = playerData.level || 1;
         
@@ -817,8 +852,13 @@ module.exports = async (channel, dbEntry, json, client) => {
             serverModifiers,
             transaction,
             eventLogs,
-            dbEntry
+            dbEntry,
+            hazardsData
         );
+        
+        if (result.hazardsChanged) {
+            hazardsChanged = true;
+        }
         
         if (result.mapChanged) {
             mapChanged = true;
@@ -843,6 +883,11 @@ module.exports = async (channel, dbEntry, json, client) => {
         });
     }
 
+    // Save hazards data if changed
+    if (hazardsChanged) {
+        await hazardStorage.saveHazardsData(channel.id, hazardsData);
+    }
+    
     // Commit changes
     if (mapChanged) {
         console.log(`[MINING] Map changed for channel ${channel.id} (Power Level ${serverPowerLevel})`);
@@ -890,7 +935,7 @@ module.exports = async (channel, dbEntry, json, client) => {
 const playerMovementHistory = new Map();
 
 // Enhanced player action processing with full power level integration
-async function processPlayerActionsEnhanced(member, playerData, mapData, teamVisibleTiles, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry) {
+async function processPlayerActionsEnhanced(member, playerData, mapData, teamVisibleTiles, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData) {
     const miningPower = playerData.stats.mining || 0;
     const luckStat = playerData.stats.luck || 0;
     const speedStat = Math.min(playerData.stats.speed || 1, MAX_SPEED_ACTIONS);
@@ -898,6 +943,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     let wallsBroken = 0;
     let treasuresFound = 0;
     let mapChanged = false;
+    let hazardsChanged = false;
     
     // Get or initialize movement history for this player
     if (!playerMovementHistory.has(member.id)) {
@@ -953,10 +999,11 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             let checkX = adj.x, checkY = adj.y;
             
             if (checkX < 0 || checkX >= mapData.width || checkY < 0 || checkY >= mapData.height) {
-                const expandedMap = checkMapExpansion(mapData, checkX, checkY, dbEntry.channelId);
+                const expandedMap = checkMapExpansion(mapData, checkX, checkY, dbEntry.channelId, hazardsData, powerLevel);
                 if (expandedMap !== mapData) {
                     mapData = expandedMap;
                     mapChanged = true;
+                    hazardsChanged = true;
                     eventLogs.push(`🗺️ MAP EXPANDED! New size: ${expandedMap.width}x${expandedMap.height}`);
                 }
             }
@@ -1092,10 +1139,11 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         let newX = position.x + direction.dx;
         let newY = position.y + direction.dy;
         
-        const expandedMap = checkMapExpansion(mapData, newX, newY, dbEntry.channelId);
+        const expandedMap = checkMapExpansion(mapData, newX, newY, dbEntry.channelId, hazardsData, powerLevel);
         if (expandedMap !== mapData) {
             mapData = expandedMap;
             mapChanged = true;
+            hazardsChanged = true;
             //eventLogs.push(`🗺️ MAP EXPANDED! New size: ${expandedMap.width}x${expandedMap.height}`);
         }
         
@@ -1144,9 +1192,40 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 wallsBroken++;
             }
         } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
+            // Check if player is stuck (from portal trap)
+            if (hazardEffects.isPlayerStuck(position, mapData)) {
+                // Try to rescue stuck player
+                hazardEffects.rescuePlayer(position, mapData);
+                eventLogs.push(`🆘 ${member.displayName} escaped from being stuck!`);
+                mapChanged = true;
+                continue;
+            }
+            
             position.x = newX;
             position.y = newY;
             mapChanged = true;
+            
+            // Check for hazard trigger
+            if (hazardStorage.hasHazard(hazardsData, newX, newY)) {
+                const hazardResult = await hazardEffects.processHazardTrigger(
+                    member,
+                    position,
+                    mapData,
+                    hazardsData,
+                    dbEntry,
+                    transaction,
+                    eventLogs
+                );
+                
+                if (hazardResult) {
+                    if (hazardResult.mapChanged) mapChanged = true;
+                    if (hazardResult.playerDisabled) {
+                        // Player is knocked out, stop processing their actions
+                        break;
+                    }
+                    hazardsChanged = true;
+                }
+            }
             
             // Enhanced exploration rewards with power level
             if (Math.random() < EXPLORATION_BONUS_CHANCE * efficiency.speedMultiplier) {
@@ -1160,7 +1239,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         }
     }
     
-    return { mapChanged, wallsBroken, treasuresFound, mapData };
+    return { mapChanged, wallsBroken, treasuresFound, mapData, hazardsChanged };
 }
 
 // Export utility functions for testing

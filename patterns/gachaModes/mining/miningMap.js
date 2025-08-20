@@ -4,8 +4,10 @@ const {
     INITIAL_MAP_HEIGHT, 
     BASE_ORE_SPAWN_CHANCE, 
     MAX_MAP_SIZE, 
-    TILE_TYPES 
+    TILE_TYPES,
+    getHazardSpawnChance
 } = require('./miningConstants');
+const hazardStorage = require('./hazardStorage');
 const { createMapSeed, seededRandom } = require('./miningUtils');
 
 // Enhanced Map Generation
@@ -15,7 +17,7 @@ function generateTileType(channelId, x, y) {
     
     if (random < 0.01) return TILE_TYPES.TREASURE_CHEST;
     if (random < 0.03) return TILE_TYPES.RARE_ORE;
-    if (random < 0.02) return TILE_TYPES.HAZARD;
+    // Note: Hazards are now stored separately, not as tile types
     if (random < 0.05) return TILE_TYPES.REINFORCED_WALL;
     if (random < BASE_ORE_SPAWN_CHANCE + 0.15) return TILE_TYPES.WALL_WITH_ORE;
     
@@ -232,8 +234,14 @@ function cleanupPlayerPositions(mapData, currentPlayerIds) {
 /**
  * Check if map expansion is needed and perform it
  * Returns the expanded map if expansion occurred, or the original map if not
+ * @param {Object} mapData - The current map data
+ * @param {number} newX - X coordinate to check
+ * @param {number} newY - Y coordinate to check
+ * @param {string} channelId - Channel ID for the map
+ * @param {Object} hazardsData - Optional hazards data to generate hazards for new area
+ * @param {number} serverPowerLevel - Optional server power level for hazard generation
  */
-function checkMapExpansion(mapData, newX, newY, channelId) {
+function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = null, serverPowerLevel = 1) {
     let needsExpansion = false;
     let expansionDirection = '';
     
@@ -262,7 +270,52 @@ function checkMapExpansion(mapData, newX, newY, channelId) {
     
     if (needsExpansion && expansionDirection) {
         console.log(`[MAP] Expansion needed at (${newX}, ${newY}) - direction: ${expansionDirection}`);
-        return expandMap(mapData, expansionDirection, channelId);
+        const expandedMap = expandMap(mapData, expansionDirection, channelId);
+        
+        // Generate hazards for the new expanded area if hazardsData provided
+        if (hazardsData && serverPowerLevel) {
+            const hazardSpawnChance = getHazardSpawnChance(serverPowerLevel);
+            let startX, startY, width, height;
+            
+            switch (expansionDirection) {
+                case 'north':
+                    startX = 0;
+                    startY = 0;
+                    width = expandedMap.width;
+                    height = 1;
+                    break;
+                case 'south':
+                    startX = 0;
+                    startY = expandedMap.height - 1;
+                    width = expandedMap.width;
+                    height = 1;
+                    break;
+                case 'east':
+                    startX = expandedMap.width - 1;
+                    startY = 0;
+                    width = 1;
+                    height = expandedMap.height;
+                    break;
+                case 'west':
+                    startX = 0;
+                    startY = 0;
+                    width = 1;
+                    height = expandedMap.height;
+                    break;
+            }
+            
+            hazardStorage.generateHazardsForArea(
+                hazardsData,
+                startX,
+                startY,
+                width,
+                height,
+                hazardSpawnChance,
+                serverPowerLevel
+            );
+        }
+        
+        return expandedMap;
     }
     
     return mapData;
