@@ -1215,12 +1215,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     
                     let findMessage;
                     if (targetTile.type === TILE_TYPES.TREASURE_CHEST) {
-                        findMessage = `👑 ${member.displayName} opened treasure! Found ${item.name} x${finalQuantity}!`;
+                        findMessage = `👑 ${member.displayName} opened treasure! Found『 ${item.name} x${finalQuantity} 』!`;
                         treasuresFound++;
                     } else if (targetTile.type === TILE_TYPES.RARE_ORE) {
-                        findMessage = `💎 ${member.displayName} mined rare ore! Found ${item.name} x${finalQuantity}!`;
+                        findMessage = `💎 ${member.displayName} mined rare ore! Found『 ${item.name} x${finalQuantity} 』!`;
                     } else {
-                        findMessage = `⛏ ${member.displayName} found ${item.name} x${finalQuantity}`;
+                        findMessage = `⛏️ ${member.displayName} harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
                     }
                     
                     eventLogs.push(findMessage);
