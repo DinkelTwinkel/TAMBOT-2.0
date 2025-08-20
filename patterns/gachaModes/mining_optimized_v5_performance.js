@@ -1195,13 +1195,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             }
         } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
             // Check if player is stuck (from portal trap)
-            if (hazardEffects.isPlayerStuck(position, mapData)) {
-                // Try to rescue stuck player
-                hazardEffects.rescuePlayer(position, mapData);
-                eventLogs.push(`🆘 ${member.displayName} escaped from being stuck!`);
-                mapChanged = true;
-                continue;
-            }
+            // if (hazardEffects.isPlayerStuck(position, mapData)) {
+            //     // Try to rescue stuck player
+            //     hazardEffects.rescuePlayer(position, mapData);
+            //     eventLogs.push(`🆘 ${member.displayName} escaped from being stuck!`);
+            //     mapChanged = true;
+            //     continue;
+            // }
             
             position.x = newX;
             position.y = newY;
