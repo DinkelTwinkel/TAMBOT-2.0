@@ -323,6 +323,257 @@ async function drawTileWithColors(ctx, tile, pixelX, pixelY, tileSize, isVisible
 }
 
 /**
+ * Draw rails on a tile
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {number} pixelX - X position in pixels
+ * @param {number} pixelY - Y position in pixels
+ * @param {number} tileSize - Size of the tile
+ * @param {Object} tile - Tile data
+ * @param {Object} mapData - Full map data for checking adjacent rails
+ * @param {number} tileX - Tile X coordinate
+ * @param {number} tileY - Tile Y coordinate
+ * @param {boolean} isVisible - Whether the tile is currently visible
+ * @param {boolean} wasDiscovered - Whether the tile was previously discovered
+ */
+function drawRails(ctx, pixelX, pixelY, tileSize, tile, mapData, tileX, tileY, isVisible, wasDiscovered) {
+    if (!tile.hasRail) return;
+    if (!isVisible && !wasDiscovered) return;
+
+    ctx.save();
+    
+    // // Apply darkening effect when discovered but not currently visible
+    // const alpha = isVisible ? 1.0 : 0.6;
+    // ctx.globalAlpha = alpha;
+    
+    // Determine rail connections to adjacent tiles
+    const connections = {
+        north: false,
+        south: false,
+        east: false,
+        west: false
+    };
+
+    // Check adjacent tiles for rails
+    if (tileY > 0 && mapData.tiles[tileY - 1][tileX]?.hasRail) {
+        connections.north = true;
+    }
+    if (tileY < mapData.height - 1 && mapData.tiles[tileY + 1][tileX]?.hasRail) {
+        connections.south = true;
+    }
+    if (tileX > 0 && mapData.tiles[tileY][tileX - 1]?.hasRail) {
+        connections.west = true;
+    }
+    if (tileX < mapData.width - 1 && mapData.tiles[tileY][tileX + 1]?.hasRail) {
+        connections.east = true;
+    }
+
+    const centerX = pixelX + tileSize / 2;
+    const centerY = pixelY + tileSize / 2;
+    const railWidth = Math.max(2, tileSize * 0.15);
+    const tieWidth = Math.max(1, tileSize * 0.08);
+    const tieLength = Math.max(4, tileSize * 0.4);
+
+    // Draw wooden ties (railroad ties)
+    // Use black when not visible for fog of war effect
+    ctx.fillStyle = isVisible ? '#654321' : '#1A1A1A'; // Brown for wood, dark black in fog
+    const tieSpacing = Math.max(4, tileSize * 0.25);
+    const numTies = Math.floor(tileSize / tieSpacing);
+    
+    // Determine if we need vertical or horizontal ties based on connections
+    const isVertical = connections.north || connections.south;
+    const isHorizontal = connections.east || connections.west;
+    
+    if (isVertical || (!isHorizontal && !isVertical)) {
+        // Draw horizontal ties for vertical rails (or default)
+        for (let i = 0; i < numTies; i++) {
+            const tieY = pixelY + (i + 0.5) * tieSpacing;
+            ctx.fillRect(centerX - tieLength/2, tieY - tieWidth/2, tieLength, tieWidth);
+        }
+    }
+    
+    if (isHorizontal && !isVertical) {
+        // Draw vertical ties for horizontal rails
+        for (let i = 0; i < numTies; i++) {
+            const tieX = pixelX + (i + 0.5) * tieSpacing;
+            ctx.fillRect(tieX - tieWidth/2, centerY - tieLength/2, tieWidth, tieLength);
+        }
+    }
+
+    // Draw metal rails
+    // Use black when not visible for fog of war effect
+    ctx.strokeStyle = isVisible ? '#C0C0C0' : '#2C2C2C'; // Silver for metal rails, black in fog
+    ctx.lineWidth = railWidth;
+    ctx.lineCap = 'square';
+
+    // Calculate rail offset from center for double rails
+    const railOffset = Math.max(3, tileSize * 0.12);
+    
+    // Count connections for junction detection
+    const connectionCount = Object.values(connections).filter(c => c).length;
+
+    // Draw connected rail segments
+    ctx.beginPath();
+
+    // Helper function to draw a rail segment
+    const drawRailSegment = (fromX, fromY, toX, toY, offset) => {
+        // Draw two parallel rails
+        if (Math.abs(fromX - toX) > Math.abs(fromY - toY)) {
+            // Horizontal rails
+            ctx.moveTo(fromX, fromY - offset);
+            ctx.lineTo(toX, toY - offset);
+            ctx.moveTo(fromX, fromY + offset);
+            ctx.lineTo(toX, toY + offset);
+        } else {
+            // Vertical rails
+            ctx.moveTo(fromX - offset, fromY);
+            ctx.lineTo(toX - offset, toY);
+            ctx.moveTo(fromX + offset, fromY);
+            ctx.lineTo(toX + offset, toY);
+        }
+    };
+
+    // Draw rails based on connections
+    // Handle straight rails
+    if (connections.north && connections.south) {
+        // Straight vertical rails
+        drawRailSegment(centerX, pixelY, centerX, pixelY + tileSize, railOffset);
+    } else if (connections.east && connections.west) {
+        // Straight horizontal rails
+        drawRailSegment(pixelX, centerY, pixelX + tileSize, centerY, railOffset);
+    } 
+    // Handle L-shaped turns (corners)
+    else if (connections.north && connections.east) {
+        // North to East turn
+        drawRailSegment(centerX, pixelY, centerX, centerY, railOffset);
+        drawRailSegment(centerX, centerY, pixelX + tileSize, centerY, railOffset);
+    } else if (connections.north && connections.west) {
+        // North to West turn
+        drawRailSegment(centerX, pixelY, centerX, centerY, railOffset);
+        drawRailSegment(pixelX, centerY, centerX, centerY, railOffset);
+    } else if (connections.south && connections.east) {
+        // South to East turn
+        drawRailSegment(centerX, centerY, centerX, pixelY + tileSize, railOffset);
+        drawRailSegment(centerX, centerY, pixelX + tileSize, centerY, railOffset);
+    } else if (connections.south && connections.west) {
+        // South to West turn
+        drawRailSegment(centerX, centerY, centerX, pixelY + tileSize, railOffset);
+        drawRailSegment(pixelX, centerY, centerX, centerY, railOffset);
+    }
+    // Handle terminal pieces (dead ends) with end caps
+    else if (connections.north && !connections.south && !connections.east && !connections.west) {
+        // Only north connection - terminal piece
+        drawRailSegment(centerX, pixelY, centerX, centerY + tileSize * 0.1, railOffset);
+        // Draw end cap
+        ctx.moveTo(centerX - railOffset, centerY + tileSize * 0.1);
+        ctx.lineTo(centerX + railOffset, centerY + tileSize * 0.1);
+    } else if (connections.south && !connections.north && !connections.east && !connections.west) {
+        // Only south connection - terminal piece
+        drawRailSegment(centerX, centerY - tileSize * 0.1, centerX, pixelY + tileSize, railOffset);
+        // Draw end cap
+        ctx.moveTo(centerX - railOffset, centerY - tileSize * 0.1);
+        ctx.lineTo(centerX + railOffset, centerY - tileSize * 0.1);
+    } else if (connections.east && !connections.west && !connections.north && !connections.south) {
+        // Only east connection - terminal piece
+        drawRailSegment(centerX - tileSize * 0.1, centerY, pixelX + tileSize, centerY, railOffset);
+        // Draw end cap
+        ctx.moveTo(centerX - tileSize * 0.1, centerY - railOffset);
+        ctx.lineTo(centerX - tileSize * 0.1, centerY + railOffset);
+    } else if (connections.west && !connections.east && !connections.north && !connections.south) {
+        // Only west connection - terminal piece
+        drawRailSegment(pixelX, centerY, centerX + tileSize * 0.1, centerY, railOffset);
+        // Draw end cap
+        ctx.moveTo(centerX + tileSize * 0.1, centerY - railOffset);
+        ctx.lineTo(centerX + tileSize * 0.1, centerY + railOffset);
+    }
+    // Handle T-junctions and cross-junctions
+    else if (connectionCount >= 3) {
+        // Draw segments for each connection
+        if (connections.north) {
+            drawRailSegment(centerX, pixelY, centerX, centerY, railOffset);
+        }
+        if (connections.south) {
+            drawRailSegment(centerX, centerY, centerX, pixelY + tileSize, railOffset);
+        }
+        if (connections.east) {
+            drawRailSegment(centerX, centerY, pixelX + tileSize, centerY, railOffset);
+        }
+        if (connections.west) {
+            drawRailSegment(pixelX, centerY, centerX, centerY, railOffset);
+        }
+    }
+    
+    // Handle single rail (no connections) - just draw a small segment in center
+    if (connectionCount === 0) {
+        // Draw a small rail segment in the center of the tile
+        drawRailSegment(centerX, centerY - tileSize * 0.2, centerX, centerY + tileSize * 0.2, railOffset);
+    }
+
+    ctx.stroke();
+
+    // Draw rail end buffers/stops at terminal pieces
+    if (connectionCount === 1 && tileSize >= 16) {
+        ctx.fillStyle = isVisible ? '#8B4513' : '#2C2C2C'; // Brown buffer or black in fog
+        const bufferSize = Math.max(4, tileSize * 0.15);
+        
+        if (connections.north && !connections.south && !connections.east && !connections.west) {
+            // Buffer at south end
+            ctx.fillRect(centerX - bufferSize/2, centerY, bufferSize, bufferSize/2);
+        } else if (connections.south && !connections.north && !connections.east && !connections.west) {
+            // Buffer at north end
+            ctx.fillRect(centerX - bufferSize/2, centerY - bufferSize/2, bufferSize, bufferSize/2);
+        } else if (connections.east && !connections.west && !connections.north && !connections.south) {
+            // Buffer at west end
+            ctx.fillRect(centerX - bufferSize/2, centerY - bufferSize/2, bufferSize/2, bufferSize);
+        } else if (connections.west && !connections.east && !connections.north && !connections.south) {
+            // Buffer at east end
+            ctx.fillRect(centerX, centerY - bufferSize/2, bufferSize/2, bufferSize);
+        }
+    }
+
+    // Draw rail joints/bolts at intersections
+    if (tileSize >= 20) {
+        if (connectionCount > 2) {
+            // Draw a junction plate at intersections
+            ctx.fillStyle = isVisible ? '#808080' : '#1F1F1F'; // Gray for metal plate, black in fog
+            const plateSize = Math.max(6, tileSize * 0.2);
+            ctx.fillRect(centerX - plateSize/2, centerY - plateSize/2, plateSize, plateSize);
+            
+            // Draw center bolt
+            ctx.fillStyle = isVisible ? '#404040' : '#0A0A0A'; // Dark gray for bolt, darker black in fog
+            const boltSize = Math.max(2, plateSize * 0.3);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, boltSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Add subtle shine effect for larger tiles (only when visible)
+    if (tileSize >= 32 && isVisible) {
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = Math.max(1, railWidth * 0.3);
+        
+        // Draw highlight on top rail
+        if (connections.north || connections.south) {
+            ctx.beginPath();
+            ctx.moveTo(centerX - railOffset + 1, pixelY + tileSize * 0.2);
+            ctx.lineTo(centerX - railOffset + 1, pixelY + tileSize * 0.8);
+            ctx.stroke();
+        }
+        if (connections.east || connections.west) {
+            ctx.beginPath();
+            ctx.moveTo(pixelX + tileSize * 0.2, centerY - railOffset + 1);
+            ctx.lineTo(pixelX + tileSize * 0.8, centerY - railOffset + 1);
+            ctx.stroke();
+        }
+    }
+
+    // Restore original alpha
+    ctx.globalAlpha = 1.0;
+    ctx.restore();
+}
+
+/**
  * Add special visual effects to tiles
  */
 async function addTileEffects(ctx, tile, pixelX, pixelY, tileSize, isVisible) {
@@ -707,6 +958,11 @@ async function generateTileMapImage(channel) {
             
             // Draw the tile
             await drawTile(ctx, tile, pixelX, pixelY, tileSize, isCurrentlyVisible, wasDiscovered);
+            
+            // Draw rails if present
+            if (tile.hasRail && (isCurrentlyVisible || wasDiscovered)) {
+                drawRails(ctx, pixelX, pixelY, tileSize, tile, mapData, x, y, isCurrentlyVisible, wasDiscovered);
+            }
             
             // Draw entrance marker
             if (tile.type === TILE_TYPES.ENTRANCE) {

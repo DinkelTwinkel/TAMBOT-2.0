@@ -65,9 +65,6 @@ const {
 // Global event counter for image generation
 let eventCounter = 0;
 
-// Track users who have been announced in this session
-const announcedUsers = new Set();
-
 // Performance: Reduce image generation frequency based on power level
 const REDUCED_IMAGE_INTERVAL = 1;
 
@@ -83,6 +80,16 @@ const DB_CACHE_TTL = 30000; // 30 seconds
 
 // Power level efficiency cache
 const efficiencyCache = new Map();
+
+// Export caches globally for external clearing (needed for rail system)
+global.dbCache = dbCache;
+global.efficiencyCache = efficiencyCache;
+// Note: visibilityCalculator will be set when imported
+setTimeout(() => {
+    if (visibilityCalculator) {
+        global.visibilityCalculator = visibilityCalculator;
+    }
+}, 100);
 
 async function getCachedDBEntry(channelId, forceRefresh = false) {
     const now = Date.now();
@@ -718,24 +725,67 @@ module.exports = async (channel, dbEntry, json, client) => {
     let wallsBroken = 0;
     let treasuresFound = 0;
     
+    // RAIL PRESERVATION: Store existing rail positions before any map updates
+    const railPositions = [];
+    if (mapData && mapData.tiles) {
+        for (let y = 0; y < mapData.tiles.length; y++) {
+            for (let x = 0; x < mapData.tiles[y].length; x++) {
+                if (mapData.tiles[y][x]?.hasRail) {
+                    railPositions.push({ x, y });
+                }
+            }
+        }
+        if (railPositions.length > 0) {
+            console.log(`[MINING] Preserving ${railPositions.length} rail tiles`);
+        }
+    }
+    
     if (!mapData) {
         mapData = initializeMap(channel.id);
         mapChanged = true;
     }
 
+    // Check for new players BEFORE initializing their positions
+    const existingPositions = mapData.playerPositions || {};
+    const newPlayers = [];
+    for (const member of members.values()) {
+        if (!existingPositions[member.id]) {
+            newPlayers.push(member);
+            const powerLevelConfig = POWER_LEVEL_CONFIG[serverPowerLevel];
+            eventLogs.push(`👋 ${member.displayName} joined the ${powerLevelConfig?.name || 'Expedition'}!`);
+        }
+    }
+    
     mapData = initializeBreakPositions(mapData, members, false);
     mapChanged = true;
     
-    // Announce new players
-    for (const member of members.values()) {
-        if (!announcedUsers.has(member.id)) {
-            announcedUsers.add(member.id);
-            const powerLevelConfig = POWER_LEVEL_CONFIG[serverPowerLevel];
-            eventLogs.push(`👋 ${member.displayName} joined as ${powerLevelConfig?.name || 'Miner'}!`);
+    // RAIL RESTORATION: Restore rail positions after map initialization
+    if (railPositions.length > 0) {
+        let restoredCount = 0;
+        for (const pos of railPositions) {
+            if (mapData.tiles[pos.y] && mapData.tiles[pos.y][pos.x]) {
+                mapData.tiles[pos.y][pos.x].hasRail = true;
+                restoredCount++;
+            }
+        }
+        if (restoredCount > 0) {
+            console.log(`[MINING] Restored ${restoredCount} rail tiles after map update`);
         }
     }
-
+    
+    // Check for players who left and announce their departure
     const currentPlayerIds = Array.from(members.keys());
+    const departedPlayers = [];
+    for (const playerId of Object.keys(existingPositions)) {
+        if (!currentPlayerIds.includes(playerId)) {
+            // Get the player's display name if possible (might not be available if they left)
+            const memberName = channel.guild.members.cache.get(playerId)?.displayName || 'A miner';
+            departedPlayers.push({ id: playerId, name: memberName });
+            eventLogs.push(`👋 ${memberName} left the mines`);
+        }
+    }
+    
+    // Clean up positions for departed players
     mapData = cleanupPlayerPositions(mapData, currentPlayerIds);
 
     // Calculate team sight radius with power level bonuses
@@ -849,7 +899,7 @@ module.exports = async (channel, dbEntry, json, client) => {
     const powerLevelConfig = POWER_LEVEL_CONFIG[serverPowerLevel];
     const powerLevelInfo = {
         level: serverPowerLevel,
-        name: powerLevelConfig?.name || 'Unknown Miner',
+        name: powerLevelConfig?.name || 'Unknown Expedition',
         specialBonus: serverModifiers.specialBonus
     };
 
@@ -965,7 +1015,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 
                 await addItemToMinecart(dbEntry, member.id, item.itemId, finalQuantity);
                 
-                mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+                // Preserve rail data if it exists when converting to floor
+                    const hadRail = mapData.tiles[adjacentTarget.y][adjacentTarget.x].hasRail;
+                    mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+                    if (hadRail) {
+                        mapData.tiles[adjacentTarget.y][adjacentTarget.x].hasRail = true;
+                    }
                 mapChanged = true;
                 wallsBroken++;
                 
@@ -1099,7 +1154,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     eventLogs.push(findMessage);
                 }
                 
+                // Preserve rail data if it exists when converting to floor
+                const existingRail = mapData.tiles[newY][newX].hasRail;
                 mapData.tiles[newY][newX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+                if (existingRail) {
+                    mapData.tiles[newY][newX].hasRail = true;
+                }
                 position.x = newX;
                 position.y = newY;
                 mapChanged = true;

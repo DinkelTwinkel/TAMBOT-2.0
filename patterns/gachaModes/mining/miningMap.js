@@ -25,9 +25,9 @@ function generateTileType(channelId, x, y) {
 function getTileHardness(tileType) {
     switch (tileType) {
         case TILE_TYPES.WALL: return 1;
-        case TILE_TYPES.WALL_WITH_ORE: return 1;
-        case TILE_TYPES.RARE_ORE: return 2;
-        case TILE_TYPES.REINFORCED_WALL: return 2;
+        case TILE_TYPES.WALL_WITH_ORE: return 2;
+        case TILE_TYPES.RARE_ORE: return 3;
+        case TILE_TYPES.REINFORCED_WALL: return 5;
         case TILE_TYPES.TREASURE_CHEST: return 1;
         default: return 0;
     }

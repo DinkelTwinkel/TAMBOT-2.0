@@ -11,7 +11,7 @@ const EXPLORATION_BONUS_CHANCE = 0.03;
 // Power Level Configurations
 const POWER_LEVEL_CONFIG = {
     1: {
-        name: "Novice Miner",
+        name: "Novice Expedition",
         description: "Basic mining efficiency",
         oreSpawnMultiplier: 1.0,
         rareOreBonus: 0.0,
@@ -20,7 +20,7 @@ const POWER_LEVEL_CONFIG = {
         valueMultiplier: 1.0
     },
     2: {
-        name: "Apprentice Miner", 
+        name: "Apprentice Expedition", 
         description: "Improved ore detection",
         oreSpawnMultiplier: 1.2,
         rareOreBonus: 0.005,
@@ -29,7 +29,7 @@ const POWER_LEVEL_CONFIG = {
         valueMultiplier: 1.2
     },
     3: {
-        name: "Skilled Miner",
+        name: "Skilled Expedition",
         description: "Enhanced mining techniques",
         oreSpawnMultiplier: 1.4,
         rareOreBonus: 0.01,
@@ -38,7 +38,7 @@ const POWER_LEVEL_CONFIG = {
         valueMultiplier: 1.5
     },
     4: {
-        name: "Expert Miner",
+        name: "Expert Expedition",
         description: "Advanced geological knowledge",
         oreSpawnMultiplier: 1.6,
         rareOreBonus: 0.02,
@@ -47,7 +47,7 @@ const POWER_LEVEL_CONFIG = {
         valueMultiplier: 1.8
     },
     5: {
-        name: "Master Miner",
+        name: "Master Expedition",
         description: "Volcanic mining specialization", 
         oreSpawnMultiplier: 1.8,
         rareOreBonus: 0.03,
@@ -56,7 +56,7 @@ const POWER_LEVEL_CONFIG = {
         valueMultiplier: 2.2
     },
     6: {
-        name: "Legendary Miner",
+        name: "Legendary Expedition",
         description: "Mythical ore sensitivity",
         oreSpawnMultiplier: 2.0,
         rareOreBonus: 0.05,
@@ -65,7 +65,7 @@ const POWER_LEVEL_CONFIG = {
         valueMultiplier: 2.8
     },
     7: {
-        name: "Abyssal Miner",
+        name: "Abyssal Expedition",
         description: "Master of the deepest depths",
         oreSpawnMultiplier: 2.5,
         rareOreBonus: 0.08,

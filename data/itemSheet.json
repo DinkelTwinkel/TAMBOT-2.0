@@ -589,5 +589,21 @@
     ],
     "image": "prospector",
     "durability": 95
+  },
+  {
+    "id": "47",
+    "name": "Miner's Better Tool",
+    "type": "charm",
+    "description": "A versatile tool that provides balanced mining capabilities with enhanced efficiency.",
+    "value": 100,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 3 },
+      { "name": "speed", "powerlevel": 2 },
+      { "name": "sight", "powerlevel": 2 },
+      { "name": "luck", "powerlevel": -1 }
+    ],
+    "image": "miners_multitool_improved",
+    "durability": 20
   }
 ]
