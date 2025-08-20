@@ -483,7 +483,14 @@ class ShopHandler {
             if (existing) {
                 existing.quantity += quantity;
             } else {
-                userInv.items.push({ itemId: item.id, quantity });
+                const newItem = { itemId: item.id, quantity };
+                
+                // Add currentDurability if the item has durability
+                if (item.durability) {
+                    newItem.currentDurability = item.durability;
+                }
+                
+                userInv.items.push(newItem);
             }
             
             // Save inventory
