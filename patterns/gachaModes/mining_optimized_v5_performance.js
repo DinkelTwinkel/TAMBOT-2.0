@@ -1125,7 +1125,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         if (expandedMap !== mapData) {
             mapData = expandedMap;
             mapChanged = true;
-            eventLogs.push(`🗺️ MAP EXPANDED! New size: ${expandedMap.width}x${expandedMap.height}`);
+            //eventLogs.push(`🗺️ MAP EXPANDED! New size: ${expandedMap.width}x${expandedMap.height}`);
         }
         
         if (newX < 0 || newX >= mapData.width || newY < 0 || newY >= mapData.height) continue;
