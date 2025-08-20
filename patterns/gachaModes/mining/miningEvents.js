@@ -588,31 +588,53 @@ async function clearSpecialEvent(channelId) {
 }
 
 /**
- * Check if special event should end and handle it
+ * Enhanced checkAndEndSpecialEvent with better logging
  */
 async function checkAndEndSpecialEvent(channel, dbEntry) {
     const now = Date.now();
     
-    if (dbEntry.gameData?.specialEvent && now > dbEntry.gameData.specialEvent.endTime) {
-        const eventType = dbEntry.gameData.specialEvent.type;
+    console.log(`[checkAndEndSpecialEvent] Checking for channel ${channel.id}`);
+    console.log(`[checkAndEndSpecialEvent] Current time: ${now}`);
+    
+    if (dbEntry.gameData?.specialEvent) {
+        const event = dbEntry.gameData.specialEvent;
+        console.log(`[checkAndEndSpecialEvent] Event type: ${event.type}`);
+        console.log(`[checkAndEndSpecialEvent] Event end time: ${event.endTime}`);
+        console.log(`[checkAndEndSpecialEvent] Should end? ${now > event.endTime}`);
         
-        switch (eventType) {
-            case 'thief':
-                await endThiefGame(channel, dbEntry);
-                break;
-            // Add other event endings here
-            default:
-                await clearSpecialEvent(channel.id);
+        if (now > event.endTime) {
+            const eventType = event.type;
+            
+            try {
+                switch (eventType) {
+                    case 'thief':
+                        console.log(`[checkAndEndSpecialEvent] Ending thief game...`);
+                        await endThiefGame(channel, dbEntry);
+                        break;
+                    // Add other event endings here
+                    default:
+                        console.log(`[checkAndEndSpecialEvent] Clearing unknown event type: ${eventType}`);
+                        await clearSpecialEvent(channel.id);
+                }
+                
+                // Start shop break after special event
+                await gachaVC.updateOne(
+                    { channelId: channel.id },
+                    { $set: { nextTrigger: new Date(now + 5 * 60 * 1000) } }
+                );
+                
+                // Don't generate shop here - let the caller handle it
+                console.log(`[checkAndEndSpecialEvent] Event ended successfully`);
+                return `🛒 ${eventType} event concluded!`;
+            } catch (error) {
+                console.error(`[checkAndEndSpecialEvent] Error ending event:`, error);
+                return null;
+            }
+        } else {
+            console.log(`[checkAndEndSpecialEvent] Event not ready to end yet`);
         }
-        
-        // Start shop break after special event
-        await gachaVC.updateOne(
-            { channelId: channel.id },
-            { $set: { nextTrigger: new Date(now + 5 * 60 * 1000) } }
-        );
-        
-        await generateShop(channel, 5);
-        return '🛒 Special event concluded! Shop open for 5 minutes.';
+    } else {
+        console.log(`[checkAndEndSpecialEvent] No special event active`);
     }
     
     return null;
@@ -807,6 +829,96 @@ function scatterPlayersForBreak(playerPositions, entranceX, entranceY, playerCou
     return scattered;
 }
 
+// ============ DEBUG FUNCTIONS ============
+
+/**
+ * Debug function to check special event status
+ */
+async function debugSpecialEvent(channel) {
+    const dbEntry = await gachaVC.findOne({ channelId: channel.id });
+    
+    console.log('=== SPECIAL EVENT DEBUG ===');
+    console.log('Channel ID:', channel.id);
+    console.log('Current time:', new Date().toISOString());
+    console.log('Current timestamp:', Date.now());
+    
+    if (dbEntry?.gameData?.specialEvent) {
+        const event = dbEntry.gameData.specialEvent;
+        console.log('Event type:', event.type);
+        console.log('Event end time:', new Date(event.endTime).toISOString());
+        console.log('Event end timestamp:', event.endTime);
+        console.log('Time remaining (ms):', event.endTime - Date.now());
+        console.log('Should end?:', Date.now() > event.endTime);
+        
+        if (event.type === 'thief') {
+            console.log('Thief ID:', event.thiefId);
+            console.log('Amount stolen:', event.amount);
+        }
+    } else {
+        console.log('No special event active');
+    }
+    
+    if (dbEntry?.gameData?.breakInfo) {
+        const breakInfo = dbEntry.gameData.breakInfo;
+        console.log('--- Break Info ---');
+        console.log('In break?:', breakInfo.inBreak);
+        console.log('Is long break?:', breakInfo.isLongBreak);
+        console.log('Break end time:', new Date(breakInfo.breakEndTime).toISOString());
+        console.log('Break time remaining (ms):', breakInfo.breakEndTime - Date.now());
+    }
+    
+    console.log('=========================');
+    
+    return dbEntry;
+}
+
+/**
+ * Force end a special event (for testing/debugging)
+ */
+async function forceEndSpecialEvent(channel) {
+    const dbEntry = await gachaVC.findOne({ channelId: channel.id });
+    
+    if (!dbEntry?.gameData?.specialEvent) {
+        console.log('No special event to end');
+        return 'No special event active';
+    }
+    
+    const eventType = dbEntry.gameData.specialEvent.type;
+    console.log(`Force ending ${eventType} event...`);
+    
+    // Call the appropriate end function
+    switch (eventType) {
+        case 'thief':
+            await endThiefGame(channel, dbEntry);
+            break;
+        default:
+            await clearSpecialEvent(channel.id);
+    }
+    
+    console.log('Event force ended');
+    return `Force ended ${eventType} event`;
+}
+
+/**
+ * Force start a thief event (for testing)
+ */
+async function forceStartThiefEvent(channel) {
+    const dbEntry = await gachaVC.findOne({ channelId: channel.id });
+    
+    if (!dbEntry) {
+        return 'No active mining session';
+    }
+    
+    // Clear any existing event
+    if (dbEntry.gameData?.specialEvent) {
+        await clearSpecialEvent(channel.id);
+    }
+    
+    // Start thief event
+    const result = await startThiefGame(channel, dbEntry);
+    return result || 'Thief event started';
+}
+
 // ============ EXPORTS ============
 
 module.exports = {
@@ -829,5 +941,10 @@ module.exports = {
     scatterPlayersForBreak,
     
     // Configuration
-    longBreakEvents
+    longBreakEvents,
+    
+    // Debug functions
+    debugSpecialEvent,
+    forceEndSpecialEvent,
+    forceStartThiefEvent
 };

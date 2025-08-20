@@ -507,13 +507,43 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1)
             specialBonus: `Power Level ${powerLevel} Event`
         });
         
-        setTimeout(async () => {
-            const refreshedEntry = await getCachedDBEntry(channel.id, true);
-            if (refreshedEntry.gameData?.breakInfo?.inBreak) {
-                await generateShop(channel, 10);
-                await logEvent(channel, '🛒 Event ended! Shop is now open!', true);
+        // FIX: Check for special event ending periodically
+        const eventCheckInterval = setInterval(async () => {
+            try {
+                const currentEntry = await getCachedDBEntry(channel.id, true);
+                
+                // Check if special event should end
+                if (currentEntry.gameData?.specialEvent) {
+                    const eventEndResult = await checkAndEndSpecialEvent(channel, currentEntry);
+                    if (eventEndResult) {
+                        await logEvent(channel, eventEndResult, true);
+                        clearInterval(eventCheckInterval);
+                        
+                        // Open shop after event ends if still in break
+                        if (currentEntry.gameData?.breakInfo?.inBreak) {
+                            await generateShop(channel, 10);
+                            await logEvent(channel, '🛒 Shop is now open!', true);
+                        }
+                    }
+                } else {
+                    // No special event or already ended
+                    clearInterval(eventCheckInterval);
+                }
+                
+                // Stop checking if break ended
+                if (!currentEntry.gameData?.breakInfo?.inBreak) {
+                    clearInterval(eventCheckInterval);
+                }
+            } catch (error) {
+                console.error('Error checking special event:', error);
+                clearInterval(eventCheckInterval);
             }
-        }, LONG_EVENT_DURATION);
+        }, 30000); // Check every 30 seconds
+        
+        // Fallback: ensure interval is cleared after max time
+        setTimeout(() => {
+            clearInterval(eventCheckInterval);
+        }, LONG_BREAK_DURATION);
         
     } else {
         // Short break
@@ -629,16 +659,30 @@ module.exports = async (channel, dbEntry, json, client) => {
         const breakInfo = dbEntry.gameData.breakInfo;
         
         if (now >= breakInfo.breakEndTime) {
+            // FIX: Check for any lingering special events before ending break
+            if (dbEntry.gameData?.specialEvent) {
+                const eventEndResult = await checkAndEndSpecialEvent(channel, dbEntry);
+                if (eventEndResult) {
+                    await logEvent(channel, eventEndResult, true);
+                }
+            }
             await endBreak(channel, dbEntry, serverPowerLevel);
             return;
         }
         
-        if (breakInfo.isLongBreak && dbEntry.gameData?.specialEvent) {
+        // FIX: Always check for special event end during break, not just long breaks
+        if (dbEntry.gameData?.specialEvent) {
             const specialEvent = dbEntry.gameData.specialEvent;
             if (now >= specialEvent.endTime) {
                 const eventEndResult = await checkAndEndSpecialEvent(channel, dbEntry);
                 if (eventEndResult) {
                     await logEvent(channel, eventEndResult, true);
+                    
+                    // Open shop if event ended and still in break
+                    if (breakInfo.isLongBreak && !dbEntry.gameData?.specialEvent) {
+                        await generateShop(channel, 10);
+                        await logEvent(channel, '🛒 Shop is now open after event!', true);
+                    }
                 }
             }
         }
