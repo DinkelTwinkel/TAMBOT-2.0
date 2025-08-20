@@ -1,6 +1,7 @@
 // hazardEffects.js - Handle hazard triggering and effects
 const { HAZARD_TYPES, HAZARD_CONFIG, TILE_TYPES } = require('./miningConstants');
 const hazardStorage = require('./hazardStorage');
+const getPlayerStats = require('../../calculatePlayerStat');
 
 /**
  * Process hazard trigger when player steps on it
@@ -176,11 +177,12 @@ async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
 async function handleGreenFog(member, position, transaction, eventLogs) {
     const durabilityDamage = HAZARD_CONFIG[HAZARD_TYPES.GREEN_FOG].durabilityDamage || 1;
     const PlayerInventory = require('../../../models/inventory');
+    const playerEquipped = getPlayerStats(member.id).equippedItems
     
     try {
         // Get player's equipped items
         const playerInv = await PlayerInventory.findOne({ userId: member.id });
-        if (!playerInv || !playerInv.equippedItems) {
+        if (!playerInv || !playerEquipped) {
             return {
                 mapChanged: false,
                 playerMoved: false,
@@ -192,7 +194,7 @@ async function handleGreenFog(member, position, transaction, eventLogs) {
         const brokenItems = [];
         
         // Process each equipped item
-        for (const [slot, item] of Object.entries(playerInv.equippedItems)) {
+        for (const [slot, item] of Object.entries(playerEquipped)) {
             if (!item || typeof item !== 'object') continue;
             
             // Get current durability

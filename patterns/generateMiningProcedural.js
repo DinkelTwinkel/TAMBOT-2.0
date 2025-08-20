@@ -36,14 +36,14 @@ const TILE_TYPES = {
 
 // Tile image paths (REPLACE THESE WITH YOUR ACTUAL IMAGE FILES)
 const TILE_IMAGES = {
-    [TILE_TYPES.WALL]: './assets/tiles/wall.png',                    // Standard stone wall
-    [TILE_TYPES.FLOOR]: './assets/tiles/floor.png',                 // Cleared floor tiles
-    [TILE_TYPES.ENTRANCE]: './assets/tiles/entrance.png',           // Mine entrance
-    [TILE_TYPES.WALL_WITH_ORE]: './assets/tiles/ore_wall.png',      // Wall with visible ore veins
-    [TILE_TYPES.RARE_ORE]: './assets/tiles/rare_ore.png',           // Rare crystalline ore formations
-    [TILE_TYPES.TREASURE_CHEST]: './assets/tiles/treasure.png',     // Treasure chest
-    [TILE_TYPES.HAZARD]: './assets/tiles/hazard.png',               // Dangerous area (spikes, gas, etc.)
-    [TILE_TYPES.REINFORCED_WALL]: './assets/tiles/reinforced.png'   // Extra tough wall
+    [TILE_TYPES.WALL]: './assets/game/tiles/caveWall_generic_1.png',                    // Standard stone wall
+    [TILE_TYPES.FLOOR]: './assets/game/tiles/caveFloor_generic_1.png',                 // Cleared floor tiles
+    [TILE_TYPES.ENTRANCE]: './assets/game/tiles/caveEntrance_generic_1.png',           // Mine entrance
+    [TILE_TYPES.WALL_WITH_ORE]: './assets/game/tiles/caveOre_generic_1.png',      // Wall with visible ore veins
+    [TILE_TYPES.RARE_ORE]: './assets/game/tiles/caveRareOre_generic_1.png',           // Rare crystalline ore formations
+    [TILE_TYPES.TREASURE_CHEST]: './assets/game/tiles/caveTreasure_generic_1.png',     // Treasure chest
+    [TILE_TYPES.HAZARD]: './assets/game/tiles/caveHazard_generic_1.png',               // Dangerous area (spikes, gas, etc.)
+    [TILE_TYPES.REINFORCED_WALL]: './assets/game/tiles/caveWallReinforced_generic_1.png'   // Extra tough wall
 };
 
 // Fallback colors when images aren't available
@@ -59,7 +59,7 @@ const TILE_COLORS = {
 };
 
 // Configuration: Set to true to use images, false for colors
-const USE_TILE_IMAGES = false; // Change to true when you have tile images ready
+const USE_TILE_IMAGES = true; // Change to true when you have tile images ready
 
 // Cache for loaded tile images
 const tileImageCache = new Map();
@@ -1151,7 +1151,7 @@ async function generateTileMapImage(channel) {
     }
 
     // Fill background (fog of war)
-    ctx.fillStyle = '#111111';
+    ctx.fillStyle = '#000000ff';
     ctx.fillRect(0, 0, outputWidth, outputHeight);
 
     // Draw tiles with enhanced rendering
@@ -1184,42 +1184,42 @@ async function generateTileMapImage(channel) {
             
             // Draw entrance marker
             if (tile.type === TILE_TYPES.ENTRANCE) {
-                drawEntranceMarker(ctx, pixelX, pixelY, tileSize, isCurrentlyVisible, wasDiscovered);
+                //drawEntranceMarker(ctx, pixelX, pixelY, tileSize, isCurrentlyVisible, wasDiscovered);
             }
             
             // Draw grid lines for larger tiles
-            if (isCurrentlyVisible && tileSize >= 24) {
-                ctx.strokeStyle = '#666666';
-                ctx.lineWidth = Math.max(0.5, imageSettings.scaleFactor);
-                ctx.globalAlpha = 0.5;
-                ctx.strokeRect(pixelX, pixelY, tileSize, tileSize);
-                ctx.globalAlpha = 1.0;
-            }
+            // if (isCurrentlyVisible && tileSize >= 24) {
+            //     ctx.strokeStyle = '#0c0c0cff';
+            //     ctx.lineWidth = Math.max(0.5, imageSettings.scaleFactor);
+            //     ctx.globalAlpha = 0.5;
+            //     ctx.strokeRect(pixelX, pixelY, tileSize, tileSize);
+            //     ctx.globalAlpha = 1.0;
+            // }
         }
     }
 
     // Draw grid overlay for larger images
-    if (tileSize >= 32) {
-        ctx.strokeStyle = '#333333';
-        ctx.lineWidth = 0.5;
-        ctx.globalAlpha = 0.2;
+    // if (tileSize >= 32) {
+    //     ctx.strokeStyle = '#333333';
+    //     ctx.lineWidth = 0.5;
+    //     ctx.globalAlpha = 0.2;
         
-        for (let x = 0; x <= width; x++) {
-            ctx.beginPath();
-            ctx.moveTo(x * tileSize, 0);
-            ctx.lineTo(x * tileSize, height * tileSize);
-            ctx.stroke();
-        }
+    //     for (let x = 0; x <= width; x++) {
+    //         ctx.beginPath();
+    //         ctx.moveTo(x * tileSize, 0);
+    //         ctx.lineTo(x * tileSize, height * tileSize);
+    //         ctx.stroke();
+    //     }
         
-        for (let y = 0; y <= height; y++) {
-            ctx.beginPath();
-            ctx.moveTo(0, y * tileSize);
-            ctx.lineTo(width * tileSize, y * tileSize);
-            ctx.stroke();
-        }
+    //     for (let y = 0; y <= height; y++) {
+    //         ctx.beginPath();
+    //         ctx.moveTo(0, y * tileSize);
+    //         ctx.lineTo(width * tileSize, y * tileSize);
+    //         ctx.stroke();
+    //     }
         
-        ctx.globalAlpha = 1.0;
-    }
+    //     ctx.globalAlpha = 1.0;
+    // }
 
     // Draw players (as avatars or tents depending on break status)
     const refreshedEntry = await gachaVC.findOne({ channelId: channel.id });
