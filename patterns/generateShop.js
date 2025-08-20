@@ -68,6 +68,21 @@ async function getShopPrices(itemIds, guildId, priceChangeFactor) {
     return prices;
 }
 
+/**
+ * Validates that item IDs exist in the itemSheet
+ * @param {Array} itemIds - Array of item IDs to validate
+ * @returns {Array} - Array of valid item IDs
+ */
+function validateItemIds(itemIds) {
+    return itemIds.filter(id => {
+        const exists = itemSheet.some(item => item.id === String(id));
+        if (!exists) {
+            console.warn(`⚠️ Shop references non-existent item ID: ${id}`);
+        }
+        return exists;
+    });
+}
+
 async function generateShop(channel, closingTime) {
     
     const matchingVC = await GachaVC.findOne({ channelId: channel.id }).lean();
@@ -79,9 +94,13 @@ async function generateShop(channel, closingTime) {
     const now = Date.now();
     if (new Date(matchingVC.nextShopRefresh).getTime() < now) matchingVC.nextShopRefresh = new Date(now + 25 * 60 * 1000);
 
-    let buyPool = [...shopInfo.staticItems];
-    const amount = shopInfo.rotationalAmount || shopInfo.itemPool.length;
-    let availableItems = shopInfo.itemPool.filter(id => !buyPool.includes(id));
+    // Validate static items and item pool to ensure they exist in itemSheet
+    const validStaticItems = validateItemIds(shopInfo.staticItems);
+    const validItemPool = validateItemIds(shopInfo.itemPool);
+    
+    let buyPool = [...validStaticItems];
+    const amount = shopInfo.rotationalAmount || validItemPool.length;
+    let availableItems = validItemPool.filter(id => !buyPool.includes(id));
     
     // Keep item rotation seeded by nextShopRefresh
     let seed = matchingVC.nextShopRefresh.getTime();
@@ -92,17 +111,26 @@ async function generateShop(channel, closingTime) {
         availableItems.splice(index, 1);
     }
 
-    // Calculate fluctuated prices using guild config for all items
-    const allShopItems = Array.from(new Set([...shopInfo.staticItems, ...shopInfo.itemPool]));
+    // Calculate fluctuated prices using guild config for all valid items
+    const allShopItems = Array.from(new Set([...validStaticItems, ...validItemPool]));
     const fluctuatedPrices = await getShopPrices(allShopItems, channel.guild.id, shopInfo.priceChangeFactor);
 
     const pickShopDescription = shopInfo.idleDialogue[Math.floor(shopInfo.idleDialogue.length * Math.random())];
     
     // Create buyPool with fluctuated prices for image generation
-    const buyPoolWithPrices = buyPool.map(itemId => ({
-        itemId: itemId,
-        price: fluctuatedPrices[itemId]?.buy || itemSheet.find(i => i.id === String(itemId))?.value || 0
-    }));
+    const buyPoolWithPrices = buyPool
+        .map(itemId => {
+            const item = itemSheet.find(i => i.id === String(itemId));
+            if (!item) {
+                console.warn(`Item with ID ${itemId} not found in itemSheet for image generation`);
+                return null;
+            }
+            return {
+                itemId: itemId,
+                price: fluctuatedPrices[itemId]?.buy || item.value || 0
+            };
+        })
+        .filter(item => item !== null); // Remove any null entries
     
     const imageBuffer = await generateShopImage(shopInfo, buyPoolWithPrices);
     const attachment = new AttachmentBuilder(imageBuffer, { name: 'shop.png' });
@@ -150,56 +178,78 @@ async function generateShop(channel, closingTime) {
             .setCustomId(`shop_buy_select_${shopMessage.id}`)
             .setPlaceholder('Select an item to buy')
             .addOptions(
-                buyPool.map(id => {
-                    const item = itemSheet.find(i => i.id === String(id));
-                    const fluctuatedPrice = fluctuatedPrices[id];
-
-                    // Build stat line from all abilities
-                    let statLine = '';
-                    if (Array.isArray(item.abilities) && item.abilities.length > 0) {
-                        const abilityStrings = item.abilities
-                            .filter(a => a.powerlevel && a.powerlevel > 0)
-                            .map(a => `+${a.powerlevel} ${a.name}`);
-                        
-                        if (abilityStrings.length > 0) {
-                            statLine = abilityStrings.join(', ');
+                buyPool
+                    .map(id => {
+                        const item = itemSheet.find(i => i.id === String(id));
+                        if (!item) {
+                            console.warn(`Item with ID ${id} not found in itemSheet`);
+                            return null;
                         }
-                    }
+                        
+                        const fluctuatedPrice = fluctuatedPrices[id];
+                        if (!fluctuatedPrice) {
+                            console.warn(`No price found for item ${id}`);
+                            return null;
+                        }
 
-                    // Show price change indicator
-                    const originalPrice = item.value;
-                    const currentPrice = fluctuatedPrice.buy;
-                    let priceIndicator = '';
-                    
-                    if (currentPrice > originalPrice) {
-                        priceIndicator = ' ▲';
-                    } else if (currentPrice < originalPrice) {
-                        priceIndicator = ' ▼';
-                    }
+                        // Build stat line from all abilities
+                        let statLine = '';
+                        if (Array.isArray(item.abilities) && item.abilities.length > 0) {
+                            const abilityStrings = item.abilities
+                                .filter(a => a.powerlevel && a.powerlevel > 0)
+                                .map(a => `+${a.powerlevel} ${a.name}`);
+                            
+                            if (abilityStrings.length > 0) {
+                                statLine = abilityStrings.join(', ');
+                            }
+                        }
 
-                    const descriptionText = `${item.description}${statLine ? ` | ${statLine}` : ''}`;
+                        // Show price change indicator
+                        const originalPrice = item.value;
+                        const currentPrice = fluctuatedPrice.buy;
+                        let priceIndicator = '';
+                        
+                        if (currentPrice > originalPrice) {
+                            priceIndicator = ' ▲';
+                        } else if (currentPrice < originalPrice) {
+                            priceIndicator = ' ▼';
+                        }
 
-                    return {
-                        label: `${item.name} [${currentPrice}c${priceIndicator}]`,
-                        description: descriptionText.slice(0, 100),
-                        value: String(item.id)
-                    };
-                })
+                        const descriptionText = `${item.description}${statLine ? ` | ${statLine}` : ''}`;
+
+                        return {
+                            label: `${item.name} [${currentPrice}c${priceIndicator}]`,
+                            description: descriptionText.slice(0, 100),
+                            value: String(item.id)
+                        };
+                    })
+                    .filter(option => option !== null) // Remove any null entries
             )
     );
 
-    // Create sell menu with fluctuated prices
-    const sellItemIds = Array.from(new Set([...shopInfo.staticItems, ...shopInfo.itemPool]));
-    const sellOptions = sellItemIds.map(itemId => {
-        const item = itemSheet.find(i => i.id === String(itemId));
-        const fluctuatedPrice = fluctuatedPrices[itemId];
-        
-        return {
-            label: item.name,
-            description: `Sell price: ${fluctuatedPrice.sell}c`,
-            value: String(itemId),
-        };
-    });
+    // Create sell menu with fluctuated prices (using validated item lists)
+    const sellItemIds = Array.from(new Set([...validStaticItems, ...validItemPool]));
+    const sellOptions = sellItemIds
+        .map(itemId => {
+            const item = itemSheet.find(i => i.id === String(itemId));
+            if (!item) {
+                console.warn(`Item with ID ${itemId} not found in itemSheet for sell menu`);
+                return null;
+            }
+            
+            const fluctuatedPrice = fluctuatedPrices[itemId];
+            if (!fluctuatedPrice) {
+                console.warn(`No price found for item ${itemId} in sell menu`);
+                return null;
+            }
+            
+            return {
+                label: item.name,
+                description: `Sell price: ${fluctuatedPrice.sell}c`,
+                value: String(itemId),
+            };
+        })
+        .filter(option => option !== null); // Remove any null entries
 
     const sellMenu = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
