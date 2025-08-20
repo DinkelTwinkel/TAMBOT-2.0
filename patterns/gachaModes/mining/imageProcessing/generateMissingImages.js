@@ -100,12 +100,12 @@ const THEMES = {
 
 // Tile types to generate
 const TILE_TYPES = {
-    floor: { variations: 3, generator: 'generateFloorTile' },
-    wall: { variations: 3, generator: 'generateWallTile' },
-    entrance: { variations: 1, generator: 'generateEntranceTile' },
-    wallOre: { variations: 3, generator: 'generateWallOreTile' },
-    rareOre: { variations: 2, generator: 'generateRareOreTile' },
-    wallReinforced: { variations: 2, generator: 'generateReinforcedWallTile' }
+    floor: { variations: 3, generator: 'generateFloorTile', width: 64, height: 64 },
+    wall: { variations: 3, generator: 'generateWallTile', width: 64, height: 90 },
+    entrance: { variations: 1, generator: 'generateEntranceTile', width: 64, height: 64 },
+    wallOre: { variations: 3, generator: 'generateWallOreTile', width: 64, height: 90 },
+    rareOre: { variations: 2, generator: 'generateRareOreTile', width: 64, height: 90 },
+    wallReinforced: { variations: 2, generator: 'generateReinforcedWallTile', width: 64, height: 90 }
 };
 
 // Encounter types to generate
@@ -215,25 +215,26 @@ function generateFloorTile(canvas, ctx, theme, variation) {
 }
 
 /**
- * Generate wall tile
+ * Generate wall tile (64x90 - taller for perspective)
  */
 function generateWallTile(canvas, ctx, theme, variation) {
-    const size = 64;
+    const width = 64;
+    const height = 90;
     const themeConfig = THEMES[theme];
     
     // Base wall
     ctx.fillStyle = themeConfig.primaryColor;
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillRect(0, 0, width, height);
     
-    // Add depth/texture
-    const gradient = ctx.createLinearGradient(0, 0, size, size);
+    // Add depth/texture with vertical gradient for height
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
     gradient.addColorStop(0, themeConfig.accentColor);
-    gradient.addColorStop(0.5, themeConfig.primaryColor);
+    gradient.addColorStop(0.3, themeConfig.primaryColor);
     gradient.addColorStop(1, themeConfig.secondaryColor);
     
     ctx.fillStyle = gradient;
     ctx.globalAlpha = 0.5;
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillRect(0, 0, width, height);
     ctx.globalAlpha = 1.0;
     
     // Add variation details
@@ -241,14 +242,14 @@ function generateWallTile(canvas, ctx, theme, variation) {
         // Brick pattern
         ctx.strokeStyle = themeConfig.secondaryColor;
         ctx.lineWidth = 2;
-        for (let y = 0; y < size; y += 16) {
+        for (let y = 0; y < height; y += 16) {
             ctx.beginPath();
             ctx.moveTo(0, y);
-            ctx.lineTo(size, y);
+            ctx.lineTo(width, y);
             ctx.stroke();
         }
-        for (let y = 0; y < size; y += 32) {
-            for (let x = 0; x < size; x += 32) {
+        for (let y = 0; y < height; y += 32) {
+            for (let x = 0; x < width; x += 32) {
                 ctx.beginPath();
                 ctx.moveTo(x + (y % 32 === 0 ? 0 : 16), y);
                 ctx.lineTo(x + (y % 32 === 0 ? 0 : 16), y + 16);
@@ -262,8 +263,8 @@ function generateWallTile(canvas, ctx, theme, variation) {
             ctx.globalAlpha = 0.3;
             ctx.beginPath();
             ctx.arc(
-                Math.random() * size,
-                Math.random() * size,
+                Math.random() * width,
+                Math.random() * height,
                 5 + Math.random() * 10,
                 0,
                 Math.PI * 2
@@ -275,32 +276,39 @@ function generateWallTile(canvas, ctx, theme, variation) {
         for (let i = 0; i < 20; i++) {
             ctx.fillStyle = Math.random() > 0.5 ? themeConfig.secondaryColor : themeConfig.accentColor;
             ctx.globalAlpha = 0.2;
-            const x = Math.random() * size;
-            const y = Math.random() * size;
+            const x = Math.random() * width;
+            const y = Math.random() * height;
             ctx.fillRect(x, y, 3, 3);
         }
     }
     
     ctx.globalAlpha = 1.0;
     
-    // Highlight edges
+    // Highlight top edges
     ctx.strokeStyle = themeConfig.accentColor;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.lineTo(size, 0);
+    ctx.lineTo(width, 0);
     ctx.moveTo(0, 0);
-    ctx.lineTo(0, size);
+    ctx.lineTo(0, height);
     ctx.stroke();
     
-    // Shadow edges
+    // Shadow bottom edges (darker at bottom for depth)
     ctx.strokeStyle = themeConfig.secondaryColor;
     ctx.beginPath();
-    ctx.moveTo(size, 0);
-    ctx.lineTo(size, size);
-    ctx.moveTo(0, size);
-    ctx.lineTo(size, size);
+    ctx.moveTo(width, 0);
+    ctx.lineTo(width, height);
+    ctx.moveTo(0, height);
+    ctx.lineTo(width, height);
     ctx.stroke();
+    
+    // Add extra shadowing at bottom for depth
+    const bottomGradient = ctx.createLinearGradient(0, height - 20, 0, height);
+    bottomGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    bottomGradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+    ctx.fillStyle = bottomGradient;
+    ctx.fillRect(0, height - 20, width, 20);
 }
 
 /**
@@ -337,10 +345,11 @@ function generateEntranceTile(canvas, ctx, theme, variation) {
 }
 
 /**
- * Generate wall with ore tile
+ * Generate wall with ore tile (64x90)
  */
 function generateWallOreTile(canvas, ctx, theme, variation) {
-    const size = 64;
+    const width = 64;
+    const height = 90;
     const themeConfig = THEMES[theme];
     
     // First draw base wall
@@ -355,19 +364,19 @@ function generateWallOreTile(canvas, ctx, theme, variation) {
         ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.moveTo(10, 10);
-        ctx.quadraticCurveTo(size/2, size/3, size-10, size-10);
+        ctx.quadraticCurveTo(width/2, height/3, width-10, height-10);
         ctx.stroke();
         
         ctx.beginPath();
-        ctx.arc(size/2, size/2, 8, 0, Math.PI * 2);
+        ctx.arc(width/2, height/2, 8, 0, Math.PI * 2);
         ctx.fill();
     } else if (variation === 2) {
         // Multiple small veins
         ctx.lineWidth = 2;
         for (let i = 0; i < 3; i++) {
             ctx.beginPath();
-            ctx.moveTo(Math.random() * size, 0);
-            ctx.lineTo(Math.random() * size, size);
+            ctx.moveTo(Math.random() * width, 0);
+            ctx.lineTo(Math.random() * width, height);
             ctx.stroke();
         }
     } else if (variation === 3) {
@@ -375,8 +384,8 @@ function generateWallOreTile(canvas, ctx, theme, variation) {
         for (let i = 0; i < 5; i++) {
             ctx.beginPath();
             ctx.arc(
-                10 + Math.random() * (size - 20),
-                10 + Math.random() * (size - 20),
+                10 + Math.random() * (width - 20),
+                10 + Math.random() * (height - 20),
                 3 + Math.random() * 5,
                 0,
                 Math.PI * 2
@@ -389,38 +398,39 @@ function generateWallOreTile(canvas, ctx, theme, variation) {
     ctx.fillStyle = '#FFFFFF';
     ctx.globalAlpha = 0.6;
     for (let i = 0; i < 3; i++) {
-        const x = Math.random() * size;
-        const y = Math.random() * size;
+        const x = Math.random() * width;
+        const y = Math.random() * height;
         ctx.fillRect(x, y, 2, 2);
     }
     ctx.globalAlpha = 1.0;
 }
 
 /**
- * Generate rare ore tile
+ * Generate rare ore tile (64x90)
  */
 function generateRareOreTile(canvas, ctx, theme, variation) {
-    const size = 64;
+    const width = 64;
+    const height = 90;
     const themeConfig = THEMES[theme];
     
     // Base wall with special coloring
-    const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.max(width, height)/2);
     gradient.addColorStop(0, themeConfig.oreColor);
     gradient.addColorStop(0.5, themeConfig.accentColor);
     gradient.addColorStop(1, themeConfig.primaryColor);
     
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillRect(0, 0, width, height);
     
     // Add crystal formations
     if (variation === 1) {
         // Large central crystal
         ctx.fillStyle = themeConfig.oreColor;
         ctx.beginPath();
-        ctx.moveTo(size/2, 10);
-        ctx.lineTo(size*3/4, size/2);
-        ctx.lineTo(size/2, size-10);
-        ctx.lineTo(size/4, size/2);
+        ctx.moveTo(width/2, 15);
+        ctx.lineTo(width*3/4, height/2);
+        ctx.lineTo(width/2, height-15);
+        ctx.lineTo(width/4, height/2);
         ctx.closePath();
         ctx.fill();
         
@@ -430,8 +440,8 @@ function generateRareOreTile(canvas, ctx, theme, variation) {
     } else {
         // Multiple small crystals
         for (let i = 0; i < 4; i++) {
-            const x = 10 + Math.random() * (size - 20);
-            const y = 10 + Math.random() * (size - 20);
+            const x = 10 + Math.random() * (width - 20);
+            const y = 10 + Math.random() * (height - 20);
             const w = 8 + Math.random() * 8;
             const h = 8 + Math.random() * 8;
             
@@ -454,42 +464,43 @@ function generateRareOreTile(canvas, ctx, theme, variation) {
     ctx.fillStyle = '#FFFFFF';
     for (let i = 0; i < 8; i++) {
         ctx.globalAlpha = Math.random() * 0.8 + 0.2;
-        const x = Math.random() * size;
-        const y = Math.random() * size;
+        const x = Math.random() * width;
+        const y = Math.random() * height;
         ctx.fillRect(x, y, 1, 1);
     }
     ctx.globalAlpha = 1.0;
 }
 
 /**
- * Generate reinforced wall tile
+ * Generate reinforced wall tile (64x90)
  */
 function generateReinforcedWallTile(canvas, ctx, theme, variation) {
-    const size = 64;
+    const width = 64;
+    const height = 90;
     const themeConfig = THEMES[theme];
     
     // Base wall with metallic look
-    const gradient = ctx.createLinearGradient(0, 0, size, size);
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
     gradient.addColorStop(0, '#696969');
     gradient.addColorStop(0.3, themeConfig.primaryColor);
     gradient.addColorStop(0.7, '#2F2F2F');
     gradient.addColorStop(1, '#1C1C1C');
     
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillRect(0, 0, width, height);
     
     // Add metal plates
     if (variation === 1) {
         // Large plates with rivets
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
-        ctx.strokeRect(8, 8, size-16, size-16);
+        ctx.strokeRect(8, 8, width-16, height-16);
         
         // Rivets
         ctx.fillStyle = '#C0C0C0';
         const rivetPositions = [
-            [12, 12], [size-12, 12],
-            [12, size-12], [size-12, size-12]
+            [12, 12], [width-12, 12],
+            [12, height-12], [width-12, height-12]
         ];
         
         for (const [x, y] of rivetPositions) {
@@ -506,24 +517,24 @@ function generateReinforcedWallTile(canvas, ctx, theme, variation) {
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
         
-        for (let x = 0; x < size; x += 16) {
+        for (let x = 0; x < width; x += 16) {
             ctx.beginPath();
             ctx.moveTo(x, 0);
-            ctx.lineTo(x, size);
+            ctx.lineTo(x, height);
             ctx.stroke();
         }
         
-        for (let y = 0; y < size; y += 16) {
+        for (let y = 0; y < height; y += 16) {
             ctx.beginPath();
             ctx.moveTo(0, y);
-            ctx.lineTo(size, y);
+            ctx.lineTo(width, y);
             ctx.stroke();
         }
         
         // Add bolts at intersections
         ctx.fillStyle = '#808080';
-        for (let x = 16; x < size; x += 16) {
-            for (let y = 16; y < size; y += 16) {
+        for (let x = 16; x < width; x += 16) {
+            for (let y = 16; y < height; y += 16) {
                 ctx.beginPath();
                 ctx.arc(x, y, 2, 0, Math.PI * 2);
                 ctx.fill();
@@ -868,7 +879,7 @@ async function generateThemeImages(theme) {
                 continue;
             }
             
-            const canvas = createCanvas(64, 64);
+            const canvas = createCanvas(config.width, config.height);
             const ctx = canvas.getContext('2d');
             
             // Call the appropriate generator function
