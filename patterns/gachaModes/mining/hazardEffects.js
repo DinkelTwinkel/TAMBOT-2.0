@@ -132,13 +132,13 @@ async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
             // Don't destroy entrance
             if (tile.type === TILE_TYPES.ENTRANCE) continue;
             
-            // Convert ore walls and reinforced walls to regular walls
+            // Convert ore walls and reinforced walls to floor
             if (tile.type === TILE_TYPES.WALL_WITH_ORE || 
                 tile.type === TILE_TYPES.RARE_ORE ||
                 tile.type === TILE_TYPES.REINFORCED_WALL ||
                 tile.type === TILE_TYPES.TREASURE_CHEST) {
                 mapData.tiles[targetY][targetX] = {
-                    type: TILE_TYPES.WALL,
+                    type: TILE_TYPES.FLOOR,
                     discovered: true,
                     hardness: 1
                 };

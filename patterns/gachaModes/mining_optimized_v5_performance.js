@@ -832,9 +832,9 @@ module.exports = async (channel, dbEntry, json, client) => {
     // Process actions for each player with power level enhancements
     for (const member of members.values()) {
         // Skip disabled players (knocked out from hazards)
-        if (hazardEffects.isPlayerDisabled(member.id, dbEntry)) {
-            continue;
-        }
+        // if (hazardEffects.isPlayerDisabled(member.id, dbEntry)) {
+        //     continue;
+        // }
         
         const playerData = playerStatsMap.get(member.id);
         const playerLevel = playerData.level || 1;

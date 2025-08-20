@@ -112,7 +112,7 @@ const HAZARD_CONFIG = {
         description: 'Explodes surrounding walls',
         powerRequirement: 2,
         weight: 25,
-        blastRadius: 2
+        blastRadius: 5
     },
     [HAZARD_TYPES.GREEN_FOG]: {
         name: 'Toxic Fog',
