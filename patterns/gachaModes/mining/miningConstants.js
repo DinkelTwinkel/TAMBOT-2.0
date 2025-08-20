@@ -109,10 +109,11 @@ const HAZARD_CONFIG = {
         name: 'Bomb Trap',
         symbol: '💣',
         color: '#FF4500',  // Orange Red
-        description: 'Explodes surrounding walls',
+        description: 'Explodes surrounding walls, knocks out player for 5 minutes',
         powerRequirement: 2,
         weight: 25,
-        blastRadius: 5
+        blastRadius: 2,
+        knockoutDuration: 5 * 60 * 1000  // 5 minutes in milliseconds
     },
     [HAZARD_TYPES.GREEN_FOG]: {
         name: 'Toxic Fog',

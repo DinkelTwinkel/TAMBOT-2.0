@@ -829,10 +829,43 @@ module.exports = async (channel, dbEntry, json, client) => {
         await dbEntry.save();
     }
     
+    // Clean up any expired disabled statuses (from 5-minute bomb knockouts)
+    const hadExpiredDisables = hazardEffects.cleanupExpiredDisables(dbEntry);
+    if (hadExpiredDisables) {
+        await dbEntry.save();
+    }
+    
     // Process actions for each player with power level enhancements
     for (const member of members.values()) {
-        // Skip disabled players (knocked out from hazards)
-        if (hazardEffects.isPlayerDisabled(member.id, dbEntry)) {
+        // Check if player was previously disabled but can now be re-enabled
+        const wasDisabled = dbEntry.gameData?.disabledPlayers?.[member.id];
+        const isDisabled = hazardEffects.isPlayerDisabled(member.id, dbEntry);
+        
+        // If player just woke up, announce it
+        if (wasDisabled && !isDisabled) {
+            eventLogs.push(`⭐ ${member.displayName} recovered from being knocked out!`);
+            // Move them back to entrance if they aren't already there
+            const position = mapData.playerPositions[member.id];
+            if (position && (position.x !== mapData.entranceX || position.y !== mapData.entranceY)) {
+                position.x = mapData.entranceX;
+                position.y = mapData.entranceY;
+                position.disabled = false;
+                mapChanged = true;
+            }
+        }
+        
+        // Skip if still disabled
+        if (isDisabled) {
+            // Add a periodic message about remaining knockout time
+            const disabledInfo = dbEntry.gameData?.disabledPlayers?.[member.id];
+            if (disabledInfo?.enableAt && Math.random() < 0.1) { // 10% chance to show message
+                const now = Date.now();
+                const remainingMs = disabledInfo.enableAt - now;
+                const remainingMinutes = Math.ceil(remainingMs / 60000);
+                if (remainingMinutes > 0) {
+                    eventLogs.push(`💤 ${member.displayName} is knocked out (${remainingMinutes} min remaining)`);
+                }
+            }
             continue;
         }
         

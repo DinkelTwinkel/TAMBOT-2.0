@@ -110,7 +110,9 @@ async function handlePortalTrap(member, position, mapData, eventLogs) {
  * Handle Bomb Trap - Explode surrounding area
  */
 async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
-    const blastRadius = HAZARD_CONFIG[HAZARD_TYPES.BOMB_TRAP].blastRadius || 2;
+    const bombConfig = HAZARD_CONFIG[HAZARD_TYPES.BOMB_TRAP];
+    const blastRadius = bombConfig.blastRadius || 2;
+    const KNOCKOUT_DURATION = bombConfig.knockoutDuration || (5 * 60 * 1000); // Use config or default to 5 minutes
     let tilesDestroyed = 0;
     
     // Explode tiles in radius
@@ -150,14 +152,17 @@ async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
         }
     }
     
-    // Mark player as disabled until next break
+    // Mark player as disabled for 5 minutes
     if (!dbEntry.gameData.disabledPlayers) {
         dbEntry.gameData.disabledPlayers = {};
     }
+    
+    const now = Date.now();
     dbEntry.gameData.disabledPlayers[member.id] = {
         reason: 'bomb_trap',
-        timestamp: Date.now(),
-        returnAfterBreak: true
+        timestamp: now,
+        enableAt: now + KNOCKOUT_DURATION,
+        returnAfterBreak: false
     };
     
     // Move player to entrance (they're knocked out)
@@ -169,7 +174,7 @@ async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
         mapChanged: true,
         playerMoved: true,
         playerDisabled: true,
-        message: `BOOM! Destroyed ${tilesDestroyed} ore tiles! ${member.displayName} knocked unconscious!`
+        message: `BOOM! Destroyed ${tilesDestroyed} ore tiles! ${member.displayName} knocked out for 5 minutes!`
     };
 }
 
@@ -390,21 +395,56 @@ function isPlayerStuck(position, mapData) {
 function isPlayerDisabled(memberId, dbEntry) {
     if (!dbEntry.gameData.disabledPlayers) return false;
     const disabledInfo = dbEntry.gameData.disabledPlayers[memberId];
-    return disabledInfo && disabledInfo.returnAfterBreak;
+    
+    if (!disabledInfo) return false;
+    
+    const now = Date.now();
+    
+    // Check if the disable period has expired
+    if (disabledInfo.enableAt && now >= disabledInfo.enableAt) {
+        // Player can be re-enabled, remove their disabled status
+        delete dbEntry.gameData.disabledPlayers[memberId];
+        return false;
+    }
+    
+    // Player is still disabled
+    return true;
 }
 
 /**
- * Re-enable players after break
+ * Re-enable players after break or when their timeout expires
  */
 function enablePlayersAfterBreak(dbEntry) {
     if (dbEntry.gameData.disabledPlayers) {
+        const now = Date.now();
         for (const playerId in dbEntry.gameData.disabledPlayers) {
             const info = dbEntry.gameData.disabledPlayers[playerId];
-            if (info.returnAfterBreak) {
+            // Remove if marked for break-based return or if timeout expired
+            if (info.returnAfterBreak || (info.enableAt && now >= info.enableAt)) {
                 delete dbEntry.gameData.disabledPlayers[playerId];
             }
         }
     }
+}
+
+/**
+ * Clean up expired disabled statuses
+ */
+function cleanupExpiredDisables(dbEntry) {
+    if (!dbEntry.gameData.disabledPlayers) return false;
+    
+    const now = Date.now();
+    let anyRemoved = false;
+    
+    for (const playerId in dbEntry.gameData.disabledPlayers) {
+        const info = dbEntry.gameData.disabledPlayers[playerId];
+        if (info.enableAt && now >= info.enableAt) {
+            delete dbEntry.gameData.disabledPlayers[playerId];
+            anyRemoved = true;
+        }
+    }
+    
+    return anyRemoved;
 }
 
 module.exports = {
@@ -415,5 +455,6 @@ module.exports = {
     handleWallTrap,
     isPlayerStuck,
     isPlayerDisabled,
-    enablePlayersAfterBreak
+    enablePlayersAfterBreak,
+    cleanupExpiredDisables
 };
