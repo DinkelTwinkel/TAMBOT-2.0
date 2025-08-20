@@ -366,7 +366,9 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
         hour: '2-digit', 
         minute: '2-digit' 
     });
-    const logEntry = eventText ? `[${timestamp}] ${eventText}` : null;
+    const logEntry = eventText ? `- ${eventText}` : null;
+
+    // saving this for later [${timestamp}]
 
     try {
         const messages = await channel.messages.fetch({ limit: 2 });
@@ -1004,7 +1006,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     mapData = expandedMap;
                     mapChanged = true;
                     hazardsChanged = true;
-                    eventLogs.push(`🗺️ MAP EXPANDED! New size: ${expandedMap.width}x${expandedMap.height}`);
+                    //eventLogs.push(`🗺️ MAP EXPANDED! New size: ${expandedMap.width}x${expandedMap.height}`);
                 }
             }
             
