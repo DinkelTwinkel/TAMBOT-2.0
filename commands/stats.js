@@ -56,14 +56,21 @@ module.exports = {
         });
       }
 
-      // Add equipped items field (simplified)
+      // Add equipped items field with durability
       if (Object.keys(equippedItems).length > 0) {
         const itemsList = Object.values(equippedItems)
           .map(item => {
             const statsStr = item.abilities
               .map(a => `${a.name} +${a.power}`)
               .join(', ');
-            return `• **${item.name}** (${statsStr})`;
+            
+            // Calculate durability percentage and add visual indicator
+            const maxDurability = item.durability || 100;
+            const currentDurability = item.currentDurability !== undefined ? item.currentDurability : maxDurability;
+            const durabilityPercent = Math.round((currentDurability / maxDurability) * 100);
+            const durabilityBar = getDurabilityBar(durabilityPercent);
+            
+            return `• **${item.name}** (${statsStr})\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)`;
           })
           .join('\n');
         
@@ -142,4 +149,33 @@ function getTimeRemaining(expiresAt) {
   if (hours > 0) return `${hours}h ${minutes % 60}m`;
   if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
   return `${seconds}s`;
+}
+
+// Helper function to create a visual durability bar
+function getDurabilityBar(percent) {
+  const barLength = 10;
+  const filled = Math.round((percent / 100) * barLength);
+  const empty = barLength - filled;
+  
+  let barChar, emptyChar, emoji;
+  
+  if (percent > 75) {
+    barChar = '🟩';
+    emptyChar = '⬜';
+    emoji = '🛡️';
+  } else if (percent > 50) {
+    barChar = '🟨';
+    emptyChar = '⬜';
+    emoji = '⚠️';
+  } else if (percent > 25) {
+    barChar = '🟧';
+    emptyChar = '⬜';
+    emoji = '⚠️';
+  } else {
+    barChar = '🟥';
+    emptyChar = '⬜';
+    emoji = '🔨';
+  }
+  
+  return `${emoji} ${barChar.repeat(filled)}${emptyChar.repeat(empty)}`;
 }
