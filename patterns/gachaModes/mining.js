@@ -350,7 +350,7 @@ async function nothingHappens(player, channel, playerStats, item, dbEntry) {
             const scavengedItem = pickWeightedItem(1); // Use power level 1 for scavenging
             await addItemToMinecart(dbEntry, player.id, scavengedItem.itemId, 1);
             await logEvent(channel, `🪓 Scavenged! ${player.displayName} found 『 ${scavengedItem.name} 』x 1 on the floor → Added to minecart!`);
-        } else if (Math.random() < 0.05) { // 5% chance to find a pickaxe
+        } else if (Math.random() < 0.10) { // 5% chance to find a pickaxe
             // Give them a rusty pickaxe (assuming itemId "3" is the rusty pickaxe)
             await addToInventory(player, "3", 1);
             await logEvent(channel, `⚡ Lucky find! ${player.displayName} discovered a rusty pickaxe in the rubble!`);
