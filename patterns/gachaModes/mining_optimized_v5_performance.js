@@ -366,7 +366,7 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
         hour: '2-digit', 
         minute: '2-digit' 
     });
-    const logEntry = eventText ? `- ${eventText}` : null;
+    const logEntry = eventText ? `▀▇ ${eventText}` : null;
 
     // saving this for later [${timestamp}]
 
