@@ -8,28 +8,116 @@ const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const registerBotMessage = require('../registerBotMessage');
 const gachaVC = require('../../models/activevcs');
 const generateVoiceChannelImage = require('../generateLocationImage');
+const gachaInfo = require('../../data/gachaServers.json');
 const path = require('path');
 
-// ---------------- Expandable Item Pool for Mining ----------------
-const miningItemPool = [
-    { itemId: "1", name: "Coal Ore", baseWeight: 50, boostedPowerLevel: 1, value: 2 },   // Common starter ore
-    { itemId: "21", name: "Copper Ore", baseWeight: 35, boostedPowerLevel: 1, value: 8 }, // Low-tier metal
-    { itemId: "22", name: "Iron Ore", baseWeight: 25, boostedPowerLevel: 2, value: 15 },  // Sturdy metal
+// Import mining constants and levelling system
+const {
+    miningItemPool,
+    treasureItems,
+    POWER_LEVEL_CONFIG,
+    SERVER_POWER_MODIFIERS,
+    calculateMiningEfficiency,
+    getAvailableItems,
+    getAvailableTreasures
+} = require('./mining/miningConstants');
 
-    { itemId: "2", name: "Topaz Gem", baseWeight: 20, boostedPowerLevel: 2, value: 25 },  // Semi-rare gem
-    { itemId: "23", name: "Emerald Gem", baseWeight: 10, boostedPowerLevel: 3, value: 50 }, // Rare gem
-    { itemId: "24", name: "Ruby Gem", baseWeight: 7, boostedPowerLevel: 3, value: 75 },    // Rare gem
-    { itemId: "6", name: "Diamond Gem", baseWeight: 3, boostedPowerLevel: 4, value: 100 }, // Precious gem
+// ---------------- Helper function to calculate durability loss ----------------
+function calculateDurabilityLoss(tileHardness = 1) {
+    // Base durability loss is 1, multiplied by tile hardness
+    // Harder tiles cause more durability damage
+    const baseLoss = 1;
+    const hardnessMultiplier = Math.max(1, tileHardness / 2); // Scale hardness impact
+    return Math.ceil(baseLoss * hardnessMultiplier);
+}
 
-    { itemId: "25", name: "Obsidian", baseWeight: 2, boostedPowerLevel: 5, value: 150 },   // Deep-tier rare
-    { itemId: "26", name: "Mythril Ore", baseWeight: 1, boostedPowerLevel: 6, value: 200 } // Ultra-rare metal
-];
-// ---------------- Weighted Selection ----------------
-function pickWeightedItem(powerLevel) {
-    const weightedItems = miningItemPool.map(item => {
-        const weight = item.baseWeight * (powerLevel === item.boostedPowerLevel ? 10 : 1);
+// ---------------- Helper function to update item durability in inventory ----------------
+async function updatePickaxeDurability(playerId, itemId, newDurability, inv) {
+    try {
+        // Find the item in inventory
+        const itemIndex = inv.items.findIndex(item => 
+            String(item.itemId) === String(itemId)
+        );
+        
+        if (itemIndex === -1) {
+            console.log(`[DURABILITY] Item ${itemId} not found in inventory`);
+            return null;
+        }
+        
+        const currentItem = inv.items[itemIndex];
+        const itemData = itemSheet.find(item => String(item.id) === String(itemId));
+        const maxDurability = itemData?.durability || 100;
+        
+        // If durability would go to 0 or below, handle break
+        if (newDurability <= 0) {
+            const currentQuantity = currentItem.quantity || 1;
+            
+            if (currentQuantity > 1) {
+                // Reduce quantity by 1 and reset durability to max
+                inv.items[itemIndex].quantity = currentQuantity - 1;
+                inv.items[itemIndex].currentDurability = maxDurability;
+                console.log(`[DURABILITY] Broke one ${itemData.name}, ${currentQuantity - 1} remaining`);
+            } else {
+                // Remove the item entirely
+                inv.items.splice(itemIndex, 1);
+                console.log(`[DURABILITY] Removed last ${itemData.name} from inventory`);
+            }
+            
+            await inv.save();
+            return { broke: true, itemName: itemData.name };
+        } else {
+            // Update durability
+            inv.items[itemIndex].currentDurability = newDurability;
+            await inv.save();
+            console.log(`[DURABILITY] Updated ${itemData.name} durability to ${newDurability}/${maxDurability}`);
+            return { broke: false, newDurability, maxDurability, itemName: itemData.name };
+        }
+    } catch (error) {
+        console.error(`[DURABILITY] Error updating durability:`, error);
+        return null;
+    }
+}
+
+// ---------------- Enhanced Weighted Selection with Power Level ----------------
+function pickWeightedItem(serverPowerLevel, playerMiningLevel = 1, serverType = null) {
+    // Get available items based on server power level
+    const availableItems = getAvailableItems(serverPowerLevel);
+    
+    // Apply server-specific bonuses if applicable
+    const serverModifier = serverType && SERVER_POWER_MODIFIERS[serverType] 
+        ? SERVER_POWER_MODIFIERS[serverType] 
+        : null;
+    
+    const weightedItems = availableItems.map(item => {
+        let weight = item.baseWeight;
+        
+        // Apply power level boost (bigger boost if server power matches item's boosted level)
+        if (serverPowerLevel === item.boostedPowerLevel) {
+            weight *= 10;
+        } else if (serverPowerLevel > item.boostedPowerLevel) {
+            weight *= 5; // Still good chance for lower tier items on higher servers
+        }
+        
+        // Apply player mining level bonus (higher level = better chance for rare items)
+        // Note: playerMiningLevel here includes luck bonus from the caller
+        if (playerMiningLevel > 5 && item.tier === 'rare') {
+            weight *= 1.5;
+        }
+        if (playerMiningLevel > 10 && item.tier === 'epic') {
+            weight *= 2;
+        }
+        if (playerMiningLevel > 15 && item.tier === 'legendary') {
+            weight *= 3;
+        }
+        
+        // Apply server-specific item bonuses
+        if (serverModifier && serverModifier.itemBonuses[item.itemId]) {
+            weight *= 2; // Double chance for server-specific items
+        }
+        
         return { ...item, weight };
     });
+    
     const totalWeight = weightedItems.reduce((sum, i) => sum + i.weight, 0);
     let rand = Math.random() * totalWeight;
     return weightedItems.find(i => (rand -= i.weight) < 0) || weightedItems[0];
@@ -227,6 +315,14 @@ function getMinecartSummary(dbEntry) {
     const minecart = dbEntry.gameData?.minecart;
     if (!minecart || !minecart.items) return { totalValue: 0, itemCount: 0, summary: "Empty minecart" };
     
+    // Get server power level and modifiers
+    const gachaVCInfo = gachaInfo.find(s => s.id === dbEntry.typeId);
+    const serverType = gachaVCInfo?.name || null;
+    const serverPowerLevel = gachaVCInfo?.power || 1;
+    const serverModifier = serverType && SERVER_POWER_MODIFIERS[serverType] 
+        ? SERVER_POWER_MODIFIERS[serverType] 
+        : null;
+    
     let totalValue = 0;
     let totalItems = 0;
     const itemSummaries = [];
@@ -234,7 +330,19 @@ function getMinecartSummary(dbEntry) {
     for (const [itemId, itemData] of Object.entries(minecart.items)) {
         const poolItem = miningItemPool.find(item => item.itemId === itemId);
         if (poolItem && itemData.quantity > 0) {
-            const itemValue = poolItem.value * itemData.quantity;
+            let itemValue = poolItem.value * itemData.quantity;
+            
+            // Apply server-specific value bonuses
+            if (serverModifier && serverModifier.itemBonuses[itemId]) {
+                itemValue = Math.floor(itemValue * serverModifier.itemBonuses[itemId]);
+            }
+            
+            // Apply power level value multiplier
+            const config = POWER_LEVEL_CONFIG[serverPowerLevel];
+            if (config) {
+                itemValue = Math.floor(itemValue * config.valueMultiplier);
+            }
+            
             totalValue += itemValue;
             totalItems += itemData.quantity;
             itemSummaries.push(`${poolItem.name} x${itemData.quantity}`);
@@ -343,10 +451,16 @@ async function logEvent(channel, eventText) {
 }
 
 // ---------------- Event Functions ----------------
-async function nothingHappens(player, channel, playerStats, item, dbEntry) {
-    if (!playerStats.mining || playerStats.mining <= 0) {
+async function nothingHappens(player, channel, playerData, item, dbEntry) {
+    console.log (playerData);
+    if (!playerData.stats.mining || playerData.stats.mining <= 0) {
         // Player has no pickaxe - check for scavenging
-        if (Math.random() < 0.15) { // 15% chance to scavenge a mining item
+        // Sight helps find items on the ground, luck improves scavenging chance
+        const sightBonus = (playerData.stats.sight || 0) * 0.01; // +1% per sight point
+        const luckBonus = (playerData.stats.luck || 0) * 0.005; // +0.5% per luck point
+        const scavengeChance = 0.15 + sightBonus + luckBonus;
+        
+        if (Math.random() < scavengeChance) { // Base 15% chance to scavenge
             const scavengedItem = pickWeightedItem(1); // Use power level 1 for scavenging
             await addItemToMinecart(dbEntry, player.id, scavengedItem.itemId, 1);
             await logEvent(channel, `🪓 Scavenged! ${player.displayName} found 『 ${scavengedItem.name} 』x 1 on the floor → Added to minecart!`);
@@ -362,40 +476,138 @@ async function nothingHappens(player, channel, playerStats, item, dbEntry) {
     }
 }
 
-async function giveFindResource(player, channel, powerLevel, dbEntry) {
-    const item = pickWeightedItem(powerLevel);
-    const playerStats = await getPlayerStats(player.id);
-
-    if (playerStats.mining && playerStats.mining > 0) {
-        if (Math.random() > 0.95) {
-            // Small chance to fail mining
-            console.log('mining failed, doing nothing happens');
-            return nothingHappens(player, channel, playerStats, item, dbEntry);
+async function giveFindResource(player, channel, serverPowerLevel, dbEntry) {
+    const playerData = await getPlayerStats(player.id);
+    const playerMiningLevel = playerData.stats.mining || 0;
+    const playerSight = playerData.stats.sight || 0;
+    const playerSpeed = playerData.stats.speed || 0;
+    const playerLuck = playerData.stats.luck || 0;
+    
+    // Apply durability loss to equipped pickaxe when mining
+    const inv = await PlayerInventory.findOne({ playerId: player.id });
+    if (inv && playerMiningLevel > 0) {
+        // Find the equipped pickaxe (tool with mining slot)
+        const pickaxe = inv.items.find(item => {
+            const itemData = itemSheet.find(i => String(i.id) === String(item.itemId));
+            return itemData && itemData.type === "tool" && itemData.slot === "mining";
+        });
+        
+        if (pickaxe) {
+            // Random tile hardness for mining (1-2, easier than break event)
+            const tileHardness = Math.floor(Math.random() * 2) + 1;
+            const durabilityLoss = Math.max(1, Math.ceil(tileHardness / 3)); // Less damage when mining normally
+            
+            const itemData = itemSheet.find(i => String(i.id) === String(pickaxe.itemId));
+            const maxDurability = itemData?.durability || 100;
+            const currentDurability = pickaxe.currentDurability !== undefined ? pickaxe.currentDurability : maxDurability;
+            const newDurability = currentDurability - durabilityLoss;
+            
+            // Only log critical durability warnings during normal mining
+            if (newDurability > 0 && newDurability <= maxDurability * 0.1) {
+                await logEvent(channel, `⚠️ ${player.displayName}'s pickaxe is nearly broken! (${Math.round((newDurability/maxDurability)*100)}% remaining)`);
+            }
+            
+            // Update durability silently during normal mining
+            await updatePickaxeDurability(player.id, pickaxe.itemId, newDurability, inv);
         }
+    }
+    
+    // Get server type for bonuses
+    const gachaVCInfo = gachaInfo.find(s => s.id === dbEntry.typeId);
+    const serverType = gachaVCInfo?.name || null;
+    
+    // Calculate mining efficiency based on server and player levels
+    const efficiency = calculateMiningEfficiency(serverPowerLevel, playerMiningLevel);
+    
+    // Pick item with enhanced system (luck affects rarity)
+    const item = pickWeightedItem(serverPowerLevel, playerMiningLevel + Math.floor(playerLuck / 3), serverType);
+
+    if (playerData.stats.mining && playerData.stats.mining > 0) {
+        // Adjusted failure chance based on efficiency and speed (speed reduces failure)
+        const speedReduction = playerSpeed * 0.002; // -0.2% failure per speed point
+        const failureChance = Math.max(0.01, 0.05 - (efficiency.speedMultiplier * 0.01) - speedReduction);
+        if (Math.random() < failureChance) {
+            console.log('mining failed, doing nothing happens');
+            return nothingHappens(player, channel, playerData, item, dbEntry);
+        }
+        
+        // Check for treasure discovery (sight and luck increase treasure chance)
+        const sightTreasureBonus = playerSight * 0.002; // +0.2% per sight point
+        const luckTreasureBonus = playerLuck * 0.003; // +0.3% per luck point
+        const totalTreasureChance = efficiency.treasureChance + sightTreasureBonus + luckTreasureBonus;
+        
+        if (Math.random() < totalTreasureChance) {
+            const treasures = getAvailableTreasures(serverPowerLevel);
+            if (treasures.length > 0) {
+                const treasure = treasures[Math.floor(Math.random() * treasures.length)];
+                await logEvent(channel, `💎 TREASURE! ${player.displayName} discovered 『 ${treasure.name} 』 - ${treasure.description}`);
+                // Give coins directly for treasures
+                let userCurrency = await Currency.findOne({ userId: player.id });
+                if (!userCurrency) {
+                    userCurrency = await Currency.create({ userId: player.id, money: 0 });
+                }
+                // Luck increases treasure value
+                const luckMultiplier = 1 + (playerLuck * 0.02); // +2% value per luck point
+                const treasureValue = Math.floor(treasure.value * efficiency.valueMultiplier * luckMultiplier);
+                userCurrency.money = (userCurrency.money || 0) + treasureValue;
+                await userCurrency.save();
+                await logEvent(channel, `💰 ${player.displayName} earned ${treasureValue} coins from the treasure!`);
+                return;
+            }
+        }
+        
+        // Check for critical strike (luck-based double resources)
+        const critChance = 0.05 + (playerLuck * 0.01); // Base 5% + 1% per luck point
+        const isCrit = Math.random() < critChance;
+        
         console.log (`${player.displayName} gain resource, their player stat sheet is`)
-        console.log (playerStats);
-        const quantityFound = 1 + Math.floor(Math.random() * playerStats.mining);
+        console.log (playerData);
+        
+        // Enhanced quantity calculation with efficiency and speed multipliers
+        const baseQuantity = 1 + Math.floor(Math.random() * playerMiningLevel);
+        const speedBonus = 1 + (playerSpeed * 0.03); // +3% quantity per speed point
+        let quantityFound = Math.max(1, Math.floor(baseQuantity * efficiency.speedMultiplier * speedBonus));
+        
+        // Apply critical strike
+        if (isCrit) {
+            quantityFound *= 2;
+            await logEvent(channel, `⚡ CRITICAL STRIKE! ${player.displayName}'s lucky swing doubles the resources!`);
+        }
+        
+        // Sight can reveal bonus hidden gems occasionally
+        if (playerSight > 5 && Math.random() < (playerSight * 0.005)) { // 0.5% per sight point above 5
+            const hiddenGems = ['2', '23', '24', '6']; // Gem item IDs
+            const bonusGemId = hiddenGems[Math.floor(Math.random() * hiddenGems.length)];
+            const bonusGem = miningItemPool.find(i => i.itemId === bonusGemId);
+            if (bonusGem) {
+                await addItemToMinecart(dbEntry, player.id, bonusGemId, 1);
+                await logEvent(channel, `👁️ KEEN EYE! ${player.displayName}'s sharp vision spotted a hidden 『 ${bonusGem.name} 』!`);
+            }
+        }
         
         // Use atomic operation instead of modifying dbEntry
         await addItemToMinecart(dbEntry, player.id, item.itemId, quantityFound);
-        await logEvent(channel, `⛏️ MINED! ${player.displayName} found 『 ${item.name} 』x ${quantityFound} → Added to minecart!`);
+        const critText = isCrit ? ' (CRIT!)' : '';
+        await logEvent(channel, `⛏️ MINED! ${player.displayName} found 『 ${item.name} 』x ${quantityFound}${critText} → Added to minecart!`);
     } else {
         // Player has no pickaxe → delegate to nothingHappens which handles scavenging chance
         console.log('stats too low, nothing happens');
-        return nothingHappens(player, channel, playerStats, item, dbEntry);
+        return nothingHappens(player, channel, playerData, item, dbEntry);
     }
 }
 
-async function pickaxeBreakEvent(player, channel, powerLevel, dbEntry) {
-    const playerStats = await getPlayerStats(player.id);
-    if (!playerStats.mining || playerStats.mining <= 0) {
+async function pickaxeBreakEvent(player, channel, serverPowerLevel, dbEntry) {
+    const playerData = await getPlayerStats(player.id);
+    const playerLuck = playerData.stats.luck || 0;
+    
+    if (!playerData.stats.mining || playerData.stats.mining <= 0) {
         // Player has no pickaxe, but since this is a "break" event, give them a chance to find one
         if (Math.random() < 0.3) { // 30% chance to find a pickaxe during break event
             await addToInventory(player, "3", 1); // Give rusty pickaxe
             await logEvent(channel, `🔧 Breakthrough! ${player.displayName} found a rusty pickaxe while desperately clawing at the rocks!`);
         } else {
             // Fall back to regular scavenging behavior
-            return nothingHappens(player, channel, playerStats, null, dbEntry);
+            return nothingHappens(player, channel, playerData, null, dbEntry);
         }
         return;
     }
@@ -408,12 +620,13 @@ async function pickaxeBreakEvent(player, channel, powerLevel, dbEntry) {
         const itemData = itemSheet.find(item => String(item.id) === String(invItem.itemId));
         return {
             ...itemData,
-            invRef: invItem // Reference to the inventory item for quantity management
+            invRef: invItem, // Reference to the inventory item for quantity management
+            currentDurability: invItem.currentDurability !== undefined ? invItem.currentDurability : (itemData?.durability || 100)
         };
     }).filter(item => item.id); // Only include items that were found in itemSheet
 
-    // Filter for pickaxe type items
-    const miningPickaxes = playerItems.filter(item => item.type === "pickAxe");
+    // Filter for tools with mining slot (pickaxes)
+    const miningPickaxes = playerItems.filter(item => item.type === "tool" && item.slot === "mining");
 
     // If no pickaxes, give them a chance to find one since this is a "break" event
     if (miningPickaxes.length === 0) {
@@ -422,7 +635,7 @@ async function pickaxeBreakEvent(player, channel, powerLevel, dbEntry) {
             await addToInventory(player, "3", 1); // Give rusty pickaxe
             await logEvent(channel, `🔧 Breakthrough! ${player.displayName} found a rusty pickaxe while desperately striking the walls!`);
         } else {
-            return nothingHappens(player, channel, playerStats, null, dbEntry);
+            return nothingHappens(player, channel, playerData, null, dbEntry);
         }
         return;
     }
@@ -434,17 +647,37 @@ async function pickaxeBreakEvent(player, channel, powerLevel, dbEntry) {
         return currPower > prevPower ? curr : prev;
     });
 
-    // Get the mining power level for break chance calculation
-    const miningPowerLevel = bestPickaxe.abilities?.find(ability => ability.name === "mining")?.powerlevel || 1;
+    // Since mining.js is rudimentary, randomly choose tile hardness between 1-3
+    const tileHardness = Math.floor(Math.random() * 3) + 1;
+    const tileType = tileHardness === 1 ? "soft stone" : tileHardness === 2 ? "hard rock" : "reinforced wall";
     
-    // Calculate break chance (higher power level = lower break chance)
-    const breakChance = Math.max(0.05, 0.5 - (miningPowerLevel * 0.05));
-
-    if (Math.random() < breakChance) {
-        await removeFromInventory(inv, bestPickaxe.invRef, 1);
-        await logEvent(channel, `💥 ${player.displayName}'s 『 ${bestPickaxe.name} 』 shattered into pieces!`);
-    } else {
-        await logEvent(channel, `⚡️ ${player.displayName} heard their 『 ${bestPickaxe.name} 』 creak... but it held together!`);
+    // Calculate durability loss based on tile hardness
+    const durabilityLoss = calculateDurabilityLoss(tileHardness);
+    
+    // Apply luck bonus to reduce durability loss (10% reduction per 10 luck points)
+    const luckReduction = Math.max(0, Math.floor(durabilityLoss * (playerLuck / 100)));
+    const finalDurabilityLoss = Math.max(1, durabilityLoss - luckReduction);
+    
+    // Calculate new durability
+    const currentDurability = bestPickaxe.currentDurability;
+    const newDurability = currentDurability - finalDurabilityLoss;
+    
+    // Update durability and handle breaks
+    const result = await updatePickaxeDurability(player.id, bestPickaxe.id, newDurability, inv);
+    
+    if (result) {
+        if (result.broke) {
+            await logEvent(channel, `💥 ${player.displayName}'s 『 ${result.itemName} 』 shattered after hitting ${tileType}! (Lost ${finalDurabilityLoss} durability)`);
+        } else {
+            const durabilityPercent = Math.round((result.newDurability / result.maxDurability) * 100);
+            if (durabilityPercent <= 20) {
+                await logEvent(channel, `⚠️ ${player.displayName}'s 『 ${result.itemName} 』 is critically damaged! (${durabilityPercent}% remaining after hitting ${tileType})`);
+            } else if (durabilityPercent <= 50) {
+                await logEvent(channel, `⚡ ${player.displayName}'s 『 ${result.itemName} 』 took damage from ${tileType}. (${durabilityPercent}% durability)`);
+            } else {
+                await logEvent(channel, `⛏️ ${player.displayName}'s 『 ${result.itemName} 』 weathered the ${tileType} well. (${durabilityPercent}% durability)`);
+            }
+        }
     }
 }
 
@@ -464,6 +697,15 @@ async function createMiningSummary(channel, dbEntry) {
         await channel.send({ embeds: [embed] });
         return;
     }
+    
+    // Get server power level and modifiers
+    const gachaVCInfo = gachaInfo.find(s => s.id === dbEntry.typeId);
+    const serverType = gachaVCInfo?.name || null;
+    const serverPowerLevel = gachaVCInfo?.power || 1;
+    const serverModifier = serverType && SERVER_POWER_MODIFIERS[serverType] 
+        ? SERVER_POWER_MODIFIERS[serverType] 
+        : null;
+    const config = POWER_LEVEL_CONFIG[serverPowerLevel];
 
     // Calculate total value and create item breakdown
     let totalValue = 0;
@@ -476,10 +718,25 @@ async function createMiningSummary(channel, dbEntry) {
         const poolItem = miningItemPool.find(item => item.itemId === itemId);
         if (!poolItem || itemData.quantity <= 0) continue;
 
-        const itemTotalValue = poolItem.value * itemData.quantity;
+        let itemTotalValue = poolItem.value * itemData.quantity;
+        
+        // Apply server-specific value bonuses
+        if (serverModifier && serverModifier.itemBonuses[itemId]) {
+            itemTotalValue = Math.floor(itemTotalValue * serverModifier.itemBonuses[itemId]);
+        }
+        
+        // Apply power level value multiplier
+        if (config) {
+            itemTotalValue = Math.floor(itemTotalValue * config.valueMultiplier);
+        }
+        
         totalValue += itemTotalValue;
         totalItems += itemData.quantity;
-        itemBreakdown.push(`${poolItem.name} x${itemData.quantity} = ${itemTotalValue} coins`);
+        
+        const bonusText = (serverModifier && serverModifier.itemBonuses[itemId]) 
+            ? ` (${Math.floor((serverModifier.itemBonuses[itemId] - 1) * 100)}% server bonus!)` 
+            : '';
+        itemBreakdown.push(`${poolItem.name} x${itemData.quantity} = ${itemTotalValue} coins${bonusText}`);
 
         // Calculate rewards for contributors of this specific item
         const contributorCount = Object.keys(itemData.contributors || {}).length;
@@ -535,9 +792,13 @@ for (const [playerId, reward] of Object.entries(contributorRewards)) {
     }
 }
 
+    // Create power level info for the embed
+    const powerInfo = config ? `\n**Server: ${config.name}** (Power Level ${serverPowerLevel})\n*${config.description}*\n` : '';
+    const serverBonus = serverModifier ? `\n**Special Bonus:** ${serverModifier.specialBonus}\n` : '';
+    
     const embed = new EmbedBuilder()
         .setTitle('🛒 Mining Session Complete')
-        .setDescription(`The minecart has been sold to the shop!\n\n**Items Sold:**\n${itemBreakdown.join('\n')}\n\n**Total Value:** ${totalValue} coins`)
+        .setDescription(`The minecart has been sold to the shop!${powerInfo}${serverBonus}\n**Items Sold:**\n${itemBreakdown.join('\n')}\n\n**Total Value:** ${totalValue} coins`)
         .addFields({
             name: 'Contributors & Rewards',
             value: contributorLines.join('\n') || 'None',
@@ -881,13 +1142,38 @@ module.exports = async (channel, dbEntry, json, client) => {
         return;
     }
 
-    const powerLevel = json.power || 1;
-    const timesToRun = Math.floor(Math.random() * humans.size) + 1;
+    // Get server power level from gacha info
+    const gachaVCInfo = gachaInfo.find(s => s.id === dbEntry.typeId);
+    const serverPowerLevel = gachaVCInfo?.power || json.power || 1;
+    const serverType = gachaVCInfo?.name || null;
+    
+    // Get power level config for this server
+    const config = POWER_LEVEL_CONFIG[serverPowerLevel];
+    const efficiency = calculateMiningEfficiency(serverPowerLevel);
+    
+    // Calculate times to run based on efficiency
+    const baseTimes = Math.floor(Math.random() * humans.size) + 1;
+    const timesToRun = Math.min(humans.size * 2, Math.floor(baseTimes * efficiency.speedMultiplier));
 
     // Run mining events (these now use atomic operations internally)
     for (let i = 0; i < timesToRun; i++) {
         const winner = humans.random();
-        await pickEvent(miningEvents)(winner, channel, powerLevel, dbEntry);
+        const winnerData = await getPlayerStats(winner.id);
+        const winnerSpeed = winnerData.stats.speed || 0;
+        
+        // Speed stat gives chance for bonus actions (double mining)
+        const bonusActionChance = Math.min(0.5, winnerSpeed * 0.02); // 2% per speed point, max 50%
+        if (Math.random() < bonusActionChance) {
+            await pickEvent(miningEvents)(winner, channel, serverPowerLevel, dbEntry);
+            await logEvent(channel, `💨 SPEED BONUS! ${winner.displayName} moves so fast they get an extra swing!`);
+        }
+        
+        await pickEvent(miningEvents)(winner, channel, serverPowerLevel, dbEntry);
+    }
+    
+    // Log server info occasionally (1% chance)
+    if (Math.random() < 0.01 && config) {
+        await logEvent(channel, `⚡ ${config.name}: ${config.description}`);
     }
 
     // Check if it's time for a break (every 25 minutes)
@@ -915,7 +1201,7 @@ module.exports = async (channel, dbEntry, json, client) => {
             
             await updateTimers(
                 channel.id, 
-                new Date(now + 5 * 60 * 1000), 
+                new Date(now + 5 * 20 * 1000), 
                 new Date(now + 30 * 60 * 1000)
             );
             await logEvent(channel, '🛑 SHORT BREAK: Mining paused for 5 minutes. Shop is now open!');

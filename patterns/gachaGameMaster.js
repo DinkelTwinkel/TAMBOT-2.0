@@ -8,11 +8,12 @@ const GuildConfig = require('../models/GuildConfig');
 const gachaServersPath = path.join(__dirname, '../data/gachaServers.json');
 const gachaServers = JSON.parse(fs.readFileSync(gachaServersPath, 'utf8'));
 
-// Enhanced lock manager with timeouts and metadata
+// Enhanced lock manager with timeouts and metadata (FIXED)
 class VCLockManager {
     constructor() {
-        this.locks = new Map(); // Map instead of Set for metadata
-        this.defaultTimeout = 60000; // 60 seconds default timeout
+        this.locks = new Map();
+        this.defaultTimeout = 30000; // 30 seconds default timeout
+        this.cleanupTimers = new Map(); // Track cleanup timers to prevent memory leaks
     }
 
     /**
@@ -39,21 +40,32 @@ class VCLockManager {
             }
         }
         
-        // Acquire the lock
+        // Clear any existing cleanup timer for this VC
+        if (this.cleanupTimers.has(vcId)) {
+            clearTimeout(this.cleanupTimers.get(vcId));
+            this.cleanupTimers.delete(vcId);
+        }
+        
+        // Acquire the lock with unique ID to prevent race conditions
+        const lockId = `${vcId}-${now}-${Math.random()}`;
         this.locks.set(vcId, {
+            lockId,
             scriptName,
             acquiredAt: now,
             expiresAt: now + timeout,
             timeout
         });
         
-        // Set automatic cleanup timer
-        setTimeout(() => {
-            if (this.locks.has(vcId) && this.locks.get(vcId).acquiredAt === now) {
+        // Set automatic cleanup timer with proper reference
+        const timerId = setTimeout(() => {
+            const currentLock = this.locks.get(vcId);
+            if (currentLock && currentLock.lockId === lockId) {
                 console.warn(`Auto-releasing expired lock for VC ${vcId}`);
                 this.release(vcId);
             }
         }, timeout);
+        
+        this.cleanupTimers.set(vcId, timerId);
         
         return true;
     }
@@ -63,6 +75,12 @@ class VCLockManager {
      * @param {string} vcId - The voice channel ID
      */
     release(vcId) {
+        // Clear cleanup timer if exists (prevents memory leak)
+        if (this.cleanupTimers.has(vcId)) {
+            clearTimeout(this.cleanupTimers.get(vcId));
+            this.cleanupTimers.delete(vcId);
+        }
+        
         this.locks.delete(vcId);
     }
 
@@ -92,19 +110,43 @@ class VCLockManager {
      * @returns {Object|null} Lock information or null
      */
     getLockInfo(vcId) {
-        return this.locks.get(vcId) || null;
+        const lock = this.locks.get(vcId);
+        if (!lock) return null;
+        
+        // Verify lock is still valid
+        const now = Date.now();
+        if (now > lock.expiresAt) {
+            this.release(vcId);
+            return null;
+        }
+        
+        return { ...lock, remainingTime: lock.expiresAt - now };
     }
 
     /**
      * Clean up all expired locks
      */
     cleanupExpired() {
-        const now = Date.now();
-        for (const [vcId, lock] of this.locks.entries()) {
-            if (now > lock.expiresAt) {
+        try {
+            const now = Date.now();
+            const expiredLocks = [];
+            
+            for (const [vcId, lock] of this.locks.entries()) {
+                if (now > lock.expiresAt) {
+                    expiredLocks.push(vcId);
+                }
+            }
+            
+            // Release expired locks
+            for (const vcId of expiredLocks) {
                 console.log(`Cleaning up expired lock for VC ${vcId}`);
                 this.release(vcId);
             }
+            
+            return expiredLocks.length;
+        } catch (error) {
+            console.error('Error during lock cleanup:', error);
+            return 0;
         }
     }
 
@@ -121,6 +163,22 @@ class VCLockManager {
                 ...lock,
                 remainingTime: lock.expiresAt - now
             }));
+    }
+    
+    /**
+     * Force release all locks (for emergency cleanup)
+     */
+    releaseAll() {
+        console.warn('Force releasing all locks');
+        
+        // Clear all cleanup timers
+        for (const timerId of this.cleanupTimers.values()) {
+            clearTimeout(timerId);
+        }
+        this.cleanupTimers.clear();
+        
+        // Clear all locks
+        this.locks.clear();
     }
 }
 
@@ -144,7 +202,7 @@ module.exports = async (guild) => {
     // --- PERIODIC LOCK CLEANUP ---
     setInterval(() => {
         lockManager.cleanupExpired();
-    }, 30000); // Clean up every 30 seconds
+    }, 15000); // Clean up every 15 seconds
 
     // --- INTERVAL CHECK ---
     setInterval(async () => {
@@ -179,11 +237,11 @@ module.exports = async (guild) => {
             }
 
             // Find corresponding gacha server data
-            const serverData = gachaServers.find(s => s.id === vc.typeId);
+            const serverData = gachaServers.find(s => s.id == vc.typeId); // Use == for type coercion
             if (!serverData) continue;
 
             // Define scriptTimeout outside try block so it's accessible in catch
-            const scriptTimeout = serverData.timeout || 30000; // Default 30s or use config
+            const scriptTimeout = serverData.timeout || 30000; // Default 30s (consistent with lock manager)
             
             try {
                 // Try to acquire lock with appropriate timeout
@@ -207,15 +265,28 @@ module.exports = async (guild) => {
                 vc.nextTrigger = new Date(now + 15 * 1000);
                 await vc.save();
 
-                // Run script with timeout protection
-                const scriptPromise = gameScript(gachaVC, vc, serverData);
-                const timeoutPromise = new Promise((_, reject) => {
-                    const timeoutId = setTimeout(() => {
-                        reject(new Error('Script timeout'));
-                    }, scriptTimeout);
-                });
+                // Run script with timeout protection (FIXED: prevents memory leak)
+                let timeoutId;
+                try {
+                    const scriptPromise = gameScript(gachaVC, vc, serverData);
+                    const timeoutPromise = new Promise((_, reject) => {
+                        timeoutId = setTimeout(() => {
+                            reject(new Error('Script timeout'));
+                        }, scriptTimeout);
+                    });
 
-                await Promise.race([scriptPromise, timeoutPromise]);
+                    await Promise.race([scriptPromise, timeoutPromise]);
+                    
+                    // Clear timeout if script completed successfully
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                    }
+                } finally {
+                    // Ensure timeout is cleared even on error
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                    }
+                }
 
                 console.log(`Completed ${serverData.name} for VC ${vc.channelId}`);
             } catch (err) {
@@ -228,7 +299,7 @@ module.exports = async (guild) => {
                 lockManager.release(vc.channelId); // Always release lock
             }
         }
-    }, 10 * 1000); // Check every 5 seconds
+    }, 7 * 1000); // Check every 7 seconds
 };
 
 // Export lock manager for debugging/monitoring

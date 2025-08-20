@@ -2,7 +2,7 @@ const { createCanvas, loadImage } = require('canvas');
 const { scanMagentaPixels, getMagentaCoordinates } = require('../fileStoreMapData');
 const gachaInfo = require('../data/gachaServers.json');
 const gachaVC = require('../models/activevcs');
-const PlayerInventory = require('../models/inventory');
+const getPlayerStats = require('./calculatePlayerStat');
 const itemSheet = require('../data/itemSheet.json');
 
 /**
@@ -77,40 +77,31 @@ async function generateVoiceChannelImage(channel) {
     }
 
     /**
-     * Helper function to get player's best mining pickaxe
+     * Helper function to get player's equipped mining pickaxe using the new stat system
      */
-    async function getBestMiningPickaxe(userId) {
+    async function getEquippedMiningPickaxe(userId) {
         try {
-            const inventory = await PlayerInventory.findOne({ playerId: userId });
-            if (!inventory || !inventory.items || inventory.items.length === 0) {
-                return null;
-            }
-
-            let bestPickaxe = null;
-            let bestMiningPower = 0;
-
-            // Check each item in inventory
-            for (const invItem of inventory.items) {
-                if (invItem.quantity <= 0) continue;
-
-                // Find item in itemSheet
-                const item = itemSheet.find(i => i.id === invItem.itemId);
-                if (!item || item.type !== 'pickAxe') continue;
-
-                // Find mining ability power level
-                const miningAbility = item.abilities?.find(a => a.name === 'mining');
-                if (!miningAbility || !miningAbility.powerlevel) continue;
-
-                // Check if this is the best pickaxe so far
-                if (miningAbility.powerlevel > bestMiningPower) {
-                    bestMiningPower = miningAbility.powerlevel;
-                    bestPickaxe = item;
+            const playerData = await getPlayerStats(userId);
+            
+            // Look through equipped items for a tool with mining slot
+            for (const [itemId, equippedItem] of Object.entries(playerData.equippedItems)) {
+                if (equippedItem.type === 'tool' && equippedItem.slot === 'mining') {
+                    // Get the full item data from itemSheet for the image
+                    const itemData = itemSheet.find(i => String(i.id) === String(itemId));
+                    if (itemData) {
+                        // Find the mining ability from the equipped item's abilities
+                        const miningAbility = equippedItem.abilities.find(a => a.name === 'mining');
+                        return {
+                            ...itemData,
+                            equippedMiningPower: miningAbility ? miningAbility.power : 0
+                        };
+                    }
                 }
             }
-
-            return bestPickaxe;
+            
+            return null; // No mining tool equipped
         } catch (error) {
-            console.error(`Error getting best pickaxe for user ${userId}:`, error);
+            console.error(`Error getting equipped pickaxe for user ${userId}:`, error);
             return null;
         }
     }
@@ -140,11 +131,11 @@ async function generateVoiceChannelImage(channel) {
         ctx.drawImage(avatar, point.x - radius, point.y - radius, size, size);
         ctx.restore();
 
-        // Get and draw the player's best mining pickaxe
+        // Get and draw the player's equipped mining pickaxe
         try {
-            const bestPickaxe = await getBestMiningPickaxe(user.id);
-            if (bestPickaxe && bestPickaxe.image) {
-                const pickaxeImagePath = `./assets/items/${bestPickaxe.image}.png`;
+            const equippedPickaxe = await getEquippedMiningPickaxe(user.id);
+            if (equippedPickaxe && equippedPickaxe.image) {
+                const pickaxeImagePath = `./assets/items/${equippedPickaxe.image}.png`;
                 const pickaxeImage = await loadImage(pickaxeImagePath);
                 
                 // Position pickaxe to the right of the avatar
@@ -158,9 +149,8 @@ async function generateVoiceChannelImage(channel) {
                 ctx.drawImage(pickaxeImage, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
                 ctx.restore();
 
-                // Optional: Draw mining power level as text
-                const miningAbility = bestPickaxe.abilities?.find(a => a.name === 'mining');
-                if (miningAbility && miningAbility.powerlevel) {
+                // Draw mining power level as text (using the equipped power from stat calculation)
+                if (equippedPickaxe.equippedMiningPower > 0) {
                     ctx.save();
                     ctx.font = '15px "MyFont"';
                     ctx.fillStyle = 'white';
@@ -168,7 +158,7 @@ async function generateVoiceChannelImage(channel) {
                     ctx.lineWidth = 2;
                     ctx.textAlign = 'center';
                     
-                    const powerText = `+${miningAbility.powerlevel}`;
+                    const powerText = `+${equippedPickaxe.equippedMiningPower}`;
                     const textX = point.x;
                     const textY = point.y - radius * 2 + 20;
                     

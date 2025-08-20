@@ -1026,12 +1026,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 
                 let findMessage;
                 if (tile.type === TILE_TYPES.TREASURE_CHEST) {
-                    findMessage = `🏆 ${member.displayName} discovered treasure! Found ${item.name} x${finalQuantity}! (${finalValue} value)`;
+                    findMessage = `💍 ${member.displayName} discovered treasure! Found ${item.name} x ${finalQuantity}!`;
                     treasuresFound++;
                 } else if (tile.type === TILE_TYPES.RARE_ORE) {
-                    findMessage = `✨ ${member.displayName} struck rare ore! Found ${item.name} x${finalQuantity}! (${finalValue} value)`;
+                    findMessage = `💎 ${member.displayName} struck rare ore! Harvested ${item.name} x ${finalQuantity}!`;
                 } else {
-                    findMessage = `💎 ${member.displayName} found ${item.name} x${finalQuantity} (${finalValue} value)`;
+                    findMessage = `⛏ ${member.displayName} harvested ${item.name} x ${finalQuantity} from wall!`;
                 }
                 
                 if (bestPickaxe) {
@@ -1051,6 +1051,17 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     }
                 }
                 
+                eventLogs.push(findMessage);
+            } else {
+                let findMessage;
+                if (tile.type === TILE_TYPES.TREASURE_CHEST) {
+                    findMessage = `${member.displayName} discovered treasure! But failed to open it...)`;
+                    treasuresFound++;
+                } else if (tile.type === TILE_TYPES.RARE_ORE) {
+                    findMessage = `${member.displayName} struck rare ore! But they were parried! Wait what?)`;
+                } else {
+                    findMessage = `${member.displayName} struck the ore wall but nothing happened...)`;
+                }
                 eventLogs.push(findMessage);
             }
             continue;
@@ -1143,12 +1154,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     
                     let findMessage;
                     if (targetTile.type === TILE_TYPES.TREASURE_CHEST) {
-                        findMessage = `🏆 ${member.displayName} opened treasure! Found ${item.name} x${finalQuantity}!`;
+                        findMessage = `👑 ${member.displayName} opened treasure! Found ${item.name} x${finalQuantity}!`;
                         treasuresFound++;
                     } else if (targetTile.type === TILE_TYPES.RARE_ORE) {
-                        findMessage = `✨ ${member.displayName} mined rare ore! Found ${item.name} x${finalQuantity}!`;
+                        findMessage = `💎 ${member.displayName} mined rare ore! Found ${item.name} x${finalQuantity}!`;
                     } else {
-                        findMessage = `💎 ${member.displayName} found ${item.name} x${finalQuantity}`;
+                        findMessage = `⛏ ${member.displayName} found ${item.name} x${finalQuantity}`;
                     }
                     
                     eventLogs.push(findMessage);
