@@ -7,7 +7,7 @@
         "spawnWeight": 100,
         "description": "Dark tunnels echo with the sound of pickaxes against coal seams. The air is thick with dust, but honest work awaits those brave enough to venture into these depths.",
         "power": 1,
-        "script": "mining_optimized_v5_performance.js",
+        "script": "mining.js",
         "shop": 1,
         "colour": "2C2C2C",
         "image": "placeHolder"
