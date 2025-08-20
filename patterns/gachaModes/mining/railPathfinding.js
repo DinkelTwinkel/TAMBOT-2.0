@@ -234,5 +234,10 @@ module.exports = {
     buildMinecartRails,
     clearAllRails,
     getRailPositions,
-    hasRailAt
+    hasRailAt,
+    // Export utility functions for extended pathfinding
+    isValidPosition,
+    isWalkable,
+    getNeighbors,
+    heuristic
 };

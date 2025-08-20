@@ -1,9 +1,10 @@
-// commands/buildRails.js - Debug slash command for testing rail building with separate storage
+// commands/buildRails.js - Debug slash command for testing rail building with smart pathfinding
 const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const gachaVC = require('../models/activevcs');
 const generateTileMapImage = require('../patterns/generateMiningProcedural');
-const { buildMinecartRails, clearAllRails, getRailPositions } = require('../patterns/gachaModes/mining/railPathfinding');
+const { clearAllRails, getRailPositions } = require('../patterns/gachaModes/mining/railPathfinding');
 const railStorage = require('../patterns/gachaModes/mining/railStorage');
+const { findOptimalRailStart, getRailNetworkStats } = require('../patterns/gachaModes/mining/railPathfindingExtended');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -12,7 +13,7 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('build')
-                .setDescription('Build rails from entrance to your current position'))
+                .setDescription('Build rails from closest rail/entrance to your position'))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('clear')
@@ -70,24 +71,20 @@ module.exports = {
                         });
                     }
 
-                    // Get entrance position
-                    const entrancePosition = {
-                        x: mapData.entranceX,
-                        y: mapData.entranceY
-                    };
-
-                    // Build rails from entrance to player using new storage system
-                    console.log(`[DEBUG RAILS] Building rails from entrance (${entrancePosition.x}, ${entrancePosition.y}) to player (${playerPosition.x}, ${playerPosition.y})`);
+                    // Find optimal starting point (closest rail or entrance)
+                    console.log(`[DEBUG RAILS] Finding optimal starting point for player at (${playerPosition.x}, ${playerPosition.y})`);
+                    const startPoint = await findOptimalRailStart(mapData, playerPosition, voiceChannel.id);
                     
-                    const result = await buildMinecartRails(activeVC, entrancePosition, playerPosition);
-
-                    if (!result.success) {
+                    if (!startPoint.path) {
                         return await interaction.editReply({
-                            content: `❌ Failed to build rails: ${result.error}`,
+                            content: `❌ Failed to build rails: ${startPoint.error || 'No valid path found'}`,
                             ephemeral: true
                         });
                     }
 
+                    // Build rails along the path using the new storage system
+                    await railStorage.buildRailPath(voiceChannel.id, startPoint.path);
+                    
                     // Clear any mining system caches if they exist
                     if (global.dbCache) {
                         global.dbCache.delete(voiceChannel.id);
@@ -96,22 +93,32 @@ module.exports = {
                         global.visibilityCalculator.invalidate();
                     }
                     
-                    console.log('[DEBUG RAILS] Rails saved to separate storage');
+                    console.log(`[DEBUG RAILS] Rails built from ${startPoint.isRail ? 'existing rail' : 'entrance'} to player`);
 
                     // Generate the new map image
                     const mapBuffer = await generateTileMapImage(voiceChannel);
                     const attachment = new AttachmentBuilder(mapBuffer, { name: 'rails_debug.png' });
 
+                    // Determine start type for display
+                    let startType = '🚂 Entrance';
+                    let startColor = 0x8B4513;
+                    if (startPoint.isRail) {
+                        startType = '🛤️ Existing Rail';
+                        startColor = 0x4169E1;
+                    }
+
                     const embed = new EmbedBuilder()
                         .setTitle('🛤️ Rails Built Successfully!')
-                        .setDescription(result.message)
+                        .setDescription(`Successfully built ${startPoint.distance} rail segments`)
                         .addFields(
-                            { name: 'Start', value: `Entrance (${entrancePosition.x}, ${entrancePosition.y})`, inline: true },
-                            { name: 'End', value: `Your Position (${playerPosition.x}, ${playerPosition.y})`, inline: true },
-                            { name: 'Rail Tiles', value: `${result.pathLength}`, inline: true },
-                            { name: 'Storage', value: '✅ Using separate rail storage', inline: false }
+                            { name: 'Start Type', value: startType, inline: true },
+                            { name: 'Start Position', value: `(${startPoint.x}, ${startPoint.y})`, inline: true },
+                            { name: 'Your Position', value: `(${playerPosition.x}, ${playerPosition.y})`, inline: true },
+                            { name: 'Rail Segments', value: `${startPoint.distance}`, inline: true },
+                            { name: 'Path Type', value: startPoint.isRail ? '🔗 Extension' : '🆕 New Network', inline: true },
+                            { name: 'Storage', value: '✅ Separate Storage', inline: true }
                         )
-                        .setColor(0x8B4513)
+                        .setColor(startColor)
                         .setImage('attachment://rails_debug.png')
                         .setTimestamp();
 
@@ -123,6 +130,10 @@ module.exports = {
                 }
 
                 case 'clear': {
+                    // Get current rail count before clearing
+                    const railsData = await railStorage.getRailsData(voiceChannel.id);
+                    const railCount = railStorage.countRails(railsData);
+                    
                     // Clear all rails using new storage system
                     await clearAllRails(voiceChannel.id);
                     
@@ -142,7 +153,7 @@ module.exports = {
 
                     const embed = new EmbedBuilder()
                         .setTitle('🧹 Rails Cleared!')
-                        .setDescription('All rails have been removed from the map.')
+                        .setDescription(`All ${railCount} rail segments have been removed from the map.`)
                         .setColor(0xFF6347)
                         .setImage('attachment://rails_cleared.png')
                         .setTimestamp();
@@ -160,6 +171,9 @@ module.exports = {
                     const railsData = await railStorage.getRailsData(voiceChannel.id);
                     const railCount = railStorage.countRails(railsData);
                     
+                    // Get network statistics
+                    const networkStats = await getRailNetworkStats(voiceChannel.id);
+                    
                     // Generate current map image
                     const mapBuffer = await generateTileMapImage(voiceChannel);
                     const attachment = new AttachmentBuilder(mapBuffer, { name: 'rails_info.png' });
@@ -171,20 +185,34 @@ module.exports = {
                             { name: 'Total Rail Tiles', value: `${railCount}`, inline: true },
                             { name: 'Map Size', value: `${mapData.width}x${mapData.height}`, inline: true },
                             { name: 'Entrance', value: `(${mapData.entranceX}, ${mapData.entranceY})`, inline: true },
-                            { name: 'Storage Type', value: '✅ Separate Rail Storage', inline: true }
+                            { name: 'Networks', value: `${networkStats.networks}`, inline: true },
+                            { name: 'Largest Network', value: `${networkStats.largestNetwork} tiles`, inline: true },
+                            { name: 'Isolated Rails', value: `${networkStats.isolated}`, inline: true },
+                            { name: 'Storage Type', value: '✅ Separate Rail Storage', inline: false }
                         )
                         .setColor(0x4169E1)
                         .setImage('attachment://rails_info.png')
                         .setTimestamp();
 
+                    // Add network sizes if there are multiple networks
+                    if (networkStats.networks > 1 && networkStats.networkSizes) {
+                        const networkSizesStr = networkStats.networkSizes.slice(0, 5).join(', ');
+                        embed.addFields({ 
+                            name: 'Network Sizes', 
+                            value: `${networkSizesStr}${networkStats.networkSizes.length > 5 ? ', ...' : ''}`, 
+                            inline: false 
+                        });
+                    }
+
                     // Add rail positions if there aren't too many
-                    if (railPositions.length > 0 && railPositions.length <= 20) {
+                    if (railPositions.length > 0 && railPositions.length <= 15) {
                         const positionsStr = railPositions.map(p => `(${p.x},${p.y})`).join(', ');
                         embed.addFields({ name: 'Rail Positions', value: positionsStr, inline: false });
-                    } else if (railPositions.length > 20) {
+                    } else if (railPositions.length > 15) {
+                        const coverage = ((railPositions.length / (mapData.width * mapData.height)) * 100).toFixed(1);
                         embed.addFields({ 
                             name: 'Rail Coverage', 
-                            value: `Rails cover ${((railPositions.length / (mapData.width * mapData.height)) * 100).toFixed(1)}% of the map`, 
+                            value: `Rails cover ${coverage}% of the map (${railPositions.length} tiles)`, 
                             inline: false 
                         });
                     }
