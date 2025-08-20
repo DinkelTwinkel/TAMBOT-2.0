@@ -347,15 +347,7 @@ function drawRails(ctx, pixelX, pixelY, tileSize, railsData, mapData, tileX, til
     // const alpha = isVisible ? 1.0 : 0.6;
     // ctx.globalAlpha = alpha;
     
-    // Determine rail connections to adjacent tiles
-    const connections = {
-        north: false,
-        south: false,
-        east: false,
-        west: false
-    };
-
-    // Check adjacent tiles for rails using separate storage
+    // Get rail connections to adjacent tiles using separate storage
     const connections = railStorage.getRailConnections(railsData, tileX, tileY);
 
     const centerX = pixelX + tileSize / 2;
