@@ -1,10 +1,11 @@
-// generateMiningProcedural_enhanced.js - Enhanced with new tile types
+// generateMiningProcedural_enhanced.js - Enhanced with new tile types and separate rail storage
 const { createCanvas, loadImage } = require('canvas');
 const gachaVC = require('../models/activevcs');
 const getPlayerStats = require('./calculatePlayerStat');
 const itemSheet = require('../data/itemSheet.json');
 const PlayerInventory = require('../models/inventory');
 const path = require('path');
+const railStorage = require('./gachaModes/mining/railStorage');
 
 // Constants
 const BASE_TILE_SIZE = 64;
@@ -328,15 +329,16 @@ async function drawTileWithColors(ctx, tile, pixelX, pixelY, tileSize, isVisible
  * @param {number} pixelX - X position in pixels
  * @param {number} pixelY - Y position in pixels
  * @param {number} tileSize - Size of the tile
- * @param {Object} tile - Tile data
- * @param {Object} mapData - Full map data for checking adjacent rails
+ * @param {Object} railsData - Rails data from separate storage
+ * @param {Object} mapData - Full map data
  * @param {number} tileX - Tile X coordinate
  * @param {number} tileY - Tile Y coordinate
  * @param {boolean} isVisible - Whether the tile is currently visible
  * @param {boolean} wasDiscovered - Whether the tile was previously discovered
  */
-function drawRails(ctx, pixelX, pixelY, tileSize, tile, mapData, tileX, tileY, isVisible, wasDiscovered) {
-    if (!tile.hasRail) return;
+function drawRails(ctx, pixelX, pixelY, tileSize, railsData, mapData, tileX, tileY, isVisible, wasDiscovered) {
+    // Check if this tile has a rail in the separate storage
+    if (!railStorage.hasRail(railsData, tileX, tileY)) return;
     if (!isVisible && !wasDiscovered) return;
 
     ctx.save();
@@ -353,19 +355,8 @@ function drawRails(ctx, pixelX, pixelY, tileSize, tile, mapData, tileX, tileY, i
         west: false
     };
 
-    // Check adjacent tiles for rails
-    if (tileY > 0 && mapData.tiles[tileY - 1][tileX]?.hasRail) {
-        connections.north = true;
-    }
-    if (tileY < mapData.height - 1 && mapData.tiles[tileY + 1][tileX]?.hasRail) {
-        connections.south = true;
-    }
-    if (tileX > 0 && mapData.tiles[tileY][tileX - 1]?.hasRail) {
-        connections.west = true;
-    }
-    if (tileX < mapData.width - 1 && mapData.tiles[tileY][tileX + 1]?.hasRail) {
-        connections.east = true;
-    }
+    // Check adjacent tiles for rails using separate storage
+    const connections = railStorage.getRailConnections(railsData, tileX, tileY);
 
     const centerX = pixelX + tileSize / 2;
     const centerY = pixelY + tileSize / 2;
@@ -901,6 +892,9 @@ async function generateTileMapImage(channel) {
     const mapData = result.gameData.map;
     const { tiles, width, height, playerPositions } = mapData;
     
+    // Get rails data from separate storage
+    const railsData = await railStorage.getRailsData(channel.id);
+    
     const imageSettings = calculateOptimalImageSettings(width, height);
     const { tileSize, outputWidth, outputHeight, finalWidth, finalHeight, useJPEG, playerAvatarSize, stackedOffset } = imageSettings;
     
@@ -959,9 +953,9 @@ async function generateTileMapImage(channel) {
             // Draw the tile
             await drawTile(ctx, tile, pixelX, pixelY, tileSize, isCurrentlyVisible, wasDiscovered);
             
-            // Draw rails if present
-            if (tile.hasRail && (isCurrentlyVisible || wasDiscovered)) {
-                drawRails(ctx, pixelX, pixelY, tileSize, tile, mapData, x, y, isCurrentlyVisible, wasDiscovered);
+            // Draw rails if present (from separate storage)
+            if (railStorage.hasRail(railsData, x, y) && (isCurrentlyVisible || wasDiscovered)) {
+                drawRails(ctx, pixelX, pixelY, tileSize, railsData, mapData, x, y, isCurrentlyVisible, wasDiscovered);
             }
             
             // Draw entrance marker

@@ -1,402 +1,238 @@
-// railPathfinding.js - Central rail building and pathfinding system
-const { TILE_TYPES } = require('./miningConstants');
+// patterns/gachaModes/mining/railPathfinding.js
+// Rail pathfinding system using separate rail storage
+
+const railStorage = require('./railStorage');
+
+const TILE_TYPES = {
+    WALL: 'wall',
+    FLOOR: 'floor',
+    ENTRANCE: 'entrance',
+    WALL_WITH_ORE: 'wall_ore',
+    RARE_ORE: 'rare_ore',
+    TREASURE_CHEST: 'treasure',
+    HAZARD: 'hazard',
+    REINFORCED_WALL: 'reinforced'
+};
 
 /**
- * Priority Queue implementation for A* pathfinding
+ * A* pathfinding algorithm to find the shortest path
+ * @param {Object} mapData - The map data
+ * @param {Object} start - Starting position {x, y}
+ * @param {Object} end - Target position {x, y}
+ * @returns {Array|null} Array of positions forming the path, or null if no path found
  */
-class PriorityQueue {
-    constructor() {
-        this.elements = [];
+function findPath(mapData, start, end) {
+    const { tiles, width, height } = mapData;
+    
+    // Check if start and end are valid
+    if (!isValidPosition(start, width, height) || !isValidPosition(end, width, height)) {
+        return null;
     }
-
-    enqueue(element, priority) {
-        this.elements.push({ element, priority });
-        this.elements.sort((a, b) => a.priority - b.priority);
+    
+    // Check if end position is walkable
+    if (!isWalkable(tiles[end.y][end.x])) {
+        return null;
     }
-
-    dequeue() {
-        return this.elements.shift()?.element;
+    
+    const openSet = [];
+    const closedSet = new Set();
+    const cameFrom = new Map();
+    const gScore = new Map();
+    const fScore = new Map();
+    
+    const startKey = `${start.x},${start.y}`;
+    openSet.push(start);
+    gScore.set(startKey, 0);
+    fScore.set(startKey, heuristic(start, end));
+    
+    while (openSet.length > 0) {
+        // Get node with lowest fScore
+        let current = openSet.reduce((lowest, node) => {
+            const nodeKey = `${node.x},${node.y}`;
+            const lowestKey = `${lowest.x},${lowest.y}`;
+            return (fScore.get(nodeKey) || Infinity) < (fScore.get(lowestKey) || Infinity) ? node : lowest;
+        });
+        
+        if (current.x === end.x && current.y === end.y) {
+            // Reconstruct path
+            return reconstructPath(cameFrom, current);
+        }
+        
+        // Remove current from openSet
+        const currentIndex = openSet.findIndex(n => n.x === current.x && n.y === current.y);
+        openSet.splice(currentIndex, 1);
+        
+        const currentKey = `${current.x},${current.y}`;
+        closedSet.add(currentKey);
+        
+        // Check all neighbors
+        const neighbors = getNeighbors(current, width, height);
+        
+        for (const neighbor of neighbors) {
+            const neighborKey = `${neighbor.x},${neighbor.y}`;
+            
+            if (closedSet.has(neighborKey)) {
+                continue;
+            }
+            
+            // Check if neighbor is walkable
+            if (!isWalkable(tiles[neighbor.y][neighbor.x])) {
+                continue;
+            }
+            
+            const tentativeGScore = (gScore.get(currentKey) || Infinity) + 1;
+            
+            if (!openSet.some(n => n.x === neighbor.x && n.y === neighbor.y)) {
+                openSet.push(neighbor);
+            } else if (tentativeGScore >= (gScore.get(neighborKey) || Infinity)) {
+                continue;
+            }
+            
+            // This path is the best so far
+            cameFrom.set(neighborKey, current);
+            gScore.set(neighborKey, tentativeGScore);
+            fScore.set(neighborKey, tentativeGScore + heuristic(neighbor, end));
+        }
     }
-
-    isEmpty() {
-        return this.elements.length === 0;
-    }
+    
+    // No path found
+    return null;
 }
 
 /**
- * Calculate Manhattan distance heuristic for A*
+ * Check if a position is valid within the map bounds
+ */
+function isValidPosition(pos, width, height) {
+    return pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height;
+}
+
+/**
+ * Check if a tile is walkable (floor or entrance)
+ */
+function isWalkable(tile) {
+    if (!tile) return false;
+    return tile.type === TILE_TYPES.FLOOR || tile.type === TILE_TYPES.ENTRANCE;
+}
+
+/**
+ * Get valid neighbors for a position
+ */
+function getNeighbors(pos, width, height) {
+    const neighbors = [];
+    const directions = [
+        { x: pos.x, y: pos.y - 1 }, // North
+        { x: pos.x + 1, y: pos.y }, // East
+        { x: pos.x, y: pos.y + 1 }, // South
+        { x: pos.x - 1, y: pos.y }  // West
+    ];
+    
+    for (const dir of directions) {
+        if (isValidPosition(dir, width, height)) {
+            neighbors.push(dir);
+        }
+    }
+    
+    return neighbors;
+}
+
+/**
+ * Manhattan distance heuristic
  */
 function heuristic(a, b) {
     return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
 
 /**
- * Get valid neighboring tiles for pathfinding
- * @param {Object} position - Current position {x, y}
- * @param {Array} tiles - 2D array of tile data
- * @returns {Array} Array of valid neighbor positions
+ * Reconstruct the path from start to end
  */
-function getNeighbors(position, tiles) {
-    const neighbors = [];
-    const directions = [
-        { x: 0, y: -1 }, // Up
-        { x: 1, y: 0 },  // Right
-        { x: 0, y: 1 },  // Down
-        { x: -1, y: 0 }  // Left
-    ];
-
-    for (const dir of directions) {
-        const newX = position.x + dir.x;
-        const newY = position.y + dir.y;
-
-        // Check bounds
-        if (newY >= 0 && newY < tiles.length && 
-            newX >= 0 && newX < tiles[0].length) {
-            
-            const tile = tiles[newY][newX];
-            // Can only build rails on floor tiles or entrance
-            if (tile && (tile.type === TILE_TYPES.FLOOR || 
-                        tile.type === TILE_TYPES.ENTRANCE)) {
-                neighbors.push({ x: newX, y: newY });
-            }
-        }
+function reconstructPath(cameFrom, current) {
+    const path = [current];
+    let currentKey = `${current.x},${current.y}`;
+    
+    while (cameFrom.has(currentKey)) {
+        current = cameFrom.get(currentKey);
+        path.unshift(current);
+        currentKey = `${current.x},${current.y}`;
     }
-
-    return neighbors;
+    
+    return path;
 }
 
 /**
- * A* pathfinding algorithm
- * @param {Object} start - Start position {x, y}
- * @param {Object} end - End position {x, y}
- * @param {Array} tiles - 2D array of tile data
- * @returns {Array|null} Array of positions forming the path, or null if no path exists
+ * Build minecart rails from start to end position
+ * @param {Object} dbEntry - Database entry with map data
+ * @param {Object} start - Starting position {x, y}
+ * @param {Object} end - Target position {x, y}
+ * @returns {Object} Result object with success status and message
  */
-function findPath(start, end, tiles) {
-    // Quick validation
-    if (!tiles || tiles.length === 0 || !tiles[0]) {
-        console.error('[RAILS] Invalid tiles array');
-        return null;
-    }
-
-    // Check if start and end are valid floor tiles
-    const startTile = tiles[start.y]?.[start.x];
-    const endTile = tiles[end.y]?.[end.x];
-    
-    if (!startTile || !endTile) {
-        console.error('[RAILS] Start or end position out of bounds');
-        return null;
-    }
-
-    if (startTile.type !== TILE_TYPES.FLOOR && startTile.type !== TILE_TYPES.ENTRANCE) {
-        console.error(`[RAILS] Start position is not a floor tile: ${startTile.type}`);
-        return null;
-    }
-
-    if (endTile.type !== TILE_TYPES.FLOOR && endTile.type !== TILE_TYPES.ENTRANCE) {
-        console.error(`[RAILS] End position is not a floor tile: ${endTile.type}`);
-        return null;
-    }
-
-    // Initialize A* algorithm
-    const frontier = new PriorityQueue();
-    frontier.enqueue(start, 0);
-    
-    const cameFrom = new Map();
-    const costSoFar = new Map();
-    
-    const startKey = `${start.x},${start.y}`;
-    const endKey = `${end.x},${end.y}`;
-    
-    cameFrom.set(startKey, null);
-    costSoFar.set(startKey, 0);
-
-    // A* search
-    while (!frontier.isEmpty()) {
-        const current = frontier.dequeue();
-        const currentKey = `${current.x},${current.y}`;
-
-        // Found the goal
-        if (current.x === end.x && current.y === end.y) {
-            // Reconstruct path
-            const path = [];
-            let step = end;
-            let stepKey = endKey;
-            
-            while (stepKey !== startKey) {
-                path.unshift(step);
-                const previous = cameFrom.get(stepKey);
-                if (!previous) break;
-                step = previous;
-                stepKey = `${step.x},${step.y}`;
-            }
-            path.unshift(start);
-            
-            return path;
-        }
-
-        // Check all neighbors
-        const neighbors = getNeighbors(current, tiles);
-        for (const next of neighbors) {
-            const nextKey = `${next.x},${next.y}`;
-            const newCost = costSoFar.get(currentKey) + 1;
-
-            if (!costSoFar.has(nextKey) || newCost < costSoFar.get(nextKey)) {
-                costSoFar.set(nextKey, newCost);
-                const priority = newCost + heuristic(next, end);
-                frontier.enqueue(next, priority);
-                cameFrom.set(nextKey, current);
-            }
-        }
-    }
-
-    // No path found
-    return null;
-}
-
-/**
- * Build rails along a path
- * @param {Object} mapData - The map data object
- * @param {Array} path - Array of positions forming the path
- * @returns {Object} Updated map data with rails
- */
-function buildRailsOnPath(mapData, path) {
-    if (!path || path.length === 0) {
-        return mapData;
-    }
-
-    let railsBuilt = 0;
-    
-    for (const position of path) {
-        const tile = mapData.tiles[position.y]?.[position.x];
-        if (tile) {
-            // Add rail field to tile
-            if (!tile.hasRail) {
-                tile.hasRail = true;
-                railsBuilt++;
-            }
-        }
-    }
-
-    console.log(`[RAILS] Built ${railsBuilt} rail tiles`);
-    return mapData;
-}
-
-/**
- * Main function to build minecart rails between two points
- * @param {Object} activeVC - The active voice channel data from database
- * @param {Object} start - Start position {x, y}
- * @param {Object} end - End position {x, y}
- * @returns {Object} Result object with success status and updated map data
- */
-async function buildMinecartRails(activeVC, start, end) {
-    // Validate activeVC data
-    if (!activeVC) {
-        return {
-            success: false,
-            error: 'No active voice channel data provided'
-        };
-    }
-
-    if (!activeVC.gameData || !activeVC.gameData.map) {
-        return {
-            success: false,
-            error: 'No map data exists for this channel'
-        };
-    }
-
-    const mapData = activeVC.gameData.map;
-    
-    // Validate map structure
-    if (!mapData.tiles || !Array.isArray(mapData.tiles) || mapData.tiles.length === 0) {
-        return {
-            success: false,
-            error: 'Invalid or empty map tiles'
-        };
-    }
-
-    // Validate positions
-    if (!start || typeof start.x !== 'number' || typeof start.y !== 'number') {
-        return {
-            success: false,
-            error: 'Invalid start position'
-        };
-    }
-
-    if (!end || typeof end.x !== 'number' || typeof end.y !== 'number') {
-        return {
-            success: false,
-            error: 'Invalid end position'
-        };
-    }
-
-    // Check bounds
-    const height = mapData.tiles.length;
-    const width = mapData.tiles[0].length;
-
-    if (start.x < 0 || start.x >= width || start.y < 0 || start.y >= height) {
-        return {
-            success: false,
-            error: `Start position (${start.x}, ${start.y}) is out of bounds`
-        };
-    }
-
-    if (end.x < 0 || end.x >= width || end.y < 0 || end.y >= height) {
-        return {
-            success: false,
-            error: `End position (${end.x}, ${end.y}) is out of bounds`
-        };
-    }
-
-    console.log(`[RAILS] Attempting to build rails from (${start.x}, ${start.y}) to (${end.x}, ${end.y})`);
-
-    // Find path using A*
-    const path = findPath(start, end, mapData.tiles);
-
-    if (!path) {
-        return {
-            success: false,
-            error: `No valid path found between (${start.x}, ${start.y}) and (${end.x}, ${end.y}). Make sure both points are on floor tiles and a path of floor tiles exists between them.`,
-            mapData: mapData
-        };
-    }
-
-    console.log(`[RAILS] Found path with ${path.length} tiles`);
-
-    // Build rails on the path
-    const updatedMapData = buildRailsOnPath(mapData, path);
-
-    return {
-        success: true,
-        path: path,
-        pathLength: path.length,
-        mapData: updatedMapData,
-        message: `Successfully built ${path.length} rail tiles from (${start.x}, ${start.y}) to (${end.x}, ${end.y})`
-    };
-}
-
-/**
- * Clear all rails from the map
- * @param {Object} mapData - The map data object
- * @returns {Object} Updated map data without rails
- */
-function clearAllRails(mapData) {
-    if (!mapData || !mapData.tiles) {
-        return mapData;
-    }
-
-    let railsCleared = 0;
-    
-    for (let y = 0; y < mapData.tiles.length; y++) {
-        for (let x = 0; x < mapData.tiles[0].length; x++) {
-            const tile = mapData.tiles[y][x];
-            if (tile && tile.hasRail) {
-                delete tile.hasRail;
-                railsCleared++;
-            }
-        }
-    }
-
-    console.log(`[RAILS] Cleared ${railsCleared} rail tiles`);
-    return mapData;
-}
-
-/**
- * Get all positions that have rails
- * @param {Object} mapData - The map data object
- * @returns {Array} Array of positions {x, y} that have rails
- */
-function getRailPositions(mapData) {
-    const railPositions = [];
-    
-    if (!mapData || !mapData.tiles) {
-        return railPositions;
-    }
-
-    for (let y = 0; y < mapData.tiles.length; y++) {
-        for (let x = 0; x < mapData.tiles[0].length; x++) {
-            const tile = mapData.tiles[y][x];
-            if (tile && tile.hasRail) {
-                railPositions.push({ x, y });
-            }
-        }
-    }
-
-    return railPositions;
-}
-
-/**
- * Check if a specific tile has rails
- * @param {Object} mapData - The map data object
- * @param {number} x - X coordinate
- * @param {number} y - Y coordinate
- * @returns {boolean} True if tile has rails
- */
-function hasRailAt(mapData, x, y) {
-    return mapData?.tiles?.[y]?.[x]?.hasRail || false;
-}
-
-/**
- * Build rails connecting multiple waypoints
- * @param {Object} activeVC - The active voice channel data
- * @param {Array} waypoints - Array of positions to connect with rails
- * @returns {Object} Result object with success status and updated map data
- */
-async function buildRailNetwork(activeVC, waypoints) {
-    if (!waypoints || waypoints.length < 2) {
-        return {
-            success: false,
-            error: 'Need at least 2 waypoints to build a rail network'
-        };
-    }
-
-    let currentMapData = activeVC.gameData.map;
-    const segments = [];
-    let totalRails = 0;
-
-    // Build rails between each consecutive pair of waypoints
-    for (let i = 0; i < waypoints.length - 1; i++) {
-        const start = waypoints[i];
-        const end = waypoints[i + 1];
+async function buildMinecartRails(dbEntry, start, end) {
+    try {
+        const mapData = dbEntry.gameData.map;
         
-        // Update activeVC with current map data for each segment
-        activeVC.gameData.map = currentMapData;
+        // Find path from start to end
+        const path = findPath(mapData, start, end);
         
-        const result = await buildMinecartRails(activeVC, start, end);
-        
-        if (!result.success) {
+        if (!path) {
             return {
                 success: false,
-                error: `Failed to build segment ${i + 1}: ${result.error}`,
-                segments: segments,
-                mapData: currentMapData
+                error: 'No valid path found between start and end positions'
             };
         }
-
-        segments.push({
-            from: start,
-            to: end,
-            length: result.pathLength
-        });
         
-        totalRails += result.pathLength;
-        currentMapData = result.mapData;
+        // Build rails along the path using the new storage system
+        await railStorage.buildRailPath(dbEntry.channelId, path);
+        
+        return {
+            success: true,
+            message: `Successfully built ${path.length} rail segments`,
+            path: path,
+            pathLength: path.length
+        };
+        
+    } catch (error) {
+        console.error('[RAIL PATHFINDING] Error building rails:', error);
+        return {
+            success: false,
+            error: error.message
+        };
     }
+}
 
-    return {
-        success: true,
-        segments: segments,
-        totalRails: totalRails,
-        mapData: currentMapData,
-        message: `Successfully built rail network with ${segments.length} segments and ${totalRails} total rail tiles`
-    };
+/**
+ * Clear all rails from the map using the new storage system
+ * @param {string} channelId - The channel ID
+ */
+async function clearAllRails(channelId) {
+    await railStorage.clearAllRails(channelId);
+    return { success: true, message: 'All rails cleared' };
+}
+
+/**
+ * Get all rail positions for a channel
+ * @param {string} channelId - The channel ID
+ * @returns {Array} Array of {x, y} positions
+ */
+async function getRailPositions(channelId) {
+    const railsData = await railStorage.getRailsData(channelId);
+    return railStorage.getAllRailPositions(railsData);
+}
+
+/**
+ * Check if a specific tile has a rail
+ * @param {string} channelId - The channel ID
+ * @param {number} x - X coordinate
+ * @param {number} y - Y coordinate
+ * @returns {boolean} True if the tile has a rail
+ */
+async function hasRailAt(channelId, x, y) {
+    const railsData = await railStorage.getRailsData(channelId);
+    return railStorage.hasRail(railsData, x, y);
 }
 
 module.exports = {
+    findPath,
     buildMinecartRails,
     clearAllRails,
     getRailPositions,
-    hasRailAt,
-    buildRailNetwork,
-    findPath
+    hasRailAt
 };

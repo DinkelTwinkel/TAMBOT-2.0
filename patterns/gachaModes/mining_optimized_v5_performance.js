@@ -725,20 +725,7 @@ module.exports = async (channel, dbEntry, json, client) => {
     let wallsBroken = 0;
     let treasuresFound = 0;
     
-    // RAIL PRESERVATION: Store existing rail positions before any map updates
-    const railPositions = [];
-    if (mapData && mapData.tiles) {
-        for (let y = 0; y < mapData.tiles.length; y++) {
-            for (let x = 0; x < mapData.tiles[y].length; x++) {
-                if (mapData.tiles[y][x]?.hasRail) {
-                    railPositions.push({ x, y });
-                }
-            }
-        }
-        if (railPositions.length > 0) {
-            console.log(`[MINING] Preserving ${railPositions.length} rail tiles`);
-        }
-    }
+    // Rails are now stored separately in gameData.rails, no need to preserve them here
     
     if (!mapData) {
         mapData = initializeMap(channel.id);
@@ -759,19 +746,7 @@ module.exports = async (channel, dbEntry, json, client) => {
     mapData = initializeBreakPositions(mapData, members, false);
     mapChanged = true;
     
-    // RAIL RESTORATION: Restore rail positions after map initialization
-    if (railPositions.length > 0) {
-        let restoredCount = 0;
-        for (const pos of railPositions) {
-            if (mapData.tiles[pos.y] && mapData.tiles[pos.y][pos.x]) {
-                mapData.tiles[pos.y][pos.x].hasRail = true;
-                restoredCount++;
-            }
-        }
-        if (restoredCount > 0) {
-            console.log(`[MINING] Restored ${restoredCount} rail tiles after map update`);
-        }
-    }
+    // Rails are stored separately, no restoration needed
     
     // Check for players who left and announce their departure
     const currentPlayerIds = Array.from(members.keys());
@@ -1015,12 +990,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 
                 await addItemToMinecart(dbEntry, member.id, item.itemId, finalQuantity);
                 
-                // Preserve rail data if it exists when converting to floor
-                    const hadRail = mapData.tiles[adjacentTarget.y][adjacentTarget.x].hasRail;
-                    mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
-                    if (hadRail) {
-                        mapData.tiles[adjacentTarget.y][adjacentTarget.x].hasRail = true;
-                    }
+                // Convert to floor (rails are stored separately, so no need to preserve)
+                mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                 mapChanged = true;
                 wallsBroken++;
                 
@@ -1165,12 +1136,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     eventLogs.push(findMessage);
                 }
                 
-                // Preserve rail data if it exists when converting to floor
-                const existingRail = mapData.tiles[newY][newX].hasRail;
+                // Convert to floor (rails are stored separately)
                 mapData.tiles[newY][newX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
-                if (existingRail) {
-                    mapData.tiles[newY][newX].hasRail = true;
-                }
                 position.x = newX;
                 position.y = newY;
                 mapChanged = true;

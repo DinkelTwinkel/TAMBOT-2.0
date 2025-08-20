@@ -1,9 +1,9 @@
-// commands/debug/buildRails.js - Debug slash command for testing rail building
+// commands/buildRails.js - Debug slash command for testing rail building with separate storage
 const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const gachaVC = require('../models/activevcs');
 const generateTileMapImage = require('../patterns/generateMiningProcedural');
 const { buildMinecartRails, clearAllRails, getRailPositions } = require('../patterns/gachaModes/mining/railPathfinding');
-const { atomicRailUpdate, clearMiningCache } = require('../patterns/gachaModes/mining/railCacheFix');
+const railStorage = require('../patterns/gachaModes/mining/railStorage');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -76,7 +76,7 @@ module.exports = {
                         y: mapData.entranceY
                     };
 
-                    // Build rails from entrance to player
+                    // Build rails from entrance to player using new storage system
                     console.log(`[DEBUG RAILS] Building rails from entrance (${entrancePosition.x}, ${entrancePosition.y}) to player (${playerPosition.x}, ${playerPosition.y})`);
                     
                     const result = await buildMinecartRails(activeVC, entrancePosition, playerPosition);
@@ -88,13 +88,15 @@ module.exports = {
                         });
                     }
 
-                    // Update the database with atomic operation to prevent overwrites
-                    await atomicRailUpdate(voiceChannel.id, result.mapData);
+                    // Clear any mining system caches if they exist
+                    if (global.dbCache) {
+                        global.dbCache.delete(voiceChannel.id);
+                    }
+                    if (global.visibilityCalculator) {
+                        global.visibilityCalculator.invalidate();
+                    }
                     
-                    // Clear the mining system cache to prevent stale data
-                    clearMiningCache(voiceChannel.id);
-                    
-                    console.log('[DEBUG RAILS] Rails saved with atomic update and cache cleared');
+                    console.log('[DEBUG RAILS] Rails saved to separate storage');
 
                     // Generate the new map image
                     const mapBuffer = await generateTileMapImage(voiceChannel);
@@ -106,7 +108,8 @@ module.exports = {
                         .addFields(
                             { name: 'Start', value: `Entrance (${entrancePosition.x}, ${entrancePosition.y})`, inline: true },
                             { name: 'End', value: `Your Position (${playerPosition.x}, ${playerPosition.y})`, inline: true },
-                            { name: 'Rail Tiles', value: `${result.pathLength}`, inline: true }
+                            { name: 'Rail Tiles', value: `${result.pathLength}`, inline: true },
+                            { name: 'Storage', value: '✅ Using separate rail storage', inline: false }
                         )
                         .setColor(0x8B4513)
                         .setImage('attachment://rails_debug.png')
@@ -120,16 +123,18 @@ module.exports = {
                 }
 
                 case 'clear': {
-                    // Clear all rails from the map
-                    const updatedMapData = clearAllRails(mapData);
+                    // Clear all rails using new storage system
+                    await clearAllRails(voiceChannel.id);
                     
-                    // Update the database with atomic operation
-                    await atomicRailUpdate(voiceChannel.id, updatedMapData);
+                    // Clear mining system caches
+                    if (global.dbCache) {
+                        global.dbCache.delete(voiceChannel.id);
+                    }
+                    if (global.visibilityCalculator) {
+                        global.visibilityCalculator.invalidate();
+                    }
                     
-                    // Clear the mining system cache
-                    clearMiningCache(voiceChannel.id);
-                    
-                    console.log('[DEBUG RAILS] Rails cleared with atomic update');
+                    console.log('[DEBUG RAILS] Rails cleared from separate storage');
 
                     // Generate the new map image
                     const mapBuffer = await generateTileMapImage(voiceChannel);
@@ -150,8 +155,10 @@ module.exports = {
                 }
 
                 case 'info': {
-                    // Get information about current rails
-                    const railPositions = getRailPositions(mapData);
+                    // Get information about current rails from new storage
+                    const railPositions = await getRailPositions(voiceChannel.id);
+                    const railsData = await railStorage.getRailsData(voiceChannel.id);
+                    const railCount = railStorage.countRails(railsData);
                     
                     // Generate current map image
                     const mapBuffer = await generateTileMapImage(voiceChannel);
@@ -161,9 +168,10 @@ module.exports = {
                         .setTitle('🛤️ Rail Network Information')
                         .setDescription(`Current rail network status for this mining channel.`)
                         .addFields(
-                            { name: 'Total Rail Tiles', value: `${railPositions.length}`, inline: true },
+                            { name: 'Total Rail Tiles', value: `${railCount}`, inline: true },
                             { name: 'Map Size', value: `${mapData.width}x${mapData.height}`, inline: true },
-                            { name: 'Entrance', value: `(${mapData.entranceX}, ${mapData.entranceY})`, inline: true }
+                            { name: 'Entrance', value: `(${mapData.entranceX}, ${mapData.entranceY})`, inline: true },
+                            { name: 'Storage Type', value: '✅ Separate Rail Storage', inline: true }
                         )
                         .setColor(0x4169E1)
                         .setImage('attachment://rails_info.png')
