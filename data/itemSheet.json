@@ -126,7 +126,7 @@
     "value": 120,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 3 }
+      { "name": "mining", "powerlevel": 5 }
     ],
     "image": "ironpickaxe",
     "durability": 40
@@ -140,7 +140,7 @@
     "value": 300,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 4 }
+      { "name": "mining", "powerlevel": 6 }
     ],
     "image": "robustpickaxe",
     "durability": 50
