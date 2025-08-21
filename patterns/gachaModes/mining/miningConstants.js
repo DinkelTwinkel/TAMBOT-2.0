@@ -31,47 +31,47 @@ const POWER_LEVEL_CONFIG = {
     3: {
         name: "Skilled Expedition",
         description: "Enhanced mining techniques",
-        oreSpawnMultiplier: 1.4,
-        rareOreBonus: 0.01,
-        treasureChance: 0.02,
+        oreSpawnMultiplier: 1.5,
+        rareOreBonus: 0.025,
+        treasureChance: 0.03,
         speedBonus: 1.2,
         valueMultiplier: 1.5
     },
     4: {
         name: "Expert Expedition",
         description: "Advanced geological knowledge",
-        oreSpawnMultiplier: 1.6,
-        rareOreBonus: 0.02,
-        treasureChance: 0.03,
+        oreSpawnMultiplier: 1.7,
+        rareOreBonus: 0.035,
+        treasureChance: 0.04,
         speedBonus: 1.3,
-        valueMultiplier: 1.8
+        valueMultiplier: 2.0
     },
     5: {
         name: "Master Expedition",
         description: "Volcanic mining specialization", 
-        oreSpawnMultiplier: 1.8,
-        rareOreBonus: 0.03,
-        treasureChance: 0.04,
-        speedBonus: 1.4,
-        valueMultiplier: 2.2
+        oreSpawnMultiplier: 2.0,
+        rareOreBonus: 0.05,
+        treasureChance: 0.06,
+        speedBonus: 1.5,
+        valueMultiplier: 2.5
     },
     6: {
         name: "Legendary Expedition",
         description: "Mythical ore sensitivity",
-        oreSpawnMultiplier: 2.0,
-        rareOreBonus: 0.05,
-        treasureChance: 0.06,
-        speedBonus: 1.6,
-        valueMultiplier: 2.8
+        oreSpawnMultiplier: 2.3,
+        rareOreBonus: 0.07,
+        treasureChance: 0.08,
+        speedBonus: 1.7,
+        valueMultiplier: 3.0
     },
     7: {
         name: "Abyssal Expedition",
         description: "Master of the deepest depths",
-        oreSpawnMultiplier: 2.5,
-        rareOreBonus: 0.08,
-        treasureChance: 0.1,
+        oreSpawnMultiplier: 2.8,
+        rareOreBonus: 0.10,
+        treasureChance: 0.12,
         speedBonus: 2.0,
-        valueMultiplier: 3.5
+        valueMultiplier: 4.0
     }
 };
 
@@ -326,46 +326,68 @@ const miningItemPool = [
         powerRequirement: 2,
         description: "Golden crystalline gem prized for its clarity"
     },
+    { 
+        itemId: "103", 
+        name: "Ancient Fossil", 
+        baseWeight: 20, 
+        boostedPowerLevel: 2, 
+        value: 8, 
+        tier: 'uncommon',
+        powerRequirement: 2,
+        description: "Prehistoric remains preserved in stone"
+    },
     
     // Power Level 3 - Rare tier
     { 
         itemId: "23", 
         name: "Emerald Gem", 
-        baseWeight: 15, 
+        baseWeight: 20, 
         boostedPowerLevel: 3, 
         value: 12, 
         tier: 'rare',
         powerRequirement: 3,
         description: "Mystical green stone pulsing with natural energy"
     },
+    
+    // Power Level 3 - Rare tier (Diamonds)
     { 
-        itemId: "24", 
-        name: "Ruby Gem", 
-        baseWeight: 12, 
+        itemId: "6", 
+        name: "Diamond Gem", 
+        baseWeight: 20, 
         boostedPowerLevel: 3, 
-        value: 18, 
+        value: 25, 
         tier: 'rare',
         powerRequirement: 3,
-        description: "Fiery red crystal forged in volcanic depths"
+        description: "Perfect crystalline carbon, hardest natural substance"
     },
     
     // Power Level 4 - Epic tier
     { 
-        itemId: "6", 
-        name: "Diamond Gem", 
-        baseWeight: 6, 
+        itemId: "24", 
+        name: "Ruby Gem", 
+        baseWeight: 15, 
         boostedPowerLevel: 4, 
-        value: 25, 
+        value: 30, 
         tier: 'epic',
         powerRequirement: 4,
-        description: "Perfect crystalline carbon, hardest natural substance"
+        description: "Fiery red crystal forged in volcanic depths"
+    },
+    { 
+        itemId: "102", 
+        name: "Crystal Ore", 
+        baseWeight: 15, 
+        boostedPowerLevel: 4, 
+        value: 28, 
+        tier: 'epic',
+        powerRequirement: 4,
+        description: "Iridescent crystal pulsing with magical energy"
     },
     
     // Power Level 5 - Epic tier (Advanced)
     { 
         itemId: "25", 
         name: "Obsidian", 
-        baseWeight: 4, 
+        baseWeight: 12, 
         boostedPowerLevel: 5, 
         value: 35, 
         tier: 'epic',
@@ -377,7 +399,7 @@ const miningItemPool = [
     { 
         itemId: "26", 
         name: "Mythril Ore", 
-        baseWeight: 2, 
+        baseWeight: 10, 
         boostedPowerLevel: 6, 
         value: 50, 
         tier: 'legendary',
@@ -389,7 +411,7 @@ const miningItemPool = [
     { 
         itemId: "27", 
         name: "Adamantite", 
-        baseWeight: 1, 
+        baseWeight: 8, 
         boostedPowerLevel: 7, 
         value: 75, 
         tier: 'legendary',
@@ -441,58 +463,99 @@ const treasureItems = [
 const SERVER_POWER_MODIFIERS = {
     "coalMines": {
         powerLevel: 1,
-        specialBonus: "Double coal ore spawn rate",
-        itemBonuses: { "1": 2.0 } // Double coal ore value
+        specialBonus: "Massive coal deposits discovered",
+        itemBonuses: { 
+            "1": 5.0,  // 5x coal spawn rate
+            "21": 0.3  // Less copper in coal mines
+        }
     },
     "copperQuarry": {
         powerLevel: 1, 
-        specialBonus: "Enhanced copper detection",
-        itemBonuses: { "21": 1.5 }
+        specialBonus: "Rich copper veins throughout",
+        itemBonuses: { 
+            "21": 5.0,  // 5x copper spawn rate
+            "1": 0.3    // Less coal in copper quarry
+        }
     },
     "topazMine": {
         powerLevel: 2,
-        specialBonus: "Topaz gem quality enhancement", 
-        itemBonuses: { "2": 1.8 }
+        specialBonus: "Topaz crystals everywhere", 
+        itemBonuses: { 
+            "2": 4.5,   // 4.5x topaz spawn rate
+            "22": 0.4   // Less iron in topaz mine
+        }
     },
     "ironStronghold": {
         powerLevel: 2,
-        specialBonus: "Iron ore purity bonus",
-        itemBonuses: { "22": 1.6 }
+        specialBonus: "Industrial iron production",
+        itemBonuses: { 
+            "22": 4.5,  // 4.5x iron spawn rate
+            "2": 0.4    // Less topaz in iron stronghold
+        }
     },
     "diamondMines": {
         powerLevel: 3,
-        specialBonus: "Diamond clarity enhancement",
-        itemBonuses: { "6": 2.0 }
+        specialBonus: "Diamond-rich formations",
+        itemBonuses: { 
+            "6": 4.0,   // 4x diamond spawn rate
+            "23": 0.5,  // Less emerald
+            "24": 0.5   // Less ruby
+        }
     },
     "emeraldCaverns": {
         powerLevel: 3,
-        specialBonus: "Natural energy amplification",
-        itemBonuses: { "23": 1.7 }
+        specialBonus: "Emerald energy saturated caves",
+        itemBonuses: { 
+            "23": 4.0,  // 4x emerald spawn rate
+            "6": 0.5,   // Less diamond
+            "24": 0.5   // Less ruby
+        }
     },
     "rubyDepths": {
         powerLevel: 4,
-        specialBonus: "Volcanic heat forge bonus",
-        itemBonuses: { "24": 1.9 }
+        specialBonus: "Volcanic ruby formations",
+        itemBonuses: { 
+            "24": 4.0,  // 4x ruby spawn rate
+            "102": 0.5  // Less crystal
+        }
     },
     "crystalGrottos": {
         powerLevel: 4,
-        specialBonus: "Crystal resonance multiplier",
-        itemBonuses: { "102": 2.5 }
+        specialBonus: "Magical crystal convergence",
+        itemBonuses: { 
+            "102": 4.0, // 4x crystal spawn rate
+            "24": 0.5   // Less ruby
+        }
     },
     "obsidianForge": {
         powerLevel: 5,
-        specialBonus: "Volcanic glass perfection",
-        itemBonuses: { "25": 2.2 }
+        specialBonus: "Volcanic obsidian flows",
+        itemBonuses: { 
+            "25": 5.0   // 5x obsidian spawn rate
+        }
     },
     "mythrilSanctum": {
         powerLevel: 6,
-        specialBonus: "Divine blessing enhancement",
-        itemBonuses: { "26": 2.8 }
+        specialBonus: "Divine mythril blessings",
+        itemBonuses: { 
+            "26": 5.0   // 5x mythril spawn rate
+        }
     },
     "adamantiteAbyss": {
         powerLevel: 7,
-        specialBonus: "Abyssal depth mastery",
-        itemBonuses: { "27": 3.5 }
+        specialBonus: "Abyssal adamantite core",
+        itemBonuses: { 
+            "27": 6.0   // 6x adamantite spawn rate
+        }
+    },
+    "fossilExcavation": {
+        powerLevel: 2,
+        specialBonus: "Archaeological treasure trove",
+        itemBonuses: { 
+            "103": 4.5,  // 4.5x fossil spawn rate
+            "22": 0.4,   // Less iron
+            "2": 0.4     // Less topaz
+        }
     }
 };
 

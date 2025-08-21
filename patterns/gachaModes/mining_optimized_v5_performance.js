@@ -257,6 +257,7 @@ function getServerModifiers(serverName, serverPower) {
             "Copper Quarry": "copperQuarry", 
             "Topaz Mine": "topazMine",
             "Iron Stronghold": "ironStronghold",
+            "Fossil Excavation": "fossilExcavation",
             "Diamond Mines": "diamondMines",
             "Emerald Caverns": "emeraldCaverns",
             "Ruby Depths": "rubyDepths",
