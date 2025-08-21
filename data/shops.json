@@ -2,7 +2,16 @@
   {
     "id": 1,
     "name": "Coal Mine Trading Desk",
-    "idleDialogue": ["The children yearn for the mines...", "Keep mining!", "Coal dust gets everywhere...", "*-Scratches Balls.*", "*~Yawns*"],
+    "idleDialogue": [
+      "The children yearn for the mines...", 
+      "Keep mining!", 
+      "Coal dust gets everywhere...", 
+      "*-Scratches Balls.*", 
+      "*~Yawns*",
+      "The One Pick? Bah! Fairy tales for greenhorns...",
+      "My granddad swore he saw The Miner King once... drunk fool.",
+      "They say The One Pick could crack the world itself... nonsense!"
+    ],
     "successSell": ["A pleasure doing business..."],
     "successBuy": ["A pleasure doing business..."],
     "failureTooPoor": ["If you're broke get out of here!", "Scram Pauper!"],
@@ -18,7 +27,16 @@
   {
     "id": 2,
     "name": "Topaz Mine Trading Desk",
-    "idleDialogue": ["Golden opportunities await!", "These gems shine bright!", "Topaz brings good fortune!", "*-Polishes gems*", "*~Admires the sparkle*"],
+    "idleDialogue": [
+      "Golden opportunities await!", 
+      "These gems shine bright!", 
+      "Topaz brings good fortune!", 
+      "*-Polishes gems*", 
+      "*~Admires the sparkle*",
+      "Some say The One Pick gleams brighter than any topaz...",
+      "If The Miner King's pickaxe exists, it would be a sight to behold!",
+      "Perhaps one day someone will find where The One Pick rests..."
+    ],
     "successSell": ["A pleasure doing business..."],
     "successBuy": ["A pleasure doing business..."],
     "failureTooPoor": ["If you're broke get out of here!", "Scram Pauper!"],
@@ -34,7 +52,16 @@
   {
     "id": 3,
     "name": "Diamond Mine Trading Shop",
-    "idleDialogue": ["Diamonds are forever!", "The finest cuts available!", "These stones are flawless!", "*-Inspects diamond clarity*", "*~Whistles impressed*"],
+    "idleDialogue": [
+      "Diamonds are forever!", 
+      "The finest cuts available!", 
+      "These stones are flawless!", 
+      "*-Inspects diamond clarity*", 
+      "*~Whistles impressed*",
+      "Even diamond cannot dull The One Pick's edge... allegedly.",
+      "The Miner King's tool would make these diamonds look like glass.",
+      "I'd trade my entire stock just to glimpse The One Pick..."
+    ],
     "successSell": ["A pleasure doing business..."],
     "successBuy": ["A pleasure doing business..."],
     "failureTooPoor": ["If you're broke get out of here!", "Scram Pauper!"],
@@ -50,7 +77,16 @@
   {
     "id": 4,
     "name": "Emerald Cavern Bazaar",
-    "idleDialogue": ["Green is the color of prosperity!", "These emeralds pulse with energy!", "Feel the power of nature!", "*-Caresses emerald*", "*~Hums mystically*"],
+    "idleDialogue": [
+      "Green is the color of prosperity!", 
+      "These emeralds pulse with energy!", 
+      "Feel the power of nature!", 
+      "*-Caresses emerald*", 
+      "*~Hums mystically*",
+      "The earth whispers of The One Pick in forgotten tongues...",
+      "Nature herself bent to The Miner King's will, they say.",
+      "When the stones dream, they dream of that legendary pickaxe..."
+    ],
     "successSell": ["Nature rewards the worthy..."],
     "successBuy": ["The earth provides..."],
     "failureTooPoor": ["The forest does not favor the poor!", "Away, pauper!"],
@@ -66,7 +102,16 @@
   {
     "id": 5,
     "name": "Ruby Depths Emporium",
-    "idleDialogue": ["Feel the heat of these rubies!", "Forged in fire and passion!", "Blood-red treasures await!", "*-Wipes sweat*", "*~Fans self*"],
+    "idleDialogue": [
+      "Feel the heat of these rubies!", 
+      "Forged in fire and passion!", 
+      "Blood-red treasures await!", 
+      "*-Wipes sweat*", 
+      "*~Fans self*",
+      "The One Pick was forged in flames that would melt these rubies...",
+      "Some claim The Miner King still walks the deepest shafts...",
+      "Fire remembers... fire knows where The One Pick sleeps."
+    ],
     "successSell": ["The flames approve this trade!"],
     "successBuy": ["Fire and fortune combined!"],
     "failureTooPoor": ["The forge burns only for the wealthy!", "No coin, no flame!"],
@@ -82,7 +127,16 @@
   {
     "id": 6,
     "name": "Obsidian Forge Marketplace",
-    "idleDialogue": ["Volcanic glass, sharp as death!", "Forged in the earth's fury!", "Black as night, hard as diamond!", "*-Sharpens obsidian*", "*~Tests blade edge*"],
+    "idleDialogue": [
+      "Volcanic glass, sharp as death!", 
+      "Forged in the earth's fury!", 
+      "Black as night, hard as diamond!", 
+      "*-Sharpens obsidian*", 
+      "*~Tests blade edge*",
+      "The One Pick carved through obsidian like shadow through light...",
+      "In the volcanic depths, old miners speak The Miner King's name.",
+      "This obsidian remembers... it remembers The One Pick's bite."
+    ],
     "successSell": ["The volcano approves!"],
     "successBuy": ["Molten deals for molten souls!"],
     "failureTooPoor": ["The forge consumes only wealth!", "Begone, ash-walker!"],
@@ -98,7 +152,16 @@
   {
     "id": 7,
     "name": "Mythril Sanctum Treasury",
-    "idleDialogue": ["Blessed mythril, gift of the gods!", "This metal sings with ancient power!", "Only the worthy may handle mythril!", "*-Chants softly*", "*~Glows faintly*"],
+    "idleDialogue": [
+      "Blessed mythril, gift of the gods!", 
+      "This metal sings with ancient power!", 
+      "Only the worthy may handle mythril!", 
+      "*-Chants softly*", 
+      "*~Glows faintly*",
+      "The One Pick was blessed by gods now forgotten...",
+      "Ancient texts speak of The Miner King's ascension...",
+      "When mythril sings, it sings for The One Pick's return."
+    ],
     "successSell": ["The ancients smile upon this trade!"],
     "successBuy": ["Divine fortune flows through you!"],
     "failureTooPoor": ["The gods favor only the prosperous!", "Unworthy soul, depart!"],
@@ -114,7 +177,16 @@
   {
     "id": 8,
     "name": "Adamantite Abyss Vault",
-    "idleDialogue": ["Adamantite... the ultimate metal!", "Harder than reality itself!", "This ore transcends mortal understanding!", "*-Speaks in whispers*", "*~Emanates dark energy*"],
+    "idleDialogue": [
+      "Adamantite... the ultimate metal!", 
+      "Harder than reality itself!", 
+      "This ore transcends mortal understanding!", 
+      "*-Speaks in whispers*", 
+      "*~Emanates dark energy*",
+      "The One Pick exists between existence and void...",
+      "The Miner King transcended... became something... else.",
+      "In the abyss, all paths lead to The One Pick... or from it."
+    ],
     "successSell": ["The abyss acknowledges your worth..."],
     "successBuy": ["Power beyond imagination is yours..."],
     "failureTooPoor": ["The void has no use for the impoverished!", "Crawl back to the surface!"],
@@ -130,7 +202,16 @@
   {
     "id": 9,
     "name": "Copper Quarry Exchange",
-    "idleDialogue": ["Honest copper for honest folk!", "Reliable metal, reliable profits!", "The backbone of civilization!", "*-Hammers copper*", "*~Hums work songs*"],
+    "idleDialogue": [
+      "Honest copper for honest folk!", 
+      "Reliable metal, reliable profits!", 
+      "The backbone of civilization!", 
+      "*-Hammers copper*", 
+      "*~Hums work songs*",
+      "The One Pick? Just a story to keep apprentices working harder.",
+      "My pa said his pa said he knew a guy who saw The Miner King...",
+      "Legends don't mine copper, friend. Real picks do."
+    ],
     "successSell": ["Solid trade, solid profit!"],
     "successBuy": ["Good copper, good choice!"],
     "failureTooPoor": ["Even copper costs coin!", "Work harder, earn more!"],
@@ -146,7 +227,16 @@
   {
     "id": 10,
     "name": "Iron Stronghold Armory",
-    "idleDialogue": ["Strong iron for strong souls!", "Forged for battle, tested in fire!", "The foundation of empires!", "*-Tests iron strength*", "*~Clangs metal*"],
+    "idleDialogue": [
+      "Strong iron for strong souls!", 
+      "Forged for battle, tested in fire!", 
+      "The foundation of empires!", 
+      "*-Tests iron strength*", 
+      "*~Clangs metal*",
+      "No armor could stop The One Pick's swing, they claim.",
+      "The Miner King conquered stone kingdoms without a single sword.",
+      "Iron bends to will... but The One Pick bent will itself."
+    ],
     "successSell": ["Iron-clad deal!"],
     "successBuy": ["Built to last, priced to sell!"],
     "failureTooPoor": ["Iron costs iron prices!", "Strengthen your purse first!"],
@@ -162,7 +252,16 @@
   {
     "id": 11,
     "name": "Crystal Grotto Emporium",
-    "idleDialogue": ["Crystals sing with magical energy!", "Each shard holds ancient power!", "Rainbow light, rainbow profits!", "*-Listens to crystals*", "*~Sparkles mysteriously*"],
+    "idleDialogue": [
+      "Crystals sing with magical energy!", 
+      "Each shard holds ancient power!", 
+      "Rainbow light, rainbow profits!", 
+      "*-Listens to crystals*", 
+      "*~Sparkles mysteriously*",
+      "The crystals show visions... a pickaxe that unmakes and remakes...",
+      "I've seen The Miner King in crystal dreams... or have I?",
+      "Every facet reflects The One Pick differently... which is true?"
+    ],
     "successSell": ["The crystals resonate with joy!"],
     "successBuy": ["Magic flows through this exchange!"],
     "failureTooPoor": ["Magic requires a magical purse!", "Crystal dreams, empty pockets!"],
@@ -178,7 +277,16 @@
   {
     "id": 12,
     "name": "Fossil Excavation Museum",
-    "idleDialogue": ["History for sale!", "Ancient treasures, modern prices!", "The past meets the present!", "*-Brushes fossils*", "*~Studies ancient texts*"],
+    "idleDialogue": [
+      "History for sale!", 
+      "Ancient treasures, modern prices!", 
+      "The past meets the present!", 
+      "*-Brushes fossils*", 
+      "*~Studies ancient texts*",
+      "No fossil record of The One Pick... curious, isn't it?",
+      "The Miner King predates our oldest findings... impossible, yet...",
+      "History is written by survivors. The Miner King wrote nothing."
+    ],
     "successSell": ["A piece of history changes hands!"],
     "successBuy": ["Preserving the past, one purchase at a time!"],
     "failureTooPoor": ["Even ancient history has modern prices!", "Study harder, earn more!"],
