@@ -262,17 +262,13 @@ async function handleInfo(interaction) {
     // Format rarity tag
     const rarityTag = `『 ${itemData.rarity.toUpperCase()} 』`;
     
+    // Combine description and lore for the embed description
+    const storyText = `*${itemData.description}*\n\n**Lore:**\n${itemData.lore}`;
+    
     const embed = new EmbedBuilder()
         .setTitle(`${getItemEmoji(itemData)} ${itemData.name} ${rarityTag}`)
+        .setDescription(storyText)
         .setColor(getColorForRarity(itemData.rarity));
-    
-    // Combine description and lore in a code block
-    const storyText = `${itemData.description}\n\n${itemData.lore}`;
-    embed.addFields({
-        name: '📜 Ancient Text',
-        value: `\`\`\`\n${storyText}\n\`\`\``,
-        inline: false
-    });
     
     // Add cryptic special effects (rumored effects)
     if (itemData.specialEffects && itemData.specialEffects.length > 0) {

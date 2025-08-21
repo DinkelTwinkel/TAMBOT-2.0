@@ -52,7 +52,7 @@ const UNIQUE_ITEMS = [
     
     {
         id: 9,
-        name: "The One Pick",
+        name: "THE ONE PICK",
         type: "tool",
         slot: "mining",
         rarity: "mythic",
