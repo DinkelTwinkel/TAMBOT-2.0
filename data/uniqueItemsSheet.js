@@ -102,7 +102,7 @@ const UNIQUE_ITEMS = [
         ],
         
         // Conditional drop settings
-        dropWeight: 5, // Somewhat not rare when conditions are met.
+        dropWeight: 50, // Somewhat not rare when conditions are met.
         minPowerLevel: 1, // Can appear at any power level
         preferredBiomes: ["golden_vault", "treasure_room", "midas_tomb"],
         conditional: true, // Marks this as a conditional item
