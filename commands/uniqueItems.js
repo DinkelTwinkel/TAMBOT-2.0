@@ -339,16 +339,16 @@ async function handleInfo(interaction) {
             });
         }
         
-        embed.addFields({
-            name: '⚡ Unique Mechanics',
-            value: [
-                '• Luck randomly becomes 0x or 100x each calculation',
-                '• Can only be owned by the wealthiest player',
-                '• Transfers automatically when someone becomes richer',
-                '• Maintenance decays only when not the richest'
-            ].join('\n'),
-            inline: false
-        });
+        // embed.addFields({
+        //     name: '⚡ Unique Mechanics',
+        //     value: [
+        //         '• Luck randomly becomes 0x or 100x each calculation',
+        //         '• Can only be owned by the wealthiest player',
+        //         '• Transfers automatically when someone becomes richer',
+        //         '• Maintenance decays only when not the richest'
+        //     ].join('\n'),
+        //     inline: false
+        // });
     }
     
     // Add cryptic special effects (rumored effects)
