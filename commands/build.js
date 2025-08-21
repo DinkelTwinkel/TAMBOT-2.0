@@ -122,8 +122,25 @@ module.exports = {
             try {
                 await session.withTransaction(async () => {
                     // Re-fetch documents within the transaction for consistency
+                    const currentVC = await gachaVC.findOne({ channelId: voiceChannel.id }).session(session);
+                    
+                    if (!currentVC) {
+                        throw new Error('Voice channel data no longer exists');
+                    }
+
+                    // Check minecart inventory for iron ore first
+                    let minecartIronQuantity = 0;
+                    const minecartItems = currentVC.gameData?.minecart?.items;
+                    
+                    if (minecartItems && minecartItems[IRON_ORE_ID]) {
+                        minecartIronQuantity = minecartItems[IRON_ORE_ID].quantity || 0;
+                    }
+
+                    // Check player's inventory only if minecart doesn't have enough
                     const userId = interaction.user.id;
                     let inventory = await PlayerInventory.findOne({ playerId: userId }).session(session);
+                    let playerIronQuantity = 0;
+                    let ironOre = null;
                     
                     if (!inventory) {
                         inventory = new PlayerInventory({
@@ -131,34 +148,15 @@ module.exports = {
                             playerTag: interaction.user.tag,
                             items: []
                         });
-                    }
-
-                    // Re-fetch activeVC within transaction
-                    const currentVC = await gachaVC.findOne({ channelId: voiceChannel.id }).session(session);
-                    
-                    if (!currentVC) {
-                        throw new Error('Voice channel data no longer exists');
-                    }
-
-                    // Find iron ore in player inventory
-                    const ironOre = inventory.items.find(item => 
-                        item.itemId === IRON_ORE_ID || item.id === IRON_ORE_ID
-                    );
-                    const playerIronQuantity = ironOre?.quantity || 0;
-
-                    // Check minecart inventory for iron ore - with proper checks
-                    let minecartIronQuantity = 0;
-                    let minecartIronOre = null;
-                    
-                    // Ensure minecart exists and has an items array
-                    if (currentVC.gameData?.minecart?.items && Array.isArray(currentVC.gameData.minecart.items)) {
-                        minecartIronOre = currentVC.gameData.minecart.items.find(item => 
+                    } else {
+                        // Find iron ore in player inventory
+                        ironOre = inventory.items.find(item => 
                             item.itemId === IRON_ORE_ID || item.id === IRON_ORE_ID
                         );
-                        minecartIronQuantity = minecartIronOre?.quantity || 0;
+                        playerIronQuantity = ironOre?.quantity || 0;
                     }
 
-                    const totalAvailableIron = playerIronQuantity + minecartIronQuantity;
+                    const totalAvailableIron = minecartIronQuantity + playerIronQuantity;
 
                     // Check if there's enough iron between minecart and player
                     if (totalAvailableIron < ironCost) {
@@ -186,17 +184,25 @@ module.exports = {
                         let usedPlayerIron = 0;
                         
                         // Deduct from minecart first if it has iron
-                        if (minecartIronOre && minecartIronQuantity > 0) {
+                        if (minecartIronQuantity > 0) {
                             const deductFromMinecart = Math.min(minecartIronQuantity, remainingToDeduct);
-                            minecartIronOre.quantity -= deductFromMinecart;
+                            
+                            // Update minecart quantities
+                            currentVC.gameData.minecart.items[IRON_ORE_ID].quantity -= deductFromMinecart;
+                            
+                            // Also update contributor tracking if it exists
+                            const contributors = currentVC.gameData.minecart.items[IRON_ORE_ID].contributors;
+                            if (contributors && contributors[userId]) {
+                                contributors[userId] = Math.max(0, contributors[userId] - deductFromMinecart);
+                            }
+                            
+                            // Remove item from minecart if quantity reaches 0
+                            if (currentVC.gameData.minecart.items[IRON_ORE_ID].quantity <= 0) {
+                                delete currentVC.gameData.minecart.items[IRON_ORE_ID];
+                            }
+                            
                             remainingToDeduct -= deductFromMinecart;
                             usedMinecartIron = deductFromMinecart;
-                            
-                            if (minecartIronOre.quantity <= 0) {
-                                currentVC.gameData.minecart.items = currentVC.gameData.minecart.items.filter(item => 
-                                    item.itemId !== IRON_ORE_ID && item.id !== IRON_ORE_ID
-                                );
-                            }
                             
                             currentVC.markModified('gameData.minecart.items');
                         }
@@ -271,18 +277,25 @@ module.exports = {
                     let usedPlayerIron = 0;
                     
                     // Deduct from minecart first if it has iron
-                    if (minecartIronOre && minecartIronQuantity > 0) {
+                    if (minecartIronQuantity > 0) {
                         const deductFromMinecart = Math.min(minecartIronQuantity, remainingToDeduct);
-                        minecartIronOre.quantity -= deductFromMinecart;
+                        
+                        // Update minecart quantities
+                        currentVC.gameData.minecart.items[IRON_ORE_ID].quantity -= deductFromMinecart;
+                        
+                        // Also update contributor tracking if it exists
+                        const contributors = currentVC.gameData.minecart.items[IRON_ORE_ID].contributors;
+                        if (contributors && contributors[userId]) {
+                            contributors[userId] = Math.max(0, contributors[userId] - deductFromMinecart);
+                        }
+                        
+                        // Remove item from minecart if quantity reaches 0
+                        if (currentVC.gameData.minecart.items[IRON_ORE_ID].quantity <= 0) {
+                            delete currentVC.gameData.minecart.items[IRON_ORE_ID];
+                        }
+                        
                         remainingToDeduct -= deductFromMinecart;
                         usedMinecartIron = deductFromMinecart;
-                        
-                        // Remove the item if quantity reaches 0
-                        if (minecartIronOre.quantity <= 0) {
-                            currentVC.gameData.minecart.items = currentVC.gameData.minecart.items.filter(item => 
-                                item.itemId !== IRON_ORE_ID && item.id !== IRON_ORE_ID
-                            );
-                        }
                         
                         currentVC.markModified('gameData.minecart.items');
                     }
@@ -344,8 +357,9 @@ module.exports = {
                         ironSourceDesc = `\n*Used ${usedPlayerIron} iron from inventory*`;
                     }
 
+                    // Recalculate remaining iron after deduction
                     const remainingPlayerIron = (ironOre?.quantity || 0);
-                    const remainingMinecartIron = (minecartIronOre?.quantity || 0);
+                    const remainingMinecartIron = currentVC.gameData?.minecart?.items?.[IRON_ORE_ID]?.quantity || 0;
 
                     const embed = new EmbedBuilder()
                         .setTitle('🛤️ Rails Built Successfully!')
@@ -356,7 +370,7 @@ module.exports = {
                             { name: 'Your Position', value: `(${playerPosition.x}, ${playerPosition.y})`, inline: true },
                             { name: 'Rail Segments', value: `${railsNeeded}`, inline: true },
                             { name: 'Iron Cost', value: `${ironCost}`, inline: true },
-                            { name: 'Iron Remaining', value: `Inv: ${remainingPlayerIron}\nCart: ${remainingMinecartIron}`, inline: true }
+                            { name: 'Iron Remaining', value: `Cart: ${remainingMinecartIron}\nInv: ${remainingPlayerIron}`, inline: true }
                         )
                         .setColor(startColor)
                         .setImage('attachment://rails_built.png')
