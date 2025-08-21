@@ -73,7 +73,7 @@ const UNIQUE_ITEMS = [
         
         maintenanceType: "wealthiest",
         maintenanceCost: 1, // Not coins, but represents needing to be wealthiest
-        maintenanceDecayRate: 1, // Loses 1 maintenance per cycle when not wealthiest
+        maintenanceDecayRate: 3, // Loses 3 maintenance per cycle when not wealthiest (vanishes after ~3 cycles)
         requiresMaintenance: true,
         maintenanceDescription: "The burden only recognizes the wealthiest. When another surpasses your fortune, the charm begins to abandon you.",
         

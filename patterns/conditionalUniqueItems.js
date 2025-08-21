@@ -103,14 +103,8 @@ async function tryConditionalDrop(member, guildId, itemId, guildMemberIds = null
     
     // Check if already owned by someone else
     if (dbItem && dbItem.ownerId && dbItem.ownerId !== member.id) {
-        // For Midas' Burden, transfer to new richest
-        if (conditionalItem.condition === 'richest_player') {
-            await transferToNewRichest(member, guildId, itemId);
-            return {
-                type: 'transfer',
-                message: `💰 **${member.displayName}** has become the richest and claimed Midas' Burden from its previous owner!`
-            };
-        }
+        // Item is already owned, cannot drop
+        // The current owner must lose it through maintenance failure first
         return null;
     }
     
@@ -128,87 +122,14 @@ async function tryConditionalDrop(member, guildId, itemId, guildMemberIds = null
 }
 
 /**
- * Transfer Midas' Burden to new richest player
- * @param {Object} newOwner - New owner Discord member
- * @param {string} guildId - Guild ID
- * @param {number} itemId - Item ID
- */
-async function transferToNewRichest(newOwner, guildId, itemId) {
-    try {
-        const dbItem = await UniqueItem.findOne({ itemId });
-        if (!dbItem) return;
-        
-        const previousOwner = dbItem.ownerTag;
-        
-        // Add to history
-        if (dbItem.ownerId) {
-            dbItem.previousOwners.push({
-                userId: dbItem.ownerId,
-                userTag: dbItem.ownerTag,
-                acquiredDate: dbItem.updatedAt,
-                lostDate: new Date(),
-                lostReason: 'other' // Lost due to no longer being richest
-            });
-        }
-        
-        // Transfer to new owner
-        dbItem.ownerId = newOwner.id;
-        dbItem.ownerTag = newOwner.user.tag;
-        dbItem.maintenanceLevel = 10; // Reset maintenance
-        await dbItem.save();
-        
-        console.log(`[CONDITIONAL UNIQUE] Midas' Burden transferred from ${previousOwner} to ${newOwner.user.tag}`);
-    } catch (error) {
-        console.error('[CONDITIONAL UNIQUE] Error transferring item:', error);
-    }
-}
-
-/**
  * Check all conditional items for ownership changes
  * Called periodically to update ownership based on conditions
  */
 async function checkConditionalOwnership() {
-    try {
-        for (const [itemId, config] of Object.entries(CONDITIONAL_ITEMS)) {
-            const dbItem = await UniqueItem.findOne({ itemId: parseInt(itemId) });
-            if (!dbItem || !dbItem.ownerId) continue;
-            
-            // Special handling for richest player
-            if (config.condition === 'richest_player') {
-                const stillRichest = await checkRichestPlayer(dbItem.ownerId, null);
-                
-                if (!stillRichest) {
-                    // Find the new richest player
-                    const allMoney = await Money.find({}).sort({ money: -1 }).limit(1);
-                    if (allMoney.length > 0 && allMoney[0].userId !== dbItem.ownerId) {
-                        // Transfer to new richest
-                        const newRichest = allMoney[0];
-                        
-                        console.log(`[CONDITIONAL UNIQUE] ${dbItem.ownerTag} is no longer richest, transferring to ${newRichest.usertag}`);
-                        
-                        // Add to history
-                        dbItem.previousOwners.push({
-                            userId: dbItem.ownerId,
-                            userTag: dbItem.ownerTag,
-                            acquiredDate: dbItem.updatedAt,
-                            lostDate: new Date(),
-                            lostReason: 'other'
-                        });
-                        
-                        // Transfer ownership
-                        dbItem.ownerId = newRichest.userId;
-                        dbItem.ownerTag = newRichest.usertag;
-                        dbItem.maintenanceLevel = 10;
-                        await dbItem.save();
-                    }
-                }
-            }
-            
-            // Add other condition checks here in the future
-        }
-    } catch (error) {
-        console.error('[CONDITIONAL UNIQUE] Error checking ownership:', error);
-    }
+    // This function is kept for future conditional items that might need periodic checks
+    // Midas' Burden now relies on maintenance decay instead of automatic transfers
+    // When maintenance hits 0, the item becomes unowned and can be discovered again
+    return;
 }
 
 /**
