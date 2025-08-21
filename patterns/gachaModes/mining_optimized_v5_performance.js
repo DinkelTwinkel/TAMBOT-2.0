@@ -6,6 +6,9 @@ const getPlayerStats = require('../calculatePlayerStat');
 const generateTileMapImage = require('./mining/imageProcessing/mining-layered-render');
 const gachaVC = require('../../models/activevcs');
 
+// Import concurrency control
+const { concurrencyManager, messageQueue } = require('./mining_concurrency_fix');
+
 // Import enhanced power level components
 const { 
     IMAGE_GENERATION_INTERVAL, 
@@ -229,8 +232,18 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             // For treasure chests, use treasure items or rare mining items
             return item.tier === 'epic' || item.tier === 'legendary';
         } else if (tileType === TILE_TYPES.RARE_ORE) {
-            // For rare ore, prefer rare+ items
-            return item.tier === 'rare' || item.tier === 'epic' || item.tier === 'legendary';
+            // For rare ore, get the best tiers available at this power level
+            // Power 1-2: uncommon+, Power 3-4: rare+, Power 5+: epic+
+            if (powerLevel <= 2) {
+                // At low power levels, rare ore gives uncommon or better (exclude common)
+                return item.tier !== 'common';
+            } else if (powerLevel <= 4) {
+                // Mid power levels, rare ore gives rare or better
+                return item.tier === 'rare' || item.tier === 'epic' || item.tier === 'legendary';
+            } else {
+                // High power levels, rare ore gives epic or better
+                return item.tier === 'epic' || item.tier === 'legendary';
+            }
         } else {
             // For regular ore walls, any available item
             return true;
@@ -446,8 +459,16 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
 
 // Handle break start with power level considerations
 async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1) {
+    const channelId = channel.id;
     const now = Date.now();
     const members = channel.members.filter(m => !m.user.bot);
+    
+    // Prevent duplicate break announcements
+    const breakKey = isLongBreak ? 'LONG_BREAK_START' : 'SHORT_BREAK_START';
+    if (messageQueue.isDuplicate(channelId, breakKey, 'break')) {
+        console.log(`[MINING] Duplicate break start prevented for channel ${channelId}`);
+        return;
+    }
     
     if (isLongBreak) {
         // Long break - enhanced for higher power levels
@@ -491,8 +512,12 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1)
             specialBonus: `Power Level ${powerLevel} Event`
         });
         
-        // FIX: Check for special event ending periodically
-        const eventCheckInterval = setInterval(async () => {
+        // FIX: Use concurrency manager for interval management
+        // Clear any existing event check interval for this channel
+        concurrencyManager.clearInterval(channelId, 'eventCheck');
+        
+        // Set up new interval with proper management
+        concurrencyManager.setInterval(channelId, 'eventCheck', async () => {
             try {
                 const currentEntry = await getCachedDBEntry(channel.id, true);
                 
@@ -500,33 +525,39 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1)
                 if (currentEntry.gameData?.specialEvent) {
                     const eventEndResult = await checkAndEndSpecialEvent(channel, currentEntry);
                     if (eventEndResult) {
-                        await logEvent(channel, eventEndResult, true);
-                        clearInterval(eventCheckInterval);
+                        // Prevent duplicate event end messages
+                        if (!messageQueue.isDuplicate(channelId, eventEndResult, 'eventEnd')) {
+                            await logEvent(channel, eventEndResult, true);
+                        }
+                        concurrencyManager.clearInterval(channelId, 'eventCheck');
                         
                         // Open shop after event ends if still in break
                         if (currentEntry.gameData?.breakInfo?.inBreak) {
-                            await generateShop(channel, 10);
-                            await logEvent(channel, '🛒 Shop is now open!', true);
+                            // Prevent duplicate shop open message
+                            if (!messageQueue.isDuplicate(channelId, 'SHOP_OPEN', 'shop')) {
+                                await generateShop(channel, 10);
+                                await logEvent(channel, '🛒 Shop is now open!', true);
+                            }
                         }
                     }
                 } else {
                     // No special event or already ended
-                    clearInterval(eventCheckInterval);
+                    concurrencyManager.clearInterval(channelId, 'eventCheck');
                 }
                 
                 // Stop checking if break ended
                 if (!currentEntry.gameData?.breakInfo?.inBreak) {
-                    clearInterval(eventCheckInterval);
+                    concurrencyManager.clearInterval(channelId, 'eventCheck');
                 }
             } catch (error) {
                 console.error('Error checking special event:', error);
-                clearInterval(eventCheckInterval);
+                concurrencyManager.clearInterval(channelId, 'eventCheck');
             }
         }, 30000); // Check every 30 seconds
         
         // Fallback: ensure interval is cleared after max time
         setTimeout(() => {
-            clearInterval(eventCheckInterval);
+            concurrencyManager.clearInterval(channelId, 'eventCheck');
         }, LONG_BREAK_DURATION);
         
     } else {
@@ -557,13 +588,28 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1)
         });
         
         await batchDB.flush();
-        await generateShop(channel, 5);
-        await logEvent(channel, `⛺ SHORT BREAK: Players camping at (${gatherPoint.x}, ${gatherPoint.y}). Shop open!`, true);
+        
+        // Prevent duplicate shop generation
+        if (!messageQueue.isDuplicate(channelId, 'SHORT_BREAK_SHOP', 'shop')) {
+            await generateShop(channel, 5);
+            await logEvent(channel, `⛺ SHORT BREAK: Players camping at (${gatherPoint.x}, ${gatherPoint.y}). Shop open!`, true);
+        }
     }
 }
 
 // Handle break end with power level considerations
 async function endBreak(channel, dbEntry, powerLevel = 1) {
+    const channelId = channel.id;
+    
+    // Prevent duplicate break end announcements
+    if (messageQueue.isDuplicate(channelId, 'BREAK_END', 'break')) {
+        console.log(`[MINING] Duplicate break end prevented for channel ${channelId}`);
+        return;
+    }
+    
+    // Clear any lingering intervals for this channel
+    concurrencyManager.clearAllIntervalsForChannel(channelId);
+    
     const mapData = dbEntry.gameData.map;
     const members = channel.members.filter(m => !m.user.bot);
     const breakInfo = dbEntry.gameData.breakInfo;
@@ -656,14 +702,32 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
 
 // Main Mining Event - Enhanced with Full Power Level Integration
 module.exports = async (channel, dbEntry, json, client) => {
-    const now = Date.now();
+    const channelId = channel.id;
     
-    initializeGameData(dbEntry, channel.id);
-    await dbEntry.save();
+    // CRITICAL: Check if we're already processing this channel
+    if (concurrencyManager.isLocked(channelId)) {
+        console.log(`[MINING] Channel ${channelId} is already being processed, skipping...`);
+        return;
+    }
+    
+    // Acquire lock for this channel
+    await concurrencyManager.acquireLock(channelId);
+    
+    try {
+        const now = Date.now();
+        
+        initializeGameData(dbEntry, channel.id);
+        await dbEntry.save();
 
-    if (!channel?.isVoiceBased()) return;
-    const members = channel.members.filter(m => !m.user.bot);
-    if (!members.size) return;
+        if (!channel?.isVoiceBased()) {
+            concurrencyManager.releaseLock(channelId);
+            return;
+        }
+        const members = channel.members.filter(m => !m.user.bot);
+        if (!members.size) {
+            concurrencyManager.releaseLock(channelId);
+            return;
+        }
 
     // Enhanced power level detection
     const serverPowerLevel = json.power || 1;
@@ -956,19 +1020,25 @@ module.exports = async (channel, dbEntry, json, client) => {
         dbCache.delete(channel.id);
     }
 
-    // Enhanced event logging with power level info
-    const powerLevelConfig = POWER_LEVEL_CONFIG[serverPowerLevel];
-    const powerLevelInfo = {
-        level: serverPowerLevel,
-        name: powerLevelConfig?.name || 'Unknown Expedition',
-        specialBonus: serverModifiers.specialBonus
-    };
+        // Enhanced event logging with power level info
+        const powerLevelConfig = POWER_LEVEL_CONFIG[serverPowerLevel];
+        const powerLevelInfo = {
+            level: serverPowerLevel,
+            name: powerLevelConfig?.name || 'Unknown Expedition',
+            specialBonus: serverModifiers.specialBonus
+        };
 
-    if (eventLogs.length > 0) {
-        const combinedEvents = eventLogs.join(' | ');
-        await logEvent(channel, combinedEvents, false, powerLevelInfo);
-    } else {
-        await logEvent(channel, '', false, powerLevelInfo);
+        if (eventLogs.length > 0) {
+            const combinedEvents = eventLogs.join(' | ');
+            await logEvent(channel, combinedEvents, false, powerLevelInfo);
+        } else {
+            await logEvent(channel, '', false, powerLevelInfo);
+        }
+    } catch (error) {
+        console.error(`[MINING] Error processing channel ${channelId}:`, error);
+    } finally {
+        // ALWAYS release the lock when done
+        concurrencyManager.releaseLock(channelId);
     }
 };
 
@@ -1307,9 +1377,32 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     return { mapChanged, wallsBroken, treasuresFound, mapData, hazardsChanged };
 }
 
+// Cleanup function for when bot shuts down or restarts
+function cleanupAllChannels() {
+    console.log('[MINING] Cleaning up all locks and intervals...');
+    const debugInfo = concurrencyManager.getDebugInfo();
+    console.log('[MINING] Active locks:', debugInfo.lockedChannels);
+    console.log('[MINING] Active intervals:', debugInfo.activeIntervals);
+    
+    // Clear all locks
+    for (const channelId of debugInfo.lockedChannels) {
+        concurrencyManager.releaseLock(channelId);
+    }
+    
+    // Clear all intervals
+    for (const key of debugInfo.activeIntervals) {
+        const [channelId] = key.split('_');
+        concurrencyManager.clearAllIntervalsForChannel(channelId);
+    }
+    
+    // Clear message queue
+    messageQueue.recentMessages.clear();
+}
+
 // Export utility functions for testing
 module.exports.mineFromTile = mineFromTile;
 module.exports.generateTreasure = generateTreasure;
 module.exports.getServerModifiers = getServerModifiers;
 module.exports.getCachedMiningEfficiency = getCachedMiningEfficiency;
 module.exports.POWER_LEVEL_CONFIG = POWER_LEVEL_CONFIG;
+module.exports.cleanupAllChannels = cleanupAllChannels;

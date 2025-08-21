@@ -900,7 +900,7 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
                     renderY: y * floorTileSize + floorTileSize // Bottom of wall aligns with floor
                 });
             } else if (tile.type === TILE_TYPES.ENTRANCE) {
-                // Add entrance to midground (it acts like a wall)
+                // Add entrance to midground (it acts like a wall but renders before players)
                 midgroundObjects.push({
                     type: 'entrance',
                     y: y,
@@ -908,7 +908,7 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
                     tile: tile,
                     isVisible: isVisible,
                     wasDiscovered: wasDiscovered,
-                    renderY: y * floorTileSize + floorTileSize * 0.5 // Place entrance before players
+                    renderY: y * floorTileSize + floorTileSize * 0.3 // Render entrance early so players appear above it
                 });
             }
             
