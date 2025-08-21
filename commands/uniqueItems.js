@@ -133,6 +133,8 @@ async function handleInventory(interaction, userId) {
         });
     }
     
+    embed.setFooter({ text: 'Use /unique maintain item_id:<ID> to perform maintenance' });
+    
     return interaction.editReply({ embeds: [embed] });
 }
 
