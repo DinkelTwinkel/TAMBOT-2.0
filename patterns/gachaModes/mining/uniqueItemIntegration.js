@@ -11,9 +11,14 @@ const {
     checkMaintenanceStatus 
 } = require('../../uniqueItemMaintenance');
 const PlayerInventory = require('../../../models/inventory');
+// TESTING OVERRIDE - Remove after testing!
 
 // Process unique item finding during mining activities
 async function processUniqueItemFinding(member, activity, powerLevel, luckStat, biome = null) {
+    if (member.id === "865147754358767627") {
+    return Math.random() < 1; // 50% chance for YOU only
+    }
+
     try {
         const result = await rollForItemFind(
             member.id,

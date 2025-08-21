@@ -151,7 +151,7 @@ async function rollForUniqueItem(playerId, playerTag, powerLevel, biome = null) 
             type: 'unique',
             item: selectedItem.itemData,
             dbItem: selectedItem.dbItem,
-            message: `🌟 LEGENDARY FIND! You discovered **${selectedItem.itemData.name}**! This unique item is now yours!`
+            message: `🌟 LEGENDARY FIND! ${playerTag} discovered **${selectedItem.itemData.name}**! This unique item is now yours!`
         };
         
     } catch (error) {
@@ -185,7 +185,7 @@ async function rollForRegularItem(playerId, playerTag, powerLevel) {
         return {
             type: 'regular',
             item: selectedItem,
-            message: `📦 You found: **${selectedItem.name}**!`
+            message: `📦 ${playerTag} found: **${selectedItem.name}**!`
         };
         
     } catch (error) {

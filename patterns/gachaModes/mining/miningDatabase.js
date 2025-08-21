@@ -1,8 +1,8 @@
-// miningDatabase.js - Database operations for mining
+// miningDatabase.js - Database operations for mining (with integrated fixes)
 const gachaVC = require('../../../models/activevcs');
 const PlayerInventory = require('../../../models/inventory');
 const Currency = require('../../../models/currency');
-const { miningItemPool, treasureItems } = require('./miningConstants');
+const { miningItemPool, treasureItems } = require('./miningConstants_unified');
 
 // Enhanced Database System
 class DatabaseTransaction {
@@ -47,9 +47,12 @@ class DatabaseTransaction {
                 await this.addItemAtomic(ops.playerId, ops.playerTag, addition.itemId, addition.quantity);
             }
             
-            // Process all removals (pickaxe breaks) for this player
+            // Process all removals (pickaxe breaks) for this player - WITH FIX
             for (const removal of ops.removals) {
-                await breakPickaxe(ops.playerId, ops.playerTag, removal);
+                const result = await breakPickaxe(ops.playerId, ops.playerTag, removal);
+                if (!result) {
+                    console.error(`Failed to break pickaxe for player ${ops.playerId}`);
+                }
             }
             
             // Process all durability updates for this player
@@ -326,64 +329,93 @@ async function updateItemDurability(playerId, itemId, newDurability) {
     }
 }
 
+// IMPROVED breakPickaxe function with better debugging and error handling
 async function breakPickaxe(playerId, playerTag, pickaxe) {
-    console.log('[PICKAXE BREAK] Processing broken pickaxe:', pickaxe.name, 'for player:', playerId);
+    console.log('=== BREAKPICKAXE DEBUG ===');
+    console.log('Player ID:', playerId);
+    console.log('Player Tag:', playerTag);
+    console.log('Pickaxe object:', JSON.stringify(pickaxe, null, 2));
     
+    // Get the pickaxe ID - check multiple possible field names
     const pickaxeId = pickaxe.id || pickaxe.itemId || pickaxe._id;
     
     if (!pickaxeId) {
-        console.error('[PICKAXE BREAK] No pickaxe ID found in:', pickaxe);
-        return;
+        console.error('ERROR: No pickaxe ID found in pickaxe object');
+        console.error('Available fields:', Object.keys(pickaxe));
+        return false;
     }
     
+    console.log('Using pickaxe ID:', pickaxeId);
+    
     try {
-        // Get the inventory
+        // First, check if the item exists in the inventory
         const inventory = await PlayerInventory.findOne({ playerId });
+        
         if (!inventory) {
-            console.error('[PICKAXE BREAK] No inventory found for player');
-            return;
+            console.error(`ERROR: No inventory found for player ${playerId}`);
+            return false;
         }
         
-        // Find the item in inventory
-        const itemIndex = inventory.items.findIndex(item => 
-            (item.itemId?.toString() === pickaxeId.toString()) || 
-            (item.id?.toString() === pickaxeId.toString())
-        );
+        console.log('Current inventory items:', inventory.items.map(item => ({
+            itemId: item.itemId,
+            quantity: item.quantity,
+            currentDurability: item.currentDurability
+        })));
+        
+        // Find the specific item - check multiple field names and string conversions
+        const itemIndex = inventory.items.findIndex(item => {
+            const itemIdStr = String(item.itemId || item.id || '');
+            const pickaxeIdStr = String(pickaxeId);
+            return itemIdStr === pickaxeIdStr;
+        });
         
         if (itemIndex === -1) {
-            console.log(`[PICKAXE BREAK] Pickaxe ${pickaxe.name} not found in inventory`);
-            return;
+            console.error(`ERROR: Pickaxe ${pickaxeId} not found in inventory`);
+            console.error('Looking for:', pickaxeId);
+            console.error('Available item IDs:', inventory.items.map(i => i.itemId || i.id));
+            return false;
         }
         
         const currentItem = inventory.items[itemIndex];
         const currentQuantity = currentItem.quantity || 1;
+        console.log(`Found pickaxe at index ${itemIndex} with quantity ${currentQuantity}`);
         
         // Get max durability from itemSheet for resetting
         const itemSheet = require('../../../data/itemSheet.json');
         const itemData = itemSheet.find(it => String(it.id) === String(pickaxeId));
         const maxDurability = itemData?.durability || 100;
         
-        console.log(`[PICKAXE BREAK] Current quantity: ${currentQuantity}`);
-        
         if (currentQuantity > 1) {
             // Reduce quantity by 1 and RESET durability to max
+            console.log(`Decrementing quantity from ${currentQuantity} to ${currentQuantity - 1}, resetting durability to ${maxDurability}`);
+            
             inventory.items[itemIndex].quantity = currentQuantity - 1;
             inventory.items[itemIndex].currentDurability = maxDurability;
             
-            console.log(`[PICKAXE BREAK] Reduced quantity to ${currentQuantity - 1}, reset durability to ${maxDurability}`);
+            // Mark as modified and save
+            inventory.markModified('items');
+            await inventory.save();
+            
+            console.log(`SUCCESS: Reduced ${pickaxe.name || 'pickaxe'} quantity and reset durability`);
+            return true;
         } else {
             // Remove the item entirely
+            console.log('Removing item entirely (quantity was 1)...');
+            
             inventory.items.splice(itemIndex, 1);
-            console.log(`[PICKAXE BREAK] Removed ${pickaxe.name} from inventory (quantity was 1)`);
+            
+            // Mark as modified and save
+            inventory.markModified('items');
+            await inventory.save();
+            
+            console.log(`SUCCESS: Removed ${pickaxe.name || 'pickaxe'} from inventory`);
+            return true;
         }
         
-        // Mark as modified and save
-        inventory.markModified('items');
-        await inventory.save();
-        
-        console.log(`[PICKAXE BREAK] Successfully processed broken pickaxe`);
     } catch (error) {
-        console.error(`[PICKAXE BREAK] Error breaking pickaxe for player ${playerId}:`, error);
+        console.error(`ERROR: Exception in breakPickaxe for player ${playerId}:`, error);
+        console.error('Stack trace:', error.stack);
+        return false;
     }
 }
 
