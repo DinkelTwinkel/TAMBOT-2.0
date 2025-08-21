@@ -1656,6 +1656,88 @@ function isLongBreak(dbEntry) {
 }
 
 /**
+ * Final pass shader - randomly replaces black pixels with the pixel below
+ * Creates a dripping/bleeding effect for shadows and dark areas
+ * @param {CanvasRenderingContext2D} ctx - The canvas context
+ * @param {number} width - Canvas width
+ * @param {number} height - Canvas height
+ * @param {number} replaceChance - Chance to replace a black pixel (0-1)
+ * @param {number} blackThreshold - RGB values below this are considered "black" (0-255)
+ */
+function applyFinalPassShader(ctx, width, height, replaceChance = 0.3, blackThreshold = 20) {
+    // Get the image data
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    
+    // Create a copy of the original data to read from
+    const originalData = new Uint8ClampedArray(data);
+    
+    // Iterate through pixels from top to bottom (skip last row since we need pixel below)
+    for (let y = 0; y < height - 1; y++) {
+        for (let x = 0; x < width; x++) {
+            // Calculate pixel index (RGBA format, so 4 values per pixel)
+            const currentIndex = (y * width + x) * 4;
+            const belowIndex = ((y + 1) * width + x) * 4;
+            
+            // Get current pixel RGB values from original data
+            const r = originalData[currentIndex];
+            const g = originalData[currentIndex + 1];
+            const b = originalData[currentIndex + 2];
+            const a = originalData[currentIndex + 3];
+            
+            // Check if pixel is black (or very dark)
+            const isBlack = r <= blackThreshold && g <= blackThreshold && b <= blackThreshold;
+            
+            if (isBlack && a > 0) { // Only process non-transparent black pixels
+                // Random chance to replace with pixel below
+                if (Math.random() < replaceChance) {
+                    // Copy the pixel below to current position
+                    data[currentIndex] = originalData[belowIndex];       // R
+                    data[currentIndex + 1] = originalData[belowIndex + 1]; // G
+                    data[currentIndex + 2] = originalData[belowIndex + 2]; // B
+                    // Keep original alpha to maintain transparency
+                    data[currentIndex + 3] = a;
+                }
+            }
+        }
+    }
+    
+    // Apply a second pass for enhanced dripping effect (optional)
+    // This creates longer drips by processing the already modified data
+    if (replaceChance > 0.5) {
+        const secondPassChance = replaceChance * 0.5; // Reduced chance for second pass
+        
+        // Copy the modified data for second pass
+        const firstPassData = new Uint8ClampedArray(data);
+        
+        for (let y = 0; y < height - 1; y++) {
+            for (let x = 0; x < width; x++) {
+                const currentIndex = (y * width + x) * 4;
+                const belowIndex = ((y + 1) * width + x) * 4;
+                
+                const r = firstPassData[currentIndex];
+                const g = firstPassData[currentIndex + 1];
+                const b = firstPassData[currentIndex + 2];
+                const a = firstPassData[currentIndex + 3];
+                
+                // Use slightly higher threshold for second pass to catch newly darkened pixels
+                const isBlack = r <= blackThreshold * 1.5 && g <= blackThreshold * 1.5 && b <= blackThreshold * 1.5;
+                
+                if (isBlack && a > 0 && Math.random() < secondPassChance) {
+                    data[currentIndex] = firstPassData[belowIndex];
+                    data[currentIndex + 1] = firstPassData[belowIndex + 1];
+                    data[currentIndex + 2] = firstPassData[belowIndex + 2];
+                    data[currentIndex + 3] = a;
+                }
+            }
+        }
+    }
+    
+    // Put the modified image data back
+    ctx.putImageData(imageData, 0, 0);
+}
+
+/**
  * Main function to generate enhanced layered mining map
  */
 async function generateTileMapImage(channel) {
@@ -1771,6 +1853,13 @@ async function generateTileMapImage(channel) {
 
     // Restore translation
     ctx.restore();
+    
+    // === FINAL PASS SHADER ===
+    // Apply the dripping/bleeding effect to black pixels
+    // Adjust parameters as needed:
+    // - replaceChance: 0.0 to 1.0 (higher = more dripping)
+    // - blackThreshold: 0 to 255 (higher = more pixels affected)
+    applyFinalPassShader(ctx, finalWidth, finalHeight, 0.35, 15);
     
     // === BORDER (last step) ===
     ctx.save();
