@@ -1,169 +1,308 @@
 // patterns/conditionalUniqueItems.js
-// System for unique items that require specific conditions to own
+// Functions for handling conditional unique items like Midas' Burden
 
-const UniqueItem = require('../models/uniqueItems');
 const Money = require('../models/currency');
-const { getUniqueItemById } = require('../data/uniqueItemsSheet');
-
-// Define conditional items and their requirements
-const CONDITIONAL_ITEMS = {
-    10: { // Midas' Burden
-        condition: 'richest_player',
-        checkFunction: async (playerId, guildId, itemId, guildMemberIds) => {
-            return await checkRichestPlayer(playerId, guildId, guildMemberIds);
-        },
-        loseCondition: 'no_longer_richest',
-        description: 'Only the wealthiest soul can bear this burden'
-    },
-    // Future conditional items can be added here:
-    // 11: { condition: 'voice_8hours', checkFunction: checkVoiceTime },
-    // 12: { condition: 'lost_million_gambling', checkFunction: checkGamblingLosses },
-    // 13: { condition: 'specific_mine', checkFunction: checkSpecificMine },
-    // 14: { condition: 'most_deaths', checkFunction: checkMostDeaths },
-    // 15: { condition: 'longest_playtime', checkFunction: checkLongestPlaytime }
-};
+const UniqueItem = require('../models/uniqueItems');
 
 /**
- * Check if a player meets the condition for a conditional unique item
- * @param {string} playerId - Player's Discord ID
- * @param {string} guildId - Guild ID
- * @param {number} itemId - Unique item ID
- * @param {Array<string>} guildMemberIds - Array of guild member IDs (optional)
- * @returns {Promise<boolean>} Whether player meets the condition
+ * Check if a player is the richest in the guild
+ * @param {string} userId - The user ID to check
+ * @param {string} guildId - The guild ID
+ * @param {Array} memberIds - Array of guild member IDs
+ * @returns {boolean} - True if the user is the richest
  */
-async function playerMeetsCondition(playerId, guildId, itemId, guildMemberIds = null) {
-    const conditionalItem = CONDITIONAL_ITEMS[itemId];
-    if (!conditionalItem) return true; // Non-conditional items always meet condition
-    
-    return await conditionalItem.checkFunction(playerId, guildId, itemId, guildMemberIds);
-}
-
-/**
- * Check if player is the richest in their guild
- * @param {string} playerId - Player's Discord ID
- * @param {string} guildId - Guild ID (optional)
- * @param {Array<string>} guildMemberIds - Array of guild member IDs (optional)
- * @returns {Promise<boolean>} Whether player is richest
- */
-async function checkRichestPlayer(playerId, guildId, guildMemberIds = null) {
+async function checkRichestPlayer(userId, guildId, memberIds) {
     try {
-        let query = {};
+        // Get all money records for guild members
+        const allMoney = await Money.find({ 
+            userId: { $in: memberIds } 
+        }).sort({ money: -1 });
         
-        // If we have guild member IDs, filter by them
-        if (guildMemberIds && Array.isArray(guildMemberIds)) {
-            query = { userId: { $in: guildMemberIds } };
+        if (allMoney.length === 0) {
+            return false;
         }
         
-        // Get the richest player(s) with the filter
-        const allMoney = await Money.find(query).sort({ money: -1 }).limit(1);
-        
-        if (allMoney.length === 0) return false;
-        
-        // Check if this player is the richest
+        // Check if the user is the richest
         const richest = allMoney[0];
-        return richest.userId === playerId;
+        return richest.userId === userId;
+        
     } catch (error) {
-        console.error('[CONDITIONAL UNIQUE] Error checking richest player:', error);
+        console.error('[CONDITIONAL] Error checking richest player:', error);
         return false;
     }
 }
 
 /**
- * Process conditional unique item drop attempt
- * @param {Object} member - Discord member object or simplified object with id, user.tag, displayName
- * @param {string} guildId - Guild ID
- * @param {number} itemId - Item to try dropping
- * @param {Array<string>} guildMemberIds - Array of guild member IDs (optional)
- * @returns {Promise<Object|null>} Drop result or null
+ * Get the current luck multiplier for Midas' Burden
+ * Randomly returns either 0 or 100 to simulate the curse/blessing
+ * @returns {number} - Either 0 or 100
  */
-async function tryConditionalDrop(member, guildId, itemId, guildMemberIds = null) {
-    const conditionalItem = CONDITIONAL_ITEMS[itemId];
-    if (!conditionalItem) return null;
-    
-    // Check if player meets condition
-    const meetsCondition = await conditionalItem.checkFunction(member.id, guildId, itemId, guildMemberIds);
-    if (!meetsCondition) return null;
-    
-    // Check if item exists and is unowned
-    const dbItem = await UniqueItem.findOne({ itemId });
-    if (!dbItem) {
-        // Create the item
-        const itemData = getUniqueItemById(itemId);
-        if (!itemData) return null;
+function getMidasLuckMultiplier() {
+    // Midas' Burden mechanic: luck is either cursed (0x) or blessed (100x)
+    return Math.random() < 0.5 ? 0 : 100;
+}
+
+/**
+ * Try to assign Midas' Burden to the richest player
+ * @param {string} guildId - The guild ID
+ * @param {Array} memberIds - Array of guild member IDs
+ * @returns {Object|null} - Result of the assignment attempt
+ */
+async function tryAssignMidasBurden(guildId, memberIds) {
+    try {
+        // Find Midas' Burden
+        const midasBurden = await UniqueItem.findOne({ itemId: 10 });
         
-        await UniqueItem.create({
-            itemId: itemId,
-            ownerId: null,
-            maintenanceType: itemData.maintenanceType,
-            maintenanceCost: itemData.maintenanceCost,
-            requiresMaintenance: itemData.requiresMaintenance,
-            maintenanceLevel: 10
-        });
-    }
-    
-    // Check if already owned by someone else
-    if (dbItem && dbItem.ownerId && dbItem.ownerId !== member.id) {
-        // Item is already owned, cannot drop
-        // The current owner must lose it through maintenance failure first
+        if (!midasBurden) {
+            console.log('[CONDITIONAL] Midas\' Burden not found in database');
+            return null;
+        }
+        
+        // Get the richest player
+        const allMoney = await Money.find({ 
+            userId: { $in: memberIds } 
+        }).sort({ money: -1 }).limit(1);
+        
+        if (allMoney.length === 0) {
+            return null;
+        }
+        
+        const richest = allMoney[0];
+        
+        // Check if already owned by the richest
+        if (midasBurden.ownerId === richest.userId) {
+            return {
+                success: false,
+                message: 'Already owned by the richest player'
+            };
+        }
+        
+        // Transfer to the richest player
+        const previousOwner = midasBurden.ownerId;
+        
+        if (previousOwner) {
+            // Add to history
+            midasBurden.previousOwners.push({
+                userId: previousOwner,
+                userTag: midasBurden.ownerTag,
+                acquiredDate: midasBurden.updatedAt,
+                lostDate: new Date(),
+                lostReason: 'no_longer_richest'
+            });
+        }
+        
+        // Assign to new owner
+        midasBurden.ownerId = richest.userId;
+        midasBurden.ownerTag = richest.userTag || 'Unknown';
+        midasBurden.maintenanceLevel = 10; // Reset maintenance
+        
+        await midasBurden.save();
+        
+        return {
+            success: true,
+            previousOwner,
+            newOwner: richest.userId,
+            wealth: richest.money,
+            message: `Midas' Burden has recognized ${richest.userTag} as the wealthiest!`
+        };
+        
+    } catch (error) {
+        console.error('[CONDITIONAL] Error assigning Midas\' Burden:', error);
         return null;
     }
-    
-    // Assign to player
-    if (!dbItem.ownerId) {
-        await dbItem.assignToPlayer(member.id, member.user.tag);
-        const itemData = getUniqueItemById(itemId);
+}
+
+/**
+ * Check and update Midas' Burden ownership if needed
+ * Should be called periodically or when wealth changes
+ * @param {string} guildId - The guild ID
+ * @param {Array} memberIds - Array of guild member IDs
+ */
+async function updateMidasBurdenOwnership(guildId, memberIds) {
+    try {
+        const midasBurden = await UniqueItem.findOne({ itemId: 10 });
+        
+        if (!midasBurden || !midasBurden.ownerId) {
+            // Try to assign to richest if unowned
+            return await tryAssignMidasBurden(guildId, memberIds);
+        }
+        
+        // Check if current owner is still the richest
+        const isStillRichest = await checkRichestPlayer(
+            midasBurden.ownerId, 
+            guildId, 
+            memberIds
+        );
+        
+        if (!isStillRichest) {
+            // Transfer to new richest
+            return await tryAssignMidasBurden(guildId, memberIds);
+        }
+        
         return {
-            type: 'new_drop',
-            message: `💰🌟 **CONDITIONAL LEGENDARY!** ${member.displayName} has claimed **${itemData.name}**! ${conditionalItem.description}`
+            success: false,
+            message: 'Current owner is still the richest'
         };
+        
+    } catch (error) {
+        console.error('[CONDITIONAL] Error updating Midas\' Burden ownership:', error);
+        return null;
     }
-    
-    return null;
 }
 
 /**
- * Check all conditional items for ownership changes
- * Called periodically to update ownership based on conditions
+ * Handle maintenance decay for Midas' Burden
+ * It only decays when the owner is not the richest
+ * @param {string} userId - The owner's user ID
+ * @param {string} guildId - The guild ID
+ * @param {Array} memberIds - Array of guild member IDs
  */
-async function checkConditionalOwnership() {
-    // This function is kept for future conditional items that might need periodic checks
-    // Midas' Burden now relies on maintenance decay instead of automatic transfers
-    // When maintenance hits 0, the item becomes unowned and can be discovered again
-    return;
+async function handleMidasMaintenanceDecay(userId, guildId, memberIds) {
+    try {
+        const midasBurden = await UniqueItem.findOne({ 
+            itemId: 10, 
+            ownerId: userId 
+        });
+        
+        if (!midasBurden) {
+            return null;
+        }
+        
+        const isRichest = await checkRichestPlayer(userId, guildId, memberIds);
+        
+        if (!isRichest) {
+            // Decay maintenance
+            midasBurden.maintenanceLevel = Math.max(0, midasBurden.maintenanceLevel - 3);
+            
+            if (midasBurden.maintenanceLevel <= 0) {
+                // Remove from owner
+                midasBurden.previousOwners.push({
+                    userId: midasBurden.ownerId,
+                    userTag: midasBurden.ownerTag,
+                    acquiredDate: midasBurden.updatedAt,
+                    lostDate: new Date(),
+                    lostReason: 'maintenance_failure'
+                });
+                
+                midasBurden.ownerId = null;
+                midasBurden.ownerTag = null;
+                midasBurden.maintenanceLevel = 10;
+                midasBurden.statistics.timesLostToMaintenance++;
+            }
+            
+            await midasBurden.save();
+            
+            return {
+                decayed: true,
+                newLevel: midasBurden.maintenanceLevel,
+                lost: midasBurden.maintenanceLevel <= 0
+            };
+        }
+        
+        return {
+            decayed: false,
+            message: 'Owner is still the richest, no decay'
+        };
+        
+    } catch (error) {
+        console.error('[CONDITIONAL] Error handling Midas maintenance:', error);
+        return null;
+    }
 }
 
 /**
- * Get all conditional unique items
- * @returns {Array} List of conditional item IDs
+ * Check if a user meets conditions for a conditional item
+ * @param {string} userId - The user ID
+ * @param {string} guildId - The guild ID
+ * @param {number} itemId - The item ID to check
  */
-function getConditionalItemIds() {
-    return Object.keys(CONDITIONAL_ITEMS).map(id => parseInt(id));
+async function meetsConditionalRequirements(userId, guildId, itemId) {
+    try {
+        // Currently only Midas' Burden (ID: 10) is conditional
+        if (itemId !== 10) {
+            return true; // Non-conditional items always meet requirements
+        }
+        
+        // For Midas' Burden, check if user is richest
+        const guild = require('discord.js').Client.guilds?.cache?.get(guildId);
+        if (!guild) return false;
+        
+        const members = await guild.members.fetch();
+        const memberIds = members.map(m => m.id);
+        
+        return await checkRichestPlayer(userId, guildId, memberIds);
+        
+    } catch (error) {
+        console.error('[CONDITIONAL] Error checking requirements:', error);
+        return false;
+    }
+}
+
+/**
+ * Try to drop a conditional item if conditions are met
+ * @param {Object} member - Discord member object
+ * @param {string} guildId - Guild ID
+ * @param {number} itemId - Item ID to try dropping
+ */
+async function tryConditionalDrop(member, guildId, itemId) {
+    try {
+        // Only handle Midas' Burden for now
+        if (itemId !== 10) return null;
+        
+        // Check if user is richest
+        const guild = member.guild || require('discord.js').Client.guilds?.cache?.get(guildId);
+        if (!guild) return null;
+        
+        const members = await guild.members.fetch();
+        const memberIds = members.map(m => m.id);
+        
+        const isRichest = await checkRichestPlayer(member.id, guildId, memberIds);
+        
+        if (!isRichest) return null;
+        
+        // Check if item is available
+        const item = await UniqueItem.findOne({ itemId: 10 });
+        if (!item || item.ownerId) return null;
+        
+        // Assign to player
+        item.ownerId = member.id;
+        item.ownerTag = member.user?.tag || member.tag || 'Unknown';
+        item.maintenanceLevel = 10;
+        item.statistics.timesFound++;
+        
+        await item.save();
+        
+        return {
+            success: true,
+            item: {
+                id: 10,
+                name: "Midas' Burden"
+            },
+            message: "💰 **MIDAS' BURDEN RECOGNIZES YOUR WEALTH!** The golden weight has chosen you as the wealthiest soul!"
+        };
+        
+    } catch (error) {
+        console.error('[CONDITIONAL] Error in conditional drop:', error);
+        return null;
+    }
 }
 
 /**
  * Check if an item is conditional
- * @param {number} itemId - Item ID to check
- * @returns {boolean} Whether item is conditional
+ * @param {number} itemId - The item ID
  */
 function isConditionalItem(itemId) {
-    return CONDITIONAL_ITEMS.hasOwnProperty(itemId);
-}
-
-/**
- * Get random luck multiplier for Midas' Burden
- * @returns {number} Either 0 or 100
- */
-function getMidasLuckMultiplier() {
-    // 50/50 chance of either 0x or 100x luck
-    return Math.random() < 0.5 ? 0 : 100;
+    // Currently only Midas' Burden (ID: 10) is conditional
+    return itemId === 10;
 }
 
 module.exports = {
-    playerMeetsCondition,
-    tryConditionalDrop,
-    checkConditionalOwnership,
-    getConditionalItemIds,
-    isConditionalItem,
+    checkRichestPlayer,
     getMidasLuckMultiplier,
-    CONDITIONAL_ITEMS
+    tryAssignMidasBurden,
+    updateMidasBurdenOwnership,
+    handleMidasMaintenanceDecay,
+    meetsConditionalRequirements,
+    tryConditionalDrop,
+    isConditionalItem
 };

@@ -6,8 +6,8 @@ const TESTING_MODE = true; // Set to false for production
 // Testing configuration
 const TEST_CONFIG = {
     // Your Discord user ID for testing (replace with your actual ID)
-    TEST_USER_ID: 'YOUR_DISCORD_ID_HERE',
-    TEST_USER_TAG: 'YourName#1234',
+    TEST_USER_ID: '865147754358767627',
+    TEST_USER_TAG: 'dinkeltwinkel',
     
     // Multipliers for testing
     DROP_CHANCE_MULTIPLIER: 100,    // Multiply all drop chances by this

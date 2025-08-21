@@ -1881,7 +1881,7 @@ async function generateTileMapImage(channel) {
     // During long breaks, hide players (they're in shop/event)
     if (inLongBreak) {
         // === LAYER 1: FLOOR LAYER ===
-        await drawFloorLayer(ctx, tiles, width, height, floorTileSize, visibilityMap, theme);
+        await drawFloorLayer(ctx, tiles, width, height, floorTileSize, visibilityMap, theme, channel.id);
         
         // === LAYER 2: MIDGROUND LAYER (Y-sorted) - pass empty members to hide players ===
         const emptyMembers = new Map(); // Hide all players during long break

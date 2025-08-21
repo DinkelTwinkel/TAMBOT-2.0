@@ -1,22 +1,50 @@
 // patterns/gachaModes/mining/uniqueItemIntegration.js
 // Integrates unique item finding into the mining system
 
-const { 
-    rollForItemFind, 
-    initializeUniqueItems,
-    getPlayerUniqueItems 
-} = require('../../uniqueItemFinding');
+// Check if the file exists and import properly
+let rollForItemFind, initializeUniqueItems, getPlayerUniqueItems;
+
+try {
+    const uniqueFinding = require('../../uniqueItemFinding');
+    rollForItemFind = uniqueFinding.rollForItemFind;
+    initializeUniqueItems = uniqueFinding.initializeUniqueItems;
+    getPlayerUniqueItems = uniqueFinding.getPlayerUniqueItems;
+    
+    // Verify functions exist
+    if (!rollForItemFind) {
+        console.error('[UNIQUE] rollForItemFind not found in exports');
+        // Create a stub function
+        rollForItemFind = async () => null;
+    }
+} catch (error) {
+    console.error('[UNIQUE] Error loading uniqueItemFinding:', error);
+    // Create stub functions to prevent crashes
+    rollForItemFind = async () => null;
+    initializeUniqueItems = async () => {};
+    getPlayerUniqueItems = async () => [];
+}
 const { 
     updateActivityTracking,
     checkMaintenanceStatus 
 } = require('../../uniqueItemMaintenance');
 const PlayerInventory = require('../../../models/inventory');
-// TESTING OVERRIDE - Remove after testing!
-
 // Process unique item finding during mining activities
 async function processUniqueItemFinding(member, activity, powerLevel, luckStat, biome = null) {
-    if (member.id === "865147754358767627") {
-    return Math.random() < 1; // 50% chance for YOU only
+    // TESTING OVERRIDE - Remove after testing!
+    // Replace YOUR_DISCORD_ID with your actual Discord ID
+    if (member.id === "YOUR_DISCORD_ID") {
+        // 50% chance to return a fake unique item for testing
+        if (Math.random() < 0.5) {
+            return {
+                type: 'unique',
+                item: {
+                    name: 'TEST: Blue Breeze',
+                    id: 9,
+                    value: 50000
+                },
+                message: '🌟 [TEST MODE] Found a unique item!'
+            };
+        }
     }
 
     try {
@@ -167,7 +195,7 @@ async function addUniqueItemToMinecart(dbEntry, playerId, itemData, eventLogs) {
 }
 
 module.exports = {
-    initializeUniqueItems,
+    initializeUniqueItems: initializeUniqueItems || (async () => {}),
     processUniqueItemFinding,
     updateMiningActivity,
     updateVoiceActivity,
