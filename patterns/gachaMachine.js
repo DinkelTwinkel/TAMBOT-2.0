@@ -118,14 +118,23 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                         );
 
                         // Build and send the embed with image
-                        const imagePath = path.join(__dirname, '../assets/gachaLocations', chosenChannelType.image + '.png');
-                        const imageAttachment = new AttachmentBuilder(imagePath, { name: imagePath });
+                        let imagePath = path.join(__dirname, '../assets/gachaLocations', chosenChannelType.image + '.png');
+                        let imageFileName = chosenChannelType.image + '.png';
+                        
+                        // Check if image exists, fallback to placeholder if not
+                        if (!fs.existsSync(imagePath)) {
+                            console.log(`Image not found: ${imagePath}, using placeholder`);
+                            imagePath = path.join(__dirname, '../assets/gachaLocations', 'placeHolder.png');
+                            imageFileName = 'placeHolder.png';
+                        }
+                        
+                        const imageAttachment = new AttachmentBuilder(imagePath, { name: imageFileName });
                         const rollEmbed = new EmbedBuilder()
                             .setTitle(chosenChannelType.name)
                             .setDescription('```' + chosenChannelType.description + '```')
                             .setFooter({ text: `Rarity: ${chosenChannelType.rarity} | Restored from cooldown` })
                             .setColor(chosenChannelType.colour || 'Gold')
-                            .setImage(`attachment://${chosenChannelType.image}.png`);
+                            .setImage(`attachment://${imageFileName}`);
                         
                         await newGachaChannel.send({ embeds: [rollEmbed], files: [imageAttachment] });
                         await generateShop(newGachaChannel, 0.5);
@@ -236,10 +245,18 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         );
 
         // Build the file path for the image
-        const imagePath = path.join(__dirname, '../assets/gachaLocations', chosenChannelType.image + '.png');
+        let imagePath = path.join(__dirname, '../assets/gachaLocations', chosenChannelType.image + '.png');
+        let imageFileName = chosenChannelType.image + '.png';
+        
+        // Check if image exists, fallback to placeholder if not
+        if (!fs.existsSync(imagePath)) {
+            console.log(`Image not found: ${imagePath}, using placeholder`);
+            imagePath = path.join(__dirname, '../assets/gachaLocations', 'placeHolder.png');
+            imageFileName = 'placeHolder.png';
+        }
 
         // Create the attachment
-        const imageAttachment = new AttachmentBuilder(imagePath, { name: imagePath });
+        const imageAttachment = new AttachmentBuilder(imagePath, { name: imageFileName });
 
         // Build the embed
         const rollEmbed = new EmbedBuilder()
@@ -247,7 +264,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             .setDescription('```' + chosenChannelType.description + '```')
             .setFooter({ text: `Rarity: ${chosenChannelType.rarity}` })
             .setColor(chosenChannelType.colour || 'Gold') // Use custom color if set, else Gold
-            .setImage(`attachment://${chosenChannelType.image}.png`); // Display the image in the embed
+            .setImage(`attachment://${imageFileName}`); // Display the image in the embed
 
         // Send it in the new text channel with the attachment
         await newGachaChannel.send({ embeds: [rollEmbed], files: [imageAttachment] });
