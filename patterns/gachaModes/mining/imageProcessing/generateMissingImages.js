@@ -290,102 +290,174 @@ function generateFloorTile(canvas, ctx, theme, variation) {
 }
 
 /**
- * Generate wall tile (64x90 - taller for perspective)
+ * Generate wall tile with classic pixel art style (64x90 - taller for perspective)
  */
 function generateWallTile(canvas, ctx, theme, variation) {
     const width = 64;
     const height = 90;
     const themeConfig = THEMES[theme];
+    const pixelSize = 4;
     
-    // Base wall
-    ctx.fillStyle = themeConfig.primaryColor;
-    ctx.fillRect(0, 0, width, height);
-    
-    // Add depth/texture with vertical gradient for height
-    const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, themeConfig.accentColor);
-    gradient.addColorStop(0.3, themeConfig.primaryColor);
-    gradient.addColorStop(1, themeConfig.secondaryColor);
-    
-    ctx.fillStyle = gradient;
-    ctx.globalAlpha = 0.5;
-    ctx.fillRect(0, 0, width, height);
-    ctx.globalAlpha = 1.0;
-    
-    // Add variation details
-    if (variation === 1) {
-        // Brick pattern
-        ctx.strokeStyle = themeConfig.secondaryColor;
-        ctx.lineWidth = 2;
-        for (let y = 0; y < height; y += 16) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(width, y);
-            ctx.stroke();
+    // Create pixelated base with slight color variation
+    for (let x = 0; x < width; x += pixelSize) {
+        for (let y = 65; y < height; y += pixelSize) { // Start at 65 to leave top black
+            // Add depth gradient effect
+            const depthFactor = 1 - ((y - 65) / (height - 65)) * 0.3;
+            const brightness = (0.85 + Math.random() * 0.15) * depthFactor;
+            
+            const baseColor = themeConfig.primaryColor;
+            const r = parseInt(baseColor.slice(1,3), 16);
+            const g = parseInt(baseColor.slice(3,5), 16);
+            const b = parseInt(baseColor.slice(5,7), 16);
+            
+            ctx.fillStyle = `rgb(${Math.floor(r * brightness)}, ${Math.floor(g * brightness)}, ${Math.floor(b * brightness)})`;
+            ctx.fillRect(x, y, pixelSize, pixelSize);
         }
-        for (let y = 0; y < height; y += 32) {
-            for (let x = 0; x < width; x += 32) {
-                ctx.beginPath();
-                ctx.moveTo(x + (y % 32 === 0 ? 0 : 16), y);
-                ctx.lineTo(x + (y % 32 === 0 ? 0 : 16), y + 16);
-                ctx.stroke();
+    }
+    
+    // Add variation details with pixel art style
+    if (variation === 1) {
+        // Classic brick pattern
+        const brickHeight = 8;
+        const brickWidth = 16;
+        
+        for (let y = 65; y < height; y += brickHeight) {
+            const rowOffset = ((y - 65) / brickHeight) % 2 === 0 ? 0 : brickWidth/2;
+            
+            for (let x = -brickWidth; x < width + brickWidth; x += brickWidth) {
+                const brickX = x + rowOffset;
+                
+                // Draw mortar lines (darker pixels)
+                ctx.fillStyle = themeConfig.secondaryColor;
+                ctx.globalAlpha = 0.6;
+                
+                // Horizontal mortar
+                for (let px = Math.max(0, brickX); px < Math.min(width, brickX + brickWidth); px += pixelSize) {
+                    ctx.fillRect(px, y, pixelSize, pixelSize/2);
+                }
+                
+                // Vertical mortar
+                if (brickX >= 0 && brickX < width) {
+                    for (let py = y; py < Math.min(height, y + brickHeight); py += pixelSize) {
+                        ctx.fillRect(brickX, py, pixelSize/2, pixelSize);
+                    }
+                }
+                
+                // Add brick highlights
+                ctx.globalAlpha = 0.15;
+                ctx.fillStyle = themeConfig.accentColor;
+                if (brickX + pixelSize < width && y + pixelSize < height) {
+                    ctx.fillRect(brickX + pixelSize, y + pixelSize, pixelSize * 2, pixelSize);
+                }
             }
         }
     } else if (variation === 2) {
-        // Rock face
-        ctx.fillStyle = themeConfig.secondaryColor;
-        for (let i = 0; i < 5; i++) {
-            ctx.globalAlpha = 0.3;
-            ctx.beginPath();
-            ctx.arc(
-                Math.random() * width,
-                Math.random() * height,
-                5 + Math.random() * 10,
-                0,
-                Math.PI * 2
-            );
-            ctx.fill();
+        // Stone blocks pattern
+        const blockSize = 16;
+        
+        for (let blockY = 65; blockY < height; blockY += blockSize) {
+            for (let blockX = 0; blockX < width; blockX += blockSize) {
+                // Add stone texture to each block
+                const stoneBrightness = 0.8 + Math.random() * 0.2;
+                
+                // Create rough stone edges
+                ctx.globalAlpha = 0.3;
+                ctx.fillStyle = themeConfig.secondaryColor;
+                
+                // Random edge pixels for rough appearance
+                for (let i = 0; i < 3; i++) {
+                    const edgeX = blockX + Math.floor(Math.random() * blockSize/pixelSize) * pixelSize;
+                    const edgeY = blockY + Math.floor(Math.random() * blockSize/pixelSize) * pixelSize;
+                    
+                    if (edgeX < width && edgeY < height) {
+                        ctx.fillRect(edgeX, edgeY, pixelSize, pixelSize);
+                    }
+                }
+                
+                // Block outline
+                ctx.globalAlpha = 0.4;
+                ctx.strokeStyle = themeConfig.secondaryColor;
+                ctx.lineWidth = pixelSize/2;
+                ctx.strokeRect(blockX, blockY, blockSize, Math.min(blockSize, height - blockY));
+            }
+        }
+        
+        // Add some cracks
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle = '#000000';
+        for (let i = 0; i < 3; i++) {
+            const crackX = Math.floor(Math.random() * (width/pixelSize)) * pixelSize;
+            const crackStartY = 65 + Math.floor(Math.random() * ((height-65)/pixelSize)) * pixelSize;
+            
+            // Draw vertical crack
+            for (let y = crackStartY; y < Math.min(height, crackStartY + 20); y += pixelSize) {
+                ctx.fillRect(crackX + Math.floor(Math.random() * 3 - 1) * pixelSize, y, pixelSize, pixelSize);
+            }
         }
     } else if (variation === 3) {
-        // Rough texture
-        for (let i = 0; i < 20; i++) {
-            ctx.fillStyle = Math.random() > 0.5 ? themeConfig.secondaryColor : themeConfig.accentColor;
-            ctx.globalAlpha = 0.2;
-            const x = Math.random() * width;
-            const y = Math.random() * height;
-            ctx.fillRect(x, y, 3, 3);
+        // Rough cave wall texture
+        // Add random noise pixels for rough texture
+        for (let i = 0; i < 100; i++) {
+            const x = Math.floor(Math.random() * (width/pixelSize)) * pixelSize;
+            const y = 65 + Math.floor(Math.random() * ((height-65)/pixelSize)) * pixelSize;
+            
+            const useSecondary = Math.random() > 0.5;
+            ctx.fillStyle = useSecondary ? themeConfig.secondaryColor : themeConfig.accentColor;
+            ctx.globalAlpha = 0.2 + Math.random() * 0.2;
+            
+            // Create small clusters of pixels
+            const clusterSize = Math.floor(Math.random() * 3) + 1;
+            for (let dx = 0; dx < clusterSize; dx++) {
+                for (let dy = 0; dy < clusterSize; dy++) {
+                    if (x + dx * pixelSize < width && y + dy * pixelSize < height) {
+                        ctx.fillRect(x + dx * pixelSize, y + dy * pixelSize, pixelSize, pixelSize);
+                    }
+                }
+            }
+        }
+        
+        // Add some stalactite-like formations at top
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = themeConfig.secondaryColor;
+        for (let i = 0; i < 5; i++) {
+            const formX = Math.floor(Math.random() * (width/pixelSize)) * pixelSize;
+            const formHeight = pixelSize * (2 + Math.floor(Math.random() * 4));
+            
+            for (let y = 65; y < 65 + formHeight; y += pixelSize) {
+                const widthAtY = Math.max(pixelSize, formHeight - (y - 65));
+                ctx.fillRect(formX - widthAtY/2, y, widthAtY, pixelSize);
+            }
         }
     }
     
     ctx.globalAlpha = 1.0;
     
-    // Highlight top edges
-    ctx.strokeStyle = themeConfig.accentColor;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(width, 0);
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, height);
-    ctx.stroke();
+    // Add pixel art style lighting
+    // Top highlight
+    ctx.fillStyle = themeConfig.accentColor;
+    ctx.globalAlpha = 0.3;
+    for (let x = 0; x < width; x += pixelSize) {
+        ctx.fillRect(x, 65, pixelSize, pixelSize);
+    }
     
-    // Shadow bottom edges (darker at bottom for depth)
-    ctx.strokeStyle = themeConfig.secondaryColor;
-    ctx.beginPath();
-    ctx.moveTo(width, 0);
-    ctx.lineTo(width, height);
-    ctx.moveTo(0, height);
-    ctx.lineTo(width, height);
-    ctx.stroke();
+    // Side highlights for 3D effect
+    for (let y = 65; y < height; y += pixelSize) {
+        ctx.fillRect(0, y, pixelSize, pixelSize);
+    }
     
-    // Add extra shadowing at bottom for depth
-    const bottomGradient = ctx.createLinearGradient(0, height - 20, 0, height);
-    bottomGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    bottomGradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
-    ctx.fillStyle = bottomGradient;
-    ctx.fillRect(0, height - 20, width, 20);
+    // Bottom and right shadows
+    ctx.fillStyle = '#000000';
+    ctx.globalAlpha = 0.4;
+    for (let x = 0; x < width; x += pixelSize) {
+        ctx.fillRect(x, height - pixelSize, pixelSize, pixelSize);
+    }
+    for (let y = 65; y < height; y += pixelSize) {
+        ctx.fillRect(width - pixelSize, y, pixelSize, pixelSize);
+    }
     
-    // Add black rectangle at top (65 pixels)
+    ctx.globalAlpha = 1.0;
+    
+    // Add black rectangle at top (65 pixels) for depth
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, 65);
 }
