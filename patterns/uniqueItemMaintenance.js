@@ -18,11 +18,11 @@ async function runMaintenanceCycle() {
         const items = await UniqueItem.findItemsNeedingMaintenance();
         
         for (const item of items) {
-            if (!item.requiresMaintenance) continue;
-            
             // Get item data from sheet
             const itemData = getUniqueItemById(item.itemId);
             if (!itemData) continue;
+            
+            if (!itemData.requiresMaintenance) continue;
             
             // Reduce maintenance by decay rate
             const decayRate = itemData.maintenanceDecayRate || 1;
@@ -180,7 +180,7 @@ async function performMaintenance(userId, userTag, itemId) {
             throw new Error('You do not own this item');
         }
         
-        if (!item.requiresMaintenance) {
+        if (!itemData.requiresMaintenance) {
             return {
                 success: true,
                 message: 'This item does not require maintenance',
@@ -204,13 +204,13 @@ async function performMaintenance(userId, userTag, itemId) {
         }
         
         // Get the handler for this maintenance type
-        const handler = maintenanceHandlers[item.maintenanceType];
+        const handler = maintenanceHandlers[itemData.maintenanceType];
         if (!handler) {
-            throw new Error(`Unknown maintenance type: ${item.maintenanceType}`);
+            throw new Error(`Unknown maintenance type: ${itemData.maintenanceType}`);
         }
         
         // Perform the maintenance
-        const result = await handler(userId, userTag, item, item.maintenanceCost);
+        const result = await handler(userId, userTag, item, itemData.maintenanceCost);
         
         return result;
         
@@ -226,7 +226,9 @@ async function updateActivityTracking(userId, activityType, amount = 1) {
         const items = await UniqueItem.findPlayerUniqueItems(userId);
         
         for (const item of items) {
-            if (!item.requiresMaintenance) continue;
+            // Get item data from sheet to check if maintenance is required
+            const itemData = getUniqueItemById(item.itemId);
+            if (!itemData || !itemData.requiresMaintenance) continue;
             
             switch (activityType) {
                 case 'mining':
@@ -269,9 +271,9 @@ async function checkMaintenanceStatus(userId) {
                 name: itemData.name,
                 maintenanceLevel: item.maintenanceLevel,
                 maxLevel: 10,
-                requiresMaintenance: item.requiresMaintenance,
-                maintenanceType: item.maintenanceType,
-                maintenanceCost: item.maintenanceCost,
+                requiresMaintenance: itemData.requiresMaintenance,
+                maintenanceType: itemData.maintenanceType,
+                maintenanceCost: itemData.maintenanceCost,
                 lastMaintenance: item.lastMaintenanceDate,
                 nextCheck: item.nextMaintenanceCheck,
                 description: itemData.maintenanceDescription,

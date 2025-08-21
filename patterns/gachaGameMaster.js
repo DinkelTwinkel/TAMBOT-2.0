@@ -202,13 +202,18 @@ module.exports = async (guild) => {
             // Check for any items that need immediate maintenance (crash recovery)
             const now = new Date();
             const overdue = await UniqueItem.find({
-                requiresMaintenance: true,
                 nextMaintenanceCheck: { $lte: now },
                 ownerId: { $ne: null }
             });
             
-            if (overdue.length > 0) {
-                console.log(`[UNIQUE ITEMS] Found ${overdue.length} items with overdue maintenance (crash recovery)`);
+            // Filter by items that actually require maintenance according to sheet
+            const itemsNeedingMaintenance = overdue.filter(item => {
+                const itemData = getUniqueItemById(item.itemId);
+                return itemData && itemData.requiresMaintenance;
+            });
+            
+            if (itemsNeedingMaintenance.length > 0) {
+                console.log(`[UNIQUE ITEMS] Found ${itemsNeedingMaintenance.length} items with overdue maintenance (crash recovery)`);
                 // They'll be processed in the next interval check
             }
             
@@ -243,23 +248,29 @@ module.exports = async (guild) => {
             
             // Find all unique items where maintenance check is due
             const itemsDue = await UniqueItem.find({
-                requiresMaintenance: true,
                 nextMaintenanceCheck: { $lte: now },
                 ownerId: { $ne: null } // Only owned items
             });
             
-            if (itemsDue.length > 0) {
-                console.log(`[UNIQUE ITEMS] Processing maintenance for ${itemsDue.length} items`);
+            // Filter by items that actually require maintenance according to sheet
+            const itemsRequiringMaintenance = [];
+            for (const item of itemsDue) {
+                const itemData = getUniqueItemById(item.itemId);
+                if (itemData && itemData.requiresMaintenance) {
+                    itemsRequiringMaintenance.push({ item, itemData });
+                }
             }
             
-            for (const item of itemsDue) {
+            if (itemsRequiringMaintenance.length > 0) {
+                console.log(`[UNIQUE ITEMS] Processing maintenance for ${itemsRequiringMaintenance.length} items`);
+            }
+            
+            for (const { item, itemData } of itemsRequiringMaintenance) {
                 try {
-                    const itemData = getUniqueItemById(item.itemId);
-                    if (!itemData) continue;
                     
                     // Special handling for Midas' Burden (wealthiest maintenance)
                     let shouldDecay = true;
-                    if (item.maintenanceType === 'wealthiest' && item.itemId === 10) {
+                    if (itemData.maintenanceType === 'wealthiest' && item.itemId === 10) {
                         // Check if player is still the richest
                         const { checkRichestPlayer } = require('./conditionalUniqueItems');
                         const isRichest = await checkRichestPlayer(item.ownerId, null);
