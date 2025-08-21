@@ -140,16 +140,18 @@ module.exports = {
                         throw new Error('Voice channel data no longer exists');
                     }
 
-                    // Find iron ore in inventory
+                    // Find iron ore in player inventory
                     const ironOre = inventory.items.find(item => 
                         item.itemId === IRON_ORE_ID || item.id === IRON_ORE_ID
                     );
                     const playerIronQuantity = ironOre?.quantity || 0;
 
-                    // Check minecart inventory for iron ore
+                    // Check minecart inventory for iron ore - with proper checks
                     let minecartIronQuantity = 0;
                     let minecartIronOre = null;
-                    if (currentVC.gameData.minecart && currentVC.gameData.minecart.items) {
+                    
+                    // Ensure minecart exists and has an items array
+                    if (currentVC.gameData?.minecart?.items && Array.isArray(currentVC.gameData.minecart.items)) {
                         minecartIronOre = currentVC.gameData.minecart.items.find(item => 
                             item.itemId === IRON_ORE_ID || item.id === IRON_ORE_ID
                         );
@@ -158,7 +160,7 @@ module.exports = {
 
                     const totalAvailableIron = playerIronQuantity + minecartIronQuantity;
 
-                    // Check if there's enough iron between player and minecart
+                    // Check if there's enough iron between minecart and player
                     if (totalAvailableIron < ironCost) {
                         if (totalAvailableIron === 0) {
                             throw new Error(
@@ -178,29 +180,17 @@ module.exports = {
                         const partialPath = startPoint.path.slice(0, affordableTiles + 1); // Include start position
                         const actualIronUsed = affordableTiles * RAIL_COST_PER_TILE;
                         
-                        // Deduct iron from player first, then minecart
+                        // Deduct iron from minecart first, then player inventory
                         let remainingToDeduct = actualIronUsed;
-                        let usedPlayerIron = 0;
                         let usedMinecartIron = 0;
+                        let usedPlayerIron = 0;
                         
-                        // Deduct from player inventory first
-                        if (ironOre && playerIronQuantity > 0) {
-                            const deductFromPlayer = Math.min(playerIronQuantity, remainingToDeduct);
-                            ironOre.quantity -= deductFromPlayer;
-                            remainingToDeduct -= deductFromPlayer;
-                            usedPlayerIron = deductFromPlayer;
-                            
-                            if (ironOre.quantity <= 0) {
-                                inventory.items = inventory.items.filter(item => 
-                                    item.itemId !== IRON_ORE_ID && item.id !== IRON_ORE_ID
-                                );
-                            }
-                        }
-                        
-                        // Deduct remaining from minecart if needed
-                        if (remainingToDeduct > 0 && minecartIronOre) {
-                            minecartIronOre.quantity -= remainingToDeduct;
-                            usedMinecartIron = remainingToDeduct;
+                        // Deduct from minecart first if it has iron
+                        if (minecartIronOre && minecartIronQuantity > 0) {
+                            const deductFromMinecart = Math.min(minecartIronQuantity, remainingToDeduct);
+                            minecartIronOre.quantity -= deductFromMinecart;
+                            remainingToDeduct -= deductFromMinecart;
+                            usedMinecartIron = deductFromMinecart;
                             
                             if (minecartIronOre.quantity <= 0) {
                                 currentVC.gameData.minecart.items = currentVC.gameData.minecart.items.filter(item => 
@@ -211,10 +201,27 @@ module.exports = {
                             currentVC.markModified('gameData.minecart.items');
                         }
                         
+                        // Deduct remaining from player inventory if needed
+                        if (remainingToDeduct > 0 && ironOre) {
+                            ironOre.quantity -= remainingToDeduct;
+                            usedPlayerIron = remainingToDeduct;
+                            
+                            if (ironOre.quantity <= 0) {
+                                inventory.items = inventory.items.filter(item => 
+                                    item.itemId !== IRON_ORE_ID && item.id !== IRON_ORE_ID
+                                );
+                            }
+                            
+                            inventory.markModified('items');
+                        }
+                        
                         // Save within transaction
-                        inventory.markModified('items');
-                        await inventory.save({ session });
-                        await currentVC.save({ session });
+                        if (usedPlayerIron > 0) {
+                            await inventory.save({ session });
+                        }
+                        if (usedMinecartIron > 0) {
+                            await currentVC.save({ session });
+                        }
 
                         // Build the partial rails (entrance already excluded by adjustment above)
                         await railStorage.mergeRailPath(voiceChannel.id, partialPath);
@@ -232,8 +239,8 @@ module.exports = {
                         const attachment = new AttachmentBuilder(mapBuffer, { name: 'rails_built.png' });
 
                         const ironSource = usedMinecartIron > 0 && usedPlayerIron > 0 ? 
-                            '(Used iron from inventory and minecart)' : 
-                            usedPlayerIron > 0 ? '(Used iron from inventory)' : '(Used iron from minecart)';
+                            '(Used iron from minecart and inventory)' : 
+                            usedMinecartIron > 0 ? '(Used iron from minecart)' : '(Used iron from inventory)';
 
                         const embed = new EmbedBuilder()
                             .setTitle('🛤️ Partial Rails Built')
@@ -258,31 +265,19 @@ module.exports = {
                         return;
                     }
 
-                    // Player has enough iron, deduct the cost (prioritize player inventory, then minecart)
+                    // Player has enough iron, deduct the cost (prioritize minecart, then player inventory)
                     let remainingToDeduct = ironCost;
-                    let usedPlayerIron = 0;
                     let usedMinecartIron = 0;
+                    let usedPlayerIron = 0;
                     
-                    // Deduct from player inventory first
-                    if (ironOre && playerIronQuantity > 0) {
-                        const deductFromPlayer = Math.min(playerIronQuantity, remainingToDeduct);
-                        ironOre.quantity -= deductFromPlayer;
-                        remainingToDeduct -= deductFromPlayer;
-                        usedPlayerIron = deductFromPlayer;
+                    // Deduct from minecart first if it has iron
+                    if (minecartIronOre && minecartIronQuantity > 0) {
+                        const deductFromMinecart = Math.min(minecartIronQuantity, remainingToDeduct);
+                        minecartIronOre.quantity -= deductFromMinecart;
+                        remainingToDeduct -= deductFromMinecart;
+                        usedMinecartIron = deductFromMinecart;
                         
                         // Remove the item if quantity reaches 0
-                        if (ironOre.quantity <= 0) {
-                            inventory.items = inventory.items.filter(item => 
-                                item.itemId !== IRON_ORE_ID && item.id !== IRON_ORE_ID
-                            );
-                        }
-                    }
-                    
-                    // Deduct remaining from minecart if needed
-                    if (remainingToDeduct > 0 && minecartIronOre) {
-                        minecartIronOre.quantity -= remainingToDeduct;
-                        usedMinecartIron = remainingToDeduct;
-                        
                         if (minecartIronOre.quantity <= 0) {
                             currentVC.gameData.minecart.items = currentVC.gameData.minecart.items.filter(item => 
                                 item.itemId !== IRON_ORE_ID && item.id !== IRON_ORE_ID
@@ -292,10 +287,27 @@ module.exports = {
                         currentVC.markModified('gameData.minecart.items');
                     }
                     
+                    // Deduct remaining from player inventory if needed
+                    if (remainingToDeduct > 0 && ironOre) {
+                        ironOre.quantity -= remainingToDeduct;
+                        usedPlayerIron = remainingToDeduct;
+                        
+                        if (ironOre.quantity <= 0) {
+                            inventory.items = inventory.items.filter(item => 
+                                item.itemId !== IRON_ORE_ID && item.id !== IRON_ORE_ID
+                            );
+                        }
+                        
+                        inventory.markModified('items');
+                    }
+                    
                     // Save inventory changes within transaction
-                    inventory.markModified('items');
-                    await inventory.save({ session });
-                    await currentVC.save({ session });
+                    if (usedPlayerIron > 0) {
+                        await inventory.save({ session });
+                    }
+                    if (usedMinecartIron > 0) {
+                        await currentVC.save({ session });
+                    }
 
                     // Build rails along the path (entrance already excluded by adjustment above)
                     await railStorage.mergeRailPath(voiceChannel.id, startPoint.path);
@@ -325,7 +337,7 @@ module.exports = {
                     // Build source description
                     let ironSourceDesc = '';
                     if (usedMinecartIron > 0 && usedPlayerIron > 0) {
-                        ironSourceDesc = `\n*Used ${usedPlayerIron} from inventory and ${usedMinecartIron} from minecart*`;
+                        ironSourceDesc = `\n*Used ${usedMinecartIron} from minecart and ${usedPlayerIron} from inventory*`;
                     } else if (usedMinecartIron > 0) {
                         ironSourceDesc = `\n*Used ${usedMinecartIron} iron from minecart*`;
                     } else {
