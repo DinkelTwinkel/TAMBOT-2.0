@@ -82,6 +82,35 @@ module.exports = {
                 });
             }
 
+            // If starting from entrance, find an adjacent floor tile to start from instead
+            if (startPoint.x === mapData.entranceX && startPoint.y === mapData.entranceY) {
+                // Get the neighbors of the entrance
+                const entranceNeighbors = [
+                    { x: mapData.entranceX, y: mapData.entranceY - 1 }, // North
+                    { x: mapData.entranceX + 1, y: mapData.entranceY }, // East  
+                    { x: mapData.entranceX, y: mapData.entranceY + 1 }, // South
+                    { x: mapData.entranceX - 1, y: mapData.entranceY }  // West
+                ];
+                
+                // Find the neighbor that's on the path (should be the second position)
+                let adjacentStart = null;
+                if (startPoint.path.length > 1) {
+                    const secondPos = startPoint.path[1];
+                    adjacentStart = entranceNeighbors.find(n => 
+                        n.x === secondPos.x && n.y === secondPos.y
+                    );
+                }
+                
+                // If we found an adjacent start, update the start point and path
+                if (adjacentStart) {
+                    startPoint.x = adjacentStart.x;
+                    startPoint.y = adjacentStart.y;
+                    // Remove the entrance from the path (first element)
+                    startPoint.path = startPoint.path.slice(1);
+                    console.log(`[BUILD] Adjusted start point to adjacent tile (${adjacentStart.x}, ${adjacentStart.y})`);
+                }
+            }
+
             // Calculate cost (path includes start and end points)
             const railsNeeded = startPoint.path.length - 1; // Subtract 1 because we don't build on the player's position
             const ironCost = railsNeeded * RAIL_COST_PER_TILE;
@@ -136,7 +165,7 @@ module.exports = {
                 
                 await inventory.save();
 
-                // Build the partial rails
+                // Build the partial rails (entrance already excluded by adjustment above)
                 await railStorage.mergeRailPath(voiceChannel.id, partialPath);
                 
                 // Clear any caches
@@ -186,7 +215,7 @@ module.exports = {
             inventory.markModified('items');
             await inventory.save();
 
-            // Build rails along the full path
+            // Build rails along the path (entrance already excluded by adjustment above)
             await railStorage.mergeRailPath(voiceChannel.id, startPoint.path);
             
             // Clear any mining system caches

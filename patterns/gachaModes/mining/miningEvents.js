@@ -130,6 +130,7 @@ async function startRailBuildingEvent(channel, dbEntry) {
 
 /**
  * Thief Game - Players must vote to catch the thief
+ * Now properly uses minecart sale money as the theft pool
  */
 async function startThiefGame(channel, dbEntry) {
     if (!channel?.isVoiceBased()) return;
@@ -151,20 +152,50 @@ async function startThiefGame(channel, dbEntry) {
     
     let stealAmount = 0;
     const lossDescriptions = [];
-
-    // Calculate theft from minecart values
-    const minecarts = dbEntry.gameData?.minecarts || {};
     const stolenFromPlayers = {};
     
-    for (const user of humansArray) {
-        const userMinecart = minecarts[user.id];
-        if (userMinecart && userMinecart.totalValue > 0) {
-            const percentToSteal = Math.floor(Math.random() * 10) + 10; // 10-20%
-            const stolen = Math.floor((percentToSteal / 100) * userMinecart.totalValue);
+    // Check if we have minecart money to steal (this should be set by the caller)
+    if (dbEntry.gameData?.pendingMinecartValue) {
+        // Use the minecart sale value as the theft pool
+        stealAmount = dbEntry.gameData.pendingMinecartValue;
+        const contributorRewards = dbEntry.gameData.pendingContributorRewards || {};
+        
+        // Track who "lost" money (but don't actually deduct it since they never received it)
+        for (const [playerId, reward] of Object.entries(contributorRewards)) {
+            const member = humansArray.find(m => m.id === playerId);
+            if (member) {
+                stolenFromPlayers[playerId] = reward.coins;
+                lossDescriptions.push(`${member.user.username} lost ${reward.coins} coins from minecart sale`);
+            }
+        }
+        
+        // Clear the pending minecart data
+        delete dbEntry.gameData.pendingMinecartValue;
+        delete dbEntry.gameData.pendingContributorRewards;
+        await dbEntry.save();
+    } else {
+        // Fallback to old behavior if no minecart money
+        const Currency = require('../../../models/currency');
+        
+        for (const user of humansArray) {
+            // Get player's current balance
+            const playerMoney = await Currency.findOne({ userId: user.id });
             
-            stolenFromPlayers[user.id] = stolen;
-            stealAmount += stolen;
-            lossDescriptions.push(`${user.user.username}'s minecart lost ${stolen} value`);
+            if (playerMoney && playerMoney.money > 0) {
+                // Steal 10-20% of their current coins
+                const percentToSteal = Math.floor(Math.random() * 10) + 10; // 10-20%
+                const stolen = Math.floor((percentToSteal / 100) * playerMoney.money);
+                
+                if (stolen > 0) {
+                    // Deduct the stolen amount from the player's balance
+                    playerMoney.money -= stolen;
+                    await playerMoney.save();
+                    
+                    stolenFromPlayers[user.id] = stolen;
+                    stealAmount += stolen;
+                    lossDescriptions.push(`${user.user.username} lost ${stolen} coins (${percentToSteal}% of balance)`);
+                }
+            }
         }
     }
 
@@ -227,13 +258,13 @@ async function startThiefGame(channel, dbEntry) {
     // Build public embed
     const embed = new EmbedBuilder()
         .setTitle('⚠️ THIEF ALERT! ⚠️')
-        .setDescription(`In the darkness of the mines, someone has stolen from everyone's minecart!\n\n` +
-                        (lossDescriptions.length > 0 ? lossDescriptions.join('\n') : 'No value was stolen') +
-                        `\n\n💰 Total stolen: ${stealAmount} value\n\n` +
+        .setDescription(`In the darkness of the mines, someone has stolen coins from everyone!\n\n` +
+                        (lossDescriptions.length > 0 ? lossDescriptions.join('\n') : 'No coins were stolen') +
+                        `\n\n💰 Total stolen: ${stealAmount} coins\n\n` +
                         `**Suspects:** All players in the voice channel\n\n` +
                         `💡 **Use /vote** to vote for who you think is the thief!\n` +
                         `⚡ Auto-voting is currently active for demonstration\n\n` +
-                        `⚠️ The stolen value will be distributed when mining resumes!`)
+                        `⚠️ If you catch the thief, the stolen coins will be returned!`)
         .setColor(0xff0000)
         .setTimestamp();
 
@@ -503,6 +534,7 @@ function getTileHardness(tileType) {
 
 /**
  * End Thief Game and distribute rewards
+ * Now properly handles minecart money distribution based on voting results
  */
 async function endThiefGame(channel, dbEntry) {
     if (!dbEntry.gameData?.specialEvent || dbEntry.gameData.specialEvent.type !== 'thief') return;
@@ -564,34 +596,38 @@ async function endThiefGame(channel, dbEntry) {
             }
         }
 
-        // Determine rewards (distribute stolen minecart value as coins)
+        // Determine rewards (distribute minecart money based on voting results)
         if (winners.length > 0 && winners.length < totalPlayers) {
-            // Partial success - thief gets a share too
+            // Partial success - thief keeps 50%, rest distributed to victims
             embed.setColor(0xFFFF00);
             
-            const totalRecipients = winners.length + 1;
-            const share = Math.floor(totalStolen / totalRecipients);
+            // Thief keeps 50% of stolen coins
+            const thiefKeeps = Math.floor(totalStolen / 2);
+            const toDistribute = totalStolen - thiefKeeps;
             
-            await rewardWinners(winners, share);
-            await rewardThief(thiefId, share);
+            // Give thief their share
+            await rewardThief(thiefId, thiefKeeps);
+            
+            // Distribute remaining 50% to victims based on their original contribution
+            await distributeMinecartRewards(stolenFromPlayers, 0.5);
             
             embed.setTitle('📰 THIEF CAUGHT (Partial Success)');
             embed.addFields(
-                { name: 'Winners', value: winners.map(w => `<@${w.userId}> gets ${share} coins!`).join('\n') },
-                { name: 'Thief Reward', value: `<@${thiefId}> keeps ${share} coins for evading some suspicion!` }
+                { name: 'Result', value: `Some players identified the thief!\n\nThief keeps ${thiefKeeps} coins\n${toDistribute} coins distributed to miners` },
+                { name: 'Winners', value: winners.map(w => `<@${w.userId}> correctly identified the thief`).join('\n') }
             );
 
         } else if (winners.length === totalPlayers && totalPlayers > 1) {
-            // Complete success - thief gets nothing
+            // Complete success - distribute all minecart money to contributors
             embed.setColor(0x00FF00);
-            const share = Math.floor(totalStolen / winners.length);
-
-            await rewardWinners(winners, share);
+            
+            // Distribute all money to original contributors
+            await distributeMinecartRewards(stolenFromPlayers, 1.0);
             
             embed.setTitle('📰 THIEF CAUGHT (Complete Success)');
             embed.addFields({
-                name: 'Winners',
-                value: winners.map(w => `<@${w.userId}> gets ${share} coins!`).join('\n')
+                name: 'Result',
+                value: `Everyone identified the thief! All ${totalStolen} coins from the minecart sale have been distributed to the miners.`
             });
 
         } else {
@@ -600,12 +636,12 @@ async function endThiefGame(channel, dbEntry) {
             
             embed.setTitle('🏃‍♂️ THIEF ESCAPED');
             
-            // Give thief the stolen money
+            // Give thief all the minecart money
             await rewardThief(thiefId, totalStolen);
             
             embed.addFields({
                 name: 'Result',
-                value: `No one guessed correctly. The thief got away with ${totalStolen} coins!`
+                value: `No one guessed correctly. The thief stole the entire minecart sale of ${totalStolen} coins!`
             });
         }
     }
@@ -731,6 +767,50 @@ async function rewardThief(thiefId, amount) {
     } catch (error) {
         console.error(`Error rewarding thief ${thiefId}:`, error);
     }
+}
+
+/**
+ * Distribute minecart rewards to contributors
+ * @param {Object} stolenFromPlayers - Object mapping userId to amount they would have received
+ * @param {number} distributionRatio - Ratio of amount to distribute (0-1)
+ */
+async function distributeMinecartRewards(stolenFromPlayers, distributionRatio) {
+    console.log(`Distributing ${(distributionRatio * 100).toFixed(0)}% of minecart rewards to contributors`);
+    
+    for (const [userId, originalReward] of Object.entries(stolenFromPlayers)) {
+        const rewardAmount = Math.floor(originalReward * distributionRatio);
+        
+        if (rewardAmount > 0) {
+            try {
+                let playerMoney = await Currency.findOne({ userId });
+                if (!playerMoney) {
+                    playerMoney = await Currency.create({
+                        userId: userId,
+                        usertag: `User-${userId}`,
+                        money: rewardAmount
+                    });
+                    console.log(`Created currency record for ${userId} with ${rewardAmount} coins from minecart`);
+                } else {
+                    const oldAmount = playerMoney.money;
+                    playerMoney.money += rewardAmount;
+                    await playerMoney.save();
+                    console.log(`Distributed ${rewardAmount} coins to ${userId} from minecart (from ${oldAmount} to ${playerMoney.money})`);
+                }
+            } catch (error) {
+                console.error(`Error distributing coins to ${userId}:`, error);
+            }
+        }
+    }
+}
+
+/**
+ * Return stolen coins to victims (legacy function for backwards compatibility)
+ * @param {Object} stolenFromPlayers - Object mapping userId to amount stolen
+ * @param {number} returnRatio - Ratio of stolen amount to return (0-1)
+ */
+async function returnStolenCoins(stolenFromPlayers, returnRatio) {
+    // This now just calls the new distribution function
+    return distributeMinecartRewards(stolenFromPlayers, returnRatio);
 }
 
 // ============ EVENT MANAGEMENT ============
@@ -1098,6 +1178,73 @@ async function forceStartThiefEvent(channel) {
     return result || 'Thief event started';
 }
 
+/**
+ * Calculate minecart value without distributing it
+ * Used when a thief event is about to happen
+ */
+async function calculateMinecartValue(dbEntry) {
+    const { miningItemPool, SERVER_POWER_MODIFIERS, POWER_LEVEL_CONFIG } = require('./miningConstants');
+    const gachaInfo = require('../../../data/gachaServers.json');
+    
+    const gameData = dbEntry.gameData;
+    if (!gameData || gameData.gamemode !== 'mining') return null;
+
+    const minecart = gameData.minecart;
+    if (!minecart || !minecart.items) return null;
+    
+    // Get server power level and modifiers
+    const gachaVCInfo = gachaInfo.find(s => s.id === dbEntry.typeId);
+    const serverType = gachaVCInfo?.name || null;
+    const serverPowerLevel = gachaVCInfo?.power || 1;
+    const serverModifier = serverType && SERVER_POWER_MODIFIERS[serverType] 
+        ? SERVER_POWER_MODIFIERS[serverType] 
+        : null;
+    const config = POWER_LEVEL_CONFIG[serverPowerLevel];
+
+    // Calculate total value and create contributor rewards
+    let totalValue = 0;
+    const contributorRewards = {};
+
+    // Process each item type in the minecart
+    for (const [itemId, itemData] of Object.entries(minecart.items)) {
+        const poolItem = miningItemPool.find(item => item.itemId === itemId);
+        if (!poolItem || itemData.quantity <= 0) continue;
+
+        let itemTotalValue = poolItem.value * itemData.quantity;
+        
+        // Apply server-specific value bonuses
+        if (serverModifier && serverModifier.itemBonuses[itemId]) {
+            itemTotalValue = Math.floor(itemTotalValue * serverModifier.itemBonuses[itemId]);
+        }
+        
+        // Apply power level value multiplier
+        if (config) {
+            itemTotalValue = Math.floor(itemTotalValue * config.valueMultiplier);
+        }
+        
+        totalValue += itemTotalValue;
+
+        // Calculate rewards for contributors of this specific item
+        const contributorCount = Object.keys(itemData.contributors || {}).length;
+        if (contributorCount > 0) {
+            const coinsPerContributor = Math.floor(itemTotalValue / contributorCount);
+            
+            for (const [playerId, contributed] of Object.entries(itemData.contributors)) {
+                if (!contributorRewards[playerId]) {
+                    contributorRewards[playerId] = { coins: 0, items: [] };
+                }
+                contributorRewards[playerId].coins += coinsPerContributor;
+                contributorRewards[playerId].items.push(`${poolItem.name} x${contributed}`);
+            }
+        }
+    }
+
+    return {
+        totalValue,
+        contributorRewards
+    };
+}
+
 // ============ EXPORTS ============
 
 module.exports = {
@@ -1106,6 +1253,7 @@ module.exports = {
     startMineCollapseEvent,
     startRailBuildingEvent,
     endThiefGame,
+    calculateMinecartValue,
     
     // Event management
     setSpecialEvent,

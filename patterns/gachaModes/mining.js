@@ -1261,8 +1261,48 @@ module.exports = async (channel, dbEntry, json, client) => {
             // Use the enhanced event picker from miningEvents.js
             const selectedEvent = importedPickLongBreakEvent(playerCount);
             
-            await createMiningSummary(channel, refreshedEntry);
-            await selectedEvent(channel, refreshedEntry);
+            // Check if it's going to be a thief event
+            const { calculateMinecartValue } = require('./mining/miningEvents');
+            if (selectedEvent === importedStartThiefGame) {
+                // Calculate minecart value without distributing it
+                const minecartData = await calculateMinecartValue(refreshedEntry);
+                
+                if (minecartData && minecartData.totalValue > 0) {
+                    // Store the pending minecart data for the thief event
+                    await gachaVC.updateOne(
+                        { channelId: channel.id },
+                        {
+                            $set: {
+                                'gameData.pendingMinecartValue': minecartData.totalValue,
+                                'gameData.pendingContributorRewards': minecartData.contributorRewards
+                            }
+                        }
+                    );
+                    
+                    // Announce minecart was "loaded for transport"
+                    const embed = new EmbedBuilder()
+                        .setTitle('🛒 Mining Session Complete')
+                        .setDescription(`The minecart with ${minecartData.totalValue} coins worth of ore has been loaded for transport...`)
+                        .setColor(0x8B4513)
+                        .setTimestamp();
+                    await channel.send({ embeds: [embed] });
+                    
+                    // Reset the minecart
+                    await resetMinecart(channel.id);
+                    
+                    // Get updated entry with pending data
+                    const updatedEntry = await gachaVC.findOne({ channelId: channel.id });
+                    await selectedEvent(channel, updatedEntry);
+                } else {
+                    // No minecart value, run normal summary and event
+                    await createMiningSummary(channel, refreshedEntry);
+                    await selectedEvent(channel, refreshedEntry);
+                }
+            } else {
+                // Not a thief event, run normal summary
+                await createMiningSummary(channel, refreshedEntry);
+                await selectedEvent(channel, refreshedEntry);
+            }
             
             await updateTimers(channel.id, null, new Date(now + 30 * 60 * 1000));
             await logEvent(channel, '🎭 LONG BREAK: Special event starting! (10min event + 5min shop)');
