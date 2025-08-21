@@ -949,16 +949,9 @@ async function drawMineEntrance(ctx, x, y, floorTileSize, wallTileHeight, isVisi
     }
     
     if (entranceImage) {
-        // Clip to prevent entrance from overlapping tiles above
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(pixelX, pixelY, floorTileSize, floorTileSize);
-        ctx.clip();
-        
-        // Draw the entrance image without transparency
+        // Draw the entrance image at full opacity (no transparency darkening)
+        // It extends upward into the tile above for perspective
         ctx.drawImage(entranceImage, pixelX, wallPixelY, floorTileSize, wallTileHeight);
-        
-        ctx.restore();
     } else {
         // Programmatic rendering with themed elements
         // Draw entrance frame/walls on sides
