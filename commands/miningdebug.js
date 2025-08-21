@@ -71,6 +71,10 @@ module.exports = {
                     return interaction.editReply('❌ No active mining session in this channel!');
                 }
                 
+                // IMPORTANT: Distribute rewards before starting break
+                const { createMiningSummary } = require('../patterns/gachaModes/mining/miningDatabase');
+                await createMiningSummary(voiceChannel, dbEntry);
+                
                 const now = Date.now();
                 const isLongBreak = breakType === 'long';
                 const duration = isLongBreak ? 25 * 60 * 1000 : 5 * 60 * 1000;
@@ -92,14 +96,23 @@ module.exports = {
                     }
                 );
                 
-                // Generate shop if not long break
-                if (!isLongBreak) {
-                    const generateShop = require('../patterns/generateShop');
-                    await generateShop(voiceChannel, 5);
+                // Generate shop
+                const generateShop = require('../patterns/generateShop');
+                await generateShop(voiceChannel, isLongBreak ? 10 : 5);
+                
+                // If long break, optionally trigger an event
+                let eventMessage = '';
+                if (isLongBreak) {
+                    const { pickLongBreakEvent } = require('../patterns/gachaModes/mining/miningEvents');
+                    const memberCount = voiceChannel.members.filter(m => !m.user.bot).size;
+                    const selectedEvent = pickLongBreakEvent(memberCount);
+                    const updatedEntry = await gachaVC.findOne({ channelId: voiceChannel.id });
+                    const eventResult = await selectedEvent(voiceChannel, updatedEntry);
+                    eventMessage = `\n🎪 Event: ${eventResult || 'Started'}`;
                 }
                 
                 await interaction.editReply({
-                    content: `✅ Forced ${breakType} break! Duration: ${isLongBreak ? '25' : '5'} minutes.\n${!isLongBreak ? '🛒 Shop is now open!' : '🎪 Ready for special event!'}`
+                    content: `✅ Forced ${breakType} break! Duration: ${isLongBreak ? '25' : '5'} minutes.\n💰 Mining rewards distributed!\n🛒 Shop is now open!${eventMessage}`
                 });
                 break;
             }
