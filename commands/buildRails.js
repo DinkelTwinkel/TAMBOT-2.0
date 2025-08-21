@@ -1,5 +1,5 @@
 // commands/buildRails.js - Debug slash command for testing rail building with smart pathfinding
-const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, PermissionFlagsBits } = require('discord.js');
 const gachaVC = require('../models/activevcs');
 const generateTileMapImage = require('../patterns/generateMiningProcedural');
 const { clearAllRails, getRailPositions } = require('../patterns/gachaModes/mining/railPathfinding');
@@ -11,6 +11,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('debugrails')
         .setDescription('Debug command to test minecart rail building')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>
             subcommand
                 .setName('build')
@@ -25,6 +26,14 @@ module.exports = {
                 .setDescription('Show information about current rails')),
 
     async execute(interaction) {
+        // Additional admin check as fallback
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.reply({ 
+                content: '❌ This command is restricted to administrators only!', 
+                ephemeral: true 
+            });
+        }
+        
         await interaction.deferReply();
 
         try {

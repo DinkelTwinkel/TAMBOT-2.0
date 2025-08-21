@@ -14,7 +14,7 @@ const {
     addUniqueItemToMinecart
 } = require('./mining/uniqueItemIntegration');
 
-const { maintenanceClock } = require('../uniqueItemMaintenance');
+// Maintenance clock is now handled automatically in gachaGameMaster.js
 
 /*
 ===== ADD TO MODULE INITIALIZATION (near the top of the main function) =====
@@ -22,7 +22,7 @@ const { maintenanceClock } = require('../uniqueItemMaintenance');
 // Initialize unique items system on first run
 if (!global.uniqueItemsInitialized) {
     await initializeUniqueItems();
-    maintenanceClock.start(); // Start the global maintenance clock
+    // Maintenance clock is handled automatically in gachaGameMaster.js
     global.uniqueItemsInitialized = true;
 }
 
@@ -232,7 +232,7 @@ if (uniqueItems.length > 0) {
 Add to your cleanup function:
 */
 function cleanup() {
-    maintenanceClock.stop(); // Stop the maintenance clock
+    // Maintenance clock cleanup not needed - handled by gachaGameMaster.js
     // Other cleanup...
 }
 

@@ -186,6 +186,7 @@ async function handleGreenFog(member, position, transaction, eventLogs) {
     const durabilityDamage = HAZARD_CONFIG[HAZARD_TYPES.GREEN_FOG].durabilityDamage || 1;
     const PlayerInventory = require('../../../models/inventory');
     const getPlayerStats = require('../../calculatePlayerStat');
+    const { parseUniqueItemBonuses, applyDurabilityDamageReduction } = require('./uniqueItemBonuses');
     
     try {
         // Get player's equipped items using the proper system
@@ -215,8 +216,18 @@ async function handleGreenFog(member, position, transaction, eventLogs) {
         const itemsToUpdate = [];
         const itemsToRemove = [];
         
+        // Parse unique item bonuses for damage reduction
+        const uniqueBonuses = parseUniqueItemBonuses(equippedItems);
+        const effectiveDamage = applyDurabilityDamageReduction(durabilityDamage, uniqueBonuses.durabilityDamageReduction);
+        
         // Process each equipped item
         for (const [itemId, equippedItem] of Object.entries(equippedItems)) {
+            // Skip unique items - they don't take durability damage from hazards
+            if (equippedItem.isUnique) {
+                damagedItems.push(`${equippedItem.name} (Protected by legendary status)`);
+                continue;
+            }
+            
             // Find the item in inventory
             const invItemIndex = playerInv.items.findIndex(item => 
                 String(item.itemId) === String(equippedItem.itemId)
@@ -232,8 +243,8 @@ async function handleGreenFog(member, position, transaction, eventLogs) {
                 currentDurability = equippedItem.durability || 100;
             }
             
-            // Apply damage
-            const newDurability = Math.max(0, currentDurability - durabilityDamage);
+            // Apply damage (reduced by unique item bonuses)
+            const newDurability = Math.max(0, currentDurability - effectiveDamage);
             
             if (newDurability <= 0) {
                 // Item breaks

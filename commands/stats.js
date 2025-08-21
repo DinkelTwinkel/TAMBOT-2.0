@@ -29,11 +29,9 @@ module.exports = {
       const now = new Date();
       const activeBuffs = buffDoc?.buffs?.filter(buff => buff.expiresAt > now) || [];
 
-      // Create the embed
       const embed = new EmbedBuilder()
         .setTitle(`📜 ${target.username}'s Stats`)
         .setColor(0x00AE86)
-        .setThumbnail(target.displayAvatarURL({ dynamic: true }))
         .setTimestamp();
 
       // Add combined stats display (equipment + buffs)
@@ -91,7 +89,12 @@ module.exports = {
             
             if (item.abilities.length === 1) {
               // Single stat - show inline
-              itemDisplay = `• ${itemName} **(${statsStr})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)`;
+              if (item.isUnique) {
+                // Unique items don't show durability bar
+                itemDisplay = `• ${itemName} **(${statsStr})**`;
+              } else {
+                itemDisplay = `• ${itemName} **(${statsStr})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)`;
+              }
             } else {
               // Multiple stats - show first inline, rest with └
               const primaryStat = item.abilities[0].basePower && item.isUnique && item.abilities[0].power !== item.abilities[0].basePower
@@ -105,7 +108,13 @@ module.exports = {
                   return `${a.name} +${a.power}`;
                 })
                 .join(', ');
-              itemDisplay = `• ${itemName} **(${primaryStat})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)\n  └ ${additionalStats}`;
+              
+              if (item.isUnique) {
+                // Unique items don't show durability bar
+                itemDisplay = `• ${itemName} **(${primaryStat})**\n  └ ${additionalStats}`;
+              } else {
+                itemDisplay = `• ${itemName} **(${primaryStat})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)\n  └ ${additionalStats}`;
+              }
             }
             
             // Add maintenance level for unique items
@@ -114,13 +123,10 @@ module.exports = {
               itemDisplay += `\n  📧 Maintenance: ${maintBar} ${item.maintenanceLevel}/10`;
             }
             
-            // Add special effects for unique items (limit to first 2 to avoid clutter)
+            // Add special effects for unique items (simplified)
             if (item.isUnique && item.specialEffects && item.specialEffects.length > 0) {
-              const effectsToShow = item.specialEffects.slice(0, 2);
-              itemDisplay += `\n  ✨ ${effectsToShow.join(' | ')}`;
-              if (item.specialEffects.length > 2) {
-                itemDisplay += ` (+${item.specialEffects.length - 2} more)`;
-              }
+              const effectCount = item.specialEffects.length;
+              itemDisplay += `\n  ✨ ${effectCount} special effect${effectCount > 1 ? 's' : ''} (use /unique status for details)`;
             }
             
             if (item.type === 'tool') {

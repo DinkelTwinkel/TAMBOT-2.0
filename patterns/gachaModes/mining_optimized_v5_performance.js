@@ -5,6 +5,15 @@ const getPlayerStats = require('../calculatePlayerStat');
 // Use the new layered rendering system with auto-generated images
 const generateTileMapImage = require('./mining/imageProcessing/mining-layered-render');
 const gachaVC = require('../../models/activevcs');
+const { 
+    parseUniqueItemBonuses, 
+    applyDoubleOreBonus, 
+    checkHazardResistance, 
+    applyMovementSpeedBonus,
+    checkUniquePickaxeBreak,
+    applyAreaDamage,
+    getChainMiningTargets
+} = require('./mining/uniqueItemBonuses');
 
 // Import concurrency control
 const { concurrencyManager, messageQueue } = require('./mining_concurrency_fix');
@@ -72,6 +81,12 @@ const {
     messageThrottler,
     eventBatcher
 } = require('./mining/miningPerformance');
+
+// Import unique item integration
+const { 
+    processUniqueItemFinding,
+    updateMiningActivity
+} = require('./mining/uniqueItemIntegration');
 
 // Global event counter for image generation
 let eventCounter = 0;
@@ -943,6 +958,7 @@ module.exports = async (channel, dbEntry, json, client) => {
 
     // Calculate team sight radius with power level bonuses
     let teamSightRadius = 1;
+    let maxSightThroughWalls = 0;
     if (!inBreak) {
         let totalSight = 0;
         let playerCount = 0;
@@ -950,6 +966,10 @@ module.exports = async (channel, dbEntry, json, client) => {
             const playerData = playerStatsMap.get(member.id);
             totalSight += playerData.stats.sight || 0;
             playerCount++;
+            
+            // Check for sight through walls from unique items
+            const uniqueBonuses = parseUniqueItemBonuses(playerData.equippedItems);
+            maxSightThroughWalls = Math.max(maxSightThroughWalls, uniqueBonuses.sightThroughWalls || 0);
         }
         teamSightRadius = Math.floor(totalSight / playerCount) + 1;
         
@@ -957,6 +977,12 @@ module.exports = async (channel, dbEntry, json, client) => {
         const powerLevelConfig = POWER_LEVEL_CONFIG[serverPowerLevel];
         if (powerLevelConfig) {
             teamSightRadius = Math.floor(teamSightRadius * powerLevelConfig.speedBonus);
+        }
+        
+        // Add bonus from unique items (Crown of the Forgotten King, Whisper of the Void, etc.)
+        if (maxSightThroughWalls > 0) {
+            teamSightRadius += Math.floor(maxSightThroughWalls);
+            eventLogs.push(`👁️ Enhanced vision reveals hidden areas!`);
         }
     }
 
@@ -1134,6 +1160,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     const luckStat = playerData.stats.luck || 0;
     const speedStat = Math.min(playerData.stats.speed || 1, MAX_SPEED_ACTIONS);
     
+    // Parse unique item bonuses from equipped items
+    const uniqueBonuses = parseUniqueItemBonuses(playerData.equippedItems);
+    
     let wallsBroken = 0;
     let treasuresFound = 0;
     let mapChanged = false;
@@ -1145,8 +1174,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     }
     const moveHistory = playerMovementHistory.get(member.id);
     
-    // Find best pickaxe
+    // Find best pickaxe (including unique items)
     let bestPickaxe = null;
+    let isUniquePickaxe = false;
     for (const [key, item] of Object.entries(playerData.equippedItems || {})) {
         if (!item || item.type !== 'tool' || item.slot !== 'mining') continue;
 
@@ -1158,12 +1188,14 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             
             if (!bestPickaxe || currentPower > bestPower) {
                 bestPickaxe = { ...item, itemId: item.itemId || item.id || key };
+                isUniquePickaxe = item.isUnique || false;
             }
         }
     }
     
-    // Apply power level speed bonus
-    const enhancedSpeed = Math.floor(speedStat * efficiency.speedMultiplier);
+    // Apply power level speed bonus and unique item movement speed bonus
+    let enhancedSpeed = Math.floor(speedStat * efficiency.speedMultiplier);
+    enhancedSpeed = applyMovementSpeedBonus(enhancedSpeed, uniqueBonuses.movementSpeedBonus);
     const numActions = enhancedSpeed > 0 ? Math.floor(Math.random() * enhancedSpeed) + 1 : 1;
     
     for (let actionNum = 0; actionNum < numActions; actionNum++) {
@@ -1235,6 +1267,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     finalValue = Math.floor(item.value * bonus);
                 }
                 
+                // Apply double ore bonus from unique items (Blue Breeze)
+                finalQuantity = applyDoubleOreBonus(finalQuantity, uniqueBonuses.doubleOreChance, member, eventLogs);
+                
+                // Apply loot multiplier from other unique items
+                finalQuantity = Math.floor(finalQuantity * uniqueBonuses.lootMultiplier);
+                
                 await addItemToMinecart(dbEntry, member.id, item.itemId, finalQuantity);
                 
                 // Convert to floor (rails are stored separately, so no need to preserve)
@@ -1253,23 +1291,91 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 }
                 
                 if (bestPickaxe) {
-                    const durabilityCheck = checkPickaxeBreak(bestPickaxe, tile.hardness);
-                    if (durabilityCheck.shouldBreak) {
-                        transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
-                        eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered!`);
+                    // Check if it's a unique pickaxe first
+                    const uniqueCheck = checkUniquePickaxeBreak(bestPickaxe, isUniquePickaxe);
+                    
+                    if (uniqueCheck && uniqueCheck.isUnique) {
+                        // Unique items never break, just show status
+                        if (uniqueBonuses.uniqueItems.length > 0) {
+                            const uniqueItem = uniqueBonuses.uniqueItems[0];
+                            if (uniqueItem.maintenanceRatio < 0.3) {
+                                findMessage += ` ⚡ [${bestPickaxe.name}: Legendary - ${Math.round(uniqueItem.maintenanceRatio * 100)}% power]`;
+                            }
+                        }
                     } else {
-                        transaction.updatePickaxeDurability(member.id, bestPickaxe.itemId, durabilityCheck.newDurability);
-                        
-                        const maxDurability = bestPickaxe.durability || 100;
-                        const durabilityPercent = (durabilityCheck.newDurability / maxDurability) * 100;
-                        
-                        if (durabilityPercent <= 10) {
-                            findMessage += ` ⚠️ [${bestPickaxe.name}: ${durabilityCheck.newDurability}/${maxDurability}]`;
+                        // Regular pickaxe breaking logic
+                        const durabilityCheck = checkPickaxeBreak(bestPickaxe, tile.hardness);
+                        if (durabilityCheck.shouldBreak) {
+                            transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
+                            eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered!`);
+                        } else {
+                            transaction.updatePickaxeDurability(member.id, bestPickaxe.itemId, durabilityCheck.newDurability);
+                            
+                            const maxDurability = bestPickaxe.durability || 100;
+                            const durabilityPercent = (durabilityCheck.newDurability / maxDurability) * 100;
+                            
+                            if (durabilityPercent <= 10) {
+                                findMessage += ` ⚠️ [${bestPickaxe.name}: ${durabilityCheck.newDurability}/${maxDurability}]`;
+                            }
                         }
                     }
                 }
                 
                 eventLogs.push(findMessage);
+                
+                // Track mining activity for unique item maintenance
+                await updateMiningActivity(member.id, 1);
+                
+                // Check for unique item find while mining
+                const itemFind = await processUniqueItemFinding(
+                    member,
+                    'mining',
+                    powerLevel,
+                    luckStat,
+                    null // Could pass biome if you have biome system
+                );
+                
+                if (itemFind) {
+                    eventLogs.push(itemFind.message);
+                }
+                
+                // Apply area damage from unique items (like Earthshaker)
+                if (uniqueBonuses.areaDamageChance > 0) {
+                    const extraWalls = applyAreaDamage(
+                        { x: adjacentTarget.x, y: adjacentTarget.y },
+                        mapData,
+                        uniqueBonuses.areaDamageChance,
+                        member,
+                        eventLogs
+                    );
+                    wallsBroken += extraWalls;
+                }
+                
+                // Apply chain mining from unique items (like Stormcaller's Gauntlets)
+                if (uniqueBonuses.chainMiningChance > 0) {
+                    const chainTargets = getChainMiningTargets(
+                        { x: adjacentTarget.x, y: adjacentTarget.y },
+                        mapData,
+                        uniqueBonuses.chainMiningChance,
+                        member,
+                        eventLogs
+                    );
+                    
+                    for (const chainTarget of chainTargets) {
+                        const chainTile = mapData.tiles[chainTarget.y][chainTarget.x];
+                        if (chainTile && await canBreakTile(member.id, miningPower, chainTile)) {
+                            const { item: chainItem, quantity: chainQty } = await mineFromTile(
+                                member, miningPower, luckStat, powerLevel, 
+                                chainTile.type, availableItems, efficiency
+                            );
+                            await addItemToMinecart(dbEntry, member.id, chainItem.itemId, chainQty);
+                            mapData.tiles[chainTarget.y][chainTarget.x] = { 
+                                type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 
+                            };
+                            wallsBroken++;
+                        }
+                    }
+                }
             } else {
                 let findMessage;
                 if (tile.type === TILE_TYPES.TREASURE_CHEST) {
@@ -1398,6 +1504,14 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             
             // Check for hazard or treasure trigger
             if (hazardStorage.hasHazard(hazardsData, newX, newY)) {
+                // Check for hazard resistance from unique items (Blue Breeze wind barrier)
+                if (checkHazardResistance(uniqueBonuses.hazardResistance, member, eventLogs)) {
+                    // Hazard was resisted, remove it but don't trigger
+                    hazardStorage.removeHazard(hazardsData, newX, newY);
+                    hazardsChanged = true;
+                    continue;
+                }
+                
                 const hazard = hazardStorage.getHazard(hazardsData, newX, newY);
                 
                 // Check if it's a treasure
@@ -1418,6 +1532,19 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     
                     eventLogs.push(`💎 ${member.displayName} found treasure! Got: ${foundItems.join(', ')}`);
                     treasuresFound++;
+                    
+                    // Higher chance for unique items from treasure
+                    const treasureFind = await processUniqueItemFinding(
+                        member,
+                        'treasure', // 3x chance for unique items
+                        powerLevel,
+                        luckStat,
+                        null
+                    );
+                    
+                    if (treasureFind) {
+                        eventLogs.push(treasureFind.message);
+                    }
                     
                     // Remove the treasure after collecting
                     hazardStorage.removeHazard(hazardsData, newX, newY);

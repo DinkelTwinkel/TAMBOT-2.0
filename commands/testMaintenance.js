@@ -2,15 +2,16 @@
 // Test command to manipulate maintenance for testing
 // REMOVE THIS FILE IN PRODUCTION!
 
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const UniqueItem = require('../models/uniqueItems');
 const { getUniqueItemById } = require('../data/uniqueItemsSheet');
-const { maintenanceClock } = require('../patterns/uniqueItemMaintenance');
+const { runMaintenanceCycle } = require('../patterns/uniqueItemMaintenance');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('test-maintenance')
         .setDescription('Test maintenance system (DEV ONLY)')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>
             subcommand
                 .setName('degrade')
@@ -39,6 +40,14 @@ module.exports = {
         ),
         
     async execute(interaction) {
+        // Additional admin check as fallback
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.reply({ 
+                content: '❌ This command is restricted to administrators only!', 
+                ephemeral: true 
+            });
+        }
+        
         const subcommand = interaction.options.getSubcommand();
         
         await interaction.deferReply();
@@ -135,7 +144,7 @@ module.exports = {
                 
                 case 'run-cycle': {
                     // Manually trigger the maintenance cycle
-                    await maintenanceClock.runMaintenanceCycle();
+                    await runMaintenanceCycle();
                     
                     const embed = new EmbedBuilder()
                         .setTitle('⏰ Maintenance Cycle Complete')

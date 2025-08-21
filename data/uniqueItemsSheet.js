@@ -51,6 +51,53 @@ const UNIQUE_ITEMS = [
     },
     
     {
+        id: 9,
+        name: "The One Pick",
+        type: "tool",
+        slot: "mining",
+        rarity: "mythic",
+        description: "A pickaxe of impossible perfection, its very existence questioned by scholars and miners alike.",
+        lore: "Legend speaks of the Miner King, first of his name, who delved so deep into the earth that he found its beating heart. With metals unknown to mortal kind, he forged The One Pick - a tool of such perfect balance and power that it could cleave mountains with a whisper and find veins of ore that exist between dimensions. The pick has been lost for a thousand generations, and many believe it to be nothing more than a tale told to inspire young miners. Yet still, in the deepest shafts and loneliest tunnels, miners swear they sometimes hear its distinctive ring echoing from somewhere far below... or perhaps far above. Some say the pick chooses its wielder, appearing only to one worthy of the Miner King's legacy. Others claim it never existed at all, merely a metaphor for the perfect unity of miner and mountain. But those who have dedicated their lives to the search know better - The One Pick is real, waiting somewhere in the infinite dark, and it will reveal itself when the cosmos deems it time.",
+        value: 1000000,
+        vendable: false,
+        
+        abilities: [
+            { name: "mining", powerlevel: 100 },
+            { name: "luck", powerlevel: 100 },
+            { name: "speed", powerlevel: 50 },
+            { name: "sight", powerlevel: 50 },
+            { name: "cosmic_resonance", powerlevel: 999 }
+        ],
+        
+        image: "the_one_pick_mythic",
+        glowColor: "#FFFFFF", // Pure white light
+        particleEffect: "reality_fracture",
+        
+        maintenanceType: "mining_activity",
+        maintenanceCost: 1, // Mine just 1 block per day
+        maintenanceDecayRate: 0, // Never decays
+        requiresMaintenance: false, // The pick maintains itself
+        maintenanceDescription: "The One Pick requires no maintenance from mortals. It exists outside the laws of entropy.",
+        
+        specialEffects: [
+            "Every strike mines all connected ore veins instantly",
+            "Reveals the entire map upon first use",
+            "Immune to all hazards and traps",
+            "Can mine through bedrock and reality itself",
+            "Transmutes common ore to its rare equivalent",
+            "Grants the title 'Heir of the Miner King'",
+            "Other miners in the session receive +50% all stats"
+        ],
+        
+        dropWeight: 0, // 0% drop chance - cannot be found normally
+        minPowerLevel: 7, // Requires maximum power level even to have a chance
+        preferredBiomes: ["the_void_between", "miner_kings_throne", "dimension_zero"],
+        
+        baseDurability: 999999, // Essentially infinite
+        durabilityLossReduction: 1.0 // Takes no durability damage
+    },
+    
+    {
         id: 2,
         name: "Earthshaker",
         type: "tool",

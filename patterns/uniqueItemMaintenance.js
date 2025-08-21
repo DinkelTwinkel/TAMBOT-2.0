@@ -5,72 +5,48 @@ const UniqueItem = require('../models/uniqueItems');
 const Money = require('../models/currency');
 const { getUniqueItemById } = require('../data/uniqueItemsSheet');
 
-// Global maintenance clock - runs once every 24 hours
-class MaintenanceClock {
-    constructor() {
-        this.isRunning = false;
-        this.interval = null;
-        this.lastRun = null;
-    }
+// Maintenance utilities for unique items
+// The actual maintenance clock is now handled in gachaGameMaster.js using database timestamps
+// This ensures it's crash-proof and doesn't rely on in-memory state
+
+// Manual maintenance cycle for testing/admin purposes
+async function runMaintenanceCycle() {
+    console.log('[UNIQUE ITEMS] Running manual maintenance cycle');
     
-    start() {
-        if (this.isRunning) return;
+    try {
+        // Find all items that require maintenance
+        const items = await UniqueItem.findItemsNeedingMaintenance();
         
-        this.isRunning = true;
-        console.log('[UNIQUE ITEMS] Starting global maintenance clock');
-        
-        // Run immediately on start
-        this.runMaintenanceCycle();
-        
-        // Then run every 24 hours
-        this.interval = setInterval(() => {
-            this.runMaintenanceCycle();
-        }, 24 * 60 * 60 * 1000); // 24 hours
-    }
-    
-    stop() {
-        if (this.interval) {
-            clearInterval(this.interval);
-            this.interval = null;
-        }
-        this.isRunning = false;
-        console.log('[UNIQUE ITEMS] Stopped global maintenance clock');
-    }
-    
-    async runMaintenanceCycle() {
-        console.log('[UNIQUE ITEMS] Running global maintenance cycle');
-        this.lastRun = new Date();
-        
-        try {
-            // Find all items that require maintenance
-            const items = await UniqueItem.findItemsNeedingMaintenance();
+        for (const item of items) {
+            if (!item.requiresMaintenance) continue;
             
-            for (const item of items) {
-                if (!item.requiresMaintenance) continue;
-                
-                // Get item data from sheet
-                const itemData = getUniqueItemById(item.itemId);
-                if (!itemData) continue;
-                
-                // Reduce maintenance by decay rate
-                const decayRate = itemData.maintenanceDecayRate || 1;
-                await item.reduceMaintenance(decayRate);
-                
-                console.log(`[UNIQUE ITEMS] Reduced maintenance for ${itemData.name} (Owner: ${item.ownerTag || 'None'}). Level: ${item.maintenanceLevel}`);
-                
-                // If item was lost due to maintenance failure, log it
-                if (item.maintenanceLevel <= 0 && !item.ownerId) {
-                    console.log(`[UNIQUE ITEMS] ${itemData.name} was lost due to maintenance failure!`);
-                }
+            // Get item data from sheet
+            const itemData = getUniqueItemById(item.itemId);
+            if (!itemData) continue;
+            
+            // Reduce maintenance by decay rate
+            const decayRate = itemData.maintenanceDecayRate || 1;
+            const oldLevel = item.maintenanceLevel;
+            await item.reduceMaintenance(decayRate);
+            
+            // Update next check time
+            item.nextMaintenanceCheck = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            await item.save();
+            
+            console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance ${oldLevel} -> ${item.maintenanceLevel} (Owner: ${item.ownerTag || 'None'})`);
+            
+            // If item was lost due to maintenance failure, log it
+            if (item.maintenanceLevel <= 0 && !item.ownerId) {
+                console.log(`[UNIQUE ITEMS] ${itemData.name} was lost due to maintenance failure!`);
             }
-        } catch (error) {
-            console.error('[UNIQUE ITEMS] Error in maintenance cycle:', error);
         }
+        
+        return items.length;
+    } catch (error) {
+        console.error('[UNIQUE ITEMS] Error in maintenance cycle:', error);
+        return 0;
     }
 }
-
-// Singleton instance
-const maintenanceClock = new MaintenanceClock();
 
 // Maintenance type handlers
 const maintenanceHandlers = {
@@ -295,7 +271,7 @@ async function checkMaintenanceStatus(userId) {
 }
 
 module.exports = {
-    maintenanceClock,
+    runMaintenanceCycle, // For manual/testing purposes
     performMaintenance,
     updateActivityTracking,
     checkMaintenanceStatus

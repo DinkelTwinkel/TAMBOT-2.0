@@ -187,7 +187,35 @@ class VCLockManager {
 // Create lock manager instance
 const lockManager = new VCLockManager();
 
+// Import unique items initialization
+const { initializeUniqueItems } = require('./uniqueItemFinding');
+
 module.exports = async (guild) => {
+    // --- INITIALIZE UNIQUE ITEMS SYSTEM ---
+    // This only needs to run once on bot startup
+    if (!global.uniqueItemsInitialized) {
+        try {
+            await initializeUniqueItems();
+            console.log('[UNIQUE ITEMS] System initialized successfully');
+            
+            // Check for any items that need immediate maintenance (crash recovery)
+            const now = new Date();
+            const overdue = await UniqueItem.find({
+                requiresMaintenance: true,
+                nextMaintenanceCheck: { $lte: now },
+                ownerId: { $ne: null }
+            });
+            
+            if (overdue.length > 0) {
+                console.log(`[UNIQUE ITEMS] Found ${overdue.length} items with overdue maintenance (crash recovery)`);
+                // They'll be processed in the next interval check
+            }
+            
+            global.uniqueItemsInitialized = true;
+        } catch (error) {
+            console.error('[UNIQUE ITEMS] Failed to initialize:', error);
+        }
+    }
 
     // --- INITIAL CLEANUP ---
     const channels = await guild.channels.fetch();

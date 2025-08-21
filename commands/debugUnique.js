@@ -1,14 +1,15 @@
 // commands/debugUnique.js
 // Debug command for testing unique items system (OWNER ONLY)
 
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const UniqueItem = require('../models/uniqueItems');
 const { UNIQUE_ITEMS, getUniqueItemById } = require('../data/uniqueItemsSheet');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('debug-unique')
-        .setDescription('Debug command for unique items (Owner only)')
+        .setDescription('Debug command for unique items (Admin only)')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>
             subcommand
                 .setName('assign')
@@ -58,25 +59,23 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('give-blue-breeze')
-                .setDescription('Quick command to give yourself Blue Breeze')),
+                .setDescription('Quick command to give yourself Blue Breeze'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('grant-the-one')
+                .setDescription('Grant The One Pick to a worthy soul (Owner only)')
+                .addUserOption(option =>
+                    option.setName('chosen')
+                        .setDescription('The chosen heir of the Miner King')
+                        .setRequired(true))),
                 
     async execute(interaction) {
-        // IMPORTANT: Add your Discord user ID here for owner check
-        const OWNER_IDS = [
-            'YOUR_DISCORD_ID_HERE', // Replace with your actual Discord ID
-            '123456789012345678'    // Example ID format
-        ];
-        
-        // Check if user is owner (comment this out for testing if needed)
-        if (!OWNER_IDS.includes(interaction.user.id)) {
-            // For testing, you might want to check for admin role instead
-            const member = interaction.guild.members.cache.get(interaction.user.id);
-            if (!member.permissions.has('Administrator')) {
-                return interaction.reply({ 
-                    content: '❌ This command is restricted to bot owners or administrators only!', 
-                    ephemeral: true 
-                });
-            }
+        // Additional admin check as fallback
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.reply({ 
+                content: '❌ This command is restricted to administrators only!', 
+                ephemeral: true 
+            });
         }
         
         const subcommand = interaction.options.getSubcommand();
@@ -99,6 +98,9 @@ module.exports = {
                 break;
             case 'give-blue-breeze':
                 await handleQuickBlueBreeze(interaction);
+                break;
+            case 'grant-the-one':
+                await handleGrantTheOne(interaction);
                 break;
         }
     }
@@ -295,6 +297,87 @@ async function handleList(interaction) {
     } catch (error) {
         console.error('Error listing items:', error);
         return interaction.editReply(`❌ Error: ${error.message}`);
+    }
+}
+
+async function handleGrantTheOne(interaction) {
+    // Admin check is already done in the main execute function
+    // This function will only be called by admins
+    
+    const chosenUser = interaction.options.getUser('chosen');
+    await interaction.deferReply();
+    
+    try {
+        // The One Pick has ID 9
+        const itemId = 9;
+        const itemData = getUniqueItemById(itemId);
+        
+        if (!itemData) {
+            return interaction.editReply('🌙 The One Pick exists beyond this reality...');
+        }
+        
+        // Check if item exists in database
+        let dbItem = await UniqueItem.findOne({ itemId });
+        
+        if (!dbItem) {
+            // Create The One Pick
+            dbItem = await UniqueItem.create({
+                itemId: itemId,
+                maintenanceType: itemData.maintenanceType,
+                maintenanceCost: itemData.maintenanceCost,
+                requiresMaintenance: false, // The One Pick maintains itself
+                maintenanceLevel: 10
+            });
+        }
+        
+        // Remove from current owner if any
+        if (dbItem.ownerId && dbItem.ownerId !== chosenUser.id) {
+            dbItem.previousOwners.push({
+                userId: dbItem.ownerId,
+                userTag: dbItem.ownerTag,
+                acquiredDate: dbItem.updatedAt,
+                lostDate: new Date(),
+                lostReason: 'other'
+            });
+        }
+        
+        // Grant to the chosen one
+        await dbItem.assignToPlayer(chosenUser.id, chosenUser.tag);
+        
+        const embed = new EmbedBuilder()
+            .setTitle('✨ The Cosmos Has Spoken ✨')
+            .setDescription(
+                `The threads of fate converge...\n\n` +
+                `${chosenUser} has been chosen as the heir to the Miner King's legacy.\n\n` +
+                `**The One Pick** reveals itself from the space between spaces, ` +
+                `its impossible weight both nothing and everything at once. ` +
+                `As they grasp its handle, visions of infinite tunnels and ` +
+                `ore veins that exist in dimensions beyond counting flash before their eyes.\n\n` +
+                `*The pick has chosen. The search of a thousand generations ends.*`
+            )
+            .addFields(
+                { 
+                    name: '🎭 The Inheritance', 
+                    value: 'With The One Pick comes the burden of its legend. Use it wisely.', 
+                    inline: false 
+                },
+                {
+                    name: '⛏️ Whispered Truths',
+                    value: 'Some say the pick remembers every stone it has ever broken...\n' +
+                           'Others claim it can hear the songs of ore yet unborn...\n' +
+                           'All agree: it changes those who wield it.',
+                    inline: false
+                }
+            )
+            .setColor(0xFFFFFF) // Pure white
+            .setFooter({ text: 'The Miner King\'s Legacy Lives On' })
+            .setTimestamp();
+            
+        return interaction.editReply({ embeds: [embed] });
+        
+    } catch (error) {
+        console.error('Error granting The One Pick:', error);
+        return interaction.editReply('🌑 The Pick resists... perhaps the time is not right.');
     }
 }
 

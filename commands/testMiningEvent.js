@@ -1,5 +1,5 @@
 // testMiningEvent.js - Debug command for mining special events
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { 
     debugSpecialEvent, 
     forceEndSpecialEvent, 
@@ -10,6 +10,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('testminingevent')
         .setDescription('Debug mining special events')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>
             subcommand
                 .setName('status')
@@ -32,6 +33,14 @@ module.exports = {
         ),
     
     async execute(interaction) {
+        // Additional admin check as fallback
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.reply({ 
+                content: '❌ This command is restricted to administrators only!', 
+                ephemeral: true 
+            });
+        }
+        
         // Check if user is in a voice channel
         const voiceChannel = interaction.member.voice.channel;
         if (!voiceChannel) {

@@ -2,7 +2,7 @@
 // Simple test command to give yourself Blue Breeze for testing
 // REMOVE THIS FILE IN PRODUCTION!
 
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const UniqueItem = require('../models/uniqueItems');
 const { getUniqueItemById } = require('../data/uniqueItemsSheet');
 const { initializeUniqueItems } = require('../patterns/uniqueItemFinding');
@@ -10,9 +10,18 @@ const { initializeUniqueItems } = require('../patterns/uniqueItemFinding');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('test-blue-breeze')
-        .setDescription('Give yourself Blue Breeze for testing (DEV ONLY)'),
+        .setDescription('Give yourself Blue Breeze for testing (DEV ONLY)')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
         
     async execute(interaction) {
+        // Additional admin check as fallback
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.reply({ 
+                content: '❌ This command is restricted to administrators only!', 
+                ephemeral: true 
+            });
+        }
+        
         await interaction.deferReply();
         
         try {

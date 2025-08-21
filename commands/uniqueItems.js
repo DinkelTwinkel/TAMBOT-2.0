@@ -265,43 +265,84 @@ async function handleInfo(interaction) {
             { name: '📜 Lore', value: itemData.lore, inline: false },
             { name: '⚙️ Type', value: `${itemData.type} (${itemData.slot})`, inline: true },
             { name: '💎 Rarity', value: itemData.rarity, inline: true },
-            { name: '💰 Value', value: itemData.value.toLocaleString(), inline: true }
+            { name: '❓ Power', value: 'Hidden', inline: true }
         )
         .setColor(getColorForRarity(itemData.rarity))
         .setTimestamp();
     
-    // Add abilities
-    const abilitiesText = itemData.abilities
-        .map(a => `${a.powerlevel > 0 ? '➕' : '➖'} **${a.name}**: ${a.powerlevel}`)
-        .join('\n');
-    embed.addFields({ name: '⚔️ Abilities', value: abilitiesText, inline: false });
-    
-    // Add special effects
-    if (itemData.specialEffects && itemData.specialEffects.length > 0) {
-        const effectsText = itemData.specialEffects.map(e => `✨ ${e}`).join('\n');
-        embed.addFields({ name: '🌟 Special Effects', value: effectsText, inline: false });
+    // Add cryptic hints about abilities
+    const abilityHints = [];
+    for (const ability of itemData.abilities) {
+        if (ability.powerlevel > 0) {
+            abilityHints.push(`• Enhances ${ability.name}`);
+        } else if (ability.powerlevel < 0) {
+            abilityHints.push(`• Weakens ${ability.name}`);
+        }
     }
     
-    // Add maintenance info
+    if (abilityHints.length > 0) {
+        embed.addFields({ 
+            name: '🔮 Whispered Properties', 
+            value: abilityHints.join('\n') + '\n*The true power remains a mystery...*', 
+            inline: false 
+        });
+    }
+    
+    // Add cryptic special effects
+    if (itemData.specialEffects && itemData.specialEffects.length > 0) {
+        const crypticEffects = itemData.specialEffects.map(effect => {
+            // Make effects more mysterious
+            if (effect.includes('double')) return '• Sometimes multiplies rewards';
+            if (effect.includes('hazard')) return '• Offers mysterious protection';
+            if (effect.includes('speed')) return '• Hastens your movements';
+            if (effect.includes('Area')) return '• Affects surroundings';
+            if (effect.includes('through walls')) return '• Reveals hidden truths';
+            if (effect.includes('loot')) return '• Attracts fortune';
+            if (effect.includes('revive')) return '• Defies death itself';
+            if (effect.includes('chain')) return '• Power spreads to nearby targets';
+            if (effect.includes('team')) return '• Influences allies';
+            return '• ' + effect;
+        });
+        embed.addFields({ 
+            name: '✨ Rumored Effects', 
+            value: crypticEffects.join('\n'), 
+            inline: false 
+        });
+    }
+    
+    // Add cryptic maintenance info
     if (itemData.requiresMaintenance) {
+        let maintType = 'Unknown ritual';
+        switch(itemData.maintenanceType) {
+            case 'coins': maintType = 'Requires wealth offerings'; break;
+            case 'mining_activity': maintType = 'Fed by earth\'s destruction'; break;
+            case 'voice_activity': maintType = 'Sustained by spoken words'; break;
+            case 'combat_activity': maintType = 'Thirsts for battle'; break;
+            case 'social_activity': maintType = 'Craves interaction'; break;
+        }
+        
         embed.addFields({
-            name: '🔧 Maintenance',
-            value: `**Type:** ${formatMaintenanceType(itemData.maintenanceType)}\n` +
-                   `**Cost:** ${formatMaintenanceCost(itemData.maintenanceType, itemData.maintenanceCost)}\n` +
-                   `**Decay Rate:** ${itemData.maintenanceDecayRate} level(s) per day\n` +
-                   `*${itemData.maintenanceDescription}*`,
+            name: '🕯️ Maintenance Ritual',
+            value: `*${maintType}*\n"${itemData.maintenanceDescription}"\n\nThose who neglect the ritual lose everything...`,
+            inline: false
+        });
+    } else {
+        embed.addFields({
+            name: '🕯️ Maintenance',
+            value: '*This artifact requires no earthly maintenance.*',
             inline: false
         });
     }
     
-    // Add requirements
+    // Add cryptic rarity info
     embed.addFields({
-        name: '📋 Requirements',
-        value: `**Min Power Level:** ${itemData.minPowerLevel}\n` +
-               `**Drop Weight:** ${itemData.dropWeight} (lower = rarer)\n` +
-               `**Durability:** ${itemData.baseDurability} (${Math.round(itemData.durabilityLossReduction * 100)}% damage reduction)`,
+        name: '🌙 Rarity',
+        value: `*Seekers say it appears once in ${Math.floor(1 / (itemData.dropWeight || 0.1) * 1000)} moons...*\n` +
+               `*Only those of power level ${itemData.minPowerLevel} or greater may glimpse it.*`,
         inline: false
     });
+    
+    embed.setFooter({ text: 'The true nature of legendary items remains shrouded in mystery...' });
     
     return interaction.reply({ embeds: [embed] });
 }
@@ -364,6 +405,7 @@ function getItemEmoji(item) {
 
 function getColorForRarity(rarity) {
     const colors = {
+        'mythic': 0xFFFFFF,    // Pure white for mythic
         'legendary': 0xFFD700,
         'epic': 0x9B59B6,
         'rare': 0x3498DB,
