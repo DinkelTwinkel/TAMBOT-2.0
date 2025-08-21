@@ -127,7 +127,7 @@ async function handleInventory(interaction, userId) {
         }
         
         embed.addFields({
-            name: `${getItemEmoji(item)} ${item.name}`,
+            name: `${getItemEmoji(item)} [ID: ${item.id}] ${item.name}`,
             value: fieldValue.substring(0, 1024),
             inline: false
         });
@@ -246,7 +246,7 @@ async function handleStatus(interaction, userId) {
         });
     }
     
-    embed.setFooter({ text: 'Maintenance decreases by 1 level every 24 hours!' });
+    embed.setFooter({ text: 'Use /unique maintain item_id:<ID> to maintain | Maintenance decreases by 1 level every 24 hours!' });
     
     return interaction.editReply({ embeds: [embed] });
 }
