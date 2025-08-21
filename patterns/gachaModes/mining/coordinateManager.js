@@ -128,9 +128,53 @@ async function getMapDimensions(channelId) {
     }
 }
 
+/**
+ * Check if map has changed and handle coordinate updates
+ */
+async function checkAndHandleMapChanges(channelId, currentMapData) {
+    try {
+        const storedDimensions = await getMapDimensions(channelId);
+        
+        // If no stored dimensions, store current ones
+        if (!storedDimensions) {
+            await storeMapDimensions(channelId, currentMapData);
+            return { updated: false, shiftX: 0, shiftY: 0 };
+        }
+        
+        // Check if map dimensions have changed
+        if (storedDimensions.width !== currentMapData.width || 
+            storedDimensions.height !== currentMapData.height ||
+            storedDimensions.entranceX !== currentMapData.entranceX ||
+            storedDimensions.entranceY !== currentMapData.entranceY) {
+            
+            // Calculate shift amounts (map expands from center)
+            const shiftX = currentMapData.entranceX - storedDimensions.entranceX;
+            const shiftY = currentMapData.entranceY - storedDimensions.entranceY;
+            
+            console.log(`[COORD] Map dimensions changed: ${storedDimensions.width}x${storedDimensions.height} -> ${currentMapData.width}x${currentMapData.height}`);
+            console.log(`[COORD] Entrance shifted: (${storedDimensions.entranceX},${storedDimensions.entranceY}) -> (${currentMapData.entranceX},${currentMapData.entranceY})`);
+            
+            // Update stored rails and hazards with new coordinates
+            await updateRailCoordinates(channelId, shiftX, shiftY);
+            await updateHazardCoordinates(channelId, shiftX, shiftY);
+            
+            // Store new dimensions
+            await storeMapDimensions(channelId, currentMapData);
+            
+            return { updated: true, shiftX, shiftY };
+        }
+        
+        return { updated: false, shiftX: 0, shiftY: 0 };
+    } catch (error) {
+        console.error('[COORD] Error checking map changes:', error);
+        return { updated: false, shiftX: 0, shiftY: 0 };
+    }
+}
+
 module.exports = {
     updateRailCoordinates,
     updateHazardCoordinates,
     storeMapDimensions,
-    getMapDimensions
+    getMapDimensions,
+    checkAndHandleMapChanges
 };
