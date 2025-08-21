@@ -15,8 +15,8 @@ const {
     getChainMiningTargets
 } = require('./mining/uniqueItemBonuses');
 
-// Import instance manager for preventing parallel execution
-const instanceManager = require('./instance-manager');
+// Import concurrency control
+const { concurrencyManager, messageQueue } = require('./mining_concurrency_fix');
 
 // Import enhanced power level components
 const { 
@@ -88,149 +88,6 @@ const {
     updateMiningActivity
 } = require('./mining/uniqueItemIntegration');
 
-// Enhanced Concurrency Manager with Instance Management
-class EnhancedConcurrencyManager {
-    constructor() {
-        this.locks = new Map();
-        this.intervals = new Map();
-        this.processing = new Map();
-    }
-    
-    async acquireLock(channelId, timeout = 5000) {
-        // First check with instance manager
-        if (!instanceManager.hasActiveInstance(channelId)) {
-            if (!instanceManager.registerInstance(channelId)) {
-                console.log(`[CONCURRENCY] Cannot acquire lock - another process owns channel ${channelId}`);
-                return false;
-            }
-        }
-        
-        // Then do local locking
-        const startTime = Date.now();
-        
-        while (this.locks.get(channelId)) {
-            if (Date.now() - startTime > timeout) {
-                console.warn(`[CONCURRENCY] Lock acquisition timeout for channel ${channelId}`);
-                this.forceUnlock(channelId);
-                break;
-            }
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        this.locks.set(channelId, {
-            timestamp: Date.now(),
-            pid: process.pid
-        });
-        
-        this.processing.set(channelId, Date.now());
-        return true;
-    }
-    
-    releaseLock(channelId) {
-        this.locks.delete(channelId);
-        this.processing.delete(channelId);
-        console.log(`[CONCURRENCY] Released lock for channel ${channelId}`);
-    }
-    
-    forceUnlock(channelId) {
-        console.warn(`[CONCURRENCY] Force unlocking channel ${channelId}`);
-        this.locks.delete(channelId);
-        this.processing.delete(channelId);
-        this.clearAllIntervalsForChannel(channelId);
-        instanceManager.forceKillChannel(channelId);
-    }
-    
-    isLocked(channelId) {
-        if (instanceManager.hasActiveInstance(channelId)) {
-            const instance = instanceManager.getInstanceInfo(channelId);
-            if (instance && instance.pid !== process.pid) {
-                return true;
-            }
-        }
-        return this.locks.has(channelId);
-    }
-    
-    isProcessing(channelId) {
-        return this.processing.has(channelId);
-    }
-    
-    setInterval(channelId, type, callback, delay) {
-        const key = `${channelId}_${type}`;
-        this.clearInterval(channelId, type);
-        const intervalId = setInterval(callback, delay);
-        this.intervals.set(key, intervalId);
-        instanceManager.addInterval(channelId, intervalId);
-        return intervalId;
-    }
-    
-    clearInterval(channelId, type) {
-        const key = `${channelId}_${type}`;
-        const intervalId = this.intervals.get(key);
-        if (intervalId) {
-            clearInterval(intervalId);
-            this.intervals.delete(key);
-            instanceManager.removeInterval(channelId, intervalId);
-        }
-    }
-    
-    clearAllIntervalsForChannel(channelId) {
-        const keysToDelete = [];
-        for (const [key, intervalId] of this.intervals) {
-            if (key.startsWith(`${channelId}_`)) {
-                clearInterval(intervalId);
-                keysToDelete.push(key);
-                instanceManager.removeInterval(channelId, intervalId);
-            }
-        }
-        keysToDelete.forEach(key => this.intervals.delete(key));
-    }
-    
-    getDebugInfo() {
-        const diagnostics = instanceManager.getDiagnostics();
-        return {
-            lockedChannels: Array.from(this.locks.keys()),
-            processingChannels: Array.from(this.processing.keys()),
-            activeIntervals: Array.from(this.intervals.keys()),
-            instanceDiagnostics: diagnostics
-        };
-    }
-}
-
-// Replace old concurrency manager
-const concurrencyManager = new EnhancedConcurrencyManager();
-
-// Message queue to prevent duplicate messages
-class MessageQueue {
-    constructor() {
-        this.recentMessages = new Map();
-    }
-    
-    isDuplicate(channelId, messageKey, type = 'general', ttl = 5000) {
-        const key = `${channelId}_${type}_${messageKey}`;
-        const now = Date.now();
-        
-        if (this.recentMessages.has(key)) {
-            const timestamp = this.recentMessages.get(key);
-            if (now - timestamp < ttl) {
-                return true;
-            }
-        }
-        
-        this.recentMessages.set(key, now);
-        
-        // Cleanup old entries
-        for (const [k, timestamp] of this.recentMessages) {
-            if (now - timestamp > 60000) {
-                this.recentMessages.delete(k);
-            }
-        }
-        
-        return false;
-    }
-}
-
-const messageQueue = new MessageQueue();
-
 // Global event counter for image generation
 let eventCounter = 0;
 
@@ -256,9 +113,9 @@ const efficiencyCache = new Map();
 
 // Track processing times and health metrics
 const healthMetrics = {
-    lastProcessed: new Map(),
-    processingErrors: new Map(),
-    averageProcessingTime: new Map(),
+    lastProcessed: new Map(), // channelId -> timestamp
+    processingErrors: new Map(), // channelId -> error count
+    averageProcessingTime: new Map(), // channelId -> avg time
     stuckChannels: new Set()
 };
 
@@ -268,6 +125,7 @@ const playerMovementHistory = new Map();
 // Enhanced cache management with size limits
 function addToCache(cache, key, value, maxSize = MAX_CACHE_SIZE) {
     if (cache.size >= maxSize) {
+        // Remove oldest entry (first in map)
         const firstKey = cache.keys().next().value;
         cache.delete(firstKey);
     }
@@ -277,6 +135,7 @@ function addToCache(cache, key, value, maxSize = MAX_CACHE_SIZE) {
 // Export caches globally for external clearing (needed for rail system)
 global.dbCache = dbCache;
 global.efficiencyCache = efficiencyCache;
+// Proper initialization without race condition
 if (typeof visibilityCalculator !== 'undefined') {
     global.visibilityCalculator = visibilityCalculator;
 }
@@ -302,6 +161,7 @@ async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0)
     } catch (error) {
         console.error(`[MINING] Error fetching DB entry for channel ${channelId}:`, error);
         
+        // Retry logic
         if (retryCount < 3) {
             await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
             return getCachedDBEntry(channelId, forceRefresh, retryCount + 1);
@@ -318,35 +178,47 @@ async function performHealthCheck(channelId) {
         const lastProcessed = healthMetrics.lastProcessed.get(channelId);
         const now = Date.now();
         
+        // Check if channel has been locked too long
         if (debugInfo.lockedChannels.includes(channelId)) {
             const lockTime = now - (lastProcessed || 0);
             if (lockTime > MAX_PROCESSING_TIME) {
                 console.warn(`[HEALTH] Channel ${channelId} locked for ${lockTime}ms, forcing unlock`);
-                concurrencyManager.forceUnlock(channelId);
+                concurrencyManager.releaseLock(channelId);
                 healthMetrics.stuckChannels.add(channelId);
+                
+                // Clear any intervals for this channel
+                concurrencyManager.clearAllIntervalsForChannel(channelId);
+                
                 return false;
             }
         }
         
+        // Check if channel hasn't been processed in too long (stuck)
         if (lastProcessed && (now - lastProcessed) > MINING_DURATION + LONG_BREAK_DURATION) {
             console.warn(`[HEALTH] Channel ${channelId} hasn't been processed in ${(now - lastProcessed) / 1000}s`);
             healthMetrics.stuckChannels.add(channelId);
-            concurrencyManager.forceUnlock(channelId);
+            
+            // Force clear any locks or intervals
+            concurrencyManager.releaseLock(channelId);
+            concurrencyManager.clearAllIntervalsForChannel(channelId);
+            
             return false;
         }
         
+        // Check error rate
         const errorCount = healthMetrics.processingErrors.get(channelId) || 0;
         if (errorCount > 5) {
             console.warn(`[HEALTH] Channel ${channelId} has ${errorCount} errors, resetting`);
             healthMetrics.processingErrors.set(channelId, 0);
             healthMetrics.stuckChannels.add(channelId);
+            
             return false;
         }
         
         return true;
     } catch (error) {
         console.error(`[HEALTH] Error during health check for channel ${channelId}:`, error);
-        return true;
+        return true; // Don't block on health check errors
     }
 }
 
@@ -355,12 +227,14 @@ async function attemptAutoRecovery(channel) {
     try {
         console.log(`[RECOVERY] Attempting auto-recovery for channel ${channel.id}`);
         
-        concurrencyManager.forceUnlock(channel.id);
-        instanceManager.forceKillChannel(channel.id);
+        // Clear all state for this channel
+        concurrencyManager.releaseLock(channel.id);
+        concurrencyManager.clearAllIntervalsForChannel(channel.id);
         dbCache.delete(channel.id);
         healthMetrics.stuckChannels.delete(channel.id);
         healthMetrics.processingErrors.set(channel.id, 0);
         
+        // Re-initialize if needed
         const dbEntry = await getCachedDBEntry(channel.id, true);
         if (dbEntry && dbEntry.gameData) {
             console.log(`[RECOVERY] Successfully recovered channel ${channel.id}`);
@@ -377,6 +251,7 @@ async function attemptAutoRecovery(channel) {
 // Enhanced function to get server modifiers based on gacha server name
 function getServerModifiers(serverName, serverPower) {
     try {
+        // Convert server name to server key for lookup
         const nameToKey = {
             "Coal Mines": "coalMines",
             "Copper Quarry": "copperQuarry", 
@@ -392,6 +267,7 @@ function getServerModifiers(serverName, serverPower) {
             "Adamantite Abyss": "adamantiteAbyss"
         };
         
+        // Clean server name (remove emojis and extra spaces)
         const cleanName = serverName.replace(/⛏️|️/g, '').trim();
         const serverKey = nameToKey[cleanName];
         
@@ -399,6 +275,7 @@ function getServerModifiers(serverName, serverPower) {
             return SERVER_POWER_MODIFIERS[serverKey];
         }
         
+        // Fallback: create default modifier based on power level
         return {
             powerLevel: serverPower || 1,
             specialBonus: "Standard mining efficiency",
@@ -430,6 +307,7 @@ function getCachedMiningEfficiency(serverPowerLevel, playerLevel = 1, serverModi
         return applyServerModifiers(efficiency, serverModifiers);
     } catch (error) {
         console.error('[MINING] Error calculating efficiency:', error);
+        // Return safe defaults
         return {
             oreSpawnChance: 0.3,
             rareOreChance: 0.05,
@@ -447,9 +325,10 @@ function applyServerModifiers(efficiency, serverModifiers) {
     try {
         return {
             ...efficiency,
-            oreSpawnChance: efficiency.oreSpawnChance * 1.1,
+            // Server modifiers can enhance base efficiency
+            oreSpawnChance: efficiency.oreSpawnChance * 1.1, // 10% server bonus
             rareOreChance: efficiency.rareOreChance * 1.1,
-            treasureChance: efficiency.treasureChance * 1.2,
+            treasureChance: efficiency.treasureChance * 1.2, // 20% treasure bonus
             specialBonus: serverModifiers.specialBonus,
             itemBonuses: serverModifiers.itemBonuses
         };
@@ -464,6 +343,7 @@ function calculateNextBreakTime(dbEntry) {
     const now = Date.now();
     const cycleCount = dbEntry.gameData?.cycleCount || 0;
     
+    // Pattern: 3 cycles of (25min mining + 5min break), then 1 cycle of (25min mining + 25min long break)
     const isLongBreakCycle = (cycleCount % 4) === 3;
     
     if (isLongBreakCycle) {
@@ -514,26 +394,35 @@ function getRandomFloorTile(mapData) {
 // Enhanced mining system with power level filtering and error handling
 async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency) {
     try {
+        // Filter items by power level and tile type
         let eligibleItems = availableItems.filter(item => {
             if (tileType === TILE_TYPES.TREASURE_CHEST) {
+                // For treasure chests, use treasure items or rare mining items
                 return item.tier === 'epic' || item.tier === 'legendary';
             } else if (tileType === TILE_TYPES.RARE_ORE) {
+                // For rare ore, get the best tiers available at this power level
+                // Power 1-2: uncommon+, Power 3-4: rare+, Power 5+: epic+
                 if (powerLevel <= 2) {
+                    // At low power levels, rare ore gives uncommon or better (exclude common)
                     return item.tier !== 'common';
                 } else if (powerLevel <= 4) {
+                    // Mid power levels, rare ore gives rare or better
                     return item.tier === 'rare' || item.tier === 'epic' || item.tier === 'legendary';
                 } else {
+                    // High power levels, rare ore gives epic or better
                     return item.tier === 'epic' || item.tier === 'legendary';
                 }
             } else {
+                // For regular ore walls, any available item
                 return true;
             }
         });
         
         if (eligibleItems.length === 0) {
-            eligibleItems = availableItems;
+            eligibleItems = availableItems; // Fallback to all available items
         }
         
+        // Select item using weighted probability
         const totalWeight = eligibleItems.reduce((sum, item) => sum + item.baseWeight, 0);
         let random = Math.random() * totalWeight;
         
@@ -546,6 +435,7 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             }
         }
         
+        // Calculate quantity with power level bonuses
         let quantity = 1;
         
         if (miningPower > 0) {
@@ -560,12 +450,14 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             }
         }
         
+        // Apply tile type multipliers
         if (tileType === TILE_TYPES.RARE_ORE) {
             quantity *= 2;
         } else if (tileType === TILE_TYPES.TREASURE_CHEST) {
             quantity = Math.max(quantity, 3);
         }
         
+        // Apply power level value multiplier
         const enhancedValue = Math.floor(selectedItem.value * efficiency.valueMultiplier);
         
         return { 
@@ -574,6 +466,7 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         };
     } catch (error) {
         console.error('[MINING] Error mining from tile:', error);
+        // Return safe default
         return {
             item: availableItems[0] || { itemId: 'default', name: 'Stone', value: 1 },
             quantity: 1
@@ -599,191 +492,6 @@ async function generateTreasure(powerLevel, efficiency) {
         return null;
     } catch (error) {
         console.error('[MINING] Error generating treasure:', error);
-        return null;
-    }
-}
-
-// Get all possible hazards with enhanced descriptions for higher danger levels
-function getAllPossibleHazards(dangerLevel) {
-    const hazardList = [];
-    
-    // Enhanced hazard descriptions with more variety for danger 6-7
-    const enhancedHazards = {
-        1: [
-            { type: 'rocks', name: '🪨 Falling Rocks', description: 'Loose rocks that may fall and stun players' },
-            { type: 'gas', name: '💨 Gas Pocket', description: 'Toxic gas that disorients miners' },
-            { type: 'treasure', name: '💎 Hidden Treasure', description: 'A cache of valuable items' }
-        ],
-        2: [
-            { type: 'rocks', name: '🪨 Rock Slide', description: 'Dangerous rockfalls that can knock out miners' },
-            { type: 'gas', name: '☠️ Poison Gas', description: 'Deadly fumes that incapacitate unwary explorers' },
-            { type: 'water', name: '💧 Water Leak', description: 'Underground water that floods passages' },
-            { type: 'treasure', name: '💰 Treasure Cache', description: 'A valuable stash of rare items' }
-        ],
-        3: [
-            { type: 'explosion', name: '💥 Gas Explosion', description: 'Volatile gas pockets that explode on contact' },
-            { type: 'collapse', name: '⛰️ Cave-in', description: 'Unstable ceiling that collapses' },
-            { type: 'portal', name: '🌀 Strange Portal', description: 'Mysterious portal that teleports miners' },
-            { type: 'rare_treasure', name: '👑 Rare Treasure', description: 'Exceptionally valuable ancient artifacts' }
-        ],
-        4: [
-            { type: 'explosion', name: '💥 Chain Explosion', description: 'Multiple gas pockets that trigger chain reactions' },
-            { type: 'collapse', name: '🏔️ Major Cave-in', description: 'Massive structural collapse' },
-            { type: 'portal', name: '🌌 Unstable Portal', description: 'Chaotic portal that randomly displaces miners' },
-            { type: 'monster', name: '👹 Cave Monster', description: 'Dangerous creature lurking in the depths' },
-            { type: 'rare_treasure', name: '💎 Ancient Vault', description: 'Legendary treasures from forgotten times' }
-        ],
-        5: [
-            { type: 'explosion', name: '🔥 Inferno Blast', description: 'Massive fiery explosion' },
-            { type: 'collapse', name: '🌋 Seismic Collapse', description: 'Earthquake-triggered cave-in' },
-            { type: 'portal', name: '🕳️ Void Portal', description: 'Portal to the unknown void' },
-            { type: 'monster', name: '🐉 Ancient Beast', description: 'Powerful creature guarding the depths' },
-            { type: 'curse', name: '👻 Ancient Curse', description: 'Mysterious curse that weakens miners' },
-            { type: 'legendary_treasure', name: '👑 Legendary Hoard', description: 'Mythical treasures of immense value' }
-        ],
-        6: [
-            // Enhanced danger 6 hazards
-            { type: 'explosion', name: '☄️ Meteor Strike', description: 'Underground meteor impact zone' },
-            { type: 'collapse', name: '🌊 Tidal Collapse', description: 'Underground tsunami that floods entire sections' },
-            { type: 'portal', name: '🌀 Dimensional Rift', description: 'Reality-warping portal that distorts space' },
-            { type: 'monster', name: '🦑 Eldritch Horror', description: 'Unspeakable terror from the deep' },
-            { type: 'curse', name: '💀 Death Curse', description: 'Lethal curse that spreads to nearby miners' },
-            { type: 'trap', name: '⚡ Lightning Trap', description: 'Ancient electrical defense system' },
-            { type: 'lava', name: '🌋 Lava Flow', description: 'Molten rock that instantly vaporizes miners' },
-            { type: 'void', name: '⚫ Void Zone', description: 'Area where reality breaks down' },
-            { type: 'legendary_treasure', name: '🏆 Divine Artifacts', description: 'God-tier items of unimaginable power' }
-        ],
-        7: [
-            // Maximum danger hazards
-            { type: 'apocalypse', name: '💥 Apocalypse Zone', description: 'Chain reaction of all hazard types' },
-            { type: 'blackhole', name: '🕳️ Black Hole', description: 'Gravitational anomaly that consumes everything' },
-            { type: 'demon_lord', name: '👺 Demon Lord', description: 'Boss-level entity that hunts all miners' },
-            { type: 'time_warp', name: '⏰ Time Distortion', description: 'Temporal anomaly that reverses progress' },
-            { type: 'nuclear', name: '☢️ Nuclear Zone', description: 'Radioactive area with extreme danger' },
-            { type: 'nightmare', name: '😱 Nightmare Realm', description: 'Psychological horror that affects all players' },
-            { type: 'omega_curse', name: '⚰️ Omega Curse', description: 'Ultimate curse affecting the entire mine' },
-            { type: 'cataclysm', name: '🌪️ Cataclysmic Storm', description: 'Reality-tearing storm of pure chaos' },
-            { type: 'divine_wrath', name: '⚡ Divine Wrath', description: 'Punishment from angry mining gods' },
-            { type: 'mythic_treasure', name: '💎 Mythic Treasury', description: 'Reality-bending treasures beyond comprehension' }
-        ]
-    };
-    
-    // Add hazards based on danger level
-    for (let level = 1; level <= Math.min(dangerLevel, 7); level++) {
-        if (enhancedHazards[level]) {
-            hazardList.push(...enhancedHazards[level]);
-        }
-    }
-    
-    return hazardList;
-}
-
-// Modified hazard generation for initial roll with more hazards at high danger
-async function performInitialHazardRoll(channel, dbEntry, powerLevel) {
-    try {
-        // Only perform if not already done
-        if (dbEntry.gameData?.hazardRollDone) {
-            return null;
-        }
-        
-        const members = channel.members.filter(m => !m.user.bot);
-        const dangerLevel = Math.min(powerLevel, 7);
-        
-        // Get spawn chance (dramatically increased for levels 6-7)
-        let baseSpawnChance = getHazardSpawnChance(powerLevel);
-        if (dangerLevel >= 6) {
-            baseSpawnChance *= 3; // Triple hazards for danger 6
-        }
-        if (dangerLevel >= 7) {
-            baseSpawnChance *= 5; // 5x hazards for danger 7
-        }
-        
-        // Get all possible hazards
-        const possibleHazards = getAllPossibleHazards(dangerLevel);
-        
-        // Create embed
-        const embed = new EmbedBuilder()
-            .setTitle(`⚠️ DANGER ASSESSMENT - Level ${dangerLevel}`)
-            .setColor(dangerLevel >= 6 ? 0xFF0000 : dangerLevel >= 4 ? 0xFFA500 : 0xFFFF00)
-            .setDescription(`The ${POWER_LEVEL_CONFIG[powerLevel]?.name || 'Unknown Mine'} has been analyzed for potential hazards.`)
-            .setTimestamp();
-        
-        // Add danger level indicator
-        const dangerBar = '█'.repeat(dangerLevel) + '░'.repeat(7 - dangerLevel);
-        embed.addFields({
-            name: '📊 Danger Level',
-            value: `\`[${dangerBar}]\` ${dangerLevel}/7`,
-            inline: false
-        });
-        
-        // Add hazard spawn rate
-        const spawnPercent = Math.round(baseSpawnChance * 100);
-        embed.addFields({
-            name: '🎲 Hazard Frequency',
-            value: `${spawnPercent}% chance per tile${dangerLevel >= 6 ? ' ⚠️ **EXTREME DANGER**' : ''}`,
-            inline: true
-        });
-        
-        // Group hazards by danger threshold
-        const hazardGroups = {
-            'Common Hazards (Lvl 1-2)': possibleHazards.filter(h => ['rocks', 'gas', 'water', 'treasure'].includes(h.type)),
-            'Dangerous Hazards (Lvl 3-4)': possibleHazards.filter(h => ['explosion', 'collapse', 'portal', 'monster', 'rare_treasure'].includes(h.type)),
-            'Extreme Hazards (Lvl 5+)': possibleHazards.filter(h => ['curse', 'trap', 'lava', 'void', 'legendary_treasure'].includes(h.type)),
-            'Apocalyptic Hazards (Lvl 6-7)': possibleHazards.filter(h => ['apocalypse', 'blackhole', 'demon_lord', 'time_warp', 'nuclear', 'nightmare', 'omega_curse', 'cataclysm', 'divine_wrath', 'mythic_treasure'].includes(h.type))
-        };
-        
-        // Add hazard lists
-        for (const [groupName, hazards] of Object.entries(hazardGroups)) {
-            if (hazards.length > 0) {
-                const hazardList = hazards.map(h => `${h.name}`).join('\n');
-                if (hazardList) {
-                    embed.addFields({
-                        name: groupName,
-                        value: hazardList.substring(0, 1024), // Discord field limit
-                        inline: true
-                    });
-                }
-            }
-        }
-        
-        // Add warning message based on danger level
-        let warningMessage = '';
-        if (dangerLevel >= 7) {
-            warningMessage = '⚠️ **MAXIMUM DANGER** ⚠️\nThis mine is experiencing catastrophic instability. Multiple reality-breaking hazards detected. Proceed with EXTREME caution!';
-        } else if (dangerLevel >= 6) {
-            warningMessage = '⚠️ **EXTREME DANGER** ⚠️\nHighly unstable environment detected. Apocalyptic hazards present. Survival unlikely without proper equipment!';
-        } else if (dangerLevel >= 5) {
-            warningMessage = '⚠️ **HIGH DANGER** ⚠️\nAncient curses and powerful creatures detected. Proceed with extreme caution!';
-        } else if (dangerLevel >= 3) {
-            warningMessage = '⚠️ **MODERATE DANGER** ⚠️\nUnstable areas and dangerous creatures present. Stay alert!';
-        } else {
-            warningMessage = '⚠️ **LOW DANGER** ⚠️\nBasic hazards detected. Standard safety protocols recommended.';
-        }
-        
-        embed.addFields({
-            name: '⚠️ Safety Warning',
-            value: warningMessage,
-            inline: false
-        });
-        
-        // Add player list
-        const playerList = Array.from(members.values()).map(m => m.displayName).join(', ');
-        embed.setFooter({
-            text: `Miners: ${playerList}`
-        });
-        
-        // Mark as done
-        await gachaVC.updateOne(
-            { channelId: channel.id },
-            { $set: { 'gameData.hazardRollDone': true, 'gameData.dangerLevel': dangerLevel } }
-        );
-        
-        // Send the embed
-        await channel.send({ embeds: [embed] });
-        
-        return embed;
-    } catch (error) {
-        console.error('[MINING] Error performing hazard roll:', error);
         return null;
     }
 }
@@ -847,10 +555,12 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
                 attachment = new AttachmentBuilder(mapBuffer, { name: 'mine_map.png' });
             } catch (imgError) {
                 console.error('[MINING] Error generating image:', imgError);
+                // Continue without image
             }
         }
 
         if (logEntry || shouldGenerateImage) {
+            // Enhanced title with power level info
             let titleText = endTimestamp
                 ? `🗺️ MINING MAP | ${timeStatus} ends <t:${endTimestamp}:R>`
                 : `🗺️ MINING MAP | ${timeStatus}`;
@@ -867,6 +577,7 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
                 })
                 .setTimestamp();
 
+            // Add power level description if available
             if (powerLevelInfo && forceNew) {
                 let description = logEntry ? `\`\`\`\n${logEntry}\n\`\`\`` : '';
                 if (description) {
@@ -928,6 +639,7 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
 
     } catch (error) {
         console.error('Error updating mining map:', error);
+        // Try simple text fallback
         try {
             if (eventText) await channel.send(`\`${eventText}\``);
         } catch (fallbackError) {
@@ -936,16 +648,14 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
     }
 }
 
-// Enhanced break start with instance management
+// Handle break start with power level considerations and error recovery
 async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1, preSelectedEvent = null) {
     try {
         const channelId = channel.id;
         const now = Date.now();
         const members = channel.members.filter(m => !m.user.bot);
         
-        // Kill any parallel instances before starting break
-        instanceManager.forceKillChannel(channelId);
-        
+        // Prevent duplicate break announcements
         const breakKey = isLongBreak ? 'LONG_BREAK_START' : 'SHORT_BREAK_START';
         if (messageQueue.isDuplicate(channelId, breakKey, 'break')) {
             console.log(`[MINING] Duplicate break start prevented for channel ${channelId}`);
@@ -953,6 +663,7 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
         }
         
         if (isLongBreak) {
+            // Long break - enhanced for higher power levels
             const breakEndTime = now + LONG_BREAK_DURATION;
             const eventEndTime = now + LONG_EVENT_DURATION;
             
@@ -988,10 +699,14 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
             }
             
             const playerCount = members.size;
+            
+            // Use pre-selected event if provided, otherwise select one
             const selectedEvent = preSelectedEvent || pickLongBreakEvent(playerCount);
             
             console.log(`[LONG BREAK] Selected event: ${selectedEvent.name || 'Unknown'}`);
             
+            // Run the selected event
+            // Note: Rewards have already been distributed before the break started
             const eventResult = await selectedEvent(channel, updatedDbEntry);
             
             const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
@@ -1001,22 +716,32 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
                 specialBonus: `Power Level ${powerLevel} Event`
             });
             
-            concurrencyManager.clearInterval(channelId, 'eventCheck');
+            // Clear any existing event check interval for this channel
+            const existingInterval = concurrencyManager.getInterval?.(channelId, 'eventCheck');
+            if (existingInterval) {
+                console.warn(`[MINING] Clearing existing event check interval for channel ${channelId}`);
+                concurrencyManager.clearInterval(channelId, 'eventCheck');
+            }
             
+            // Set up new interval with proper management
             concurrencyManager.setInterval(channelId, 'eventCheck', async () => {
                 try {
                     const currentEntry = await getCachedDBEntry(channel.id, true);
                     if (!currentEntry) return;
                     
+                    // Check if special event should end
                     if (currentEntry.gameData?.specialEvent) {
                         const eventEndResult = await checkAndEndSpecialEvent(channel, currentEntry);
                         if (eventEndResult) {
+                            // Prevent duplicate event end messages
                             if (!messageQueue.isDuplicate(channelId, eventEndResult, 'eventEnd')) {
                                 await logEvent(channel, eventEndResult, true);
                             }
                             concurrencyManager.clearInterval(channelId, 'eventCheck');
                             
+                            // Open shop after event ends if still in break
                             if (currentEntry.gameData?.breakInfo?.inBreak) {
+                                // Prevent duplicate shop open message
                                 if (!messageQueue.isDuplicate(channelId, 'SHOP_OPEN', 'shop')) {
                                     await generateShop(channel, 10);
                                     await logEvent(channel, '🛒 Shop is now open!', true);
@@ -1024,9 +749,11 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
                             }
                         }
                     } else {
+                        // No special event or already ended
                         concurrencyManager.clearInterval(channelId, 'eventCheck');
                     }
                     
+                    // Stop checking if break ended
                     if (!currentEntry.gameData?.breakInfo?.inBreak) {
                         concurrencyManager.clearInterval(channelId, 'eventCheck');
                     }
@@ -1034,16 +761,19 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
                     console.error('Error checking special event:', error);
                     concurrencyManager.clearInterval(channelId, 'eventCheck');
                 }
-            }, 30000);
+            }, 30000); // Check every 30 seconds
             
+            // Fallback: ensure interval is cleared after max time
             setTimeout(() => {
                 concurrencyManager.clearInterval(channelId, 'eventCheck');
             }, LONG_BREAK_DURATION);
             
         } else {
+            // Short break
             const breakEndTime = now + SHORT_BREAK_DURATION;
             const mapData = dbEntry.gameData.map;
             const gatherPoint = getRandomFloorTile(mapData);
+            // Use scatterPlayersForBreak to place tents on floor tiles only
             const scatteredPositions = scatterPlayersForBreak(
                 mapData.playerPositions || {}, 
                 gatherPoint.x, 
@@ -1067,6 +797,7 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
             
             await batchDB.flush();
             
+            // Prevent duplicate shop generation
             if (!messageQueue.isDuplicate(channelId, 'SHORT_BREAK_SHOP', 'shop')) {
                 await generateShop(channel, 5);
                 await logEvent(channel, `⛺ SHORT BREAK: Players camping at (${gatherPoint.x}, ${gatherPoint.y}). Shop open!`, true);
@@ -1074,32 +805,24 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
         }
     } catch (error) {
         console.error(`[MINING] Error starting break for channel ${channel.id}:`, error);
+        // Try to continue mining instead of getting stuck
         healthMetrics.processingErrors.set(channel.id, 
             (healthMetrics.processingErrors.get(channel.id) || 0) + 1);
     }
 }
 
-// Enhanced break end with instance management
+// Handle break end with power level considerations and error recovery
 async function endBreak(channel, dbEntry, powerLevel = 1) {
     try {
         const channelId = channel.id;
         
-        // Force kill any parallel instances before ending break
-        instanceManager.forceKillChannel(channelId);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Register new instance for post-break mining
-        if (!instanceManager.registerInstance(channelId)) {
-            console.error(`[MINING] Cannot end break - channel ${channelId} is locked by another process`);
-            return;
-        }
-        
+        // Prevent duplicate break end announcements
         if (messageQueue.isDuplicate(channelId, 'BREAK_END', 'break')) {
             console.log(`[MINING] Duplicate break end prevented for channel ${channelId}`);
-            instanceManager.killInstance(channelId);
             return;
         }
         
+        // Clear any lingering intervals for this channel
         concurrencyManager.clearAllIntervalsForChannel(channelId);
         
         const mapData = dbEntry.gameData.map;
@@ -1110,20 +833,25 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         const resetPositions = {};
         
         if (breakInfo.isLongBreak) {
+            // After long break, place players at random rail tiles (or entrance if no rails)
             const railsData = await railStorage.getRailsData(channel.id);
             const railTiles = [];
             
+            // Collect all rail positions
             if (railsData && railsData.rails && railsData.rails.size > 0) {
                 for (const [key, rail] of railsData.rails) {
                     const [x, y] = key.split(',').map(Number);
+                    // Only add rail tiles that are within map bounds
                     if (x >= 0 && x < mapData.width && y >= 0 && y < mapData.height) {
                         railTiles.push({ x, y });
                     }
                 }
             }
             
+            // Place each player at a random rail tile (or entrance if no rails)
             for (const member of members.values()) {
                 if (railTiles.length > 0) {
+                    // Pick random rail tile
                     const randomRail = railTiles[Math.floor(Math.random() * railTiles.length)];
                     resetPositions[member.id] = {
                         x: randomRail.x,
@@ -1132,6 +860,7 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
                         hidden: false
                     };
                 } else {
+                    // No rails, place at entrance
                     resetPositions[member.id] = {
                         x: mapData.entranceX,
                         y: mapData.entranceY,
@@ -1164,10 +893,9 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         batchDB.queueUpdate(channel.id, {
             'gameData.map.playerPositions': resetPositions,
             'gameData.cycleCount': cycleCount,
-            'gameData.breakInfo.justEnded': true,
-            'gameData.breakJustEnded': Date.now(),
+            'gameData.breakInfo.justEnded': true,  // Mark that break just ended for hazard system
             nextShopRefresh: nextBreakInfo.nextShopRefresh,
-            nextTrigger: new Date(Date.now() + 1000)
+            nextTrigger: new Date(Date.now() + 1000)  // Trigger mining again in 1 second
         });
         
         await gachaVC.updateOne(
@@ -1179,7 +907,6 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         
         visibilityCalculator.invalidate();
         dbCache.delete(channel.id);
-        efficiencyCache.delete(channel.id);
         
         const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
         await logEvent(channel, '⛏️ Break ended! Mining resumed.', true, {
@@ -1187,11 +914,9 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
             name: powerLevelConfig?.name || 'Unknown Mine',
             specialBonus: powerLevelConfig?.description || 'Mining efficiency active'
         });
-        
-        console.log(`[MINING] Break ended successfully for channel ${channelId}`);
     } catch (error) {
         console.error(`[MINING] Error ending break for channel ${channel.id}:`, error);
-        instanceManager.killInstance(channel.id, true);
+        // Force clear break state to prevent getting stuck
         try {
             await gachaVC.updateOne(
                 { channelId: channel.id },
@@ -1204,47 +929,33 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
     }
 }
 
-// Main Mining Event - Enhanced with Full Power Level Integration and Instance Management
+// Main Mining Event - Enhanced with Full Power Level Integration and Crash Protection
 module.exports = async (channel, dbEntry, json, client) => {
     const channelId = channel.id;
     const processingStartTime = Date.now();
     
-    // Multi-level instance checking
-    if (instanceManager.hasActiveInstance(channelId)) {
-        const instance = instanceManager.getInstanceInfo(channelId);
-        if (!instance || instance.pid !== process.pid) {
-            console.log(`[MINING] Channel ${channelId} is owned by another process, skipping...`);
+    // CRITICAL: Check if we're already processing this channel
+    if (concurrencyManager.isLocked(channelId)) {
+        console.log(`[MINING] Channel ${channelId} is already being processed, skipping...`);
+        return;
+    }
+    
+    // Perform health check before processing
+    const isHealthy = await performHealthCheck(channelId);
+    if (!isHealthy) {
+        console.warn(`[MINING] Channel ${channelId} failed health check, attempting recovery...`);
+        const recovered = await attemptAutoRecovery(channel);
+        if (!recovered) {
+            console.error(`[MINING] Failed to recover channel ${channelId}, skipping this cycle`);
             return;
         }
     }
     
-    if (concurrencyManager.isProcessing(channelId)) {
-        console.log(`[MINING] Channel ${channelId} is already being processed locally, skipping...`);
-        return;
-    }
-    
-    const lockAcquired = await concurrencyManager.acquireLock(channelId, 3000);
-    if (!lockAcquired) {
-        console.log(`[MINING] Could not acquire lock for channel ${channelId}, skipping...`);
-        return;
-    }
+    // Acquire lock for this channel
+    await concurrencyManager.acquireLock(channelId);
     
     try {
         const now = Date.now();
-        
-        // Check if we just ended a break
-        if (dbEntry.gameData?.breakJustEnded) {
-            const timeSinceBreakEnd = now - dbEntry.gameData.breakJustEnded;
-            if (timeSinceBreakEnd < 5000) {
-                console.log(`[MINING] Channel ${channelId} just ended break ${timeSinceBreakEnd}ms ago, waiting...`);
-                return;
-            }
-            
-            await gachaVC.updateOne(
-                { channelId },
-                { $unset: { 'gameData.breakJustEnded': 1 } }
-            );
-        }
         
         // Update health metrics
         healthMetrics.lastProcessed.set(channelId, now);
@@ -1254,6 +965,7 @@ module.exports = async (channel, dbEntry, json, client) => {
             initializeGameData(dbEntry, channel.id);
             await dbEntry.save();
         } else {
+            // FIX: Even if gameData exists, ensure gamemode is set
             if (!dbEntry.gameData.gamemode) {
                 console.log(`[MINING] Fixing missing gamemode for channel ${channel.id}`);
                 dbEntry.gameData.gamemode = 'mining';
@@ -1278,9 +990,6 @@ module.exports = async (channel, dbEntry, json, client) => {
         
         console.log(`[MINING] Power Level ${serverPowerLevel} detected for ${serverName}`);
         
-        // Perform initial hazard roll (once per session)
-        await performInitialHazardRoll(channel, dbEntry, serverPowerLevel);
-        
         // Check if we're in a break period
         const inBreak = isBreakPeriod(dbEntry);
         
@@ -1288,6 +997,7 @@ module.exports = async (channel, dbEntry, json, client) => {
             const breakInfo = dbEntry.gameData.breakInfo;
             
             if (now >= breakInfo.breakEndTime) {
+                // Check for any lingering special events before ending break
                 if (dbEntry.gameData?.specialEvent) {
                     const eventEndResult = await checkAndEndSpecialEvent(channel, dbEntry);
                     if (eventEndResult) {
@@ -1298,6 +1008,7 @@ module.exports = async (channel, dbEntry, json, client) => {
                 return;
             }
             
+            // Check for special event end during break
             if (dbEntry.gameData?.specialEvent) {
                 const specialEvent = dbEntry.gameData.specialEvent;
                 if (now >= specialEvent.endTime) {
@@ -1305,6 +1016,7 @@ module.exports = async (channel, dbEntry, json, client) => {
                     if (eventEndResult) {
                         await logEvent(channel, eventEndResult, true);
                         
+                        // Open shop if event ended and still in break
                         if (breakInfo.isLongBreak && !dbEntry.gameData?.specialEvent) {
                             await generateShop(channel, 10);
                             await logEvent(channel, '🛒 Shop is now open after event!', true);
@@ -1323,17 +1035,23 @@ module.exports = async (channel, dbEntry, json, client) => {
             
             let selectedEvent = null;
             
+            // ALWAYS create mining summary to distribute rewards
+            // This ensures players get their coins before any events
             console.log(`[MINING] Creating mining summary for channel ${channel.id}...`);
             try {
                 await createMiningSummary(channel, dbEntry);
                 console.log(`[MINING] Mining summary created successfully for channel ${channel.id}`);
             } catch (summaryError) {
                 console.error(`[MINING] ERROR creating mining summary for channel ${channel.id}:`, summaryError);
+                console.error('Stack trace:', summaryError.stack);
+                // Continue with break even if summary fails to prevent getting stuck
             }
             
             if (isLongBreak) {
+                // Long break - pre-select the event to avoid double selection
                 const playerCount = members.size;
                 selectedEvent = pickLongBreakEvent(playerCount);
+                
                 console.log(`[MAIN] Long break: Selected event for ${playerCount} players`);
             }
             
@@ -1341,10 +1059,11 @@ module.exports = async (channel, dbEntry, json, client) => {
             return;
         }
 
-        // Enhanced mining logic with power level integration
+        // Enhanced mining logic with power level integration and error handling
         const memberIds = Array.from(members.keys());
         const playerStatsMap = await playerStatsCache.getMultiple(memberIds);
 
+        // Get available items and efficiency based on power level
         const availableItems = getAvailableItems(serverPowerLevel);
         const availableTreasures = getAvailableTreasures(serverPowerLevel);
         
@@ -1357,7 +1076,7 @@ module.exports = async (channel, dbEntry, json, client) => {
         let wallsBroken = 0;
         let treasuresFound = 0;
         
-        // Get or initialize hazards data with enhanced spawn rates for danger 6-7
+        // Get or initialize hazards data
         let hazardsData = await hazardStorage.getHazardsData(channel.id);
         let hazardsChanged = false;
         
@@ -1365,15 +1084,8 @@ module.exports = async (channel, dbEntry, json, client) => {
             mapData = initializeMap(channel.id);
             mapChanged = true;
             
-            // Enhanced hazard spawn chance for high danger levels
-            let hazardSpawnChance = getHazardSpawnChance(serverPowerLevel);
-            if (serverPowerLevel >= 6) {
-                hazardSpawnChance *= 3;
-            }
-            if (serverPowerLevel >= 7) {
-                hazardSpawnChance *= 5;
-            }
-            
+            // Generate initial hazards for the starting map
+            const hazardSpawnChance = getHazardSpawnChance(serverPowerLevel);
             hazardsData = hazardStorage.generateHazardsForArea(
                 hazardsData,
                 0,
@@ -1386,7 +1098,7 @@ module.exports = async (channel, dbEntry, json, client) => {
             hazardsChanged = true;
         }
 
-        // Check for new players
+        // Check for new players BEFORE initializing their positions
         const existingPositions = mapData.playerPositions || {};
         const newPlayers = [];
         for (const member of members.values()) {
@@ -1400,21 +1112,25 @@ module.exports = async (channel, dbEntry, json, client) => {
         mapData = initializeBreakPositions(mapData, members, false);
         mapChanged = true;
         
-        // Check for players who left
+        // Check for players who left and clean up their data
         const currentPlayerIds = Array.from(members.keys());
         const departedPlayers = [];
         for (const playerId of Object.keys(existingPositions)) {
             if (!currentPlayerIds.includes(playerId)) {
+                // Get the player's display name if possible
                 const memberName = channel.guild.members.cache.get(playerId)?.displayName || 'A miner';
                 departedPlayers.push({ id: playerId, name: memberName });
                 eventLogs.push(`👋 ${memberName} left the mines`);
+                
+                // Clean up movement history for departed players
                 playerMovementHistory.delete(playerId);
             }
         }
         
+        // Clean up positions for departed players
         mapData = cleanupPlayerPositions(mapData, currentPlayerIds);
 
-        // Calculate team sight radius
+        // Calculate team sight radius with power level bonuses
         let teamSightRadius = 1;
         let maxSightThroughWalls = 0;
         if (!inBreak) {
@@ -1425,16 +1141,19 @@ module.exports = async (channel, dbEntry, json, client) => {
                 totalSight += playerData?.stats?.sight || 0;
                 playerCount++;
                 
+                // Check for sight through walls from unique items
                 const uniqueBonuses = parseUniqueItemBonuses(playerData?.equippedItems);
                 maxSightThroughWalls = Math.max(maxSightThroughWalls, uniqueBonuses.sightThroughWalls || 0);
             }
             teamSightRadius = Math.floor(totalSight / playerCount) + 1;
             
+            // Power level bonus to sight
             const powerLevelConfig = POWER_LEVEL_CONFIG[serverPowerLevel];
             if (powerLevelConfig) {
                 teamSightRadius = Math.floor(teamSightRadius * powerLevelConfig.speedBonus);
             }
             
+            // Add bonus from unique items
             if (maxSightThroughWalls > 0) {
                 teamSightRadius += Math.floor(maxSightThroughWalls);
                 eventLogs.push(`👁️ Enhanced vision reveals hidden areas!`);
@@ -1447,6 +1166,7 @@ module.exports = async (channel, dbEntry, json, client) => {
             mapData.tiles
         );
         
+        // Mark visible tiles as discovered
         for (const tileKey of teamVisibleTiles) {
             const [x, y] = tileKey.split(',').map(Number);
             if (mapData.tiles[y] && mapData.tiles[y][x] && !mapData.tiles[y][x].discovered) {
@@ -1455,25 +1175,30 @@ module.exports = async (channel, dbEntry, json, client) => {
             }
         }
 
+        // Re-enable players after break if needed
         if (dbEntry.gameData?.breakInfo?.justEnded) {
             hazardEffects.enablePlayersAfterBreak(dbEntry);
             delete dbEntry.gameData.breakInfo.justEnded;
             await dbEntry.save();
         }
         
+        // Clean up any expired disabled statuses
         const hadExpiredDisables = hazardEffects.cleanupExpiredDisables(dbEntry);
         if (hadExpiredDisables) {
             await dbEntry.save();
         }
         
-        // Process actions for each player
+        // Process actions for each player with power level enhancements
         for (const member of members.values()) {
             try {
+                // Check if player was previously disabled but can now be re-enabled
                 const wasDisabled = dbEntry.gameData?.disabledPlayers?.[member.id];
                 const isDisabled = hazardEffects.isPlayerDisabled(member.id, dbEntry);
                 
+                // If player just woke up, announce it
                 if (wasDisabled && !isDisabled) {
                     eventLogs.push(`⭐ ${member.displayName} recovered from being knocked out!`);
+                    // Move them back to entrance if they aren't already there
                     const position = mapData.playerPositions[member.id];
                     if (position && (position.x !== mapData.entranceX || position.y !== mapData.entranceY)) {
                         position.x = mapData.entranceX;
@@ -1483,9 +1208,11 @@ module.exports = async (channel, dbEntry, json, client) => {
                     }
                 }
                 
+                // Skip if still disabled
                 if (isDisabled) {
+                    // Add a periodic message about remaining knockout time
                     const disabledInfo = dbEntry.gameData?.disabledPlayers?.[member.id];
-                    if (disabledInfo?.enableAt && Math.random() < 0.1) {
+                    if (disabledInfo?.enableAt && Math.random() < 0.1) { // 10% chance to show message
                         const now = Date.now();
                         const remainingMs = disabledInfo.enableAt - now;
                         const remainingMinutes = Math.ceil(remainingMs / 60000);
@@ -1499,6 +1226,7 @@ module.exports = async (channel, dbEntry, json, client) => {
                 const playerData = playerStatsMap.get(member.id) || { stats: {}, level: 1 };
                 const playerLevel = playerData.level || 1;
                 
+                // Get mining efficiency with power level and server modifiers
                 const efficiency = getCachedMiningEfficiency(serverPowerLevel, playerLevel, serverModifiers);
                 
                 const result = await processPlayerActionsEnhanced(
@@ -1536,9 +1264,11 @@ module.exports = async (channel, dbEntry, json, client) => {
                 treasuresFound += result.treasuresFound;
             } catch (playerError) {
                 console.error(`[MINING] Error processing player ${member.displayName}:`, playerError);
+                // Continue with other players
             }
         }
 
+        // Update session statistics
         if (wallsBroken > 0 || treasuresFound > 0) {
             batchDB.queueUpdate(channel.id, {
                 'gameData.stats.wallsBroken': (dbEntry.gameData.stats?.wallsBroken || 0) + wallsBroken,
@@ -1546,10 +1276,12 @@ module.exports = async (channel, dbEntry, json, client) => {
             });
         }
 
+        // Save hazards data if changed
         if (hazardsChanged) {
             await hazardStorage.saveHazardsData(channel.id, hazardsData);
         }
         
+        // Commit changes
         if (mapChanged) {
             console.log(`[MINING] Map changed for channel ${channel.id} (Power Level ${serverPowerLevel})`);
             
@@ -1567,6 +1299,7 @@ module.exports = async (channel, dbEntry, json, client) => {
             }
         } catch (commitError) {
             console.error(`[MINING] Error committing transaction for channel ${channel.id}:`, commitError);
+            // Continue anyway to avoid getting stuck
         }
         
         await batchDB.flush();
@@ -1575,6 +1308,7 @@ module.exports = async (channel, dbEntry, json, client) => {
             dbCache.delete(channel.id);
         }
 
+        // Enhanced event logging with power level info
         const powerLevelConfig = POWER_LEVEL_CONFIG[serverPowerLevel];
         const powerLevelInfo = {
             level: serverPowerLevel,
@@ -1589,33 +1323,39 @@ module.exports = async (channel, dbEntry, json, client) => {
             await logEvent(channel, '', false, powerLevelInfo);
         }
         
+        // Update processing time metrics
         const processingTime = Date.now() - processingStartTime;
         const avgTime = healthMetrics.averageProcessingTime.get(channelId) || processingTime;
         healthMetrics.averageProcessingTime.set(channelId, (avgTime + processingTime) / 2);
         
+        // Reset error count on successful processing
         healthMetrics.processingErrors.set(channelId, 0);
         
     } catch (error) {
         console.error(`[MINING] Error processing channel ${channelId}:`, error);
         
+        // Track errors
         healthMetrics.processingErrors.set(channelId, 
             (healthMetrics.processingErrors.get(channelId) || 0) + 1);
         
+        // Try to auto-recover if too many errors
         if (healthMetrics.processingErrors.get(channelId) > 3) {
             console.warn(`[MINING] Too many errors for channel ${channelId}, attempting recovery...`);
             await attemptAutoRecovery(channel);
         }
     } finally {
+        // ALWAYS release the lock when done
         concurrencyManager.releaseLock(channelId);
     }
 };
 
-// Enhanced player action processing
+// Enhanced player action processing with full error recovery
 async function processPlayerActionsEnhanced(member, playerData, mapData, teamVisibleTiles, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData) {
     const miningPower = playerData?.stats?.mining || 0;
     const luckStat = playerData?.stats?.luck || 0;
     const speedStat = Math.min(playerData?.stats?.speed || 1, MAX_SPEED_ACTIONS);
     
+    // Parse unique item bonuses from equipped items with error handling
     let uniqueBonuses;
     try {
         uniqueBonuses = parseUniqueItemBonuses(playerData?.equippedItems);
@@ -1638,11 +1378,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     let mapChanged = false;
     let hazardsChanged = false;
     
+    // Get or initialize movement history for this player
     if (!playerMovementHistory.has(member.id)) {
         playerMovementHistory.set(member.id, { lastDirection: null, sameDirectionCount: 0 });
     }
     const moveHistory = playerMovementHistory.get(member.id);
     
+    // Find best pickaxe (including unique items) with error handling
     let bestPickaxe = null;
     let isUniquePickaxe = false;
     try {
@@ -1665,6 +1407,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         console.error(`[MINING] Error finding best pickaxe for ${member.displayName}:`, error);
     }
     
+    // Apply power level speed bonus and unique item movement speed bonus
     let enhancedSpeed = Math.floor(speedStat * efficiency.speedMultiplier);
     enhancedSpeed = applyMovementSpeedBonus(enhancedSpeed, uniqueBonuses.movementSpeedBonus);
     const numActions = enhancedSpeed > 0 ? Math.floor(Math.random() * enhancedSpeed) + 1 : 1;
@@ -1674,10 +1417,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             const position = mapData.playerPositions[member.id];
             if (!position) break;
             
+            // Check if player is stuck (from portal trap into wall) - they cannot do anything!
             if (position.stuck || position.trapped) {
+                // Player is stuck/trapped and cannot take any actions
                 break;
             }
             
+            // Enhanced treasure generation with power level
             if (Math.random() < efficiency.treasureChance) {
                 const treasure = await generateTreasure(powerLevel, efficiency);
                 if (treasure) {
@@ -1687,6 +1433,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 }
             }
             
+            // Check adjacent tiles for mining
             const adjacentPositions = [
                 { x: position.x, y: position.y - 1 },
                 { x: position.x + 1, y: position.y },
@@ -1699,12 +1446,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 let checkX = adj.x, checkY = adj.y;
                 
                 if (checkX < 0 || checkX >= mapData.width || checkY < 0 || checkY >= mapData.height) {
-                    // Enhanced hazard generation for expanded areas at high danger levels
-                    let expandHazardChance = getHazardSpawnChance(powerLevel);
-                    if (powerLevel >= 6) expandHazardChance *= 3;
-                    if (powerLevel >= 7) expandHazardChance *= 5;
-                    
-                    const expandedMap = await checkMapExpansion(mapData, checkX, checkY, dbEntry.channelId, hazardsData, powerLevel, expandHazardChance);
+                    const expandedMap = await checkMapExpansion(mapData, checkX, checkY, dbEntry.channelId, hazardsData, powerLevel);
                     if (expandedMap !== mapData) {
                         mapData = expandedMap;
                         mapChanged = true;
@@ -1723,11 +1465,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 }
             }
             
+            // Enhanced mining logic with power level items
             if (adjacentTarget) {
                 const tile = adjacentTarget.tile;
                 if (await canBreakTile(member.id, miningPower, tile)) {
                     const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, tile.type, availableItems, efficiency);
                     
+                    // Apply server-specific item bonuses
                     let finalQuantity = quantity;
                     let finalValue = item.value;
                     
@@ -1737,11 +1481,15 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         finalValue = Math.floor(item.value * bonus);
                     }
                     
+                    // Apply double ore bonus from unique items
                     finalQuantity = applyDoubleOreBonus(finalQuantity, uniqueBonuses.doubleOreChance, member, eventLogs);
+                    
+                    // Apply loot multiplier from other unique items
                     finalQuantity = Math.floor(finalQuantity * uniqueBonuses.lootMultiplier);
                     
                     await addItemToMinecart(dbEntry, member.id, item.itemId, finalQuantity);
                     
+                    // Convert to floor
                     mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                     mapChanged = true;
                     wallsBroken++;
@@ -1757,9 +1505,11 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     }
                     
                     if (bestPickaxe) {
+                        // Check if it's a unique pickaxe first
                         const uniqueCheck = checkUniquePickaxeBreak(bestPickaxe, isUniquePickaxe);
                         
                         if (uniqueCheck && uniqueCheck.isUnique) {
+                            // Unique items never break, just show status
                             if (uniqueBonuses.uniqueItems.length > 0) {
                                 const uniqueItem = uniqueBonuses.uniqueItems[0];
                                 if (uniqueItem.maintenanceRatio < 0.3) {
@@ -1767,6 +1517,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                                 }
                             }
                         } else {
+                            // Regular pickaxe breaking logic
                             const durabilityCheck = checkPickaxeBreak(bestPickaxe, tile.hardness);
                             if (durabilityCheck.shouldBreak) {
                                 transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
@@ -1786,8 +1537,10 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     
                     eventLogs.push(findMessage);
                     
+                    // Track mining activity for unique item maintenance
                     await updateMiningActivity(member.id, 1);
                     
+                    // Check for unique item find while mining
                     const itemFind = await processUniqueItemFinding(
                         member,
                         'mining',
@@ -1800,6 +1553,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         eventLogs.push(itemFind.message);
                     }
                     
+                    // Apply area damage from unique items
                     if (uniqueBonuses.areaDamageChance > 0) {
                         const extraWalls = applyAreaDamage(
                             { x: adjacentTarget.x, y: adjacentTarget.y },
@@ -1811,6 +1565,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         wallsBroken += extraWalls;
                     }
                     
+                    // Apply chain mining from unique items
                     if (uniqueBonuses.chainMiningChance > 0) {
                         const chainTargets = getChainMiningTargets(
                             { x: adjacentTarget.x, y: adjacentTarget.y },
@@ -1850,12 +1605,14 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 continue;
             }
             
+            // Enhanced pathfinding and movement with better randomization
             const visibleTargets = [TILE_TYPES.TREASURE_CHEST, TILE_TYPES.RARE_ORE, TILE_TYPES.WALL_WITH_ORE];
             const nearestTarget = findNearestTarget(position, teamVisibleTiles, mapData.tiles, visibleTargets);
             
             let direction;
             if (nearestTarget) {
                 direction = getDirectionToTarget(position, nearestTarget);
+                // Add some randomness to avoid always going in straight lines (20% chance to deviate)
                 if (Math.random() < 0.2) {
                     const randomOffsets = [
                         { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
@@ -1865,6 +1622,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     direction = randomDir;
                 }
             } else {
+                // Use true randomness instead of seed-based for exploration
                 const directions = [
                     { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
                     { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
@@ -1872,16 +1630,19 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 direction = directions[Math.floor(Math.random() * directions.length)];
             }
             
+            // Check if we've been moving in the same direction too long
             if (moveHistory.lastDirection && 
                 moveHistory.lastDirection.dx === direction.dx && 
                 moveHistory.lastDirection.dy === direction.dy) {
                 moveHistory.sameDirectionCount++;
                 
+                // Force a direction change after 3-5 moves in the same direction
                 if (moveHistory.sameDirectionCount >= 3 + Math.floor(Math.random() * 3)) {
                     const allDirections = [
                         { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
                         { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
                     ];
+                    // Filter out the current direction
                     const newDirections = allDirections.filter(d => 
                         d.dx !== direction.dx || d.dy !== direction.dy
                     );
@@ -1898,12 +1659,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             let newX = position.x + direction.dx;
             let newY = position.y + direction.dy;
             
-            // Enhanced hazard generation for map expansion at high danger levels
-            let expandHazardChance = getHazardSpawnChance(powerLevel);
-            if (powerLevel >= 6) expandHazardChance *= 3;
-            if (powerLevel >= 7) expandHazardChance *= 5;
-            
-            const expandedMap = await checkMapExpansion(mapData, newX, newY, dbEntry.channelId, hazardsData, powerLevel, expandHazardChance);
+            const expandedMap = await checkMapExpansion(mapData, newX, newY, dbEntry.channelId, hazardsData, powerLevel);
             if (expandedMap !== mapData) {
                 mapData = expandedMap;
                 mapChanged = true;
@@ -1915,15 +1671,18 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             const targetTile = mapData.tiles[newY] && mapData.tiles[newY][newX];
             if (!targetTile) continue;
             
+            // Handle different tile types with occasional direction changes
             if ([TILE_TYPES.WALL, TILE_TYPES.REINFORCED_WALL, TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE, TILE_TYPES.TREASURE_CHEST].includes(targetTile.type)) {
                 const canBreak = await canBreakTile(member.id, miningPower, targetTile);
                 if (canBreak) {
+                    // 15% chance to stop digging in a straight line and change direction next action
                     if (Math.random() < 0.15 && targetTile.type === TILE_TYPES.WALL) {
-                        continue;
+                        continue; // Skip this wall and try a different direction next action
                     }
                     if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE, TILE_TYPES.TREASURE_CHEST].includes(targetTile.type)) {
                         const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, targetTile.type, availableItems, efficiency);
                         
+                        // Apply server bonuses
                         let finalQuantity = quantity;
                         if (serverModifiers.itemBonuses && serverModifiers.itemBonuses[item.itemId]) {
                             finalQuantity = Math.floor(quantity * serverModifiers.itemBonuses[item.itemId]);
@@ -1944,6 +1703,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         eventLogs.push(findMessage);
                     }
                     
+                    // Convert to floor
                     mapData.tiles[newY][newX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                     position.x = newX;
                     position.y = newY;
@@ -1955,8 +1715,11 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 position.y = newY;
                 mapChanged = true;
                 
+                // Check for hazard or treasure trigger
                 if (hazardStorage.hasHazard(hazardsData, newX, newY)) {
+                    // Check for hazard resistance from unique items
                     if (checkHazardResistance(uniqueBonuses.hazardResistance, member, eventLogs)) {
+                        // Hazard was resisted, remove it but don't trigger
                         hazardStorage.removeHazard(hazardsData, newX, newY);
                         hazardsChanged = true;
                         continue;
@@ -1964,7 +1727,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     
                     const hazard = hazardStorage.getHazard(hazardsData, newX, newY);
                     
-                    if (hazard && (hazard.type === 'treasure' || hazard.type === 'rare_treasure' || hazard.type === 'legendary_treasure' || hazard.type === 'mythic_treasure')) {
+                    // Check if it's a treasure
+                    if (hazard && (hazard.type === 'treasure' || hazard.type === 'rare_treasure')) {
+                        // Handle treasure
                         const treasureConfig = hazardEffects.ENCOUNTER_CONFIG?.[hazard.type] || { name: 'Treasure', minItems: 1, maxItems: 3 };
                         const itemCount = Math.floor(Math.random() * (treasureConfig.maxItems - treasureConfig.minItems + 1)) + treasureConfig.minItems;
                         
@@ -1978,12 +1743,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                             totalValue += item.value * quantity;
                         }
                         
-                        eventLogs.push(`💎 ${member.displayName} found ${hazard.type.replace('_', ' ')}! Got: ${foundItems.join(', ')}`);
+                        eventLogs.push(`💎 ${member.displayName} found treasure! Got: ${foundItems.join(', ')}`);
                         treasuresFound++;
                         
+                        // Higher chance for unique items from treasure
                         const treasureFind = await processUniqueItemFinding(
                             member,
-                            'treasure',
+                            'treasure', // 3x chance for unique items
                             powerLevel,
                             luckStat,
                             null
@@ -1993,9 +1759,11 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                             eventLogs.push(treasureFind.message);
                         }
                         
+                        // Remove the treasure after collecting
                         hazardStorage.removeHazard(hazardsData, newX, newY);
                         hazardsChanged = true;
                     } else {
+                        // Handle regular hazard
                         const hazardResult = await hazardEffects.processHazardTrigger(
                             member,
                             position,
@@ -2009,6 +1777,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         if (hazardResult) {
                             if (hazardResult.mapChanged) mapChanged = true;
                             if (hazardResult.playerDisabled) {
+                                // Player is knocked out, stop processing their actions
                                 break;
                             }
                             hazardsChanged = true;
@@ -2016,6 +1785,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     }
                 }
                 
+                // Enhanced exploration rewards with power level
                 if (Math.random() < EXPLORATION_BONUS_CHANCE * efficiency.speedMultiplier) {
                     const bonusItems = availableItems.filter(item => item.tier === 'common');
                     if (bonusItems.length > 0) {
@@ -2027,6 +1797,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             }
         } catch (actionError) {
             console.error(`[MINING] Error processing action ${actionNum} for ${member.displayName}:`, actionError);
+            // Continue with next action
         }
     }
     
@@ -2036,27 +1807,32 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
 // Cleanup function for when bot shuts down or restarts
 function cleanupAllChannels() {
     console.log('[MINING] Cleaning up all locks and intervals...');
-    
-    // Clean up instance manager
-    instanceManager.cleanup();
-    
     const debugInfo = concurrencyManager.getDebugInfo();
     console.log('[MINING] Active locks:', debugInfo.lockedChannels);
     console.log('[MINING] Active intervals:', debugInfo.activeIntervals);
     
+    // Clear all locks
     for (const channelId of debugInfo.lockedChannels) {
-        concurrencyManager.forceUnlock(channelId);
+        concurrencyManager.releaseLock(channelId);
     }
     
+    // Clear all intervals
     for (const key of debugInfo.activeIntervals) {
         const [channelId] = key.split('_');
         concurrencyManager.clearAllIntervalsForChannel(channelId);
     }
     
+    // Clear message queue
     messageQueue.recentMessages.clear();
+    
+    // Clear player movement history
     playerMovementHistory.clear();
+    
+    // Clear caches
     dbCache.clear();
     efficiencyCache.clear();
+    
+    // Clear health metrics
     healthMetrics.lastProcessed.clear();
     healthMetrics.processingErrors.clear();
     healthMetrics.averageProcessingTime.clear();
@@ -2075,16 +1851,19 @@ function startHealthMonitoring() {
         const debugInfo = concurrencyManager.getDebugInfo();
         const now = Date.now();
         
+        // Check each locked channel
         for (const channelId of debugInfo.lockedChannels) {
             const lastProcessed = healthMetrics.lastProcessed.get(channelId);
             if (lastProcessed && (now - lastProcessed) > MAX_PROCESSING_TIME) {
                 console.warn(`[HEALTH] Channel ${channelId} has been locked for too long, forcing unlock`);
-                concurrencyManager.forceUnlock(channelId);
+                concurrencyManager.releaseLock(channelId);
+                concurrencyManager.clearAllIntervalsForChannel(channelId);
             }
         }
         
+        // Clean up old metrics
         for (const [channelId, timestamp] of healthMetrics.lastProcessed) {
-            if (now - timestamp > 60 * 60 * 1000) {
+            if (now - timestamp > 60 * 60 * 1000) { // 1 hour
                 healthMetrics.lastProcessed.delete(channelId);
                 healthMetrics.processingErrors.delete(channelId);
                 healthMetrics.averageProcessingTime.delete(channelId);
@@ -2093,27 +1872,10 @@ function startHealthMonitoring() {
     }, HEALTH_CHECK_INTERVAL);
 }
 
-// Get diagnostic information
-function getDiagnostics() {
-    return {
-        instanceManager: instanceManager.getDiagnostics(),
-        concurrency: concurrencyManager.getDebugInfo(),
-        healthMetrics: {
-            stuckChannels: Array.from(healthMetrics.stuckChannels),
-            processingErrors: Array.from(healthMetrics.processingErrors.entries()),
-            lastProcessed: Array.from(healthMetrics.lastProcessed.entries()).map(([id, time]) => ({
-                channelId: id,
-                lastProcessed: new Date(time).toISOString(),
-                ageMs: Date.now() - time
-            }))
-        }
-    };
-}
-
 // Start health monitoring
 startHealthMonitoring();
 
-// Export utility functions
+// Export utility functions for testing
 module.exports.mineFromTile = mineFromTile;
 module.exports.generateTreasure = generateTreasure;
 module.exports.getServerModifiers = getServerModifiers;
@@ -2123,6 +1885,3 @@ module.exports.cleanupAllChannels = cleanupAllChannels;
 module.exports.performHealthCheck = performHealthCheck;
 module.exports.attemptAutoRecovery = attemptAutoRecovery;
 module.exports.startHealthMonitoring = startHealthMonitoring;
-module.exports.getDiagnostics = getDiagnostics;
-module.exports.concurrencyManager = concurrencyManager;
-module.exports.endBreak = endBreak;

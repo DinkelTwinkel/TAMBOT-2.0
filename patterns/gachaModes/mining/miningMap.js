@@ -242,8 +242,9 @@ function cleanupPlayerPositions(mapData, currentPlayerIds) {
  * @param {string} channelId - Channel ID for the map
  * @param {Object} hazardsData - Optional hazards data to generate hazards for new area
  * @param {number} serverPowerLevel - Optional server power level for hazard generation
+ * @param {number} hazardSpawnChanceOverride - Optional override for hazard spawn chance (for danger 6-7)
  */
-async function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = null, serverPowerLevel = 1) {
+async function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = null, serverPowerLevel = 1, hazardSpawnChanceOverride = null) {
     let needsExpansion = false;
     let expansionDirection = '';
     
@@ -296,7 +297,8 @@ async function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = n
         
         // Generate hazards for the new expanded area if hazardsData provided
         if (hazardsData && serverPowerLevel) {
-            const hazardSpawnChance = getHazardSpawnChance(serverPowerLevel);
+            // Use override if provided (for enhanced danger levels), otherwise use normal chance
+            const hazardSpawnChance = hazardSpawnChanceOverride !== null ? hazardSpawnChanceOverride : getHazardSpawnChance(serverPowerLevel);
             let startX, startY, width, height;
             
             switch (expansionDirection) {
