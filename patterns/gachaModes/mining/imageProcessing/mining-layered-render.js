@@ -449,15 +449,6 @@ async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap
             let isVisible = visibilityMap.visible.has(tileKey);
             const wasDiscovered = tile.discovered;
             
-            // Check if tile below is visible (for visibility propagation)
-            if (isVisible && y < height - 1) {
-                const tileBelowKey = `${x},${y + 1}`;
-                const isTileBelowVisible = visibilityMap.visible.has(tileBelowKey);
-                if (!isTileBelowVisible) {
-                    isVisible = false; // Don't render as visible if tile below is not visible
-                }
-            }
-            
             if (!isVisible && !wasDiscovered) continue;
             
             const pixelX = x * tileSize;
@@ -511,20 +502,26 @@ async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap
  * Draw a single wall tile with connection logic
  */
 async function drawWallTile(ctx, tile, x, y, tiles, floorTileSize, wallTileHeight, isVisible, wasDiscovered, theme, visibilityMap) {
-    // Check if there's a floor tile beneath this wall
-    let hasFloorBelow = false;
-    let isTileBelowVisible = false;
+    // Check what type of tile is below this wall
+    let tileBelow = null;
+    let isTileBelowVisible = true;
     if (y < tiles.length - 1) {
-        const tileBelow = tiles[y + 1] && tiles[y + 1][x];
-        if (tileBelow && (tileBelow.type === TILE_TYPES.FLOOR || tileBelow.type === TILE_TYPES.ENTRANCE)) {
-            hasFloorBelow = true;
+        tileBelow = tiles[y + 1] && tiles[y + 1][x];
+        if (tileBelow) {
             const tileBelowKey = `${x},${y + 1}`;
             isTileBelowVisible = visibilityMap.visible.has(tileBelowKey);
         }
     }
     
-    // If tile below is not visible, this tile should not be rendered as visible either
-    if (hasFloorBelow && !isTileBelowVisible) {
+    // Only darken tiles when the tile below is a wall-type and not visible
+    const hasFloorBelow = tileBelow && (tileBelow.type === TILE_TYPES.FLOOR || tileBelow.type === TILE_TYPES.ENTRANCE);
+    const hasWallBelow = tileBelow && (tileBelow.type === TILE_TYPES.WALL || 
+                                        tileBelow.type === TILE_TYPES.WALL_WITH_ORE ||
+                                        tileBelow.type === TILE_TYPES.REINFORCED_WALL ||
+                                        tileBelow.type === TILE_TYPES.RARE_ORE);
+    
+    // Adjust visibility: only make darker if tile below is a wall and not visible
+    if (hasWallBelow && !isTileBelowVisible) {
         isVisible = false;
     }
     
@@ -729,7 +726,7 @@ function drawEncounterFallback(ctx, encounter, centerX, centerY, tileSize, isVis
  */
 async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wallTileHeight, 
                                   visibilityMap, theme, members, playerPositions, 
-                                  railsData, encountersData, imageSettings) {
+                                  railsData, encountersData, imageSettings, inShortBreak = false) {
     
     // Collect all midground objects with their Y positions
     const midgroundObjects = [];
@@ -817,33 +814,45 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
         }
     }
     
-    // Add players to midground objects
+    // Group players by position to handle multiple players on same tile
+    const playersAtPosition = new Map();
+    
     for (const member of members.values()) {
         const position = playerPositions[member.id];
         if (!position) continue;
         
-        const tileKey = `${position.x},${position.y}`;
+        const posKey = `${position.x},${position.y}`;
+        if (!playersAtPosition.has(posKey)) {
+            playersAtPosition.set(posKey, []);
+        }
+        playersAtPosition.get(posKey).push({ member, position });
+    }
+    
+    // Add player groups to midground objects
+    for (const [posKey, players] of playersAtPosition) {
+        const [x, y] = posKey.split(',').map(Number);
+        const tileKey = posKey;
         const isVisible = visibilityMap.visible.has(tileKey);
         
         // Check if tile below player is visible
         let isTileBelowVisible = true; // Default to true for bottom row
-        if (position.y < height - 1) {
-            const tileBelowKey = `${position.x},${position.y + 1}`;
+        if (y < height - 1) {
+            const tileBelowKey = `${x},${y + 1}`;
             isTileBelowVisible = visibilityMap.visible.has(tileBelowKey);
         }
         
         // Player is only visible if both their tile is visible AND tile below is visible
         const effectiveIsVisible = isVisible && isTileBelowVisible;
         
-        if (effectiveIsVisible || tiles[position.y]?.[position.x]?.discovered) {
+        if (effectiveIsVisible || tiles[y]?.[x]?.discovered) {
             midgroundObjects.push({
-                type: 'player',
-                y: position.y,
-                x: position.x,
-                member: member,
-                position: position,
+                type: 'playerGroup',
+                y: y,
+                x: x,
+                players: players,
                 isVisible: effectiveIsVisible,
-                renderY: position.y * floorTileSize + floorTileSize * 0.6
+                renderY: y * floorTileSize + floorTileSize * 0.6,
+                inShortBreak: inShortBreak
             });
         }
     }
@@ -872,28 +881,41 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
                         obj.isVisible, obj.wasDiscovered);
                 break;
                 
-            case 'player':
+            case 'playerGroup':
                 const tileCenterX = obj.x * floorTileSize + floorTileSize / 2;
                 const tileCenterY = obj.y * floorTileSize + floorTileSize / 2;
                 
-                if (obj.position.isTent) {
-                    await drawTent(ctx, tileCenterX, tileCenterY, floorTileSize, 
-                                 obj.member, imageSettings);
-                } else {
-                    await drawPlayerAvatar(ctx, obj.member, tileCenterX, tileCenterY,
-                                         imageSettings.playerAvatarSize, imageSettings);
-                    
-                    // Draw player name for larger images
-                    if (floorTileSize >= 40) {
-                        ctx.fillStyle = '#FFFFFF';
-                        ctx.strokeStyle = '#000000';
-                        ctx.font = `${Math.max(8, Math.floor(floorTileSize * 0.17))}px Arial`;
-                        ctx.textAlign = 'center';
-                        ctx.lineWidth = Math.max(1, Math.floor(imageSettings.scaleFactor * 2));
-                        const nameY = tileCenterY + imageSettings.playerAvatarSize/2 + Math.max(8, floorTileSize * 0.2);
-                        ctx.strokeText(obj.member.displayName, tileCenterX, nameY);
-                        ctx.fillText(obj.member.displayName, tileCenterX, nameY);
+                // Draw campfire for short breaks when players are in tents
+                if (obj.inShortBreak && obj.players[0].position.isTent) {
+                    await drawCampfire(ctx, tileCenterX + floorTileSize * 0.7, tileCenterY, floorTileSize);
+                }
+                
+                if (obj.players.length === 1) {
+                    // Single player
+                    const { member, position } = obj.players[0];
+                    if (position.isTent) {
+                        await drawTent(ctx, tileCenterX, tileCenterY, floorTileSize, 
+                                     member, imageSettings);
+                    } else {
+                        await drawPlayerAvatar(ctx, member, tileCenterX, tileCenterY,
+                                             imageSettings.playerAvatarSize, imageSettings);
+                        
+                        // Draw player name for larger images
+                        if (floorTileSize >= 40) {
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.strokeStyle = '#000000';
+                            ctx.font = `${Math.max(8, Math.floor(floorTileSize * 0.17))}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.lineWidth = Math.max(1, Math.floor(imageSettings.scaleFactor * 2));
+                            const nameY = tileCenterY + imageSettings.playerAvatarSize/2 + Math.max(8, floorTileSize * 0.2);
+                            ctx.strokeText(member.displayName, tileCenterX, nameY);
+                            ctx.fillText(member.displayName, tileCenterX, nameY);
+                        }
                     }
+                } else {
+                    // Multiple players on same tile - stack them
+                    await drawStackedPlayers(ctx, obj.players, tileCenterX, tileCenterY, 
+                                           floorTileSize, imageSettings);
                 }
                 break;
         }
@@ -1237,6 +1259,92 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
 }
 
 /**
+ * Draw campfire next to tents during short break
+ */
+async function drawCampfire(ctx, centerX, centerY, tileSize) {
+    const fireSize = Math.max(tileSize * 0.3, 10);
+    
+    // Draw logs
+    ctx.fillStyle = '#654321';
+    ctx.fillRect(centerX - fireSize/2, centerY - fireSize/4, fireSize, fireSize/8);
+    ctx.fillRect(centerX - fireSize/4, centerY - fireSize/3, fireSize/8, fireSize/2);
+    
+    // Draw fire with gradient
+    const fireGradient = ctx.createRadialGradient(
+        centerX, centerY - fireSize/4, 0,
+        centerX, centerY - fireSize/4, fireSize/2
+    );
+    fireGradient.addColorStop(0, '#FFFF00');
+    fireGradient.addColorStop(0.4, '#FFA500');
+    fireGradient.addColorStop(0.7, '#FF4500');
+    fireGradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
+    
+    ctx.fillStyle = fireGradient;
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY - fireSize/2);
+    ctx.quadraticCurveTo(centerX - fireSize/3, centerY, centerX - fireSize/4, centerY + fireSize/4);
+    ctx.lineTo(centerX + fireSize/4, centerY + fireSize/4);
+    ctx.quadraticCurveTo(centerX + fireSize/3, centerY, centerX, centerY - fireSize/2);
+    ctx.fill();
+    
+    // Add glow effect
+    ctx.globalAlpha = 0.3;
+    const glowGradient = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, fireSize
+    );
+    glowGradient.addColorStop(0, '#FFA500');
+    glowGradient.addColorStop(1, 'rgba(255, 165, 0, 0)');
+    
+    ctx.fillStyle = glowGradient;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, fireSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+}
+
+/**
+ * Draw multiple players stacked on the same tile
+ */
+async function drawStackedPlayers(ctx, players, centerX, centerY, tileSize, imageSettings) {
+    const maxStack = Math.min(players.length, 4); // Limit visual stack to 4
+    const stackOffset = Math.max(3, imageSettings.stackedOffset);
+    const baseSize = imageSettings.playerAvatarSize;
+    const scaledSize = Math.max(baseSize * 0.7, 16); // Slightly smaller when stacked
+    
+    for (let i = 0; i < maxStack; i++) {
+        const { member, position } = players[i];
+        const offsetX = (i % 2) * stackOffset * (i % 2 === 0 ? -1 : 1);
+        const offsetY = Math.floor(i / 2) * stackOffset * -1;
+        
+        const playerX = centerX + offsetX;
+        const playerY = centerY + offsetY;
+        
+        if (position.isTent) {
+            await drawTent(ctx, playerX, playerY, tileSize * 0.8, member, imageSettings);
+        } else {
+            await drawPlayerAvatar(ctx, member, playerX, playerY, scaledSize, imageSettings);
+        }
+    }
+    
+    // If more than 4 players, show count
+    if (players.length > 4) {
+        ctx.save();
+        ctx.fillStyle = '#FFD700';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.font = `bold ${Math.max(10, tileSize * 0.2)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const countText = `+${players.length - 4}`;
+        ctx.strokeText(countText, centerX, centerY - baseSize/2 - 10);
+        ctx.fillText(countText, centerX, centerY - baseSize/2 - 10);
+        ctx.restore();
+    }
+}
+
+/**
  * Draw a single tent for a player during breaks (from original)
  */
 async function drawTent(ctx, centerX, centerY, tileSize, member, imageSettings) {
@@ -1390,27 +1498,32 @@ async function generateTileMapImage(channel) {
         visible: allVisibleTiles
     };
 
-    // Fill background (fog of war)
+    // Fill background (fog of war) - use finalWidth/finalHeight to fill entire canvas
     ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, outputWidth, outputHeight);
+    ctx.fillRect(0, 0, finalWidth, finalHeight);
+    
+    // Translate for border
+    ctx.save();
+    ctx.translate(BORDER_SIZE, BORDER_SIZE);
 
     // Check if we're in a break period
     const refreshedEntry = await gachaVC.findOne({ channelId: channel.id });
+    const inBreak = isBreakPeriod(refreshedEntry);
     const inLongBreak = isLongBreak(refreshedEntry);
+    const inShortBreak = inBreak && !inLongBreak;
     
-    // During long breaks, show special indicator
+    // During long breaks, still render everything normally
     if (inLongBreak) {
-        // Draw floors only
-            // === LAYER 1: FLOOR LAYER ===
-            await drawFloorLayer(ctx, tiles, width, height, floorTileSize, visibilityMap, theme);
-            
-            // === LAYER 2: MIDGROUND LAYER (Y-sorted) ===
-            await drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wallTileHeight,
-                                    visibilityMap, theme, members, playerPositions,
-                                    railsData, encountersData, imageSettings);
-            
-            // === LAYER 3: TOP LAYER ===
-            await drawTopLayer(ctx, width, height, floorTileSize, theme);
+        // === LAYER 1: FLOOR LAYER ===
+        await drawFloorLayer(ctx, tiles, width, height, floorTileSize, visibilityMap, theme);
+        
+        // === LAYER 2: MIDGROUND LAYER (Y-sorted) ===
+        await drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wallTileHeight,
+                                visibilityMap, theme, members, playerPositions,
+                                railsData, encountersData, imageSettings, inShortBreak);
+        
+        // === LAYER 3: TOP LAYER ===
+        await drawTopLayer(ctx, width, height, floorTileSize, theme);
         
         // Draw break indicator at entrance
         const entrancePixelX = mapData.entranceX * floorTileSize;
@@ -1425,7 +1538,7 @@ async function generateTileMapImage(channel) {
             ctx.font = `bold ${Math.floor(floorTileSize * 0.3)}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('BREAK', entrancePixelX + floorTileSize/2, entrancePixelY + floorTileSize/2);
+            ctx.fillText('LONG BREAK', entrancePixelX + floorTileSize/2, entrancePixelY + floorTileSize/2);
         }
         ctx.restore();
         
@@ -1439,11 +1552,14 @@ async function generateTileMapImage(channel) {
     // === LAYER 2: MIDGROUND LAYER (Y-sorted) ===
     await drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wallTileHeight,
                             visibilityMap, theme, members, playerPositions,
-                            railsData, encountersData, imageSettings);
+                            railsData, encountersData, imageSettings, inShortBreak);
     
     // === LAYER 3: TOP LAYER ===
     await drawTopLayer(ctx, width, height, floorTileSize, theme);
 
+    // Restore translation
+    ctx.restore();
+    
     // === BORDER (last step) ===
     ctx.save();
     ctx.lineWidth = 8;  // thickness of border

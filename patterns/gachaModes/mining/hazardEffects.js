@@ -1,5 +1,5 @@
 // hazardEffects.js - Handle hazard triggering and effects
-const { HAZARD_TYPES, HAZARD_CONFIG, TILE_TYPES } = require('./miningConstants');
+const { HAZARD_TYPES, HAZARD_CONFIG, TILE_TYPES, ENCOUNTER_CONFIG } = require('./miningConstants');
 const hazardStorage = require('./hazardStorage');
 
 /**
@@ -137,15 +137,16 @@ async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
             // Don't destroy entrance
             if (tile.type === TILE_TYPES.ENTRANCE) continue;
             
-            // Convert ore walls and reinforced walls to regular walls
-            if (tile.type === TILE_TYPES.WALL_WITH_ORE || 
+            // Convert all walls to floors (bomb breaks walls)
+            if (tile.type === TILE_TYPES.WALL || 
+                tile.type === TILE_TYPES.WALL_WITH_ORE || 
                 tile.type === TILE_TYPES.RARE_ORE ||
                 tile.type === TILE_TYPES.REINFORCED_WALL ||
                 tile.type === TILE_TYPES.TREASURE_CHEST) {
                 mapData.tiles[targetY][targetX] = {
-                    type: TILE_TYPES.WALL,
+                    type: TILE_TYPES.FLOOR,
                     discovered: true,
-                    hardness: 1
+                    hardness: 0
                 };
                 tilesDestroyed++;
             }
@@ -456,5 +457,6 @@ module.exports = {
     isPlayerStuck,
     isPlayerDisabled,
     enablePlayersAfterBreak,
-    cleanupExpiredDisables
+    cleanupExpiredDisables,
+    ENCOUNTER_CONFIG  // Export for treasure handling
 };

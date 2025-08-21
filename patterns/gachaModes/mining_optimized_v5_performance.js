@@ -77,7 +77,7 @@ const REDUCED_IMAGE_INTERVAL = 1;
 // TIMING CONFIGURATION
 const MINING_DURATION = 25 * 60 * 1000; // 25 minutes
 const SHORT_BREAK_DURATION = 5 * 60 * 1000; // 5 minutes
-const LONG_BREAK_DURATION = 25 * 60 * 1000; // 25 minutes
+const LONG_BREAK_DURATION = 20 * 60 * 1000; // 20 minutes (reduced from 25)
 const LONG_EVENT_DURATION = 15 * 60 * 1000; // 15 minutes of long break for event
 
 // Performance: Cache database entries
@@ -1238,25 +1238,52 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             position.y = newY;
             mapChanged = true;
             
-            // Check for hazard trigger
+            // Check for hazard or treasure trigger
             if (hazardStorage.hasHazard(hazardsData, newX, newY)) {
-                const hazardResult = await hazardEffects.processHazardTrigger(
-                    member,
-                    position,
-                    mapData,
-                    hazardsData,
-                    dbEntry,
-                    transaction,
-                    eventLogs
-                );
+                const hazard = hazardStorage.getHazard(hazardsData, newX, newY);
                 
-                if (hazardResult) {
-                    if (hazardResult.mapChanged) mapChanged = true;
-                    if (hazardResult.playerDisabled) {
-                        // Player is knocked out, stop processing their actions
-                        break;
+                // Check if it's a treasure
+                if (hazard && (hazard.type === 'treasure' || hazard.type === 'rare_treasure')) {
+                    // Handle treasure
+                    const treasureConfig = hazardEffects.ENCOUNTER_CONFIG?.[hazard.type] || { name: 'Treasure', minItems: 1, maxItems: 3 };
+                    const itemCount = Math.floor(Math.random() * (treasureConfig.maxItems - treasureConfig.minItems + 1)) + treasureConfig.minItems;
+                    
+                    let totalValue = 0;
+                    const foundItems = [];
+                    
+                    for (let i = 0; i < itemCount; i++) {
+                        const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, TILE_TYPES.TREASURE_CHEST, availableItems, efficiency);
+                        await addItemToMinecart(dbEntry, member.id, item.itemId, quantity);
+                        foundItems.push(`${item.name} x${quantity}`);
+                        totalValue += item.value * quantity;
                     }
+                    
+                    eventLogs.push(`💎 ${member.displayName} found treasure! Got: ${foundItems.join(', ')}`);
+                    treasuresFound++;
+                    
+                    // Remove the treasure after collecting
+                    hazardStorage.removeHazard(hazardsData, newX, newY);
                     hazardsChanged = true;
+                } else {
+                    // Handle regular hazard
+                    const hazardResult = await hazardEffects.processHazardTrigger(
+                        member,
+                        position,
+                        mapData,
+                        hazardsData,
+                        dbEntry,
+                        transaction,
+                        eventLogs
+                    );
+                    
+                    if (hazardResult) {
+                        if (hazardResult.mapChanged) mapChanged = true;
+                        if (hazardResult.playerDisabled) {
+                            // Player is knocked out, stop processing their actions
+                            break;
+                        }
+                        hazardsChanged = true;
+                    }
                 }
             }
             

@@ -144,99 +144,75 @@ async function startThiefGame(channel, dbEntry) {
         return '⚠️ Not enough players for thief event';
     }
 
-    // Add the shop keeper as a possible suspect
-    const SHOPKEEPER_ID = 'shopkeeper-npc';
-    const SHOPKEEPER_NAME = '🏪 Shop Keeper';
-    
-    // Decide if thief is a player or the shop keeper (80% player, 20% shop keeper)
-    let thief, thiefId, thiefName;
-    if (Math.random() < 0.8) {
-        // Thief is a player
-        thief = humansArray[Math.floor(Math.random() * humansArray.length)];
-        thiefId = thief.id;
-        thiefName = thief.user.username;
-    } else {
-        // Thief is the shop keeper
-        thief = null;
-        thiefId = SHOPKEEPER_ID;
-        thiefName = SHOPKEEPER_NAME;
-    }
+    // Thief is always a player (removed shop keeper option)
+    const thief = humansArray[Math.floor(Math.random() * humansArray.length)];
+    const thiefId = thief.id;
+    const thiefName = thief.user.username;
     
     let stealAmount = 0;
     const lossDescriptions = [];
 
-    // Steal from each player
+    // Calculate theft from minecart values
+    const minecarts = dbEntry.gameData?.minecarts || {};
+    const stolenFromPlayers = {};
+    
     for (const user of humansArray) {
-        let userMoney = await Currency.findOne({ userId: user.id });
-
-        if (!userMoney) {
-            userMoney = await Currency.create({
-                userId: user.id,
-                usertag: user.user.tag,
-                money: 0
-            });
-        }
-
-        if (userMoney.money > 0) {
-            const percentToSteal = Math.floor(Math.random() * 10) + 10 // 10-20%
-            const stolen = Math.floor((percentToSteal / 100) * userMoney.money);
-
-            userMoney.money -= stolen;
+        const userMinecart = minecarts[user.id];
+        if (userMinecart && userMinecart.totalValue > 0) {
+            const percentToSteal = Math.floor(Math.random() * 10) + 10; // 10-20%
+            const stolen = Math.floor((percentToSteal / 100) * userMinecart.totalValue);
+            
+            stolenFromPlayers[user.id] = stolen;
             stealAmount += stolen;
-            await userMoney.save();
-
-            lossDescriptions.push(`${user.user.username} lost ${stolen} coins`);
+            lossDescriptions.push(`${user.user.username}'s minecart lost ${stolen} value`);
         }
     }
 
-    // Store thief info with proper time
+    // Store thief info with proper time and stolen values
     const endTime = Date.now() + 10 * 60 * 1000; // 10 minutes from now
     await setSpecialEvent(channel.id, {
         type: 'thief',
         thiefId: thiefId,
         thiefName: thiefName,
         amount: stealAmount,
+        stolenFromPlayers: stolenFromPlayers,  // Store who lost what
         endTime: endTime
     });
 
-    // Create vote entries for each user with random voting (temporary until /vote command is implemented)
+    // Create vote entries for each user with auto-voting
     const Vote = require('../../../models/votes');
     
     // Clear any existing votes first
     await Vote.deleteMany({ channelId: channel.id });
     
-    // Create list of all possible suspects (players + shop keeper)
-    const allSuspects = [...humansArray, { id: SHOPKEEPER_ID, user: { username: SHOPKEEPER_NAME } }];
+    // Create list of all possible suspects (players only)
+    const allSuspects = [...humansArray];
     
-    // Create auto-votes (for now, random voting as placeholder)
+    // Create auto-votes
     const autoVoteDescriptions = [];
     for (const user of humansArray) {
         // Filter out self from possible targets (can't vote for yourself)
         const possibleTargets = allSuspects.filter(suspect => suspect.id !== user.id);
         
         // Random selection with weighted chances:
-        // 20% chance to not vote (which counts as voting for shop keeper)
-        // 25% chance to vote correctly if remaining
+        // 30% chance to vote correctly
         // Rest distributed among other suspects
         let targetId;
         let targetName;
         
-        if (Math.random() < 0.2) {
-            // Choose not to vote (defaults to shop keeper)
-            targetId = 'novote';
-            targetName = 'No Vote (defaults to Shop Keeper)';
+        if (Math.random() < 0.3 && thiefId !== user.id) {
+            // Vote correctly (if thief isn't self)
+            targetId = thiefId;
+            targetName = thiefName;
+        } else if (possibleTargets.length > 0) {
+            // Vote for random other suspect
+            const randomTarget = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+            targetId = randomTarget.id;
+            targetName = randomTarget.user.username;
         } else {
-            // Vote for someone
-            if (Math.random() < 0.25 && thiefId !== user.id) {
-                // Vote correctly (if thief isn't self)
-                targetId = thiefId;
-                targetName = thiefName;
-            } else {
-                // Vote for random other suspect
-                const randomTarget = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
-                targetId = randomTarget.id;
-                targetName = randomTarget.user.username;
-            }
+            // Solo game edge case - can only vote for self
+            targetId = user.id;
+            targetName = user.user.username;
         }
         
         await Vote.create({
@@ -251,12 +227,13 @@ async function startThiefGame(channel, dbEntry) {
     // Build public embed
     const embed = new EmbedBuilder()
         .setTitle('⚠️ THIEF ALERT! ⚠️')
-        .setDescription(`In the darkness of the mines, someone has stolen everyone's coins!\n\n` +
-                        (lossDescriptions.length > 0 ? lossDescriptions.join('\n') : 'No coins were stolen') +
-                        `\n\n💰 Total stolen: ${stealAmount} coins\n\n` +
-                        `**Suspects:** All players in VC + ${SHOPKEEPER_NAME}\n` +
-                        `⚠️ **Warning:** Falsely accusing the Shop Keeper costs 5% of your wealth!\n\n` +
-                        `*Note: Auto-voting enabled until /vote command is implemented*`)
+        .setDescription(`In the darkness of the mines, someone has stolen from everyone's minecart!\n\n` +
+                        (lossDescriptions.length > 0 ? lossDescriptions.join('\n') : 'No value was stolen') +
+                        `\n\n💰 Total stolen: ${stealAmount} value\n\n` +
+                        `**Suspects:** All players in the voice channel\n\n` +
+                        `💡 **Use /vote** to vote for who you think is the thief!\n` +
+                        `⚡ Auto-voting is currently active for demonstration\n\n` +
+                        `⚠️ The stolen value will be distributed when mining resumes!`)
         .setColor(0xff0000)
         .setTimestamp();
 
@@ -530,10 +507,8 @@ function getTileHardness(tileType) {
 async function endThiefGame(channel, dbEntry) {
     if (!dbEntry.gameData?.specialEvent || dbEntry.gameData.specialEvent.type !== 'thief') return;
 
-    const { thiefId, thiefName, amount: totalStolen } = dbEntry.gameData.specialEvent;
+    const { thiefId, thiefName, amount: totalStolen, stolenFromPlayers } = dbEntry.gameData.specialEvent;
     const Vote = require('../../../models/votes');
-    const SHOPKEEPER_ID = 'shopkeeper-npc';
-    const SHOPKEEPER_NAME = '🏪 Shop Keeper';
 
     // Fetch all votes for this channel
     const votes = await Vote.find({ channelId: channel.id });
@@ -544,7 +519,6 @@ async function endThiefGame(channel, dbEntry) {
 
     let winners = [];
     let losers = [];
-    let shopkeeperFalseAccusers = [];
     let jailImageAttachment = null;
 
     if (!votes.length) {
@@ -558,32 +532,16 @@ async function endThiefGame(channel, dbEntry) {
             const user = await channel.guild.members.fetch(vote.userId).catch(() => null);
             if (!user) continue;
             
-            let targetName;
-            let actualTargetId = vote.targetId;
-            
-            // Handle special vote cases
-            if (vote.targetId === 'novote') {
-                targetName = 'No Vote (defaults to Shop Keeper)';
-                actualTargetId = SHOPKEEPER_ID; // No vote counts as voting for shop keeper
-            } else if (vote.targetId === SHOPKEEPER_ID) {
-                targetName = SHOPKEEPER_NAME;
-            } else {
-                const target = await channel.guild.members.fetch(vote.targetId).catch(() => null);
-                targetName = target ? target.user.username : 'unknown';
-            }
+            const target = await channel.guild.members.fetch(vote.targetId).catch(() => null);
+            const targetName = target ? target.user.username : 'unknown';
             
             voteLines.push(`${user.user.username} voted for ${targetName}`);
             
             // Check if vote was correct
-            if (actualTargetId === thiefId) {
-                winners.push({ ...vote.toObject(), actualTargetId });
+            if (vote.targetId === thiefId) {
+                winners.push(vote.toObject());
             } else {
-                losers.push({ ...vote.toObject(), actualTargetId });
-                
-                // Track those who falsely accused the shop keeper
-                if (actualTargetId === SHOPKEEPER_ID && thiefId !== SHOPKEEPER_ID) {
-                    shopkeeperFalseAccusers.push(vote.userId);
-                }
+                losers.push(vote.toObject());
             }
         }
 
@@ -591,8 +549,8 @@ async function endThiefGame(channel, dbEntry) {
 
         const totalPlayers = votes.length;
 
-        // Generate jail image if thief was caught (only for player thieves)
-        if (winners.length > 0 && thiefId !== SHOPKEEPER_ID) {
+        // Generate jail image if thief was caught
+        if (winners.length > 0) {
             try {
                 const thiefMember = await channel.guild.members.fetch(thiefId).catch(() => null);
                 if (thiefMember) {
@@ -606,60 +564,22 @@ async function endThiefGame(channel, dbEntry) {
             }
         }
 
-        // Apply penalties for falsely accusing the shop keeper
-        if (shopkeeperFalseAccusers.length > 0) {
-            const penaltyDescriptions = [];
-            for (const userId of shopkeeperFalseAccusers) {
-                let userMoney = await Currency.findOne({ userId });
-                if (userMoney && userMoney.money > 0) {
-                    const penalty = Math.floor(userMoney.money * 0.05); // 5% penalty
-                    userMoney.money -= penalty;
-                    await userMoney.save();
-                    
-                    const user = await channel.guild.members.fetch(userId).catch(() => null);
-                    if (user) {
-                        penaltyDescriptions.push(`${user.user.username} lost ${penalty} coins (5% wealth penalty)`);
-                    }
-                }
-            }
-            
-            if (penaltyDescriptions.length > 0) {
-                embed.addFields({
-                    name: '⚠️ Shop Keeper False Accusation Penalties',
-                    value: penaltyDescriptions.join('\n')
-                });
-            }
-        }
-
-        // Determine rewards
+        // Determine rewards (distribute stolen minecart value as coins)
         if (winners.length > 0 && winners.length < totalPlayers) {
-            // Partial success - thief gets a share too (unless it's the shop keeper)
+            // Partial success - thief gets a share too
             embed.setColor(0xFFFF00);
             
-            if (thiefId === SHOPKEEPER_ID) {
-                // Shop keeper was the thief and some caught them
-                const share = Math.floor(totalStolen / winners.length);
-                await rewardWinners(winners, share);
-                
-                embed.setTitle('🏪 CORRUPT SHOP KEEPER CAUGHT!');
-                embed.addFields({
-                    name: 'Winners',
-                    value: winners.map(w => `<@${w.userId}> gets ${share} coins!`).join('\n')
-                });
-            } else {
-                // Regular player thief with partial success
-                const totalRecipients = winners.length + 1;
-                const share = Math.floor(totalStolen / totalRecipients);
-                
-                await rewardWinners(winners, share);
-                await rewardThief(thiefId, share);
-                
-                embed.setTitle('📰 THIEF CAUGHT (Partial Success)');
-                embed.addFields(
-                    { name: 'Winners', value: winners.map(w => `<@${w.userId}> gets ${share} coins!`).join('\n') },
-                    { name: 'Thief Reward', value: `<@${thiefId}> keeps ${share} coins for evading some suspicion!` }
-                );
-            }
+            const totalRecipients = winners.length + 1;
+            const share = Math.floor(totalStolen / totalRecipients);
+            
+            await rewardWinners(winners, share);
+            await rewardThief(thiefId, share);
+            
+            embed.setTitle('📰 THIEF CAUGHT (Partial Success)');
+            embed.addFields(
+                { name: 'Winners', value: winners.map(w => `<@${w.userId}> gets ${share} coins!`).join('\n') },
+                { name: 'Thief Reward', value: `<@${thiefId}> keeps ${share} coins for evading some suspicion!` }
+            );
 
         } else if (winners.length === totalPlayers && totalPlayers > 1) {
             // Complete success - thief gets nothing
@@ -667,13 +587,8 @@ async function endThiefGame(channel, dbEntry) {
             const share = Math.floor(totalStolen / winners.length);
 
             await rewardWinners(winners, share);
-
-            if (thiefId === SHOPKEEPER_ID) {
-                embed.setTitle('🏪 CORRUPT SHOP KEEPER CAUGHT! (Complete Success)');
-            } else {
-                embed.setTitle('📰 THIEF CAUGHT (Complete Success)');
-            }
             
+            embed.setTitle('📰 THIEF CAUGHT (Complete Success)');
             embed.addFields({
                 name: 'Winners',
                 value: winners.map(w => `<@${w.userId}> gets ${share} coins!`).join('\n')
@@ -683,34 +598,22 @@ async function endThiefGame(channel, dbEntry) {
             // Thief escapes - keeps everything
             embed.setColor(0xFF0000);
             
-            if (thiefId === SHOPKEEPER_ID) {
-                embed.setTitle('🏪 CORRUPT SHOP KEEPER ESCAPED!');
-                embed.addFields({
-                    name: 'Result',
-                    value: `No one suspected the Shop Keeper! They got away with ${totalStolen} coins.`
-                });
-            } else {
-                embed.setTitle('🏃‍♂️ THIEF ESCAPED');
-                
-                // Give thief the stolen money (only if it's a player)
-                await rewardThief(thiefId, totalStolen);
-                
-                embed.addFields({
-                    name: 'Result',
-                    value: `No one guessed correctly. The thief got away with ${totalStolen} coins.`
-                });
-            }
+            embed.setTitle('🏃‍♂️ THIEF ESCAPED');
+            
+            // Give thief the stolen money
+            await rewardThief(thiefId, totalStolen);
+            
+            embed.addFields({
+                name: 'Result',
+                value: `No one guessed correctly. The thief got away with ${totalStolen} coins!`
+            });
         }
     }
 
     // Announce the thief
-    if (thiefId === SHOPKEEPER_ID) {
-        embed.addFields({ name: 'The Thief Was', value: `${SHOPKEEPER_NAME} (NPC)` });
-    } else {
-        const thiefMember = await channel.guild.members.fetch(thiefId).catch(() => null);
-        if (thiefMember) {
-            embed.addFields({ name: 'The Thief Was', value: `<@${thiefId}>` });
-        }
+    const thiefMember = await channel.guild.members.fetch(thiefId).catch(() => null);
+    if (thiefMember) {
+        embed.addFields({ name: 'The Thief Was', value: `<@${thiefId}>` });
     }
 
     // Send results

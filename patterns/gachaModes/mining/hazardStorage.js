@@ -206,10 +206,10 @@ async function saveHazardsData(channelId, hazardsData) {
 }
 
 /**
- * Generate hazards for a new map area
+ * Generate hazards and treasures for a new map area
  */
 function generateHazardsForArea(hazardsData, startX, startY, width, height, spawnChance, powerLevel) {
-    const { HAZARD_TYPES, getHazardTypeForPowerLevel } = require('./miningConstants');
+    const { ENCOUNTER_TYPES, getEncounterTypeForPowerLevel } = require('./miningConstants');
     
     for (let y = startY; y < startY + height; y++) {
         for (let x = startX; x < startX + width; x++) {
@@ -217,9 +217,10 @@ function generateHazardsForArea(hazardsData, startX, startY, width, height, spaw
             if (Math.abs(x) <= 1 && Math.abs(y) <= 1) continue;
             
             if (Math.random() < spawnChance) {
-                const hazardType = getHazardTypeForPowerLevel(powerLevel);
-                if (hazardType) {
-                    addHazard(hazardsData, x, y, hazardType, {
+                // Use encounter system which includes both hazards and treasures
+                const encounterType = getEncounterTypeForPowerLevel(powerLevel);
+                if (encounterType) {
+                    addHazard(hazardsData, x, y, encounterType, {
                         powerLevel: powerLevel
                     });
                 }
