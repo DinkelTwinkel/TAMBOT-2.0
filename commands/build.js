@@ -50,10 +50,6 @@ module.exports = {
                 });
             }
 
-            // Additional check for mining type - check if typeId indicates mining
-            // You can verify this by checking against gachaServers.json if needed
-            // For now, we'll assume if it has map data, it's a mining channel
-
             const mapData = activeVC.gameData.map;
 
             // Find player's current position
@@ -85,7 +81,6 @@ module.exports = {
 
             // If starting from entrance, find an adjacent floor tile to start from instead
             if (startPoint.x === mapData.entranceX && startPoint.y === mapData.entranceY) {
-                // Get the neighbors of the entrance
                 const entranceNeighbors = [
                     { x: mapData.entranceX, y: mapData.entranceY - 1 }, // North
                     { x: mapData.entranceX + 1, y: mapData.entranceY }, // East  
@@ -93,7 +88,6 @@ module.exports = {
                     { x: mapData.entranceX - 1, y: mapData.entranceY }  // West
                 ];
                 
-                // Find the neighbor that's on the path (should be the second position)
                 let adjacentStart = null;
                 if (startPoint.path.length > 1) {
                     const secondPos = startPoint.path[1];
@@ -102,25 +96,30 @@ module.exports = {
                     );
                 }
                 
-                // If we found an adjacent start, update the start point and path
                 if (adjacentStart) {
                     startPoint.x = adjacentStart.x;
                     startPoint.y = adjacentStart.y;
-                    // Remove the entrance from the path (first element)
                     startPoint.path = startPoint.path.slice(1);
                     console.log(`[BUILD] Adjusted start point to adjacent tile (${adjacentStart.x}, ${adjacentStart.y})`);
                 }
             }
 
-            // Calculate cost (path includes start and end points)
+            // Calculate cost
             const railsNeeded = startPoint.path.length - 1; // Subtract 1 because we don't build on the player's position
             const ironCost = railsNeeded * RAIL_COST_PER_TILE;
+
+            // Variables to track what was used
+            let usedMinecartIron = 0;
+            let usedPlayerIron = 0;
+            let pathToBuild = startPoint.path;
+            let actualRailsBuilt = railsNeeded;
 
             // Start a MongoDB session for atomic operations
             const session = await mongoose.startSession();
             
             try {
-                await session.withTransaction(async () => {
+                // Perform the transaction
+                const transactionResult = await session.withTransaction(async () => {
                     // Re-fetch documents within the transaction for consistency
                     const currentVC = await gachaVC.findOne({ channelId: voiceChannel.id }).session(session);
                     
@@ -136,7 +135,7 @@ module.exports = {
                         minecartIronQuantity = minecartItems[IRON_ORE_ID].quantity || 0;
                     }
 
-                    // Check player's inventory only if minecart doesn't have enough
+                    // Check player's inventory
                     const userId = interaction.user.id;
                     let inventory = await PlayerInventory.findOne({ playerId: userId }).session(session);
                     let playerIronQuantity = 0;
@@ -149,7 +148,6 @@ module.exports = {
                             items: []
                         });
                     } else {
-                        // Find iron ore in player inventory
                         ironOre = inventory.items.find(item => 
                             item.itemId === IRON_ORE_ID || item.id === IRON_ORE_ID
                         );
@@ -158,7 +156,7 @@ module.exports = {
 
                     const totalAvailableIron = minecartIronQuantity + playerIronQuantity;
 
-                    // Check if there's enough iron between minecart and player
+                    // Check if there's enough iron
                     if (totalAvailableIron < ironCost) {
                         if (totalAvailableIron === 0) {
                             throw new Error(
@@ -174,40 +172,35 @@ module.exports = {
                             throw new Error(`You need at least **1 Iron Ore** to build rails, but you only have ${totalAvailableIron}.`);
                         }
 
-                        // Build only what they can afford
-                        const partialPath = startPoint.path.slice(0, affordableTiles + 1); // Include start position
+                        // Build only what they can afford (partial build)
+                        pathToBuild = startPoint.path.slice(0, affordableTiles + 1);
+                        actualRailsBuilt = affordableTiles;
                         const actualIronUsed = affordableTiles * RAIL_COST_PER_TILE;
                         
                         // Deduct iron from minecart first, then player inventory
                         let remainingToDeduct = actualIronUsed;
-                        let usedMinecartIron = 0;
-                        let usedPlayerIron = 0;
                         
-                        // Deduct from minecart first if it has iron
+                        // Deduct from minecart first
                         if (minecartIronQuantity > 0) {
                             const deductFromMinecart = Math.min(minecartIronQuantity, remainingToDeduct);
                             
-                            // Update minecart quantities
                             currentVC.gameData.minecart.items[IRON_ORE_ID].quantity -= deductFromMinecart;
                             
-                            // Also update contributor tracking if it exists
                             const contributors = currentVC.gameData.minecart.items[IRON_ORE_ID].contributors;
                             if (contributors && contributors[userId]) {
                                 contributors[userId] = Math.max(0, contributors[userId] - deductFromMinecart);
                             }
                             
-                            // Remove item from minecart if quantity reaches 0
                             if (currentVC.gameData.minecart.items[IRON_ORE_ID].quantity <= 0) {
                                 delete currentVC.gameData.minecart.items[IRON_ORE_ID];
                             }
                             
                             remainingToDeduct -= deductFromMinecart;
                             usedMinecartIron = deductFromMinecart;
-                            
                             currentVC.markModified('gameData.minecart.items');
                         }
                         
-                        // Deduct remaining from player inventory if needed
+                        // Deduct remaining from player inventory
                         if (remainingToDeduct > 0 && ironOre) {
                             ironOre.quantity -= remainingToDeduct;
                             usedPlayerIron = remainingToDeduct;
@@ -217,7 +210,6 @@ module.exports = {
                                     item.itemId !== IRON_ORE_ID && item.id !== IRON_ORE_ID
                                 );
                             }
-                            
                             inventory.markModified('items');
                         }
                         
@@ -228,79 +220,34 @@ module.exports = {
                         if (usedMinecartIron > 0) {
                             await currentVC.save({ session });
                         }
-
-                        // Build the partial rails (entrance already excluded by adjustment above)
-                        await railStorage.mergeRailPath(voiceChannel.id, partialPath);
                         
-                        // Clear any caches
-                        if (global.dbCache) {
-                            global.dbCache.delete(voiceChannel.id);
-                        }
-                        if (global.visibilityCalculator) {
-                            global.visibilityCalculator.invalidate();
-                        }
-
-                        // Generate the new map image
-                        const mapBuffer = await generateTileMapImage(voiceChannel);
-                        const attachment = new AttachmentBuilder(mapBuffer, { name: 'rails_built.png' });
-
-                        const ironSource = usedMinecartIron > 0 && usedPlayerIron > 0 ? 
-                            '(Used iron from minecart and inventory)' : 
-                            usedMinecartIron > 0 ? '(Used iron from minecart)' : '(Used iron from inventory)';
-
-                        const embed = new EmbedBuilder()
-                            .setTitle('🛤️ Partial Rails Built')
-                            .setDescription(`Built **${affordableTiles}** rail segments using all available iron ore ${ironSource}.\n` +
-                                          `You need **${ironCost - totalAvailableIron} more Iron Ore** to complete the path to your position.`)
-                            .addFields(
-                                { name: 'Rails Built', value: `${affordableTiles}`, inline: true },
-                                { name: 'Iron Used', value: `${actualIronUsed}`, inline: true },
-                                { name: 'Still Needed', value: `${railsNeeded - affordableTiles} rails`, inline: true }
-                            )
-                            .setColor(0xFFA500) // Orange for partial completion
-                            .setImage('attachment://rails_built.png')
-                            .setTimestamp();
-
-                        await interaction.editReply({
-                            embeds: [embed],
-                            files: [attachment],
-                            ephemeral: true
-                        });
-                        
-                        // Exit the transaction early for partial builds
-                        return;
+                        return { partial: true, ironCost: actualIronUsed };
                     }
 
-                    // Player has enough iron, deduct the cost (prioritize minecart, then player inventory)
+                    // Full build - player has enough iron
                     let remainingToDeduct = ironCost;
-                    let usedMinecartIron = 0;
-                    let usedPlayerIron = 0;
                     
-                    // Deduct from minecart first if it has iron
+                    // Deduct from minecart first
                     if (minecartIronQuantity > 0) {
                         const deductFromMinecart = Math.min(minecartIronQuantity, remainingToDeduct);
                         
-                        // Update minecart quantities
                         currentVC.gameData.minecart.items[IRON_ORE_ID].quantity -= deductFromMinecart;
                         
-                        // Also update contributor tracking if it exists
                         const contributors = currentVC.gameData.minecart.items[IRON_ORE_ID].contributors;
                         if (contributors && contributors[userId]) {
                             contributors[userId] = Math.max(0, contributors[userId] - deductFromMinecart);
                         }
                         
-                        // Remove item from minecart if quantity reaches 0
                         if (currentVC.gameData.minecart.items[IRON_ORE_ID].quantity <= 0) {
                             delete currentVC.gameData.minecart.items[IRON_ORE_ID];
                         }
                         
                         remainingToDeduct -= deductFromMinecart;
                         usedMinecartIron = deductFromMinecart;
-                        
                         currentVC.markModified('gameData.minecart.items');
                     }
                     
-                    // Deduct remaining from player inventory if needed
+                    // Deduct remaining from player inventory
                     if (remainingToDeduct > 0 && ironOre) {
                         ironOre.quantity -= remainingToDeduct;
                         usedPlayerIron = remainingToDeduct;
@@ -310,36 +257,80 @@ module.exports = {
                                 item.itemId !== IRON_ORE_ID && item.id !== IRON_ORE_ID
                             );
                         }
-                        
                         inventory.markModified('items');
                     }
                     
-                    // Save inventory changes within transaction
+                    // Save within transaction
                     if (usedPlayerIron > 0) {
                         await inventory.save({ session });
                     }
                     if (usedMinecartIron > 0) {
                         await currentVC.save({ session });
                     }
-
-                    // Build rails along the path (entrance already excluded by adjustment above)
-                    await railStorage.mergeRailPath(voiceChannel.id, startPoint.path);
                     
-                    // Clear any mining system caches
-                    if (global.dbCache) {
-                        global.dbCache.delete(voiceChannel.id);
-                    }
-                    if (global.visibilityCalculator) {
-                        global.visibilityCalculator.invalidate();
-                    }
-                    
-                    console.log(`[BUILD] Rails built from ${startPoint.isRail ? 'existing rail' : 'entrance'} to player`);
+                    return { partial: false, ironCost };
+                });
 
-                    // Generate the new map image
-                    const mapBuffer = await generateTileMapImage(voiceChannel);
-                    const attachment = new AttachmentBuilder(mapBuffer, { name: 'rails_built.png' });
+                // Transaction completed successfully, now build the rails (outside transaction)
+                console.log(`[BUILD] Transaction complete, building ${actualRailsBuilt} rails...`);
+                
+                // Build rails (this is separate from the transaction)
+                await railStorage.mergeRailPath(voiceChannel.id, pathToBuild);
+                
+                // Clear caches
+                if (global.dbCache) {
+                    global.dbCache.delete(voiceChannel.id);
+                }
+                if (global.visibilityCalculator) {
+                    global.visibilityCalculator.invalidate();
+                }
+                
+                console.log(`[BUILD] Rails built successfully`);
 
-                    // Determine start type for display
+                // Generate the map image
+                const mapBuffer = await generateTileMapImage(voiceChannel);
+                const attachment = new AttachmentBuilder(mapBuffer, { name: 'rails_built.png' });
+
+                // Get updated quantities for display
+                const updatedVC = await gachaVC.findOne({ channelId: voiceChannel.id });
+                const remainingMinecartIron = updatedVC.gameData?.minecart?.items?.[IRON_ORE_ID]?.quantity || 0;
+                
+                const updatedInventory = await PlayerInventory.findOne({ playerId: interaction.user.id });
+                let remainingPlayerIron = 0;
+                if (updatedInventory) {
+                    const updatedIronOre = updatedInventory.items.find(item => 
+                        item.itemId === IRON_ORE_ID || item.id === IRON_ORE_ID
+                    );
+                    remainingPlayerIron = updatedIronOre?.quantity || 0;
+                }
+
+                // Build response embed based on whether it was partial or full build
+                if (transactionResult.partial) {
+                    // Partial build response
+                    const ironSource = usedMinecartIron > 0 && usedPlayerIron > 0 ? 
+                        '(Used iron from minecart and inventory)' : 
+                        usedMinecartIron > 0 ? '(Used iron from minecart)' : '(Used iron from inventory)';
+
+                    const embed = new EmbedBuilder()
+                        .setTitle('🛤️ Partial Rails Built')
+                        .setDescription(`Built **${actualRailsBuilt}** rail segments using all available iron ore ${ironSource}.\n` +
+                                      `You need **${ironCost - transactionResult.ironCost} more Iron Ore** to complete the path to your position.`)
+                        .addFields(
+                            { name: 'Rails Built', value: `${actualRailsBuilt}`, inline: true },
+                            { name: 'Iron Used', value: `${transactionResult.ironCost}`, inline: true },
+                            { name: 'Still Needed', value: `${railsNeeded - actualRailsBuilt} rails`, inline: true }
+                        )
+                        .setColor(0xFFA500) // Orange for partial completion
+                        .setImage('attachment://rails_built.png')
+                        .setTimestamp();
+
+                    await interaction.editReply({
+                        embeds: [embed],
+                        files: [attachment],
+                        ephemeral: true
+                    });
+                } else {
+                    // Full build response
                     let startType = '🚂 Entrance';
                     let startColor = 0x8B4513;
                     if (startPoint.isRail) {
@@ -347,7 +338,6 @@ module.exports = {
                         startColor = 0x4169E1;
                     }
 
-                    // Build source description
                     let ironSourceDesc = '';
                     if (usedMinecartIron > 0 && usedPlayerIron > 0) {
                         ironSourceDesc = `\n*Used ${usedMinecartIron} from minecart and ${usedPlayerIron} from inventory*`;
@@ -356,10 +346,6 @@ module.exports = {
                     } else {
                         ironSourceDesc = `\n*Used ${usedPlayerIron} iron from inventory*`;
                     }
-
-                    // Recalculate remaining iron after deduction
-                    const remainingPlayerIron = (ironOre?.quantity || 0);
-                    const remainingMinecartIron = currentVC.gameData?.minecart?.items?.[IRON_ORE_ID]?.quantity || 0;
 
                     const embed = new EmbedBuilder()
                         .setTitle('🛤️ Rails Built Successfully!')
@@ -382,9 +368,15 @@ module.exports = {
                         files: [attachment],
                         ephemeral: true
                     });
-                });
+                }
+
+            } catch (sessionError) {
+                console.error('[BUILD] Session/Transaction error:', sessionError);
+                throw sessionError;
             } finally {
+                // Always end the session
                 await session.endSession();
+                console.log('[BUILD] Session ended');
             }
 
         } catch (error) {
