@@ -64,7 +64,8 @@ client.once(Events.ClientReady, async c => {
     //Global Listeners:
     const eatTheRichListener = require('./patterns/eatTheRich');
     eatTheRichListener(client);
-    const ShopHandler = require('./patterns/shopHandler'); 
+    const ShopHandler = require('./patterns/shopHandler');
+    const ItemTransferHandler = require('./patterns/itemTransferHandler'); 
 
     console.log('✅ Centralized shop handler initialized');
 
@@ -73,6 +74,10 @@ client.once(Events.ClientReady, async c => {
 
         //if (guild.id !== targetGuildId) return console.log ('skipping guild: ' + guild.id);
         shopHandler = new ShopHandler(client, guild.id);
+        
+        // Initialize item transfer handler for this guild
+        const itemTransferHandler = new ItemTransferHandler(client, guild.id);
+        console.log(`✅ Item transfer handler initialized for guild: ${guild.name}`);
 
         // Fetch guild config from MongoDB
         let config = await GuildConfig.findOne({ guildId: guild.id });
@@ -196,6 +201,34 @@ async function removeDuplicateInventoryItems() {
         console.error('Error cleaning inventories:', err);
     }
 }
+
+// Handle when bot joins a new guild
+client.on(Events.GuildCreate, async (guild) => {
+    const ShopHandler = require('./patterns/shopHandler');
+    const ItemTransferHandler = require('./patterns/itemTransferHandler');
+    
+    // Initialize handlers for the new guild
+    new ShopHandler(client, guild.id);
+    new ItemTransferHandler(client, guild.id);
+    console.log(`✅ Initialized handlers for new guild: ${guild.name} (${guild.id})`);
+});
+
+// Handle when bot leaves a guild
+client.on(Events.GuildDelete, async (guild) => {
+    // Cleanup shop handler
+    if (client.shopHandlers && client.shopHandlers.has(guild.id)) {
+        const shopHandler = client.shopHandlers.get(guild.id);
+        shopHandler.cleanup();
+        console.log(`✅ Shop handler cleaned up for guild: ${guild.id}`);
+    }
+    
+    // Cleanup item transfer handler
+    if (client.itemTransferHandlers && client.itemTransferHandlers.has(guild.id)) {
+        const itemTransferHandler = client.itemTransferHandlers.get(guild.id);
+        itemTransferHandler.cleanup();
+        console.log(`✅ Item transfer handler cleaned up for guild: ${guild.id}`);
+    }
+});
 
 client.on(Events.GuildMemberAdd, async (member) => {
     try {
