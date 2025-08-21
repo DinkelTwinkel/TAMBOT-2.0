@@ -240,7 +240,7 @@ async function handleStatus(interaction, userId) {
         }
         
         embed.addFields({
-            name: `${getItemEmoji({ id: status.itemId })} ${status.name}`,
+            name: `${getItemEmoji({ id: status.itemId })} [ID: ${status.itemId}] ${status.name}`,
             value: fieldValue.substring(0, 1024),
             inline: false
         });
