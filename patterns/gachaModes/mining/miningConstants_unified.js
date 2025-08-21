@@ -297,15 +297,25 @@ const UNIFIED_ITEM_POOL = {
             category: ITEM_CATEGORY.ORE
         },
         { 
-            itemId: "22", 
-            name: "Iron Ore", 
-            value: 15,
-            baseWeight: 60,
-            tier: 'uncommon',
-            minPowerLevel: 2,
-            maxPowerLevel: 5,
-            category: ITEM_CATEGORY.ORE
+        itemId: "22", 
+        name: "Iron Ore", 
+        value: 15,
+        baseWeight: 60,
+        tier: 'uncommon',
+        minPowerLevel: 2,
+        maxPowerLevel: 5,
+        category: ITEM_CATEGORY.ORE
         },
+    { 
+        itemId: "103", 
+        name: "Ancient Fossil", 
+        value: 20,
+        baseWeight: 40,
+        tier: 'uncommon',
+        minPowerLevel: 2,
+        maxPowerLevel: 5,
+        category: ITEM_CATEGORY.ORE
+    },
         { 
             itemId: "2", 
             name: "Topaz", 
@@ -327,15 +337,25 @@ const UNIFIED_ITEM_POOL = {
             category: ITEM_CATEGORY.ORE
         },
         { 
-            itemId: "24", 
-            name: "Ruby", 
-            value: 75,
-            baseWeight: 20,
-            tier: 'rare',
-            minPowerLevel: 3,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+        itemId: "24", 
+        name: "Ruby", 
+        value: 75,
+        baseWeight: 20,
+        tier: 'rare',
+        minPowerLevel: 3,
+        maxPowerLevel: 7,
+        category: ITEM_CATEGORY.ORE
         },
+    { 
+        itemId: "102", 
+        name: "Crystal Ore", 
+        value: 65,
+        baseWeight: 22,
+        tier: 'rare',
+        minPowerLevel: 3,
+        maxPowerLevel: 7,
+        category: ITEM_CATEGORY.ORE
+    },
         { 
             itemId: "6", 
             name: "Diamond", 
@@ -721,6 +741,30 @@ const UNIFIED_ITEM_POOL = {
         }
     ],
     
+    // Special Treasure Items (found in treasure chests)
+    treasures: [
+        { 
+            itemId: "101", 
+            name: "Ancient Coin", 
+            value: 50,
+            baseWeight: 15,
+            tier: 'rare',
+            minPowerLevel: 1,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE  // Categorized as ore for selling
+        },
+        { 
+            itemId: "104", 
+            name: "Abyssal Relic", 
+            value: 200,
+            baseWeight: 5,
+            tier: 'legendary',
+            minPowerLevel: 5,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE  // Categorized as ore for selling
+        }
+    ],
+    
     // Consumables
     consumables: [
         { 
@@ -805,6 +849,15 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     for (const ore of UNIFIED_ITEM_POOL.ores) {
         if (ore.minPowerLevel <= powerLevel && ore.maxPowerLevel >= powerLevel) {
             eligibleItems.push({...ore});
+        }
+    }
+    
+    // Add treasures
+    if (UNIFIED_ITEM_POOL.treasures) {
+        for (const treasure of UNIFIED_ITEM_POOL.treasures) {
+            if (treasure.minPowerLevel <= powerLevel && treasure.maxPowerLevel >= powerLevel) {
+                eligibleItems.push({...treasure});
+            }
         }
     }
     
@@ -1143,29 +1196,50 @@ function getEncounterSpawnChance(powerLevel) {
     return config.spawnChance;
 }
 
-// Legacy miningItemPool for backward compatibility
-const miningItemPool = UNIFIED_ITEM_POOL.ores.map(ore => ({
-    itemId: ore.itemId,
-    name: ore.name,
-    baseWeight: ore.baseWeight,
-    boostedPowerLevel: ore.minPowerLevel,
-    value: ore.value,
-    tier: ore.tier,
-    powerRequirement: ore.minPowerLevel,
-    description: `${ore.name} - Tier: ${ore.tier}`
-}));
+// Legacy miningItemPool for backward compatibility - includes all ores and treasures
+const miningItemPool = [
+    ...UNIFIED_ITEM_POOL.ores.map(ore => ({
+        itemId: ore.itemId,
+        name: ore.name,
+        baseWeight: ore.baseWeight,
+        boostedPowerLevel: ore.minPowerLevel,
+        value: ore.value,
+        tier: ore.tier,
+        powerRequirement: ore.minPowerLevel,
+        description: `${ore.name} - Tier: ${ore.tier}`
+    })),
+    ...(UNIFIED_ITEM_POOL.treasures || []).map(treasure => ({
+        itemId: treasure.itemId,
+        name: treasure.name,
+        baseWeight: treasure.baseWeight,
+        boostedPowerLevel: treasure.minPowerLevel,
+        value: treasure.value,
+        tier: treasure.tier,
+        powerRequirement: treasure.minPowerLevel,
+        description: `${treasure.name} - Special treasure`
+    }))
+];
 
-// Legacy treasureItems for backward compatibility  
-const treasureItems = UNIFIED_ITEM_POOL.equipment
-    .filter(item => item.tier === 'epic' || item.tier === 'legendary')
-    .slice(0, 4)
-    .map(item => ({
-        itemId: item.itemId,
-        name: item.name,
-        value: item.value,
-        powerRequirement: item.minPowerLevel,
-        description: `${item.name} - Special treasure`
-    }));
+// Legacy treasureItems for backward compatibility - includes actual treasure items
+const treasureItems = [
+    ...(UNIFIED_ITEM_POOL.treasures || []).map(treasure => ({
+        itemId: treasure.itemId,
+        name: treasure.name,
+        value: treasure.value,
+        powerRequirement: treasure.minPowerLevel,
+        description: `${treasure.name} - Special treasure`
+    })),
+    ...UNIFIED_ITEM_POOL.equipment
+        .filter(item => item.tier === 'epic' || item.tier === 'legendary')
+        .slice(0, 4)
+        .map(item => ({
+            itemId: item.itemId,
+            name: item.name,
+            value: item.value,
+            powerRequirement: item.minPowerLevel,
+            description: `${item.name} - Rare equipment`
+        }))
+];
 
 module.exports = {
     // Core constants

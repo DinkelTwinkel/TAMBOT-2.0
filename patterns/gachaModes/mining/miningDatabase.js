@@ -489,14 +489,9 @@ async function createMiningSummary(channel, dbEntry) {
     const tierCounts = { common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 };
 
     // Process each item type in the minecart
-    console.log('[MINECART SELL] Processing minecart items:', Object.keys(minecart.items));
-    console.log('[MINECART SELL] Available pool items:', miningItemPool.map(i => i.itemId));
-    
     for (const [itemId, itemData] of Object.entries(minecart.items)) {
         const poolItem = miningItemPool.find(item => item.itemId === itemId) || 
                         treasureItems.find(item => item.itemId === itemId);
-        
-        console.log(`[MINECART SELL] Looking for item ${itemId}:`, poolItem ? `Found ${poolItem.name}` : 'NOT FOUND');
         
         if (!poolItem || itemData.quantity <= 0) continue;
 
