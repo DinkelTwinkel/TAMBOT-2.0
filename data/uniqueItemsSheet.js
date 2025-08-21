@@ -40,6 +40,13 @@ const UNIQUE_ITEMS = [
             "Creates updrafts that increase movement speed in mines"
         ],
         
+        // Mysterious rumored effects shown to players
+        rumoredEffects: [
+            "Sometimes multiplies rewards beyond expectation",
+            "Offers mysterious protection from the earth's wrath",
+            "Hastens your movements through ancient winds"
+        ],
+        
         // Drop configuration
         dropWeight: 1, // Lower weight = rarer
         minPowerLevel: 3, // Minimum power level where this can drop
@@ -84,6 +91,14 @@ const UNIQUE_ITEMS = [
             "All coin gains have 10% chance to double",
             "All coin losses have 10% chance to double",
             "Shows golden aura visible to all players"
+        ],
+        
+        rumoredEffects: [
+            "Fortune's favor shifts like desert sands",
+            "Only the wealthiest soul may bear its weight",
+            "The burden seeks its rightful master",
+            "Multiplies both blessing and curse alike",
+            "Marks its bearer with heaven's golden light"
         ],
         
         // Conditional drop settings
@@ -136,6 +151,16 @@ const UNIQUE_ITEMS = [
             "Other miners in the session receive +50% all stats"
         ],
         
+        rumoredEffects: [
+            "Shatters the earth with divine precision",
+            "Reveals all secrets hidden in stone",
+            "Defies the mountain's ancient defenses",
+            "Cuts through the fabric of reality itself",
+            "Transforms base metal into noble treasure",
+            "Bestows the crown of the first delver",
+            "Blesses all who toil in its presence"
+        ],
+        
         dropWeight: 0, // 0% drop chance - cannot be found normally
         minPowerLevel: 7, // Requires maximum power level even to have a chance
         preferredBiomes: ["the_void_between", "miner_kings_throne", "dimension_zero"],
@@ -175,6 +200,12 @@ const UNIQUE_ITEMS = [
             "Area damage - breaks adjacent walls with 30% chance",
             "Intimidation aura - reduces encounter spawn rate",
             "Earth sense - highlights rare ore through walls"
+        ],
+        
+        rumoredEffects: [
+            "The earth trembles at its touch",
+            "Lesser creatures flee from its presence",
+            "Reveals treasures hidden deep below"
         ],
         
         dropWeight: 0.8,
@@ -218,6 +249,12 @@ const UNIQUE_ITEMS = [
             "Occasionally shows glimpses of parallel timelines"
         ],
         
+        rumoredEffects: [
+            "Nothing remains hidden from its gaze",
+            "Pierces through stone as if it were glass",
+            "Shows visions of what might have been"
+        ],
+        
         dropWeight: 0.5,
         minPowerLevel: 5,
         preferredBiomes: ["void_touched", "ancient_ruins"],
@@ -257,6 +294,12 @@ const UNIQUE_ITEMS = [
             "Enemies drop 50% more loot",
             "Shops offer 20% better prices",
             "Attracts treasure hazards and rare encounters"
+        ],
+        
+        rumoredEffects: [
+            "Compels the fallen to yield their treasures",
+            "Merchants bow to its golden influence",
+            "Draws both fortune and misfortune near"
         ],
         
         dropWeight: 0.3,
@@ -299,6 +342,12 @@ const UNIQUE_ITEMS = [
             "Heals 1% health every minute"
         ],
         
+        rumoredEffects: [
+            "Grants one chance to rise from ash",
+            "Fire bows before the eternal flame",
+            "Slowly mends wounds with phoenix warmth"
+        ],
+        
         dropWeight: 0.4,
         minPowerLevel: 7,
         preferredBiomes: ["volcanic_core", "phoenix_nest"],
@@ -338,6 +387,12 @@ const UNIQUE_ITEMS = [
             "25% chance to dodge any hazard",
             "Can phase through walls once every 10 minutes",
             "Invisible on minimap to other players"
+        ],
+        
+        rumoredEffects: [
+            "Dances between danger and safety",
+            "Steps through solid stone like shadow",
+            "Vanishes from mortal sight and memory"
         ],
         
         dropWeight: 0.6,
@@ -382,6 +437,12 @@ const UNIQUE_ITEMS = [
             "Randomly forget one item's location each hour"
         ],
         
+        rumoredEffects: [
+            "Inspires those who labor in your realm",
+            "Commands loyalty from the forgotten",
+            "The crown's curse steals memories away"
+        ],
+        
         dropWeight: 0.2,
         minPowerLevel: 6,
         preferredBiomes: ["ancient_throne", "royal_tombs"],
@@ -421,6 +482,12 @@ const UNIQUE_ITEMS = [
             "Mining strikes have 20% chance to chain to nearby walls",
             "Immune to electric hazards",
             "Can overcharge machinery and rails"
+        ],
+        
+        rumoredEffects: [
+            "Lightning spreads from every strike",
+            "The storm's fury cannot harm its master",
+            "Breathes electric life into dead machines"
         ],
         
         dropWeight: 0.5,

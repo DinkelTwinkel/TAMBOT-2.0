@@ -351,24 +351,12 @@ async function handleInfo(interaction) {
         // });
     }
     
-    // Add cryptic special effects (rumored effects)
-    if (itemData.specialEffects && itemData.specialEffects.length > 0) {
-        const crypticEffects = itemData.specialEffects.map(effect => {
-            // Make effects more mysterious
-            if (effect.includes('double')) return '• Sometimes multiplies rewards';
-            if (effect.includes('hazard')) return '• Offers mysterious protection';
-            if (effect.includes('speed')) return '• Hastens your movements';
-            if (effect.includes('Area')) return '• Affects surroundings';
-            if (effect.includes('through walls')) return '• Reveals hidden truths';
-            if (effect.includes('loot')) return '• Attracts fortune';
-            if (effect.includes('revive')) return '• Defies death itself';
-            if (effect.includes('chain')) return '• Power spreads to nearby targets';
-            if (effect.includes('team')) return '• Influences allies';
-            return '• ' + effect;
-        });
+    // Add rumored effects if they exist
+    if (itemData.rumoredEffects && itemData.rumoredEffects.length > 0) {
+        const rumoredEffectsList = itemData.rumoredEffects.map(effect => `• ${effect}`).join('\n');
         embed.addFields({ 
             name: '✨ Rumored Effects', 
-            value: crypticEffects.join('\n'), 
+            value: rumoredEffectsList, 
             inline: false 
         });
     }
