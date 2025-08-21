@@ -255,15 +255,12 @@ const ITEM_FINDING_CONFIG = {
     // Regular items that can be found (separate from ores)
     regularItemPool: [
         { itemId: "4", name: "Mining Bun", weight: 30, minPower: 1, maxPower: 3 },
-        { itemId: "5", name: "Water", weight: 25, minPower: 1, maxPower: 3 },
-        { itemId: "10", name: "Bun Pack", weight: 15, minPower: 2, maxPower: 5 },
-        { itemId: "11", name: "Mine Beer", weight: 10, minPower: 3, maxPower: 7 },
+        { itemId: "3", name: "Rusty Pickaxe", weight: 25, minPower: 1, maxPower: 3 },
         { itemId: "28", name: "Miner's Headlamp", weight: 8, minPower: 2, maxPower: 7 },
         { itemId: "29", name: "Crystal Lens Goggles", weight: 5, minPower: 4, maxPower: 7 },
-        { itemId: "30", name: "Speed Boots", weight: 7, minPower: 3, maxPower: 7 },
-        { itemId: "31", name: "Reinforced Gloves", weight: 10, minPower: 2, maxPower: 6 },
+        { itemId: "37", name: "Hermes Boots", weight: 7, minPower: 3, maxPower: 7 },
+        { itemId: "7", name: "Worn Pickaxe", weight: 10, minPower: 2, maxPower: 6 },
         { itemId: "32", name: "Lucky Charm", weight: 3, minPower: 4, maxPower: 7 },
-        { itemId: "33", name: "Strength Tonic", weight: 12, minPower: 2, maxPower: 5 }
     ]
 };
 
