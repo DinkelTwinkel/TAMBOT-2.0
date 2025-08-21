@@ -64,8 +64,15 @@ module.exports = {
         const charms = [];
         
         for (const item of Object.values(equippedItems)) {
+          // Format stats with actual power shown (for unique items with maintenance scaling)
           const statsStr = item.abilities
-            .map(a => `${a.name} +${a.power}`)
+            .map(a => {
+              // Show base power in parentheses if it's scaled down
+              if (item.isUnique && a.basePower && a.power !== a.basePower) {
+                return `${a.name} +${a.power} (${a.basePower})`;
+              }
+              return `${a.name} +${a.power}`;
+            })
             .join(', ');
           
           // Categorize by type
@@ -78,16 +85,42 @@ module.exports = {
             
             // Format with primary stat inline and additional stats on separate lines
             let itemDisplay;
+            
+            // Add legendary indicator for unique items
+            const itemName = item.isUnique ? `🌟 ${item.name} [LEGENDARY]` : item.name;
+            
             if (item.abilities.length === 1) {
               // Single stat - show inline
-              itemDisplay = `• ${item.name} **(${statsStr})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)`;
+              itemDisplay = `• ${itemName} **(${statsStr})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)`;
             } else {
               // Multiple stats - show first inline, rest with └
-              const primaryStat = `${item.abilities[0].name} +${item.abilities[0].power}`;
+              const primaryStat = item.abilities[0].basePower && item.isUnique && item.abilities[0].power !== item.abilities[0].basePower
+                ? `${item.abilities[0].name} +${item.abilities[0].power} (${item.abilities[0].basePower})`
+                : `${item.abilities[0].name} +${item.abilities[0].power}`;
               const additionalStats = item.abilities.slice(1)
-                .map(a => `${a.name} +${a.power}`)
+                .map(a => {
+                  if (item.isUnique && a.basePower && a.power !== a.basePower) {
+                    return `${a.name} +${a.power} (${a.basePower})`;
+                  }
+                  return `${a.name} +${a.power}`;
+                })
                 .join(', ');
-              itemDisplay = `• ${item.name} **(${primaryStat})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)\n  └ ${additionalStats}`;
+              itemDisplay = `• ${itemName} **(${primaryStat})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)\n  └ ${additionalStats}`;
+            }
+            
+            // Add maintenance level for unique items
+            if (item.isUnique && item.maintenanceLevel !== undefined) {
+              const maintBar = getMaintenanceBar(item.maintenanceLevel);
+              itemDisplay += `\n  📧 Maintenance: ${maintBar} ${item.maintenanceLevel}/10`;
+            }
+            
+            // Add special effects for unique items (limit to first 2 to avoid clutter)
+            if (item.isUnique && item.specialEffects && item.specialEffects.length > 0) {
+              const effectsToShow = item.specialEffects.slice(0, 2);
+              itemDisplay += `\n  ✨ ${effectsToShow.join(' | ')}`;
+              if (item.specialEffects.length > 2) {
+                itemDisplay += ` (+${item.specialEffects.length - 2} more)`;
+              }
             }
             
             if (item.type === 'tool') {
@@ -97,7 +130,8 @@ module.exports = {
             }
           } else if (item.type === 'charm') {
             // Simplified format for charms - no durability needed
-            charms.push({ name: item.name, stats: statsStr });
+            const charmName = item.isUnique ? `🌟 ${item.name}` : item.name;
+            charms.push({ name: charmName, stats: statsStr, isUnique: item.isUnique });
           }
         }
         
@@ -197,6 +231,31 @@ function getTimeRemaining(expiresAt) {
   if (hours > 0) return `${hours}h ${minutes % 60}m`;
   if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
   return `${seconds}s`;
+}
+
+// Helper function to create a maintenance bar for unique items
+function getMaintenanceBar(level) {
+  const barLength = 10;
+  const filled = level;
+  const empty = barLength - filled;
+  
+  let barChar, emptyChar;
+  
+  if (level > 7) {
+    barChar = '🟩';
+    emptyChar = '⬜';
+  } else if (level > 4) {
+    barChar = '🟨';
+    emptyChar = '⬜';
+  } else if (level > 2) {
+    barChar = '🟧';
+    emptyChar = '⬜';
+  } else {
+    barChar = '🟥';
+    emptyChar = '⬜';
+  }
+  
+  return `${barChar.repeat(filled)}${emptyChar.repeat(empty)}`;
 }
 
 // Helper function to create a visual durability bar

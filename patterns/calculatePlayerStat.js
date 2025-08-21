@@ -1,6 +1,8 @@
 const PlayerInventory = require('../models/inventory');
 const PlayerBuffs = require('../models/PlayerBuff');
 const itemSheet = require('../data/itemSheet.json');
+const UniqueItem = require('../models/uniqueItems');
+const { getUniqueItemById } = require('../data/uniqueItemsSheet');
 
 /**
  * Builds a player's stats based on their inventory and all active buffs.
@@ -18,6 +20,9 @@ async function getPlayerStats(playerId) {
     // Fetch inventory from DB
     const inv = await PlayerInventory.findOne({ playerId }).lean();
     const invItems = Array.isArray(inv?.items) ? inv.items : [];
+    
+    // Fetch unique items owned by player
+    const uniqueItems = await UniqueItem.findPlayerUniqueItems(playerId);
 
     // Build base stats from inventory
     const playerStats = {};
@@ -159,6 +164,67 @@ async function getPlayerStats(playerId) {
         }
     }
 
+    // Process UNIQUE ITEMS: These override regular items in their slots
+    const uniqueItemsBySlot = {};
+    for (const uniqueDbItem of uniqueItems) {
+        const uniqueData = getUniqueItemById(uniqueDbItem.itemId);
+        if (!uniqueData) continue;
+        
+        // Check maintenance level - item loses effectiveness if not maintained
+        const maintenanceRatio = uniqueDbItem.maintenanceLevel / 10; // 0 to 1
+        if (maintenanceRatio <= 0) continue; // Item is broken from lack of maintenance
+        
+        uniqueItemsBySlot[uniqueData.slot] = {
+            ...uniqueData,
+            maintenanceRatio,
+            dbItem: uniqueDbItem
+        };
+    }
+    
+    // Override regular items with unique items in same slots
+    for (const [slot, uniqueItem] of Object.entries(uniqueItemsBySlot)) {
+        // Remove regular item from this slot if unique item exists
+        const regularItemIds = Object.keys(equippedItems).filter(id => {
+            const item = equippedItems[id];
+            return item.slot === slot;
+        });
+        
+        for (const id of regularItemIds) {
+            // Remove stats from the regular item
+            const regularItem = equippedItems[id];
+            for (const ability of regularItem.abilities) {
+                playerStats[ability.name] = Math.max(0, (playerStats[ability.name] || 0) - ability.power);
+            }
+            delete equippedItems[id];
+        }
+        
+        // Add unique item stats (scaled by maintenance)
+        const appliedAbilities = [];
+        for (const abilityObj of uniqueItem.abilities) {
+            const ability = abilityObj.name;
+            const basePower = Number(abilityObj.powerlevel) || 0;
+            const scaledPower = Math.floor(basePower * uniqueItem.maintenanceRatio);
+            
+            if (scaledPower !== 0) { // Allow negative stats
+                playerStats[ability] = (playerStats[ability] || 0) + scaledPower;
+                appliedAbilities.push({ name: ability, power: scaledPower, basePower });
+            }
+        }
+        
+        equippedItems[`unique_${uniqueItem.id}`] = {
+            itemId: `unique_${uniqueItem.id}`,
+            name: uniqueItem.name,
+            type: uniqueItem.type,
+            slot: uniqueItem.slot,
+            abilities: appliedAbilities,
+            isUnique: true,
+            rarity: 'legendary',
+            maintenanceLevel: uniqueItem.dbItem.maintenanceLevel,
+            maintenanceRatio: uniqueItem.maintenanceRatio,
+            specialEffects: uniqueItem.specialEffects
+        };
+    }
+    
     // Process CHARMS: All charms are cumulative (one of each)
     for (const charm of charms) {
         const appliedAbilities = [];

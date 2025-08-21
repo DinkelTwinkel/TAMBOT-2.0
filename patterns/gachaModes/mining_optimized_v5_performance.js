@@ -54,7 +54,9 @@ const {
     checkAndEndSpecialEvent,
     pickLongBreakEvent,
     shouldTriggerLongBreak,
-    scatterPlayersForBreak
+    scatterPlayersForBreak,
+    startThiefGame,
+    calculateMinecartValue
 } = require('./mining/miningEvents');
 
 // Import hazard systems
@@ -458,7 +460,7 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
 }
 
 // Handle break start with power level considerations
-async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1) {
+async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1, preSelectedEvent = null) {
     const channelId = channel.id;
     const now = Date.now();
     const members = channel.members.filter(m => !m.user.bot);
@@ -502,8 +504,63 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1)
         
         const updatedDbEntry = await getCachedDBEntry(channel.id, true);
         const playerCount = members.size;
-        const selectedEvent = pickLongBreakEvent(playerCount);
-        const eventResult = await selectedEvent(channel, updatedDbEntry);
+        
+        // Use pre-selected event if provided, otherwise select one
+        const selectedEvent = preSelectedEvent || pickLongBreakEvent(playerCount);
+        
+        console.log(`[LONG BREAK] Selected event function name: ${selectedEvent.name}`);
+        console.log(`[LONG BREAK] Selected event: ${selectedEvent.toString().substring(0, 100)}...`);
+        
+        // Check if it's going to be a thief event by checking the function name
+        let eventResult;
+        const isThiefEvent = selectedEvent.name === 'startThiefGame' || 
+                            selectedEvent === startThiefGame ||
+                            selectedEvent.toString().includes('startThiefGame');
+        
+        console.log(`[LONG BREAK] Is thief event: ${isThiefEvent}`);
+        
+        if (isThiefEvent) {
+            // Calculate minecart value without distributing it
+            const minecartData = await calculateMinecartValue(updatedDbEntry);
+            
+            if (minecartData && minecartData.totalValue > 0) {
+                // Store the pending minecart data for the thief event
+                await gachaVC.updateOne(
+                    { channelId: channel.id },
+                    {
+                        $set: {
+                            'gameData.pendingMinecartValue': minecartData.totalValue,
+                            'gameData.pendingContributorRewards': minecartData.contributorRewards
+                        }
+                    }
+                );
+                
+                // Announce minecart was "loaded for transport"
+                const embed = new EmbedBuilder()
+                    .setTitle('🛒 Mining Session Complete')
+                    .setDescription(`The minecart with ${minecartData.totalValue} coins worth of ore has been loaded for transport...`)
+                    .setColor(0x8B4513)
+                    .setTimestamp();
+                await channel.send({ embeds: [embed] });
+                
+                // Reset the minecart
+                const { DatabaseTransaction } = require('./mining/miningDatabase');
+                const transaction = new DatabaseTransaction();
+                transaction.resetMinecart(channel.id);
+                await transaction.commit();
+                
+                // Clear cache to get updated entry with pending data
+                dbCache.delete(channel.id);
+                const thiefEventEntry = await getCachedDBEntry(channel.id, true);
+                eventResult = await selectedEvent(channel, thiefEventEntry);
+            } else {
+                // No minecart value, run the event without special handling
+                eventResult = await selectedEvent(channel, updatedDbEntry);
+            }
+        } else {
+            // Not a thief event, run normally
+            eventResult = await selectedEvent(channel, updatedDbEntry);
+        }
         
         const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
         await logEvent(channel, `🎪 LONG BREAK: ${eventResult || 'Event started'}`, true, {
@@ -780,8 +837,34 @@ module.exports = async (channel, dbEntry, json, client) => {
         const cycleCount = dbEntry.gameData?.cycleCount || 0;
         const isLongBreak = (cycleCount % 4) === 3;
         
-        await createMiningSummary(channel, dbEntry);
-        await startBreak(channel, dbEntry, isLongBreak, serverPowerLevel);
+        let selectedEvent = null;
+        
+        if (!isLongBreak) {
+            // Short break - always create mining summary
+            await createMiningSummary(channel, dbEntry);
+        } else {
+            // Long break - pre-select the event to avoid double selection
+            const playerCount = members.size;
+            selectedEvent = pickLongBreakEvent(playerCount);
+            
+            console.log(`[MAIN] Long break: Selected event for ${playerCount} players`);
+            console.log(`[MAIN] Event function name: ${selectedEvent.name}`);
+            
+            // Check if it's a thief event by checking function name
+            const isThiefEvent = selectedEvent.name === 'startThiefGame' || 
+                                selectedEvent === startThiefGame ||
+                                selectedEvent.toString().includes('startThiefGame');
+            
+            console.log(`[MAIN] Is thief event: ${isThiefEvent}`);
+            
+            if (!isThiefEvent) {
+                // Not a thief event, create the summary normally
+                await createMiningSummary(channel, dbEntry);
+            }
+            // If it IS a thief event, don't create summary here - it will be handled in startBreak
+        }
+        
+        await startBreak(channel, dbEntry, isLongBreak, serverPowerLevel, selectedEvent);
         return;
     }
 

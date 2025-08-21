@@ -22,7 +22,7 @@ async function startRailBuildingEvent(channel, dbEntry) {
     // Get active players in the channel
     const members = channel.members.filter(m => !m.user.bot);
     if (members.size === 0) {
-        await logEvent(channel, '⚠️ No players to build rails to.');
+        console.log('[RAIL EVENT] No players to build rails to.');
         return '⚠️ No players for rail building';
     }
     
@@ -50,7 +50,7 @@ async function startRailBuildingEvent(channel, dbEntry) {
     }
     
     if (validPlayers.length === 0) {
-        await logEvent(channel, '⚠️ All players are too close to entrance for rail building.');
+        console.log('[RAIL EVENT] All players are too close to entrance for rail building.');
         return '⚠️ No valid rail destinations';
     }
     
@@ -91,7 +91,7 @@ async function startRailBuildingEvent(channel, dbEntry) {
     }
     
     if (!startPos) {
-        await logEvent(channel, '⚠️ Could not find valid starting position for rails.');
+        console.log('[RAIL EVENT] Could not find valid starting position for rails.');
         return '⚠️ No valid rail start position';
     }
     
@@ -99,7 +99,7 @@ async function startRailBuildingEvent(channel, dbEntry) {
     const result = await buildMinecartRails(dbEntry, startPos, selectedPlayer.position);
     
     if (!result.success) {
-        await logEvent(channel, `⚠️ Failed to build rails: ${result.error}`);
+        console.log(`[RAIL EVENT] Failed to build rails: ${result.error}`);
         return `⚠️ Rail building failed: ${result.error}`;
     }
     
@@ -123,9 +123,9 @@ async function startRailBuildingEvent(channel, dbEntry) {
         .setFooter({ text: 'Rails persist until manually cleared!' });
     
     await channel.send({ embeds: [embed] });
-    await logEvent(channel, `🚂 RAIL EVENT: Built ${result.pathLength} rails to ${selectedPlayer.member.displayName}'s position!`);
+    console.log(`[RAIL EVENT] Built ${result.pathLength} rails to ${selectedPlayer.member.displayName}'s position!`);
     
-    return `🚂 Rail building complete: ${result.pathLength} segments`;
+    return `🚂 RAIL EVENT: Built ${result.pathLength} rails to ${selectedPlayer.member.displayName}'s position!`;
 }
 
 /**
@@ -141,7 +141,7 @@ async function startThiefGame(channel, dbEntry) {
         .map(member => member);
 
     if (humansArray.length < 2) { // Changed to 2 for easier testing
-        await logEvent(channel, '⚠️ Not enough players for thief event. Need at least 2 players.');
+        console.log('[THIEF EVENT] Not enough players for thief event. Need at least 2 players.');
         return '⚠️ Not enough players for thief event';
     }
 
