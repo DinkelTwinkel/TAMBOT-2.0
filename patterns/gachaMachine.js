@@ -29,7 +29,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
     const rollPrice = guildConfig.gachaCost;
 
-    gachaRollChannel.setName(`🎰 𝙂𝘼𝘾𝙃𝘼 『 ${rollPrice} C 』`);
+    gachaRollChannel.setName(`🎰 𝙂𝘼𝘾𝙃𝘼 『 INSERT ${rollPrice} C 』`);
 
     const rollerMember = await guild.members.fetch(roller.id);
 
