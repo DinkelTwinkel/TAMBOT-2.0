@@ -23,11 +23,11 @@ console.log('- Generic (fallback)\n');
 
 console.log('Image types:');
 console.log('- Floor tiles (3 variations)');
-console.log('- Wall tiles (3 variations)');
+console.log('- Wall tiles (3 variations with black top overlay)');
 console.log('- Entrance tiles');
-console.log('- Ore wall tiles (3 variations)');
-console.log('- Rare ore tiles (2 variations)');
-console.log('- Reinforced wall tiles (2 variations)');
+console.log('- Ore wall tiles (3 variations with black top overlay)');
+console.log('- Rare ore tiles (3 variations with black top overlay)');
+console.log('- Reinforced wall tiles (3 variations with black top overlay)');
 console.log('- Portal traps, Bomb traps, Toxic fog');
 console.log('- Wall traps, Treasure chests, Rare treasures\n');
 

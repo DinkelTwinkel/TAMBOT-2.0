@@ -104,8 +104,8 @@ const TILE_TYPES = {
     wall: { variations: 3, generator: 'generateWallTile', width: 64, height: 90 },
     entrance: { variations: 1, generator: 'generateEntranceTile', width: 64, height: 64 },
     wallOre: { variations: 3, generator: 'generateWallOreTile', width: 64, height: 90 },
-    rareOre: { variations: 2, generator: 'generateRareOreTile', width: 64, height: 90 },
-    wallReinforced: { variations: 2, generator: 'generateReinforcedWallTile', width: 64, height: 90 }
+    rareOre: { variations: 3, generator: 'generateRareOreTile', width: 64, height: 90 },
+    wallReinforced: { variations: 3, generator: 'generateReinforcedWallTile', width: 64, height: 90 }
 };
 
 // Encounter types to generate
@@ -309,6 +309,10 @@ function generateWallTile(canvas, ctx, theme, variation) {
     bottomGradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
     ctx.fillStyle = bottomGradient;
     ctx.fillRect(0, height - 20, width, 20);
+    
+    // Add black rectangle at top (65 pixels)
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, 65);
 }
 
 /**
@@ -403,6 +407,10 @@ function generateWallOreTile(canvas, ctx, theme, variation) {
         ctx.fillRect(x, y, 2, 2);
     }
     ctx.globalAlpha = 1.0;
+    
+    // Add black rectangle at top (65 pixels)
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, 65);
 }
 
 /**
@@ -437,7 +445,7 @@ function generateRareOreTile(canvas, ctx, theme, variation) {
         ctx.strokeStyle = '#FFFFFF';
         ctx.lineWidth = 1;
         ctx.stroke();
-    } else {
+    } else if (variation === 2) {
         // Multiple small crystals
         for (let i = 0; i < 4; i++) {
             const x = 10 + Math.random() * (width - 20);
@@ -458,6 +466,33 @@ function generateRareOreTile(canvas, ctx, theme, variation) {
             ctx.lineWidth = 0.5;
             ctx.stroke();
         }
+    } else if (variation === 3) {
+        // Geode pattern - hollow center with crystals around edges
+        ctx.fillStyle = themeConfig.secondaryColor;
+        ctx.beginPath();
+        ctx.arc(width/2, height/2, 20, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Crystal ring
+        const crystalCount = 8;
+        for (let i = 0; i < crystalCount; i++) {
+            const angle = (Math.PI * 2 / crystalCount) * i;
+            const x = width/2 + Math.cos(angle) * 18;
+            const y = height/2 + Math.sin(angle) * 18;
+            
+            ctx.fillStyle = themeConfig.oreColor;
+            ctx.beginPath();
+            ctx.moveTo(x, y - 4);
+            ctx.lineTo(x + 3, y);
+            ctx.lineTo(x, y + 4);
+            ctx.lineTo(x - 3, y);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+        }
     }
     
     // Add sparkles
@@ -469,6 +504,10 @@ function generateRareOreTile(canvas, ctx, theme, variation) {
         ctx.fillRect(x, y, 1, 1);
     }
     ctx.globalAlpha = 1.0;
+    
+    // Add black rectangle at top (65 pixels)
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, 65);
 }
 
 /**
@@ -512,7 +551,7 @@ function generateReinforcedWallTile(canvas, ctx, theme, variation) {
             ctx.lineWidth = 1;
             ctx.stroke();
         }
-    } else {
+    } else if (variation === 2) {
         // Grid pattern
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
@@ -540,7 +579,50 @@ function generateReinforcedWallTile(canvas, ctx, theme, variation) {
                 ctx.fill();
             }
         }
+    } else if (variation === 3) {
+        // Diamond plate pattern
+        ctx.fillStyle = '#3C3C3C';
+        const diamondSize = 12;
+        
+        for (let y = 0; y < height; y += diamondSize) {
+            for (let x = 0; x < width; x += diamondSize * 2) {
+                const offsetX = (y / diamondSize) % 2 === 0 ? 0 : diamondSize;
+                
+                ctx.beginPath();
+                ctx.moveTo(x + offsetX + diamondSize, y);
+                ctx.lineTo(x + offsetX + diamondSize * 2, y + diamondSize/2);
+                ctx.lineTo(x + offsetX + diamondSize, y + diamondSize);
+                ctx.lineTo(x + offsetX, y + diamondSize/2);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+        
+        // Add warning stripes
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.3;
+        for (let i = 0; i < 5; i++) {
+            ctx.beginPath();
+            ctx.moveTo(0, i * 20);
+            ctx.lineTo(20, i * 20 + 20);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(width - 20, i * 20);
+            ctx.lineTo(width, i * 20 + 20);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1.0;
     }
+    
+    // Add black rectangle at top (65 pixels)
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, 65);
 }
 
 // ============= ENCOUNTER GENERATORS =============
