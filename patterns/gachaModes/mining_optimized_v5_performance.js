@@ -678,7 +678,7 @@ function getAllPossibleHazards(dangerLevel) {
     return hazardList;
 }
 
-// Modified hazard generation for initial roll with more hazards at high danger
+// Modified hazard generation for initial roll with more cryptic messages
 async function performInitialHazardRoll(channel, dbEntry, powerLevel) {
     try {
         // Only perform if not already done
@@ -689,6 +689,9 @@ async function performInitialHazardRoll(channel, dbEntry, powerLevel) {
         const members = channel.members.filter(m => !m.user.bot);
         const dangerLevel = Math.min(powerLevel, 7);
         
+        // Generate and store hazard seed
+        const hazardSeed = Date.now() + Math.floor(Math.random() * 1000000);
+        
         // Get spawn chance (dramatically increased for levels 6-7)
         let baseSpawnChance = getHazardSpawnChance(powerLevel);
         if (dangerLevel >= 6) {
@@ -698,44 +701,51 @@ async function performInitialHazardRoll(channel, dbEntry, powerLevel) {
             baseSpawnChance *= 5; // 5x hazards for danger 7
         }
         
-        // Get all possible hazards
-        const possibleHazards = getAllPossibleHazards(dangerLevel);
+        // Get all possible hazards with more cryptic descriptions
+        const crypticHazards = getCrypticHazardDescriptions(dangerLevel);
         
-        // Create embed
+        // Create embed with more mysterious tone
         const embed = new EmbedBuilder()
-            .setTitle(`⚠️ DANGER ASSESSMENT - Level ${dangerLevel}`)
-            .setColor(dangerLevel >= 6 ? 0xFF0000 : dangerLevel >= 4 ? 0xFFA500 : 0xFFFF00)
-            .setDescription(`The ${POWER_LEVEL_CONFIG[powerLevel]?.name || 'Unknown Mine'} has been analyzed for potential hazards.`)
+            .setTitle(`🔮 ANOMALY DETECTION - Depth ${dangerLevel}`)
+            .setColor(dangerLevel >= 6 ? 0x4B0082 : dangerLevel >= 4 ? 0x8B008B : 0x483D8B)
+            .setDescription(`*Strange energies pulse through the ${POWER_LEVEL_CONFIG[powerLevel]?.name || 'Unknown Depths'}...*`)
             .setTimestamp();
         
-        // Add danger level indicator
-        const dangerBar = '█'.repeat(dangerLevel) + '░'.repeat(7 - dangerLevel);
+        // Add cryptic danger indicator
+        const dangerRunes = '◈'.repeat(dangerLevel) + '◇'.repeat(7 - dangerLevel);
         embed.addFields({
-            name: '📊 Danger Level',
-            value: `\`[${dangerBar}]\` ${dangerLevel}/7`,
+            name: '⚡ Energy Resonance',
+            value: `\`${dangerRunes}\`\n*The air itself trembles with unknown power...*`,
             inline: false
         });
         
-        // Add hazard spawn rate
+        // Add cryptic spawn rate
         const spawnPercent = Math.round(baseSpawnChance * 100);
+        let frequencyMessage = `${spawnPercent}% probability of anomalous encounters`;
+        if (dangerLevel >= 7) {
+            frequencyMessage = `⚠️ **REALITY UNSTABLE** - Extreme anomaly density detected`;
+        } else if (dangerLevel >= 6) {
+            frequencyMessage = `⚠️ **DIMENSIONAL RIFTS** - High anomaly concentration`;
+        }
+        
         embed.addFields({
-            name: '🎲 Hazard Frequency',
-            value: `${spawnPercent}% chance per tile${dangerLevel >= 6 ? ' ⚠️ **EXTREME DANGER**' : ''}`,
+            name: '📊 Disturbance Frequency',
+            value: frequencyMessage,
             inline: true
         });
         
-        // Group hazards by danger threshold
+        // Group hazards with cryptic names
         const hazardGroups = {
-            'Common Hazards (Lvl 1-2)': possibleHazards.filter(h => ['rocks', 'gas', 'water', 'treasure'].includes(h.type)),
-            'Dangerous Hazards (Lvl 3-4)': possibleHazards.filter(h => ['explosion', 'collapse', 'portal', 'monster', 'rare_treasure'].includes(h.type)),
-            'Extreme Hazards (Lvl 5+)': possibleHazards.filter(h => ['curse', 'trap', 'lava', 'void', 'legendary_treasure'].includes(h.type)),
-            'Apocalyptic Hazards (Lvl 6-7)': possibleHazards.filter(h => ['apocalypse', 'blackhole', 'demon_lord', 'time_warp', 'nuclear', 'nightmare', 'omega_curse', 'cataclysm', 'divine_wrath', 'mythic_treasure'].includes(h.type))
+            '🌫️ Whispers in the Stone': crypticHazards.filter(h => h.tier === 'common'),
+            '🌙 Shadows That Move': crypticHazards.filter(h => h.tier === 'dangerous'),
+            '💀 Ancient Warnings': crypticHazards.filter(h => h.tier === 'extreme'),
+            '⚫ The Void Beckons': crypticHazards.filter(h => h.tier === 'apocalyptic')
         };
         
-        // Add hazard lists
+        // Add cryptic hazard lists
         for (const [groupName, hazards] of Object.entries(hazardGroups)) {
             if (hazards.length > 0) {
-                const hazardList = hazards.map(h => `${h.name}`).join('\n');
+                const hazardList = hazards.map(h => `${h.crypticName}`).join('\n');
                 if (hazardList) {
                     embed.addFields({
                         name: groupName,
@@ -746,46 +756,126 @@ async function performInitialHazardRoll(channel, dbEntry, powerLevel) {
             }
         }
         
-        // Add warning message based on danger level
+        // Add cryptic warning message based on danger level
         let warningMessage = '';
         if (dangerLevel >= 7) {
-            warningMessage = '⚠️ **MAXIMUM DANGER** ⚠️\nThis mine is experiencing catastrophic instability. Multiple reality-breaking hazards detected. Proceed with EXTREME caution!';
+            warningMessage = '***The boundaries of reality grow thin here. Ancient things stir in the darkness. Those who enter may never truly leave...***';
         } else if (dangerLevel >= 6) {
-            warningMessage = '⚠️ **EXTREME DANGER** ⚠️\nHighly unstable environment detected. Apocalyptic hazards present. Survival unlikely without proper equipment!';
+            warningMessage = '***Echoes of forgotten catastrophes linger. The stones remember what was lost. Tread carefully, lest you join them...***';
         } else if (dangerLevel >= 5) {
-            warningMessage = '⚠️ **HIGH DANGER** ⚠️\nAncient curses and powerful creatures detected. Proceed with extreme caution!';
+            warningMessage = '***Old curses sleep beneath the surface. Something watches from the shadows. Do not wake what should not be woken...***';
         } else if (dangerLevel >= 3) {
-            warningMessage = '⚠️ **MODERATE DANGER** ⚠️\nUnstable areas and dangerous creatures present. Stay alert!';
+            warningMessage = '***Unstable energies flow through these tunnels. Strange sounds echo in the darkness. Keep your wits about you...***';
         } else {
-            warningMessage = '⚠️ **LOW DANGER** ⚠️\nBasic hazards detected. Standard safety protocols recommended.';
+            warningMessage = '***Minor disturbances detected. The depths hold their secrets close. Watch your step...***';
         }
         
         embed.addFields({
-            name: '⚠️ Safety Warning',
+            name: '🌑 The Depths Speak',
             value: warningMessage,
             inline: false
         });
         
-        // Add player list
-        const playerList = Array.from(members.values()).map(m => m.displayName).join(', ');
+        // Add cryptic player list
+        const playerList = Array.from(members.values()).map(m => m.displayName).join(' • ');
         embed.setFooter({
-            text: `Miners: ${playerList}`
+            text: `Those who dare descend: ${playerList}`
         });
         
-        // Mark as done
+        // Store hazard seed and level in database
         await gachaVC.updateOne(
             { channelId: channel.id },
-            { $set: { 'gameData.hazardRollDone': true, 'gameData.dangerLevel': dangerLevel } }
+            { 
+                $set: { 
+                    'gameData.hazardRollDone': true, 
+                    'gameData.dangerLevel': dangerLevel,
+                    'gameData.hazardSeed': hazardSeed
+                } 
+            }
         );
         
         // Send the embed
         await channel.send({ embeds: [embed] });
+        
+        console.log(`[MINING] Hazard roll performed for channel ${channel.id}: Level ${dangerLevel}, Seed ${hazardSeed}`);
         
         return embed;
     } catch (error) {
         console.error('[MINING] Error performing hazard roll:', error);
         return null;
     }
+}
+
+// Helper function to get cryptic hazard descriptions
+function getCrypticHazardDescriptions(dangerLevel) {
+    const crypticHazards = [];
+    
+    const hazardMappings = {
+        1: [
+            { type: 'rocks', crypticName: '• Trembling Stones', tier: 'common' },
+            { type: 'gas', crypticName: '• Whispering Vapors', tier: 'common' },
+            { type: 'treasure', crypticName: '• Glimmers in Darkness', tier: 'common' }
+        ],
+        2: [
+            { type: 'rocks', crypticName: '• The Ceiling Weeps', tier: 'common' },
+            { type: 'gas', crypticName: '• Breath of the Forgotten', tier: 'common' },
+            { type: 'water', crypticName: '• Dark Waters Rising', tier: 'common' },
+            { type: 'treasure', crypticName: '• Lost Fortunes', tier: 'common' }
+        ],
+        3: [
+            { type: 'explosion', crypticName: '• Volatile Echoes', tier: 'dangerous' },
+            { type: 'collapse', crypticName: '• The Weight Above', tier: 'dangerous' },
+            { type: 'portal', crypticName: '• Doorways to Nowhere', tier: 'dangerous' },
+            { type: 'rare_treasure', crypticName: '• Forgotten Relics', tier: 'dangerous' }
+        ],
+        4: [
+            { type: 'explosion', crypticName: '• Cascading Fury', tier: 'dangerous' },
+            { type: 'collapse', crypticName: '• When Mountains Fall', tier: 'dangerous' },
+            { type: 'portal', crypticName: '• Rifts in Space', tier: 'dangerous' },
+            { type: 'monster', crypticName: '• Things That Hunt', tier: 'dangerous' },
+            { type: 'rare_treasure', crypticName: '• Vault of Ancients', tier: 'dangerous' }
+        ],
+        5: [
+            { type: 'explosion', crypticName: '• Infernal Awakening', tier: 'extreme' },
+            { type: 'collapse', crypticName: '• Earth\'s Revenge', tier: 'extreme' },
+            { type: 'portal', crypticName: '• Void Passages', tier: 'extreme' },
+            { type: 'monster', crypticName: '• The Sleeper Wakes', tier: 'extreme' },
+            { type: 'curse', crypticName: '• Marks of the Damned', tier: 'extreme' },
+            { type: 'legendary_treasure', crypticName: '• Myths Made Real', tier: 'extreme' }
+        ],
+        6: [
+            { type: 'explosion', crypticName: '• Stars Falling Underground', tier: 'apocalyptic' },
+            { type: 'collapse', crypticName: '• Tsunamis of Stone', tier: 'apocalyptic' },
+            { type: 'portal', crypticName: '• Reality Fractures', tier: 'apocalyptic' },
+            { type: 'monster', crypticName: '• That Which Should Not Be', tier: 'apocalyptic' },
+            { type: 'curse', crypticName: '• Death\'s Own Shadow', tier: 'apocalyptic' },
+            { type: 'trap', crypticName: '• Lightning Prison', tier: 'apocalyptic' },
+            { type: 'lava', crypticName: '• Rivers of Fire', tier: 'apocalyptic' },
+            { type: 'void', crypticName: '• Where Reality Ends', tier: 'apocalyptic' },
+            { type: 'legendary_treasure', crypticName: '• Divine Fragments', tier: 'apocalyptic' }
+        ],
+        7: [
+            { type: 'apocalypse', crypticName: '• The End of All Things', tier: 'apocalyptic' },
+            { type: 'blackhole', crypticName: '• Consuming Darkness', tier: 'apocalyptic' },
+            { type: 'demon_lord', crypticName: '• The Unnamed One', tier: 'apocalyptic' },
+            { type: 'time_warp', crypticName: '• Yesterday\'s Tomorrow', tier: 'apocalyptic' },
+            { type: 'nuclear', crypticName: '• Atomic Ghosts', tier: 'apocalyptic' },
+            { type: 'nightmare', crypticName: '• Dreams Made Flesh', tier: 'apocalyptic' },
+            { type: 'omega_curse', crypticName: '• The Final Word', tier: 'apocalyptic' },
+            { type: 'cataclysm', crypticName: '• Storm of Chaos', tier: 'apocalyptic' },
+            { type: 'divine_wrath', crypticName: '• Judgment Day', tier: 'apocalyptic' },
+            { type: 'mythic_treasure', crypticName: '• Beyond Comprehension', tier: 'apocalyptic' }
+        ]
+    };
+    
+    // Add hazards based on danger level
+    for (let level = 1; level <= Math.min(dangerLevel, 7); level++) {
+        if (hazardMappings[level]) {
+            crypticHazards.push(...hazardMappings[level]);
+        }
+    }
+    
+    return crypticHazards;
 }
 
 // Optimized Event Log System with power level display and error handling

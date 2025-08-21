@@ -10,7 +10,6 @@ const Cooldown = require('../models/coolDowns');
 const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const generateShop = require('./generateShop');
 const GuildConfig = require('../models/GuildConfig');
-const { generateHazardData, formatHazardAnnouncement } = require('./gachaModes/mining/hazardRoller');
 
 const channelsFile = path.join(__dirname, '../data/gachaServers.json');
 const channelData = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
@@ -102,14 +101,11 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                             nextLongBreak: new Date(Date.now() + 60 * 1000 * 100),
                         });
                         
-                        // If it's a mining type VC, regenerate hazard data
+                        // If it's a mining type VC, set up initial data
                         if (chosenChannelType.type === 'mining') {
                             const basePowerLevel = chosenChannelType.power || 1;
-                            const seed = Date.now() + Math.floor(Math.random() * 10000);
-                            const hazardData = generateHazardData(basePowerLevel, seed);
                             
                             storeVC.gameData = {
-                                hazardData: hazardData,
                                 miningMode: true,
                                 powerLevel: basePowerLevel
                             };
@@ -152,15 +148,6 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                             .setImage(`attachment://${imageFileName}`);
                         
                         await newGachaChannel.send({ embeds: [rollEmbed], files: [imageAttachment] });
-                        
-                        // If it's a mining VC, announce the hazards
-                        if (chosenChannelType.type === 'mining' && storeVC.gameData?.hazardData) {
-                            const hazardAnnouncement = formatHazardAnnouncement(
-                                storeVC.gameData.hazardData,
-                                chosenChannelType.name
-                            );
-                            await newGachaChannel.send(hazardAnnouncement);
-                        }
                         
                         await generateShop(newGachaChannel, 0.5);
                         
@@ -226,16 +213,13 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
         storeVC.typeId = parseInt(chosenChannelType.id); // Ensure consistent type
         
-        // If it's a mining type VC, generate and store hazard data
+        // If it's a mining type VC, set up initial data
         if (chosenChannelType.type === 'mining') {
             const basePowerLevel = chosenChannelType.power || 1;
-            const seed = Date.now() + Math.floor(Math.random() * 10000); // Generate unique seed
-            const hazardData = generateHazardData(basePowerLevel, seed);
             
-            // Store hazard data in gameData
+            // Store mining data in gameData
             storeVC.gameData = {
                 ...storeVC.gameData,
-                hazardData: hazardData,
                 miningMode: true,
                 powerLevel: basePowerLevel
             };
@@ -309,15 +293,6 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
         // Send it in the new text channel with the attachment
         await newGachaChannel.send({ embeds: [rollEmbed], files: [imageAttachment] });
-
-        // If it's a mining VC, announce the hazards
-        if (chosenChannelType.type === 'mining' && storeVC.gameData?.hazardData) {
-            const hazardAnnouncement = formatHazardAnnouncement(
-                storeVC.gameData.hazardData,
-                chosenChannelType.name
-            );
-            await newGachaChannel.send(hazardAnnouncement);
-        }
 
         await generateShop(newGachaChannel, 0.5);
 
