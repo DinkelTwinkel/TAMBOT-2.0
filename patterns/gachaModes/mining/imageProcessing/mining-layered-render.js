@@ -108,32 +108,55 @@ const TILE_COLORS = {
  * Get the current mine theme from gachaServers.json image field
  */
 function getMineTheme(dbEntry) {
-    // Get theme from the server's image field in gachaServers.json
+    // Try to get theme from the server's image field first
     const imageField = dbEntry?.activeGachaServer?.image;
     
-    if (!imageField || imageField === 'placeHolder') {
-        // Try to infer from server name
-        const serverName = dbEntry?.activeGachaServer?.name || '';
-        const cleanName = serverName.replace(/⛏️|️/g, '').trim().toLowerCase();
+    // If image field exists and is a valid theme name, use it directly
+    if (imageField && imageField !== 'placeHolder') {
+        // Check if the image field is already a valid theme
+        const validThemes = Object.values(MINE_THEMES);
+        if (validThemes.includes(imageField)) {
+            return imageField;
+        }
         
-        if (cleanName.includes('coal')) return MINE_THEMES.COAL;
-        if (cleanName.includes('copper')) return MINE_THEMES.COPPER;
-        if (cleanName.includes('topaz')) return MINE_THEMES.TOPAZ;
-        if (cleanName.includes('iron')) return MINE_THEMES.IRON;
-        if (cleanName.includes('diamond')) return MINE_THEMES.DIAMOND;
-        if (cleanName.includes('emerald')) return MINE_THEMES.EMERALD;
-        if (cleanName.includes('ruby')) return MINE_THEMES.RUBY;
-        if (cleanName.includes('crystal')) return MINE_THEMES.CRYSTAL;
-        if (cleanName.includes('obsidian')) return MINE_THEMES.OBSIDIAN;
-        if (cleanName.includes('mythril')) return MINE_THEMES.MYTHRIL;
-        if (cleanName.includes('adamantite')) return MINE_THEMES.ADAMANTITE;
-        if (cleanName.includes('fossil')) return MINE_THEMES.FOSSIL;
-        
-        return MINE_THEMES.GENERIC;
+        // Try to map common image field values to themes
+        const imageFieldLower = imageField.toLowerCase();
+        if (imageFieldLower.includes('coal')) return MINE_THEMES.COAL;
+        if (imageFieldLower.includes('copper')) return MINE_THEMES.COPPER;
+        if (imageFieldLower.includes('topaz')) return MINE_THEMES.TOPAZ;
+        if (imageFieldLower.includes('iron')) return MINE_THEMES.IRON;
+        if (imageFieldLower.includes('diamond')) return MINE_THEMES.DIAMOND;
+        if (imageFieldLower.includes('emerald')) return MINE_THEMES.EMERALD;
+        if (imageFieldLower.includes('ruby')) return MINE_THEMES.RUBY;
+        if (imageFieldLower.includes('crystal')) return MINE_THEMES.CRYSTAL;
+        if (imageFieldLower.includes('obsidian')) return MINE_THEMES.OBSIDIAN;
+        if (imageFieldLower.includes('mythril')) return MINE_THEMES.MYTHRIL;
+        if (imageFieldLower.includes('adamantite')) return MINE_THEMES.ADAMANTITE;
+        if (imageFieldLower.includes('fossil')) return MINE_THEMES.FOSSIL;
     }
     
-    // Use the image field directly as theme if it's not a placeholder
-    return imageField;
+    // Fallback: Try to infer from server name
+    const serverName = dbEntry?.activeGachaServer?.name || '';
+    const cleanName = serverName.replace(/⛏️|️/g, '').trim().toLowerCase();
+    
+    // Debug logging to help identify theme issues
+    console.log(`Determining theme - Server: ${serverName}, Image field: ${imageField}`);
+    
+    if (cleanName.includes('coal')) return MINE_THEMES.COAL;
+    if (cleanName.includes('copper')) return MINE_THEMES.COPPER;
+    if (cleanName.includes('topaz')) return MINE_THEMES.TOPAZ;
+    if (cleanName.includes('iron')) return MINE_THEMES.IRON;
+    if (cleanName.includes('diamond')) return MINE_THEMES.DIAMOND;
+    if (cleanName.includes('emerald')) return MINE_THEMES.EMERALD;
+    if (cleanName.includes('ruby')) return MINE_THEMES.RUBY;
+    if (cleanName.includes('crystal')) return MINE_THEMES.CRYSTAL;
+    if (cleanName.includes('obsidian')) return MINE_THEMES.OBSIDIAN;
+    if (cleanName.includes('mythril')) return MINE_THEMES.MYTHRIL;
+    if (cleanName.includes('adamantite')) return MINE_THEMES.ADAMANTITE;
+    if (cleanName.includes('fossil')) return MINE_THEMES.FOSSIL;
+    
+    console.log(`No specific theme found, using generic theme`);
+    return MINE_THEMES.GENERIC;
 }
 
 /**
@@ -185,38 +208,49 @@ async function loadTileImageVariation(tileType, theme = MINE_THEMES.GENERIC, var
     try {
         const image = await loadImage(primaryPath);
         tileImageCache.set(cacheKey, image);
+        console.log(`Successfully loaded: ${primaryPath}`);
         return image;
     } catch (error) {
         // Image doesn't exist, try to generate it
-        console.log(`Image not found: ${primaryPath}, generating...`);
+        console.log(`Image not found: ${primaryPath}, attempting to generate theme images...`);
         
         try {
             // Generate missing images for this theme
             await generateThemeImages(theme);
+            console.log(`Generated images for theme: ${theme}`);
             
             // Try loading again after generation
             const image = await loadImage(primaryPath);
             tileImageCache.set(cacheKey, image);
+            console.log(`Successfully loaded after generation: ${primaryPath}`);
             return image;
         } catch (genError) {
-            console.warn(`Failed to generate or load tile image: ${primaryPath}`);
+            console.warn(`Failed to generate or load tile image for theme ${theme}: ${primaryPath}`);
+            console.warn(`Error details:`, genError.message);
+            
             // Try fallback to generic theme
             const genericPath = variation > 1 ?
                 `./assets/game/tiles/generic_${baseName}_${variation}.png` :
                 `./assets/game/tiles/generic_${baseName}.png`;
             
+            console.log(`Attempting generic fallback: ${genericPath}`);
+            
             try {
                 const image = await loadImage(genericPath);
                 tileImageCache.set(cacheKey, image);
+                console.log(`Loaded generic fallback: ${genericPath}`);
                 return image;
             } catch (genericError) {
                 // Generate generic version
+                console.log(`Generic not found, generating generic theme images...`);
                 try {
                     await generateThemeImages('generic');
                     const image = await loadImage(genericPath);
                     tileImageCache.set(cacheKey, image);
+                    console.log(`Successfully loaded generic after generation: ${genericPath}`);
                     return image;
                 } catch (finalError) {
+                    console.error(`Failed to load or generate any tile image for ${baseName}`);
                     // Cache the failure
                     tileImageCache.set(cacheKey, null);
                     return null;
@@ -247,36 +281,45 @@ async function loadEncounterImage(encounterType, theme = MINE_THEMES.GENERIC) {
     try {
         const image = await loadImage(primaryPath);
         tileImageCache.set(cacheKey, image);
+        console.log(`Successfully loaded encounter: ${primaryPath}`);
         return image;
     } catch (error) {
         // Image doesn't exist, try to generate it
-        console.log(`Encounter image not found: ${primaryPath}, generating...`);
+        console.log(`Encounter image not found: ${primaryPath}, attempting to generate...`);
         
         try {
             // Generate missing images for this theme
             await generateThemeImages(theme);
+            console.log(`Generated encounter images for theme: ${theme}`);
             
             // Try loading again after generation
             const image = await loadImage(primaryPath);
             tileImageCache.set(cacheKey, image);
+            console.log(`Successfully loaded encounter after generation: ${primaryPath}`);
             return image;
         } catch (genError) {
-            console.warn(`Failed to generate or load encounter image: ${primaryPath}`);
+            console.warn(`Failed to generate or load encounter image for theme ${theme}: ${primaryPath}`);
             // Try fallback to generic theme
             const genericPath = `./assets/game/encounters/generic_${imageFileName}.png`;
+            
+            console.log(`Attempting generic encounter fallback: ${genericPath}`);
             
             try {
                 const image = await loadImage(genericPath);
                 tileImageCache.set(cacheKey, image);
+                console.log(`Loaded generic encounter: ${genericPath}`);
                 return image;
             } catch (genericError) {
                 // Generate generic version
+                console.log(`Generic encounter not found, generating...`);
                 try {
                     await generateThemeImages('generic');
                     const image = await loadImage(genericPath);
                     tileImageCache.set(cacheKey, image);
+                    console.log(`Successfully loaded generic encounter after generation: ${genericPath}`);
                     return image;
                 } catch (finalError) {
+                    console.error(`Failed to load or generate encounter image for ${imageFileName}`);
                     // Cache the failure
                     tileImageCache.set(cacheKey, null);
                     return null;
@@ -1605,6 +1648,7 @@ async function generateTileMapImage(channel) {
     
     // Get theme for this mine from gachaServers.json image field
     const theme = getMineTheme(result);
+    console.log(`Using theme: ${theme} for channel ${channel.id}`);
     
     // Get rails and encounters data
     const railsData = await railStorage.getRailsData(channel.id);

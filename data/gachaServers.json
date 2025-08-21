@@ -15,7 +15,7 @@
         },
         "shop": 1,
         "colour": "2C2C2C",
-        "image": "placeHolder"
+        "image": "coalMine"
     },
     {
         "id": "2",
@@ -33,7 +33,7 @@
         },
         "shop": 2,
         "colour": "FFB347",
-        "image": "placeHolder"
+        "image": "topazMine"
     },
     {
         "id": "3",
@@ -51,7 +51,7 @@
         },
         "shop": 3,
         "colour": "B9F2FF",
-        "image": "placeHolder"
+        "image": "diamondMine"
     },
     {
         "id": "4",
@@ -71,7 +71,7 @@
         },
         "shop": 4,
         "colour": "50C878",
-        "image": "placeHolder"
+        "image": "emeraldMine"
     },
     {
         "id": "5",
@@ -89,7 +89,7 @@
         },
         "shop": 5,
         "colour": "E0115F",
-        "image": "placeHolder"
+        "image": "rubyMine"
     },
     {
         "id": "6",
@@ -109,7 +109,7 @@
         },
         "shop": 6,
         "colour": "36454F",
-        "image": "placeHolder"
+        "image": "obsidianMine"
     },
     {
         "id": "7",
@@ -130,7 +130,7 @@
         },
         "shop": 7,
         "colour": "4169E1",
-        "image": "placeHolder"
+        "image": "mythrilMine"
     },
     {
         "id": "8",
@@ -152,7 +152,7 @@
         },
         "shop": 8,
         "colour": "800080",
-        "image": "placeHolder"
+        "image": "adamantiteMine"
     },
     {
         "id": "9",
@@ -170,7 +170,7 @@
         },
         "shop": 9,
         "colour": "B87333",
-        "image": "placeHolder"
+        "image": "copperMine"
     },
     {
         "id": "10",
@@ -188,7 +188,7 @@
         },
         "shop": 10,
         "colour": "708090",
-        "image": "placeHolder"
+        "image": "ironMine"
     },
     {
         "id": "11",
@@ -206,7 +206,7 @@
         },
         "shop": 11,
         "colour": "FF69B4",
-        "image": "placeHolder"
+        "image": "crystalMine"
     },
     {
         "id": "12",
@@ -224,6 +224,6 @@
         },
         "shop": 12,
         "colour": "DEB887",
-        "image": "placeHolder"
+        "image": "fossilMine"
     }
 ]
