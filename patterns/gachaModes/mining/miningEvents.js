@@ -133,7 +133,7 @@ async function startRailBuildingEvent(channel, dbEntry) {
  * Now properly uses minecart sale money as the theft pool
  */
 async function startThiefGame(channel, dbEntry) {
-    if (!channel?.isVoiceBased()) return;
+    if (!channel?.isVoiceBased()) return '⚠️ Invalid channel';
 
     const guild = channel.guild;
     const humansArray = guild.members.cache
@@ -155,7 +155,7 @@ async function startThiefGame(channel, dbEntry) {
     const stolenFromPlayers = {};
     
     // Check if we have minecart money to steal (this should be set by the caller)
-    if (dbEntry.gameData?.pendingMinecartValue) {
+    if (dbEntry.gameData?.pendingMinecartValue && dbEntry.gameData.pendingMinecartValue > 0) {
         // Use the minecart sale value as the theft pool
         stealAmount = dbEntry.gameData.pendingMinecartValue;
         const contributorRewards = dbEntry.gameData.pendingContributorRewards || {};
@@ -163,38 +163,52 @@ async function startThiefGame(channel, dbEntry) {
         // Track who "lost" money (but don't actually deduct it since they never received it)
         for (const [playerId, reward] of Object.entries(contributorRewards)) {
             const member = humansArray.find(m => m.id === playerId);
-            if (member) {
+            if (member && reward.coins > 0) {
                 stolenFromPlayers[playerId] = reward.coins;
                 lossDescriptions.push(`${member.user.username} lost ${reward.coins} coins from minecart sale`);
             }
         }
         
-        // Clear the pending minecart data
-        delete dbEntry.gameData.pendingMinecartValue;
-        delete dbEntry.gameData.pendingContributorRewards;
-        await dbEntry.save();
+        // Clear the pending minecart data using atomic operation
+        await gachaVC.updateOne(
+            { channelId: channel.id },
+            { 
+                $unset: { 
+                    'gameData.pendingMinecartValue': 1,
+                    'gameData.pendingContributorRewards': 1
+                }
+            }
+        );
     } else {
-        // Fallback to old behavior if no minecart money
+        // Fallback: Create a fake minecart pool from a portion of players' current money
+        console.log('[THIEF EVENT] No pending minecart value, creating fake pool');
         const Currency = require('../../../models/currency');
         
+        // Instead of stealing from players directly, create a pool
         for (const user of humansArray) {
             // Get player's current balance
             const playerMoney = await Currency.findOne({ userId: user.id });
             
             if (playerMoney && playerMoney.money > 0) {
-                // Steal 10-20% of their current coins
-                const percentToSteal = Math.floor(Math.random() * 10) + 10; // 10-20%
-                const stolen = Math.floor((percentToSteal / 100) * playerMoney.money);
+                // Calculate a "fake" minecart contribution (5-10% of their money)
+                const percentForPool = Math.floor(Math.random() * 5) + 5; // 5-10%
+                const contribution = Math.floor((percentForPool / 100) * playerMoney.money);
                 
-                if (stolen > 0) {
-                    // Deduct the stolen amount from the player's balance
-                    playerMoney.money -= stolen;
-                    await playerMoney.save();
-                    
-                    stolenFromPlayers[user.id] = stolen;
-                    stealAmount += stolen;
-                    lossDescriptions.push(`${user.user.username} lost ${stolen} coins (${percentToSteal}% of balance)`);
+                if (contribution > 0) {
+                    // Don't actually deduct yet - just track what they would lose
+                    stolenFromPlayers[user.id] = contribution;
+                    stealAmount += contribution;
+                    lossDescriptions.push(`${user.user.username}'s share: ${contribution} coins at risk`);
                 }
+            }
+        }
+        
+        // If still no money to steal, create a minimum pool
+        if (stealAmount === 0) {
+            stealAmount = 100 * humansArray.length; // 100 coins per player
+            for (const user of humansArray) {
+                stolenFromPlayers[user.id] = 100;
+                lossDescriptions.push(`${user.user.username}'s share: 100 coins at risk`);
             }
         }
     }
@@ -537,9 +551,20 @@ function getTileHardness(tileType) {
  * Now properly handles minecart money distribution based on voting results
  */
 async function endThiefGame(channel, dbEntry) {
-    if (!dbEntry.gameData?.specialEvent || dbEntry.gameData.specialEvent.type !== 'thief') return;
+    if (!dbEntry.gameData?.specialEvent || dbEntry.gameData.specialEvent.type !== 'thief') {
+        console.log('[END THIEF] No thief event to end');
+        return 'No thief event active';
+    }
 
     const { thiefId, thiefName, amount: totalStolen, stolenFromPlayers } = dbEntry.gameData.specialEvent;
+    
+    // Ensure we have valid data
+    if (!thiefId || !totalStolen) {
+        console.error('[END THIEF] Invalid thief event data:', dbEntry.gameData.specialEvent);
+        await clearSpecialEvent(channel.id);
+        return 'Invalid thief event data';
+    }
+    
     const Vote = require('../../../models/votes');
 
     // Fetch all votes for this channel
@@ -662,7 +687,8 @@ async function endThiefGame(channel, dbEntry) {
     // Cleanup
     await Vote.deleteMany({ channelId: channel.id });
     await clearSpecialEvent(channel.id);
-
+    
+    console.log('[END THIEF] Thief game concluded successfully');
     return 'Thief game concluded!';
 }
 
@@ -777,6 +803,11 @@ async function rewardThief(thiefId, amount) {
 async function distributeMinecartRewards(stolenFromPlayers, distributionRatio) {
     console.log(`Distributing ${(distributionRatio * 100).toFixed(0)}% of minecart rewards to contributors`);
     
+    if (!stolenFromPlayers || typeof stolenFromPlayers !== 'object') {
+        console.error('[DISTRIBUTE] Invalid stolenFromPlayers data:', stolenFromPlayers);
+        return;
+    }
+    
     for (const [userId, originalReward] of Object.entries(stolenFromPlayers)) {
         const rewardAmount = Math.floor(originalReward * distributionRatio);
         
@@ -791,8 +822,8 @@ async function distributeMinecartRewards(stolenFromPlayers, distributionRatio) {
                     });
                     console.log(`Created currency record for ${userId} with ${rewardAmount} coins from minecart`);
                 } else {
-                    const oldAmount = playerMoney.money;
-                    playerMoney.money += rewardAmount;
+                    const oldAmount = playerMoney.money || 0;
+                    playerMoney.money = oldAmount + rewardAmount;
                     await playerMoney.save();
                     console.log(`Distributed ${rewardAmount} coins to ${userId} from minecart (from ${oldAmount} to ${playerMoney.money})`);
                 }
@@ -850,14 +881,15 @@ async function checkAndEndSpecialEvent(channel, dbEntry) {
         console.log(`[checkAndEndSpecialEvent] Event end time: ${event.endTime}`);
         console.log(`[checkAndEndSpecialEvent] Should end? ${now > event.endTime}`);
         
-        if (now > event.endTime) {
+        if (now >= event.endTime) {
             const eventType = event.type;
             
             try {
+                let eventResult = null;
                 switch (eventType) {
                     case 'thief':
                         console.log(`[checkAndEndSpecialEvent] Ending thief game...`);
-                        await endThiefGame(channel, dbEntry);
+                        eventResult = await endThiefGame(channel, dbEntry);
                         break;
                     // Add other event endings here
                     default:
@@ -865,21 +897,17 @@ async function checkAndEndSpecialEvent(channel, dbEntry) {
                         await clearSpecialEvent(channel.id);
                 }
                 
-                // Start shop break after special event
-                await gachaVC.updateOne(
-                    { channelId: channel.id },
-                    { $set: { nextTrigger: new Date(now + 5 * 60 * 1000) } }
-                );
-                
-                // Don't generate shop here - let the caller handle it
+                // Don't modify timers here - let the main mining loop handle it
                 console.log(`[checkAndEndSpecialEvent] Event ended successfully`);
-                return `🛒 ${eventType} event concluded!`;
+                return eventResult || `🛒 ${eventType} event concluded!`;
             } catch (error) {
                 console.error(`[checkAndEndSpecialEvent] Error ending event:`, error);
-                return null;
+                // Try to clear the event to prevent getting stuck
+                await clearSpecialEvent(channel.id);
+                return `⚠️ Event ended with errors`;
             }
         } else {
-            console.log(`[checkAndEndSpecialEvent] Event not ready to end yet`);
+            console.log(`[checkAndEndSpecialEvent] Event not ready to end yet (${event.endTime - now}ms remaining)`);
         }
     } else {
         console.log(`[checkAndEndSpecialEvent] No special event active`);
