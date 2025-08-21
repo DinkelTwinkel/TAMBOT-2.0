@@ -955,51 +955,54 @@ function getAvailableEvents(playerCount) {
 
 /**
  * Scatter players around entrance during breaks
- * Creates tent positions with controlled density
+ * Creates tent positions on floor tiles only
  */
-function scatterPlayersForBreak(playerPositions, entranceX, entranceY, playerCount) {
+function scatterPlayersForBreak(playerPositions, entranceX, entranceY, playerCount, mapData) {
     const scattered = {};
     
-    // Calculate scatter radius based on player count (3-4 players per "zone")
-    const baseRadius = 2;
-    const maxRadius = Math.ceil(Math.sqrt(playerCount / 3)) + baseRadius;
+    // First, find all available floor tiles near the entrance
+    const floorTiles = [];
+    const maxRadius = Math.min(10, Math.ceil(Math.sqrt(playerCount * 2)) + 3);
+    
+    for (let y = Math.max(0, entranceY - maxRadius); y <= Math.min(mapData.height - 1, entranceY + maxRadius); y++) {
+        for (let x = Math.max(0, entranceX - maxRadius); x <= Math.min(mapData.width - 1, entranceX + maxRadius); x++) {
+            const tile = mapData.tiles[y] && mapData.tiles[y][x];
+            if (tile && (tile.type === 'floor' || tile.type === 'entrance')) {
+                const distance = Math.sqrt(Math.pow(x - entranceX, 2) + Math.pow(y - entranceY, 2));
+                if (distance > 0 && distance <= maxRadius) { // Not on entrance itself
+                    floorTiles.push({ x, y, distance });
+                }
+            }
+        }
+    }
+    
+    // Sort floor tiles by distance from entrance (closer first)
+    floorTiles.sort((a, b) => a.distance - b.distance);
     
     // Get list of player IDs
     const playerIds = Object.keys(playerPositions);
-    
-    // Generate tent positions
-    const tentPositions = new Set();
+    const usedPositions = new Set();
     
     for (let i = 0; i < playerIds.length; i++) {
         const playerId = playerIds[i];
-        let tentX, tentY;
-        let attempts = 0;
+        let tentPos = null;
         
-        do {
-            // Try to place tent within scatter radius
-            const angle = Math.random() * 2 * Math.PI;
-            const distance = Math.random() * maxRadius + 1; // At least 1 tile away
-            
-            tentX = Math.round(entranceX + Math.cos(angle) * distance);
-            tentY = Math.round(entranceY + Math.sin(angle) * distance);
-            
-            attempts++;
-            
-            // If we can't find a spot after many attempts, use a systematic approach
-            if (attempts > 20) {
-                const ring = Math.floor(i / 8) + 1; // Which ring around entrance
-                const positionInRing = i % 8; // Position within the ring
-                const ringAngle = (positionInRing / 8) * 2 * Math.PI;
-                
-                tentX = Math.round(entranceX + Math.cos(ringAngle) * ring);
-                tentY = Math.round(entranceY + Math.sin(ringAngle) * ring);
+        // Try to find an unused floor tile
+        for (const floorTile of floorTiles) {
+            const posKey = `${floorTile.x},${floorTile.y}`;
+            if (!usedPositions.has(posKey)) {
+                tentPos = floorTile;
+                usedPositions.add(posKey);
                 break;
             }
-            
-        } while (tentPositions.has(`${tentX},${tentY}`) && attempts < 20);
+        }
         
-        tentPositions.add(`${tentX},${tentY}`);
-        scattered[playerId] = { x: tentX, y: tentY, isTent: true };
+        // If no floor tile available, place at entrance (shouldn't happen normally)
+        if (!tentPos) {
+            tentPos = { x: entranceX, y: entranceY };
+        }
+        
+        scattered[playerId] = { x: tentPos.x, y: tentPos.y, isTent: true };
     }
     
     return scattered;

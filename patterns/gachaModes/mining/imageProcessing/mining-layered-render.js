@@ -459,24 +459,57 @@ async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap
             
             // Only draw floor for non-wall tiles
             if (tile.type === TILE_TYPES.FLOOR || tile.type === TILE_TYPES.ENTRANCE) {
-                // Use variation based on tile position for consistency
-                const variationSeed = (x * 7 + y * 13) % 100;
-                const floorImage = await loadTileImageVariation(TILE_TYPES.FLOOR, theme, variationSeed);
-                
-                if (floorImage) {
-                    ctx.drawImage(floorImage, pixelX, pixelY, tileSize, tileSize);
+                // Special rendering for entrance
+                if (tile.type === TILE_TYPES.ENTRANCE) {
+                    // Draw floor underneath entrance
+                    ctx.fillStyle = isVisible ? '#8B7355' : '#3A2F20';
+                    ctx.fillRect(pixelX, pixelY, tileSize, tileSize);
                     
-                    // Darken if not visible
-                    if (!isVisible && wasDiscovered) {
-                        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                    // Draw entrance marker with gradient
+                    const entranceGradient = ctx.createRadialGradient(
+                        pixelX + tileSize/2, pixelY + tileSize/2, 0,
+                        pixelX + tileSize/2, pixelY + tileSize/2, tileSize/2
+                    );
+                    entranceGradient.addColorStop(0, isVisible ? '#FFD700' : '#8B7500');
+                    entranceGradient.addColorStop(0.5, isVisible ? '#FFA500' : '#804000');
+                    entranceGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    
+                    ctx.fillStyle = entranceGradient;
+                    ctx.fillRect(pixelX, pixelY, tileSize, tileSize);
+                    
+                    // Draw entrance symbol
+                    if (tileSize >= 20) {
+                        ctx.save();
+                        ctx.fillStyle = isVisible ? '#FFFFFF' : '#808080';
+                        ctx.font = `bold ${Math.floor(tileSize * 0.4)}px Arial`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('⊕', pixelX + tileSize/2, pixelY + tileSize/2);
+                        ctx.restore();
+                    }
+                    
+                    // Draw border around entrance
+                    ctx.strokeStyle = isVisible ? '#FFD700' : '#8B7500';
+                    ctx.lineWidth = Math.max(2, tileSize * 0.05);
+                    ctx.strokeRect(pixelX + 2, pixelY + 2, tileSize - 4, tileSize - 4);
+                } else {
+                    // Regular floor tile
+                    const variationSeed = (x * 7 + y * 13) % 100;
+                    const floorImage = await loadTileImageVariation(TILE_TYPES.FLOOR, theme, variationSeed);
+                    
+                    if (floorImage) {
+                        ctx.drawImage(floorImage, pixelX, pixelY, tileSize, tileSize);
+                        
+                        // Darken if not visible
+                        if (!isVisible && wasDiscovered) {
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                            ctx.fillRect(pixelX, pixelY, tileSize, tileSize);
+                        }
+                    } else {
+                        // Fallback to color
+                        ctx.fillStyle = isVisible ? '#D2B48C' : '#3A2F20';
                         ctx.fillRect(pixelX, pixelY, tileSize, tileSize);
                     }
-                } else {
-                    // Fallback to color
-                    ctx.fillStyle = isVisible ? 
-                        (tile.type === TILE_TYPES.ENTRANCE ? '#FFE4E1' : '#D2B48C') :
-                        (tile.type === TILE_TYPES.ENTRANCE ? '#664444' : '#3A2F20');
-                    ctx.fillRect(pixelX, pixelY, tileSize, tileSize);
                 }
                 
                 // Add random floor decorations (cracks, pebbles, etc.)
@@ -1512,15 +1545,16 @@ async function generateTileMapImage(channel) {
     const inLongBreak = isLongBreak(refreshedEntry);
     const inShortBreak = inBreak && !inLongBreak;
     
-    // During long breaks, still render everything normally
+    // During long breaks, hide players (they're in shop/event)
     if (inLongBreak) {
         // === LAYER 1: FLOOR LAYER ===
         await drawFloorLayer(ctx, tiles, width, height, floorTileSize, visibilityMap, theme);
         
-        // === LAYER 2: MIDGROUND LAYER (Y-sorted) ===
+        // === LAYER 2: MIDGROUND LAYER (Y-sorted) - pass empty members to hide players ===
+        const emptyMembers = new Map(); // Hide all players during long break
         await drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wallTileHeight,
-                                visibilityMap, theme, members, playerPositions,
-                                railsData, encountersData, imageSettings, inShortBreak);
+                                visibilityMap, theme, emptyMembers, {},
+                                railsData, encountersData, imageSettings, false);
         
         // === LAYER 3: TOP LAYER ===
         await drawTopLayer(ctx, width, height, floorTileSize, theme);

@@ -221,37 +221,6 @@ function getRandomFloorTile(mapData) {
     return floorTiles[Math.floor(Math.random() * floorTiles.length)];
 }
 
-// Scatter players around a central tile
-function scatterPlayersAroundTile(members, centerX, centerY, mapData) {
-    const positions = {};
-    const memberArray = Array.from(members.values());
-    
-    const offsets = [
-        [0, 0], [0, -1], [1, 0], [0, 1], [-1, 0],
-        [1, -1], [1, 1], [-1, 1], [-1, -1],
-        [0, -2], [2, 0], [0, 2], [-2, 0],
-        [2, -1], [2, 1], [1, 2], [-1, 2],
-        [-2, 1], [-2, -1], [-1, -2], [1, -2]
-    ];
-    
-    for (let i = 0; i < memberArray.length; i++) {
-        const member = memberArray[i];
-        const offsetIndex = Math.min(i, offsets.length - 1);
-        const [dx, dy] = offsets[offsetIndex];
-        
-        let finalX = Math.max(0, Math.min(centerX + dx, mapData.width - 1));
-        let finalY = Math.max(0, Math.min(centerY + dy, mapData.height - 1));
-        
-        positions[member.id] = {
-            x: finalX,
-            y: finalY,
-            isTent: true
-        };
-    }
-    
-    return positions;
-}
-
 // Enhanced mining system with power level filtering
 async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency) {
     // Filter items by power level and tile type
@@ -565,7 +534,14 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1)
         const breakEndTime = now + SHORT_BREAK_DURATION;
         const mapData = dbEntry.gameData.map;
         const gatherPoint = getRandomFloorTile(mapData);
-        const scatteredPositions = scatterPlayersAroundTile(members, gatherPoint.x, gatherPoint.y, mapData);
+        // Use scatterPlayersForBreak to place tents on floor tiles only
+        const scatteredPositions = scatterPlayersForBreak(
+            mapData.playerPositions || {}, 
+            gatherPoint.x, 
+            gatherPoint.y, 
+            members.size,
+            mapData
+        );
         
         batchDB.queueUpdate(channel.id, {
             'gameData.breakInfo': {
@@ -591,17 +567,46 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
     const mapData = dbEntry.gameData.map;
     const members = channel.members.filter(m => !m.user.bot);
     const breakInfo = dbEntry.gameData.breakInfo;
+    const railStorage = require('./mining/railStorage');
     
     const resetPositions = {};
     
     if (breakInfo.isLongBreak) {
+        // After long break, place players at random rail tiles (or entrance if no rails)
+        const railsData = await railStorage.getRailsData(channel.id);
+        const railTiles = [];
+        
+        // Collect all rail positions
+        if (railsData && railsData.rails && railsData.rails.size > 0) {
+            for (const [key, rail] of railsData.rails) {
+                const [x, y] = key.split(',').map(Number);
+                // Only add rail tiles that are within map bounds
+                if (x >= 0 && x < mapData.width && y >= 0 && y < mapData.height) {
+                    railTiles.push({ x, y });
+                }
+            }
+        }
+        
+        // Place each player at a random rail tile (or entrance if no rails)
         for (const member of members.values()) {
-            resetPositions[member.id] = {
-                x: mapData.entranceX,
-                y: mapData.entranceY,
-                isTent: false,
-                hidden: false
-            };
+            if (railTiles.length > 0) {
+                // Pick random rail tile
+                const randomRail = railTiles[Math.floor(Math.random() * railTiles.length)];
+                resetPositions[member.id] = {
+                    x: randomRail.x,
+                    y: randomRail.y,
+                    isTent: false,
+                    hidden: false
+                };
+            } else {
+                // No rails, place at entrance
+                resetPositions[member.id] = {
+                    x: mapData.entranceX,
+                    y: mapData.entranceY,
+                    isTent: false,
+                    hidden: false
+                };
+            }
         }
     } else {
         const currentPositions = mapData.playerPositions || {};

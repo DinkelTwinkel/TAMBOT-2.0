@@ -14,7 +14,7 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('build')
-                .setDescription('Build rails from closest rail/entrance to your position'))
+                .setDescription('Build rails from closest rail/entrance to your position (free debug version)'))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('clear')
@@ -74,7 +74,7 @@ module.exports = {
 
                     // Check for map changes and update coordinates if needed
                     const coordinateUpdate = await checkAndHandleMapChanges(voiceChannel.id, mapData);
-                    if (coordinateUpdate.updated) {
+                    if (coordinateUpdate && coordinateUpdate.updated) {
                         console.log(`[DEBUG RAILS] Map expanded, coordinates updated with shift (${coordinateUpdate.shiftX}, ${coordinateUpdate.shiftY})`);
                     }
 
@@ -114,19 +114,22 @@ module.exports = {
                         startColor = 0x4169E1;
                     }
 
+                    const railsBuilt = startPoint.distance - 1; // Don't count the player's position
+
                     const embed = new EmbedBuilder()
-                        .setTitle('🛤️ Rails Built Successfully!')
-                        .setDescription(`Successfully built ${startPoint.distance} rail segments`)
+                        .setTitle('🛤️ Rails Built Successfully! (Debug Mode)')
+                        .setDescription(`Successfully built ${railsBuilt} rail segments (free debug version)`)
                         .addFields(
                             { name: 'Start Type', value: startType, inline: true },
                             { name: 'Start Position', value: `(${startPoint.x}, ${startPoint.y})`, inline: true },
                             { name: 'Your Position', value: `(${playerPosition.x}, ${playerPosition.y})`, inline: true },
-                            { name: 'Rail Segments', value: `${startPoint.distance}`, inline: true },
+                            { name: 'Rail Segments', value: `${railsBuilt}`, inline: true },
                             { name: 'Path Type', value: startPoint.isRail ? '🔗 Extension' : '🆕 New Network', inline: true },
                             { name: 'Storage', value: '✅ Separate Storage', inline: true }
                         )
                         .setColor(startColor)
                         .setImage('attachment://rails_debug.png')
+                        .setFooter({ text: 'Debug mode - no resources consumed' })
                         .setTimestamp();
 
                     await interaction.editReply({
@@ -211,15 +214,24 @@ module.exports = {
                         });
                     }
 
-                    // Add rail positions if there aren't too many
-                    if (railPositions.length > 0 && railPositions.length <= 15) {
-                        const positionsStr = railPositions.map(p => `(${p.x},${p.y})`).join(', ');
-                        embed.addFields({ name: 'Rail Positions', value: positionsStr, inline: false });
-                    } else if (railPositions.length > 15) {
+                    // Add rail coverage statistics
+                    if (railPositions.length > 0) {
                         const coverage = ((railPositions.length / (mapData.width * mapData.height)) * 100).toFixed(1);
                         embed.addFields({ 
                             name: 'Rail Coverage', 
                             value: `Rails cover ${coverage}% of the map (${railPositions.length} tiles)`, 
+                            inline: false 
+                        });
+                        
+                        // Add sample positions if not too many
+                        if (railPositions.length <= 15) {
+                            const positionsStr = railPositions.map(p => `(${p.x},${p.y})`).join(', ');
+                            embed.addFields({ name: 'Rail Positions', value: positionsStr, inline: false });
+                        }
+                    } else {
+                        embed.addFields({ 
+                            name: 'Status', 
+                            value: '⚠️ No rails currently built', 
                             inline: false 
                         });
                     }

@@ -191,16 +191,17 @@ function initializeBreakPositions(mapData, members, isBreak = false) {
         return mapData;
     }
 
-    // Break mode - scatter players as tents around entrance
+    // Break mode - scatter players as tents around entrance on floor tiles
     const { scatterPlayersForBreak } = require('./miningEvents');
     const playerCount = members.size;
     
-    // Create scattered positions for all players
+    // Create scattered positions for all players on floor tiles
     const scatteredPositions = scatterPlayersForBreak(
         mapData.playerPositions, 
         mapData.entranceX, 
         mapData.entranceY, 
-        playerCount
+        playerCount,
+        mapData
     );
     
     // Apply scattered positions to all current players
