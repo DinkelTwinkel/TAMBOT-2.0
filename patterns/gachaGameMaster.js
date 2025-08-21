@@ -3,6 +3,8 @@ const path = require('path');
 const ActiveVCS = require('../models/activevcs');
 const emptyvccheck = require('./emptyVoiceCheck');
 const GuildConfig = require('../models/GuildConfig');
+const UniqueItem = require('../models/uniqueItems');
+const { getUniqueItemById } = require('../data/uniqueItemsSheet');
 
 // Load gacha server data
 const gachaServersPath = path.join(__dirname, '../data/gachaServers.json');
@@ -204,6 +206,53 @@ module.exports = async (guild) => {
         lockManager.cleanupExpired();
     }, 15000); // Clean up every 15 seconds
 
+    // --- UNIQUE ITEMS MAINTENANCE CHECK ---
+    // Check every minute for items needing maintenance reduction
+    setInterval(async () => {
+        try {
+            const now = new Date();
+            
+            // Find all unique items where maintenance check is due
+            const itemsDue = await UniqueItem.find({
+                requiresMaintenance: true,
+                nextMaintenanceCheck: { $lte: now },
+                ownerId: { $ne: null } // Only owned items
+            });
+            
+            if (itemsDue.length > 0) {
+                console.log(`[UNIQUE ITEMS] Processing maintenance for ${itemsDue.length} items`);
+            }
+            
+            for (const item of itemsDue) {
+                try {
+                    const itemData = getUniqueItemById(item.itemId);
+                    if (!itemData) continue;
+                    
+                    // Reduce maintenance by decay rate
+                    const decayRate = itemData.maintenanceDecayRate || 1;
+                    const oldLevel = item.maintenanceLevel;
+                    
+                    await item.reduceMaintenance(decayRate);
+                    
+                    // Set next maintenance check for 24 hours later
+                    item.nextMaintenanceCheck = new Date(Date.now() + 24 * 60 * 60 * 1000);
+                    await item.save();
+                    
+                    console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance ${oldLevel} -> ${item.maintenanceLevel} (Owner: ${item.ownerTag || 'None'})`);
+                    
+                    // Log if item was lost
+                    if (item.maintenanceLevel <= 0 && !item.ownerId) {
+                        console.log(`[UNIQUE ITEMS] ⚠️ ${itemData.name} was lost due to maintenance failure!`);
+                    }
+                } catch (itemError) {
+                    console.error(`[UNIQUE ITEMS] Error processing item ${item.itemId}:`, itemError);
+                }
+            }
+        } catch (error) {
+            console.error('[UNIQUE ITEMS] Error in maintenance check:', error);
+        }
+    }, 60 * 1000); // Check every minute (will only process items that are due)
+    
     // --- INTERVAL CHECK ---
     setInterval(async () => {
         const now = Date.now();
