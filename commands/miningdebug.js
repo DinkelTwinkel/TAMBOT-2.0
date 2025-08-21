@@ -136,7 +136,7 @@ module.exports = {
                     {
                         $unset: { 'gameData.breakInfo': 1 },
                         $set: {
-                            nextTrigger: new Date(Date.now() + 5000),  // Restart mining in 5 seconds
+                            nextTrigger: new Date(Date.now() + 1000),  // Restart mining in 1 second
                             nextShopRefresh: new Date(Date.now() + 25 * 60 * 1000)  // Next break in 25 minutes
                         }
                     }
