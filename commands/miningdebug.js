@@ -130,14 +130,14 @@ module.exports = {
                     return interaction.editReply('❌ Not currently in a break period!');
                 }
                 
-                // Clear break info
+                // Clear break info and restart mining
                 await gachaVC.updateOne(
                     { channelId: voiceChannel.id },
                     {
                         $unset: { 'gameData.breakInfo': 1 },
                         $set: {
-                            nextTrigger: new Date(Date.now() + 25 * 60 * 1000),
-                            nextShopRefresh: new Date(Date.now() + 25 * 60 * 1000)
+                            nextTrigger: new Date(Date.now() + 5000),  // Restart mining in 5 seconds
+                            nextShopRefresh: new Date(Date.now() + 25 * 60 * 1000)  // Next break in 25 minutes
                         }
                     }
                 );

@@ -893,7 +893,8 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
             'gameData.map.playerPositions': resetPositions,
             'gameData.cycleCount': cycleCount,
             'gameData.breakInfo.justEnded': true,  // Mark that break just ended for hazard system
-            nextShopRefresh: nextBreakInfo.nextShopRefresh
+            nextShopRefresh: nextBreakInfo.nextShopRefresh,
+            nextTrigger: new Date(Date.now() + 5000)  // Trigger mining again in 5 seconds
         });
         
         await gachaVC.updateOne(
