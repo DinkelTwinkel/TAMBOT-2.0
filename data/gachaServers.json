@@ -7,7 +7,7 @@
         "spawnWeight": 100,
         "description": "Dark tunnels echo with the sound of pickaxes against coal seams. The air is thick with dust, but honest work awaits those brave enough to venture into these depths.",
         "power": 1,
-        "script": "mining.js",
+        "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.01,
             "allowedTypes": ["portal_trap"],

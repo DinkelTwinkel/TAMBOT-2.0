@@ -505,34 +505,8 @@ async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap
             // Only draw floor for non-wall tiles
             if (tile.type === TILE_TYPES.FLOOR || tile.type === TILE_TYPES.ENTRANCE) {
                 if (tile.type === TILE_TYPES.ENTRANCE) {
-                    // Draw floor underneath entrance (entrance itself will be drawn in midground)
-                    const variationSeed = (x * 7 + y * 13) % 100;
-                    const floorImage = await loadTileImageVariation(TILE_TYPES.FLOOR, theme, variationSeed);
-                    
-                    // Generate seed for rotation based on channel ID and tile position
-                    const channelHash = parseInt(channelId.slice(-6), 10) || 123456;
-                    const rotationSeed = channelHash + x * 1337 + y * 7919;
-                    const rotation = Math.floor(seededRandom(rotationSeed) * 4) * 90; // 0, 90, 180, or 270 degrees
-                    
-                    ctx.save();
-                    ctx.translate(pixelX + tileSize/2, pixelY + tileSize/2);
-                    ctx.rotate(rotation * Math.PI / 180);
-                    
-                    if (floorImage) {
-                        ctx.drawImage(floorImage, -tileSize/2, -tileSize/2, tileSize, tileSize);
-                    } else {
-                        // Fallback to color
-                        ctx.fillStyle = isVisible ? '#D2B48C' : '#3A2F20';
-                        ctx.fillRect(-tileSize/2, -tileSize/2, tileSize, tileSize);
-                    }
-                    
-                    ctx.restore();
-                    
-                    // Darken if not visible
-                    if (!isVisible && wasDiscovered) {
-                        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-                        ctx.fillRect(pixelX, pixelY, tileSize, tileSize);
-                    }
+                    // Skip drawing floor here since entrance will draw its own themed floor
+                    // The entrance function will handle the floor rendering
                 } else {
                     // Regular floor tile with random rotation
                     const variationSeed = (x * 7 + y * 13) % 100;
@@ -822,7 +796,7 @@ function drawEncounterFallback(ctx, encounter, centerX, centerY, tileSize, isVis
 /**
  * Draw mine entrance tile
  */
-async function drawMineEntrance(ctx, x, y, floorTileSize, wallTileHeight, isVisible, wasDiscovered, theme) {
+async function drawMineEntrance(ctx, x, y, floorTileSize, wallTileHeight, isVisible, wasDiscovered, theme, channelId) {
     const pixelX = x * floorTileSize;
     const pixelY = y * floorTileSize;
     
@@ -830,60 +804,115 @@ async function drawMineEntrance(ctx, x, y, floorTileSize, wallTileHeight, isVisi
     // The bottom of the wall aligns with the floor tile bottom
     const wallPixelY = pixelY + floorTileSize - wallTileHeight;
     
-    try {
-        // Try to load the generic_entrance.png image
-        const entranceImage = await loadImage(path.join(__dirname, '../../../../assets/game/tiles/generic_entrance.png'));
+    ctx.save();
+    
+    // First, draw a themed floor tile underneath the entrance
+    const variationSeed = (x * 7 + y * 13) % 100;
+    const floorImage = await loadTileImageVariation(TILE_TYPES.FLOOR, theme, variationSeed);
+    
+    if (floorImage) {
+        // Generate seed for rotation based on channel ID and tile position
+        const channelHash = parseInt(channelId.slice(-6), 10) || 123456;
+        const rotationSeed = channelHash + x * 1337 + y * 7919;
+        const rotation = Math.floor(seededRandom(rotationSeed) * 4) * 90; // 0, 90, 180, or 270 degrees
         
         ctx.save();
-        // Draw the entrance image at wall dimensions (64x90 or scaled)
-        ctx.drawImage(entranceImage, pixelX, wallPixelY, floorTileSize, wallTileHeight);
-        
-        // Darken if not visible
-        if (!isVisible && wasDiscovered) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.fillRect(pixelX, wallPixelY, floorTileSize, wallTileHeight);
-        }
+        ctx.translate(pixelX + floorTileSize/2, pixelY + floorTileSize/2);
+        ctx.rotate(rotation * Math.PI / 180);
+        ctx.drawImage(floorImage, -floorTileSize/2, -floorTileSize/2, floorTileSize, floorTileSize);
         ctx.restore();
+    } else {
+        // Fallback to themed color
+        ctx.fillStyle = isVisible ? '#D2B48C' : '#3A2F20';
+        ctx.fillRect(pixelX, pixelY, floorTileSize, floorTileSize);
+    }
+    
+    // Try to load a theme-specific entrance image first
+    const themeEntrancePath = path.join(__dirname, '../../../../assets/game/tiles', `${theme}_entrance.png`);
+    let entranceImage = null;
+    
+    try {
+        entranceImage = await loadImage(themeEntrancePath);
     } catch (error) {
-        // Fallback to programmatic rendering if image not found
-        ctx.save();
+        // Try generic entrance as fallback
+        try {
+            const genericEntrancePath = path.join(__dirname, '../../../../assets/game/tiles/generic_entrance.png');
+            entranceImage = await loadImage(genericEntrancePath);
+        } catch (genericError) {
+            // No entrance images available
+        }
+    }
+    
+    if (entranceImage) {
+        // Draw the entrance image with transparency to show floor beneath
+        ctx.globalAlpha = 0.85; // Make slightly transparent so themed floor shows through
+        ctx.drawImage(entranceImage, pixelX, wallPixelY, floorTileSize, wallTileHeight);
+        ctx.globalAlpha = 1.0;
+    } else {
+        // Programmatic rendering with themed elements
+        // Draw entrance frame/walls on sides
+        const frameWidth = floorTileSize * 0.15;
         
-        // Draw entrance background
-        ctx.fillStyle = isVisible ? '#8B7355' : '#3A2F20';
-        ctx.fillRect(pixelX, wallPixelY, floorTileSize, wallTileHeight);
+        // Use theme colors for the entrance frame
+        const themeConfig = require('./generateMissingImages').THEMES[theme] || require('./generateMissingImages').THEMES.generic;
         
-        // Draw entrance arch/doorway
-        const archWidth = floorTileSize * 0.7;
-        const archHeight = wallTileHeight * 0.8;
-        const archX = pixelX + (floorTileSize - archWidth) / 2;
-        const archY = wallPixelY + (wallTileHeight - archHeight) / 2;
+        // Left wall
+        ctx.fillStyle = isVisible ? themeConfig.primaryColor : '#1A1A1A';
+        ctx.fillRect(pixelX, wallPixelY, frameWidth, wallTileHeight);
         
-        // Dark interior
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(archX, archY, archWidth, archHeight);
+        // Right wall
+        ctx.fillRect(pixelX + floorTileSize - frameWidth, wallPixelY, frameWidth, wallTileHeight);
         
-        // Entrance glow
+        // Top arch/frame
+        const archHeight = wallTileHeight * 0.3;
+        ctx.fillRect(pixelX, wallPixelY, floorTileSize, archHeight);
+        
+        // Draw dark entrance opening
+        const openingX = pixelX + frameWidth;
+        const openingY = wallPixelY + archHeight;
+        const openingWidth = floorTileSize - (frameWidth * 2);
+        const openingHeight = wallTileHeight - archHeight;
+        
+        // Create depth gradient for entrance
+        const depthGradient = ctx.createLinearGradient(
+            openingX, openingY,
+            openingX, openingY + openingHeight
+        );
+        depthGradient.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
+        depthGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.85)');
+        depthGradient.addColorStop(1, '#000000');
+        
+        ctx.fillStyle = depthGradient;
+        ctx.fillRect(openingX, openingY, openingWidth, openingHeight);
+        
+        // Add entrance glow effect
         const entranceGradient = ctx.createRadialGradient(
             pixelX + floorTileSize/2, wallPixelY + wallTileHeight/2, 0,
             pixelX + floorTileSize/2, wallPixelY + wallTileHeight/2, floorTileSize/2
         );
-        entranceGradient.addColorStop(0, isVisible ? 'rgba(255, 215, 0, 0.3)' : 'rgba(139, 117, 0, 0.3)');
+        entranceGradient.addColorStop(0, isVisible ? 'rgba(255, 215, 0, 0.2)' : 'rgba(139, 117, 0, 0.2)');
         entranceGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
         
         ctx.fillStyle = entranceGradient;
         ctx.fillRect(pixelX, wallPixelY, floorTileSize, wallTileHeight);
         
-        // Draw entrance symbol
+        // Draw EXIT text or symbol
         if (floorTileSize >= 20) {
             ctx.fillStyle = isVisible ? '#FFD700' : '#8B7500';
-            ctx.font = `bold ${Math.floor(floorTileSize * 0.4)}px Arial`;
+            ctx.font = `bold ${Math.floor(floorTileSize * 0.25)}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('⊕', pixelX + floorTileSize/2, wallPixelY + wallTileHeight/2);
+            ctx.fillText('EXIT', pixelX + floorTileSize/2, wallPixelY + archHeight/2);
         }
-        
-        ctx.restore();
     }
+    
+    // Darken if not visible
+    if (!isVisible && wasDiscovered) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(pixelX, wallPixelY, floorTileSize, wallTileHeight);
+    }
+    
+    ctx.restore();
 }
 
 /**
@@ -1047,7 +1076,7 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
                 
             case 'entrance':
                 await drawMineEntrance(ctx, obj.x, obj.y, floorTileSize, wallTileHeight,
-                                     obj.isVisible, obj.wasDiscovered, theme);
+                                     obj.isVisible, obj.wasDiscovered, theme, channelId);
                 break;
                 
             case 'encounter':

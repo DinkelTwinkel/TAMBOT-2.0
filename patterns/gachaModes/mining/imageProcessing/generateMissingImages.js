@@ -158,60 +158,135 @@ async function saveCanvasPNG(canvas, filePath) {
 // ============= TILE GENERATORS =============
 
 /**
- * Generate floor tile
+ * Generate floor tile with classic pixel art style
  */
 function generateFloorTile(canvas, ctx, theme, variation) {
     const size = 64;
     const themeConfig = THEMES[theme];
+    const pixelSize = 4; // Size of individual "pixels" for pixel art effect
     
-    // Base floor color
-    ctx.fillStyle = themeConfig.secondaryColor;
-    ctx.fillRect(0, 0, size, size);
+    // Create pixel art base pattern
+    for (let x = 0; x < size; x += pixelSize) {
+        for (let y = 0; y < size; y += pixelSize) {
+            // Add slight variation to base color for texture
+            const brightness = 0.9 + Math.random() * 0.2;
+            const baseColor = themeConfig.secondaryColor;
+            const r = parseInt(baseColor.slice(1,3), 16);
+            const g = parseInt(baseColor.slice(3,5), 16);
+            const b = parseInt(baseColor.slice(5,7), 16);
+            
+            ctx.fillStyle = `rgb(${Math.min(255, r * brightness)}, ${Math.min(255, g * brightness)}, ${Math.min(255, b * brightness)})`;
+            ctx.fillRect(x, y, pixelSize, pixelSize);
+        }
+    }
     
     // Add texture patterns based on variation
     if (variation === 1) {
-        // Stone pattern
+        // Classic stone tile pattern
         ctx.fillStyle = themeConfig.primaryColor;
-        for (let i = 0; i < 3; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
-            const w = 10 + Math.random() * 20;
-            const h = 10 + Math.random() * 20;
-            ctx.globalAlpha = 0.3;
+        
+        // Draw tile seams
+        for (let i = 0; i < 2; i++) {
+            const offset = i * 32;
+            // Horizontal seams
+            for (let x = 0; x < size; x += pixelSize) {
+                if (Math.random() > 0.3) {
+                    ctx.globalAlpha = 0.3 + Math.random() * 0.2;
+                    ctx.fillRect(x, offset - pixelSize/2, pixelSize, pixelSize);
+                    ctx.fillRect(x, offset + pixelSize/2, pixelSize, pixelSize);
+                }
+            }
+            // Vertical seams
+            for (let y = 0; y < size; y += pixelSize) {
+                if (Math.random() > 0.3) {
+                    ctx.globalAlpha = 0.3 + Math.random() * 0.2;
+                    ctx.fillRect(offset - pixelSize/2, y, pixelSize, pixelSize);
+                    ctx.fillRect(offset + pixelSize/2, y, pixelSize, pixelSize);
+                }
+            }
+        }
+        
+        // Add some worn spots
+        ctx.globalAlpha = 0.2;
+        for (let i = 0; i < 5; i++) {
+            const x = Math.floor(Math.random() * (size/pixelSize)) * pixelSize;
+            const y = Math.floor(Math.random() * (size/pixelSize)) * pixelSize;
+            const w = pixelSize * (2 + Math.floor(Math.random() * 3));
+            const h = pixelSize * (2 + Math.floor(Math.random() * 3));
             ctx.fillRect(x, y, w, h);
         }
     } else if (variation === 2) {
-        // Crack pattern
-        ctx.strokeStyle = themeConfig.primaryColor;
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.4;
-        ctx.beginPath();
-        ctx.moveTo(Math.random() * size, 0);
-        ctx.lineTo(Math.random() * size, size);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, Math.random() * size);
-        ctx.lineTo(size, Math.random() * size);
-        ctx.stroke();
-    } else if (variation === 3) {
-        // Dots pattern
+        // Cobblestone pattern
         ctx.fillStyle = themeConfig.primaryColor;
-        ctx.globalAlpha = 0.2;
-        for (let x = 8; x < size; x += 16) {
-            for (let y = 8; y < size; y += 16) {
-                ctx.beginPath();
-                ctx.arc(x, y, 2, 0, Math.PI * 2);
-                ctx.fill();
+        const stoneSize = 16;
+        
+        for (let row = 0; row < size/stoneSize; row++) {
+            for (let col = 0; col < size/stoneSize; col++) {
+                const x = col * stoneSize + (row % 2 === 0 ? 0 : stoneSize/2);
+                const y = row * stoneSize;
+                
+                if (x < size) {
+                    // Stone outline
+                    ctx.globalAlpha = 0.4;
+                    ctx.strokeStyle = themeConfig.primaryColor;
+                    ctx.lineWidth = pixelSize/2;
+                    ctx.strokeRect(x, y, stoneSize - pixelSize/2, stoneSize - pixelSize/2);
+                    
+                    // Stone highlight
+                    ctx.globalAlpha = 0.2;
+                    ctx.fillStyle = themeConfig.accentColor;
+                    ctx.fillRect(x + pixelSize, y + pixelSize, pixelSize * 2, pixelSize);
+                }
             }
+        }
+    } else if (variation === 3) {
+        // Checkered tile pattern
+        const tileSize = 8;
+        for (let x = 0; x < size; x += tileSize) {
+            for (let y = 0; y < size; y += tileSize) {
+                if ((x/tileSize + y/tileSize) % 2 === 0) {
+                    ctx.globalAlpha = 0.15;
+                    ctx.fillStyle = themeConfig.primaryColor;
+                    ctx.fillRect(x, y, tileSize, tileSize);
+                }
+            }
+        }
+        
+        // Add some dirt/debris pixels
+        ctx.globalAlpha = 0.3;
+        for (let i = 0; i < 20; i++) {
+            const x = Math.floor(Math.random() * (size/pixelSize)) * pixelSize;
+            const y = Math.floor(Math.random() * (size/pixelSize)) * pixelSize;
+            ctx.fillStyle = Math.random() > 0.5 ? themeConfig.primaryColor : themeConfig.accentColor;
+            ctx.fillRect(x, y, pixelSize, pixelSize);
         }
     }
     
     ctx.globalAlpha = 1.0;
     
-    // Add border
-    ctx.strokeStyle = themeConfig.primaryColor;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0, 0, size, size);
+    // Add subtle shading at edges
+    const edgeGradient = ctx.createLinearGradient(0, 0, 0, size);
+    edgeGradient.addColorStop(0, 'rgba(0, 0, 0, 0.1)');
+    edgeGradient.addColorStop(0.05, 'rgba(0, 0, 0, 0)');
+    edgeGradient.addColorStop(0.95, 'rgba(0, 0, 0, 0)');
+    edgeGradient.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
+    ctx.fillStyle = edgeGradient;
+    ctx.fillRect(0, 0, size, size);
+    
+    // Add pixelated border
+    ctx.fillStyle = themeConfig.primaryColor;
+    ctx.globalAlpha = 0.5;
+    // Top and bottom borders
+    for (let x = 0; x < size; x += pixelSize) {
+        ctx.fillRect(x, 0, pixelSize, pixelSize/2);
+        ctx.fillRect(x, size - pixelSize/2, pixelSize, pixelSize/2);
+    }
+    // Left and right borders
+    for (let y = 0; y < size; y += pixelSize) {
+        ctx.fillRect(0, y, pixelSize/2, pixelSize);
+        ctx.fillRect(size - pixelSize/2, y, pixelSize/2, pixelSize);
+    }
+    ctx.globalAlpha = 1.0;
 }
 
 /**
