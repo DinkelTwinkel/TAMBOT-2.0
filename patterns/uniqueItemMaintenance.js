@@ -180,18 +180,18 @@ async function performMaintenance(userId, userTag, itemId) {
             throw new Error('You do not own this item');
         }
         
+        // Get item data from sheet
+        const itemData = getUniqueItemById(itemId);
+        if (!itemData) {
+            throw new Error('Item data not found');
+        }
+        
         if (!itemData.requiresMaintenance) {
             return {
                 success: true,
                 message: 'This item does not require maintenance',
                 newMaintenanceLevel: item.maintenanceLevel
             };
-        }
-        
-        // Get item data from sheet
-        const itemData = getUniqueItemById(itemId);
-        if (!itemData) {
-            throw new Error('Item data not found');
         }
         
         // Check if maintenance is needed

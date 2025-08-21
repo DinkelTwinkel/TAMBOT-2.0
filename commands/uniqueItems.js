@@ -141,11 +141,22 @@ async function handleMaintain(interaction, userId, userTag) {
     
     await interaction.deferReply();
     
+    // Check if item exists before trying to maintain it
+    const itemData = getUniqueItemById(itemId);
+    if (!itemData) {
+        const embed = new EmbedBuilder()
+            .setTitle('❌ Invalid Item')
+            .setDescription(`Item with ID ${itemId} does not exist!\nUse \`/unique inventory\` to see your items.`)
+            .setColor(0xFF0000)
+            .setTimestamp();
+            
+        return interaction.editReply({ embeds: [embed] });
+    }
+    
     try {
         const result = await performMaintenance(userId, userTag, itemId);
         
         if (result.success) {
-            const itemData = getUniqueItemById(itemId);
             const maintenanceBar = createMaintenanceBar(result.newMaintenanceLevel);
             
             const embed = new EmbedBuilder()
