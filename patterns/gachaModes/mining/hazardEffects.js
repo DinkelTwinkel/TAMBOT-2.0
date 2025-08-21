@@ -402,79 +402,39 @@ function isPlayerStuck(position, mapData) {
 }
 
 /**
- * Allow stuck players to dig themselves out
+ * Check if player is currently stuck in a wall and update status
  * @param {Object} position - Player position object
  * @param {Object} mapData - Map data
  * @param {Object} member - Discord member
- * @param {number} miningPower - Player's mining power
- * @returns {Object} Result of dig attempt
+ * @returns {Object} Status update result
  */
-async function digOutOfWall(position, mapData, member, miningPower) {
-    // Check if player is actually stuck in a wall
-    if (!position.stuck) {
-        return { success: false, message: null };
-    }
-    
+function updateStuckStatus(position, mapData, member) {
     const tile = mapData.tiles[position.y] && mapData.tiles[position.y][position.x];
+    
     if (!tile) {
-        return { success: false, message: null };
-    }
-    
-    // Check if the tile is a wall type
-    if (tile.type !== TILE_TYPES.WALL && 
-        tile.type !== TILE_TYPES.REINFORCED_WALL &&
-        tile.type !== TILE_TYPES.WALL_WITH_ORE &&
-        tile.type !== TILE_TYPES.RARE_ORE) {
-        // Not in a wall, clear stuck status
         position.stuck = false;
-        return { success: true, message: `${member.displayName} is no longer stuck!` };
+        return { wasStuck: false, isStuck: false, message: null };
     }
     
-    // Attempt to dig out (easier than normal mining since player is desperate)
-    const digChance = Math.min(0.5 + (miningPower * 0.1), 0.95); // 50% base chance + mining power bonus
+    const wasStuck = position.stuck || false;
     
-    if (Math.random() < digChance) {
-        // Successfully dug out!
-        mapData.tiles[position.y][position.x] = {
-            type: TILE_TYPES.FLOOR,
-            discovered: true,
-            hardness: 0
-        };
-        position.stuck = false;
-        
-        return {
-            success: true,
-            message: `⛏️ ${member.displayName} frantically dug out of the wall!`,
-            mapChanged: true
-        };
-    } else {
-        // Failed to dig out this turn
-        return {
-            success: false,
-            message: `${member.displayName} is struggling to dig out of the wall!`
-        };
-    }
-}
-
-/**
- * Check if player can take actions (modified to allow digging when stuck)
- * @param {Object} position - Player position
- * @param {boolean} isDig - Whether the action is digging
- * @returns {boolean} Whether the player can take the action
- */
-function canPlayerAct(position, isDig = false) {
-    // If player is trapped by walls (not in a wall), they can't do anything
-    if (position.trapped && !position.stuck) {
-        return false;
+    // Check if player is currently in a wall
+    const isInWall = tile.type === TILE_TYPES.WALL || 
+                     tile.type === TILE_TYPES.REINFORCED_WALL ||
+                     tile.type === TILE_TYPES.WALL_WITH_ORE ||
+                     tile.type === TILE_TYPES.RARE_ORE;
+    
+    position.stuck = isInWall;
+    
+    // Generate status message if state changed
+    let message = null;
+    if (wasStuck && !isInWall) {
+        message = `✅ ${member.displayName} is no longer stuck in a wall!`;
+    } else if (!wasStuck && isInWall) {
+        message = `⚠️ ${member.displayName} is stuck in a wall! They can still move and mine to escape!`;
     }
     
-    // If player is stuck in a wall, they can only dig
-    if (position.stuck) {
-        return isDig;
-    }
-    
-    // Otherwise, player can act normally
-    return true;
+    return { wasStuck, isStuck: isInWall, message };
 }
 
 /**
@@ -545,7 +505,6 @@ module.exports = {
     isPlayerDisabled,
     enablePlayersAfterBreak,
     cleanupExpiredDisables,
-    digOutOfWall,
-    canPlayerAct,
+    updateStuckStatus,
     ENCOUNTER_CONFIG  // Export for treasure handling
 };

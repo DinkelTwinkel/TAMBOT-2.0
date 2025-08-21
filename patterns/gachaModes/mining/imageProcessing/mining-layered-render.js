@@ -482,6 +482,108 @@ function seededRandom(seed) {
 }
 
 /**
+ * Check if a tile is a wall type
+ */
+function isWallType(tile) {
+    return tile && (
+        tile.type === TILE_TYPES.WALL || 
+        tile.type === TILE_TYPES.WALL_WITH_ORE ||
+        tile.type === TILE_TYPES.REINFORCED_WALL ||
+        tile.type === TILE_TYPES.RARE_ORE
+    );
+}
+
+/**
+ * Draw shadow gradients on floor tiles adjacent to walls
+ */
+function drawFloorShadowGradients(ctx, tiles, x, y, pixelX, pixelY, tileSize, isVisible) {
+    // Check adjacent tiles for walls (but not walls below)
+    const wallNorth = y > 0 && isWallType(tiles[y - 1][x]);
+    const wallSouth = false; // Never draw shadow from below
+    const wallEast = x < tiles[0].length - 1 && isWallType(tiles[y][x + 1]);
+    const wallWest = x > 0 && isWallType(tiles[y][x - 1]);
+    
+    // Also check diagonal walls for corner shadows
+    const wallNorthEast = y > 0 && x < tiles[0].length - 1 && isWallType(tiles[y - 1][x + 1]);
+    const wallNorthWest = y > 0 && x > 0 && isWallType(tiles[y - 1][x - 1]);
+    
+    const shadowIntensity = isVisible ? 0.15 : 0.25; // Darker shadows in non-visible areas
+    const gradientSize = tileSize * 0.4; // How far the gradient extends into the tile
+    
+    ctx.save();
+    
+    // North wall shadow (strongest, as walls are above)
+    if (wallNorth) {
+        const gradient = ctx.createLinearGradient(
+            pixelX + tileSize / 2, pixelY,
+            pixelX + tileSize / 2, pixelY + gradientSize
+        );
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${shadowIntensity * 1.5})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pixelX, pixelY, tileSize, gradientSize);
+    }
+    
+    // East wall shadow
+    if (wallEast) {
+        const gradient = ctx.createLinearGradient(
+            pixelX + tileSize, pixelY + tileSize / 2,
+            pixelX + tileSize - gradientSize, pixelY + tileSize / 2
+        );
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${shadowIntensity})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pixelX + tileSize - gradientSize, pixelY, gradientSize, tileSize);
+    }
+    
+    // West wall shadow
+    if (wallWest) {
+        const gradient = ctx.createLinearGradient(
+            pixelX, pixelY + tileSize / 2,
+            pixelX + gradientSize, pixelY + tileSize / 2
+        );
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${shadowIntensity})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pixelX, pixelY, gradientSize, tileSize);
+    }
+    
+    // Corner shadows (diagonal walls create subtle corner darkening)
+    const cornerSize = tileSize * 0.3;
+    const cornerIntensity = shadowIntensity * 0.7;
+    
+    // Northeast corner
+    if (wallNorthEast && !wallNorth && !wallEast) {
+        const gradient = ctx.createRadialGradient(
+            pixelX + tileSize, pixelY,
+            0,
+            pixelX + tileSize, pixelY,
+            cornerSize
+        );
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${cornerIntensity})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pixelX + tileSize - cornerSize, pixelY, cornerSize, cornerSize);
+    }
+    
+    // Northwest corner
+    if (wallNorthWest && !wallNorth && !wallWest) {
+        const gradient = ctx.createRadialGradient(
+            pixelX, pixelY,
+            0,
+            pixelX, pixelY,
+            cornerSize
+        );
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${cornerIntensity})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pixelX, pixelY, cornerSize, cornerSize);
+    }
+    
+    ctx.restore();
+}
+
+/**
  * Draw floor layer
  */
 async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap, theme, channelId) {
@@ -530,6 +632,9 @@ async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap
                     }
                     
                     ctx.restore();
+                    
+                    // Draw shadow gradients from adjacent walls
+                    drawFloorShadowGradients(ctx, tiles, x, y, pixelX, pixelY, tileSize, isVisible);
                     
                     // Darken if not visible
                     if (!isVisible && wasDiscovered) {
@@ -844,10 +949,16 @@ async function drawMineEntrance(ctx, x, y, floorTileSize, wallTileHeight, isVisi
     }
     
     if (entranceImage) {
-        // Draw the entrance image with transparency to show floor beneath
-        ctx.globalAlpha = 0.85; // Make slightly transparent so themed floor shows through
+        // Clip to prevent entrance from overlapping tiles above
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(pixelX, pixelY, floorTileSize, floorTileSize);
+        ctx.clip();
+        
+        // Draw the entrance image without transparency
         ctx.drawImage(entranceImage, pixelX, wallPixelY, floorTileSize, wallTileHeight);
-        ctx.globalAlpha = 1.0;
+        
+        ctx.restore();
     } else {
         // Programmatic rendering with themed elements
         // Draw entrance frame/walls on sides
@@ -1702,37 +1813,6 @@ function applyFinalPassShader(ctx, width, height, replaceChance = 0.3, blackThre
         }
     }
     
-    // Apply a second pass for enhanced dripping effect (optional)
-    // This creates longer drips by processing the already modified data
-    if (replaceChance > 0.5) {
-        const secondPassChance = replaceChance * 0.5; // Reduced chance for second pass
-        
-        // Copy the modified data for second pass
-        const firstPassData = new Uint8ClampedArray(data);
-        
-        for (let y = 0; y < height - 1; y++) {
-            for (let x = 0; x < width; x++) {
-                const currentIndex = (y * width + x) * 4;
-                const belowIndex = ((y + 1) * width + x) * 4;
-                
-                const r = firstPassData[currentIndex];
-                const g = firstPassData[currentIndex + 1];
-                const b = firstPassData[currentIndex + 2];
-                const a = firstPassData[currentIndex + 3];
-                
-                // Use slightly higher threshold for second pass to catch newly darkened pixels
-                const isBlack = r <= blackThreshold * 1.5 && g <= blackThreshold * 1.5 && b <= blackThreshold * 1.5;
-                
-                if (isBlack && a > 0 && Math.random() < secondPassChance) {
-                    data[currentIndex] = firstPassData[belowIndex];
-                    data[currentIndex + 1] = firstPassData[belowIndex + 1];
-                    data[currentIndex + 2] = firstPassData[belowIndex + 2];
-                    data[currentIndex + 3] = a;
-                }
-            }
-        }
-    }
-    
     // Put the modified image data back
     ctx.putImageData(imageData, 0, 0);
 }
@@ -1856,10 +1936,8 @@ async function generateTileMapImage(channel) {
     
     // === FINAL PASS SHADER ===
     // Apply the dripping/bleeding effect to black pixels
-    // Adjust parameters as needed:
-    // - replaceChance: 0.0 to 1.0 (higher = more dripping)
-    // - blackThreshold: 0 to 255 (higher = more pixels affected)
-    applyFinalPassShader(ctx, finalWidth, finalHeight, 0.35, 15);
+    // Disabled for now due to entrance rendering issues
+    // applyFinalPassShader(ctx, finalWidth, finalHeight, 0.25, 10);
     
     // === BORDER (last step) ===
     ctx.save();

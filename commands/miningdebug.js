@@ -41,13 +41,13 @@ module.exports = {
         ),
     
     async execute(interaction) {
-        // Admin check (optional - uncomment if you want admin-only)
-        // if (!interaction.member.permissions.has('ADMINISTRATOR')) {
-        //     return interaction.reply({ 
-        //         content: '❌ This command requires administrator permissions!', 
-        //         ephemeral: true 
-        //     });
-        // }
+        // Admin check - This command is admin-only
+        if (!interaction.member.permissions.has('Administrator')) {
+            return interaction.reply({ 
+                content: '❌ This command requires administrator permissions!', 
+                ephemeral: true 
+            });
+        }
         
         const voiceChannel = interaction.member.voice.channel;
         if (!voiceChannel) {
