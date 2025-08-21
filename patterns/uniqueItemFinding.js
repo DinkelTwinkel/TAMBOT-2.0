@@ -3,6 +3,7 @@
 
 const UniqueItem = require('../models/uniqueItems');
 const PlayerInventory = require('../models/inventory');
+const Sacrifice = require('../models/SacrificeSchema');
 const { 
     UNIQUE_ITEMS, 
     getUniqueItemById, 
@@ -60,10 +61,17 @@ async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activi
                     itemId
                 );
                 if (result) {
+                    const item = getUniqueItemById(itemId);
                     return {
                         type: 'unique',
-                        item: getUniqueItemById(itemId),
-                        message: result.message
+                        item: item,
+                        message: result.message,
+                        // Special announcement for system channel with big text
+                        systemAnnouncement: {
+                            enabled: true,
+                            bigText: true,
+                            message: `# 🌟 LEGENDARY DISCOVERY! 🌟\n## ${playerTag} has found the legendary **${item.name}**!\n### ${item.description || 'A unique and powerful item!'}\n\n*This item is one-of-a-kind and now belongs to ${playerTag}!*`
+                        }
                     };
                 }
             }
@@ -151,7 +159,13 @@ async function rollForUniqueItem(playerId, playerTag, powerLevel, biome = null) 
             type: 'unique',
             item: selectedItem.itemData,
             dbItem: selectedItem.dbItem,
-            message: `🌟 LEGENDARY FIND! ${playerTag} discovered **${selectedItem.itemData.name}**! This unique item is now yours!`
+            message: `🌟 LEGENDARY FIND! ${playerTag} discovered **${selectedItem.itemData.name}**! This unique item is now yours!`,
+            // Special announcement for system channel with big text
+            systemAnnouncement: {
+                enabled: true,
+                bigText: true,
+                message: `# 🌟 LEGENDARY DISCOVERY! 🌟\n## ${playerTag} has found the legendary **${selectedItem.itemData.name}**!\n### ${selectedItem.itemData.description || 'A unique and powerful item!'}\n\n*This item is one-of-a-kind and now belongs to ${playerTag}!*`
+            }
         };
         
     } catch (error) {
@@ -351,6 +365,149 @@ async function getGlobalUniqueItemStats() {
     }
 }
 
+// Send legendary announcement to ALL text channels in the guild
+async function sendLegendaryAnnouncement(client, guildId, itemResult, playerTag) {
+    try {
+        if (!itemResult.systemAnnouncement || !itemResult.systemAnnouncement.enabled) {
+            return false;
+        }
+        
+        // Fetch the guild
+        const guild = await client.guilds.fetch(guildId);
+        if (!guild) {
+            console.error('[LEGENDARY] Guild not found:', guildId);
+            return false;
+        }
+        
+        // Get all text channels in the guild
+        const textChannels = guild.channels.cache.filter(channel => 
+            channel.type === 0 && // 0 = GUILD_TEXT channel type
+            channel.permissionsFor(guild.members.me).has(['SendMessages', 'ViewChannel'])
+        );
+        
+        if (textChannels.size === 0) {
+            console.error('[LEGENDARY] No accessible text channels in guild:', guildId);
+            return false;
+        }
+        
+        // Create the legendary announcement with big text
+        const announcementMessage = itemResult.systemAnnouncement.message;
+        
+        // Track successful sends
+        let successCount = 0;
+        let failCount = 0;
+        
+        console.log(`[LEGENDARY] Sending announcement to ${textChannels.size} channels...`);
+        
+        // Send to all text channels with a small delay to avoid rate limits
+        for (const [channelId, channel] of textChannels) {
+            try {
+                // Send the announcement
+                const message = await channel.send(announcementMessage);
+                
+                // Add celebration reactions (only to first few messages to avoid rate limits)
+                if (successCount < 5) {
+                    const reactions = ['🎉', '🌟', '💎', '🏆', '✨', '🔥'];
+                    for (const reaction of reactions) {
+                        await message.react(reaction).catch(err => 
+                            console.error('[LEGENDARY] Failed to add reaction:', err)
+                        );
+                    }
+                }
+                
+                successCount++;
+                
+                // Small delay between sends to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+            } catch (error) {
+                failCount++;
+                console.error(`[LEGENDARY] Failed to send to channel ${channel.name}:`, error.message);
+            }
+        }
+        
+        console.log(`[LEGENDARY] Announced ${itemResult.item.name} found by ${playerTag} in ${successCount}/${textChannels.size} channels`);
+        
+        return successCount > 0;
+        
+    } catch (error) {
+        console.error('[LEGENDARY] Error sending announcements:', error);
+        return false;
+    }
+}
+
+// Alternative: Send legendary announcement with embed for extra flair
+async function sendLegendaryAnnouncementWithEmbed(client, guildId, itemResult, playerTag) {
+    try {
+        if (!itemResult.systemAnnouncement || !itemResult.systemAnnouncement.enabled) {
+            return false;
+        }
+        
+        // Fetch the guild
+        const guild = await client.guilds.fetch(guildId);
+        if (!guild) {
+            console.error('[LEGENDARY] Guild not found:', guildId);
+            return false;
+        }
+        
+        // Create a rich embed for the announcement
+        const { EmbedBuilder } = require('discord.js');
+        const legendaryEmbed = new EmbedBuilder()
+            .setColor('#FFD700') // Gold color
+            .setTitle('🌟 LEGENDARY ITEM DISCOVERED! 🌟')
+            .setDescription(`**${playerTag}** has found the legendary\n# **${itemResult.item.name}**`)
+            .addFields(
+                { name: '📜 Description', value: itemResult.item.description || 'A unique and powerful item!' },
+                { name: '⚡ Power Level', value: `${itemResult.item.powerLevel || 'Unknown'}`, inline: true },
+                { name: '🎯 Rarity', value: 'LEGENDARY', inline: true },
+                { name: '🏆 Status', value: 'One-of-a-kind item!', inline: true }
+            )
+            .setThumbnail('https://i.imgur.com/AfFp7pu.png') // Replace with your legendary icon
+            .setTimestamp()
+            .setFooter({ text: 'A legendary moment in server history!' });
+        
+        // Get all text channels
+        const textChannels = guild.channels.cache.filter(channel => 
+            channel.type === 0 && // 0 = GUILD_TEXT
+            channel.permissionsFor(guild.members.me).has(['SendMessages', 'ViewChannel', 'EmbedLinks'])
+        );
+        
+        // Send to all channels
+        let successCount = 0;
+        
+        for (const [channelId, channel] of textChannels) {
+            try {
+                // Send both the big text and the embed
+                const message = await channel.send({
+                    content: itemResult.systemAnnouncement.message,
+                    embeds: [legendaryEmbed]
+                });
+                
+                // Add reactions to first few messages
+                if (successCount < 3) {
+                    const reactions = ['🎉', '🌟', '💎'];
+                    for (const reaction of reactions) {
+                        await message.react(reaction).catch(() => {});
+                    }
+                }
+                
+                successCount++;
+                await new Promise(resolve => setTimeout(resolve, 150)); // Rate limit protection
+                
+            } catch (error) {
+                // Silently skip channels we can't send to
+            }
+        }
+        
+        console.log(`[LEGENDARY] Sent legendary announcement to ${successCount} channels`);
+        return successCount > 0;
+        
+    } catch (error) {
+        console.error('[LEGENDARY] Error sending embed announcements:', error);
+        return false;
+    }
+}
+
 module.exports = {
     initializeUniqueItems,
     rollForItemFind,
@@ -359,5 +516,7 @@ module.exports = {
     getPlayerUniqueItems,
     playerHasUniqueItems,
     transferUniqueItem,
-    getGlobalUniqueItemStats
+    getGlobalUniqueItemStats,
+    sendLegendaryAnnouncement,
+    sendLegendaryAnnouncementWithEmbed
 };
