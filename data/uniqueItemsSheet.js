@@ -51,6 +51,53 @@ const UNIQUE_ITEMS = [
     },
     
     {
+        id: 10,
+        name: "Midas' Burden",
+        type: "charm",
+        slot: "charm",
+        rarity: "legendary",
+        description: "A golden weight that bears the curse of King Midas himself. Fortune's favor is as fickle as fate.",
+        lore: "When King Midas begged the gods to remove his golden touch, they condensed his curse into this charm. It grants incredible luck to those wealthy enough to bear its weight, but the blessing is unstable - sometimes multiplying fortune a hundredfold, other times leaving the bearer with nothing. Only the richest soul in the realm can possess it, for poverty would shatter the charm instantly. Many have killed for it, only to lose it the moment their wealth diminished. The charm seems to mock its owners, reminding them that all gold is temporary, and even the mightiest fortune can vanish in an instant. Those who wear it report dreams of golden halls that crumble to dust, and wake to find their luck has either made them legends... or fools.",
+        value: 500000,
+        vendable: false,
+        
+        abilities: [
+            { name: "luck", powerlevel: 50 }, // Base luck (will be multiplied)
+            { name: "greed", powerlevel: 25 },
+            { name: "curse", powerlevel: -10 } // Negative stat as drawback
+        ],
+        
+        image: "midas_burden_legendary",
+        glowColor: "#FFD700", // Gold
+        particleEffect: "gold_dust",
+        
+        maintenanceType: "wealthiest",
+        maintenanceCost: 1, // Not coins, but represents needing to be wealthiest
+        maintenanceDecayRate: 1, // Loses 1 maintenance per cycle when not wealthiest
+        requiresMaintenance: true,
+        maintenanceDescription: "The burden only recognizes the wealthiest. When another surpasses your fortune, the charm begins to abandon you.",
+        
+        specialEffects: [
+            "Luck randomly becomes either 0x or 100x on each calculation",
+            "Can only be owned by the richest player in the guild",
+            "Automatically transfers when someone becomes richer",
+            "All coin gains have 10% chance to double",
+            "All coin losses have 10% chance to double",
+            "Shows golden aura visible to all players"
+        ],
+        
+        // Conditional drop settings
+        dropWeight: 0.001, // Extremely rare even when conditions are met
+        minPowerLevel: 1, // Can appear at any power level
+        preferredBiomes: ["golden_vault", "treasure_room", "midas_tomb"],
+        conditional: true, // Marks this as a conditional item
+        condition: "richest_player", // Specific condition required
+        
+        baseDurability: 999, // Charms don't break
+        durabilityLossReduction: 1.0 // Immune to durability damage
+    },
+    
+    {
         id: 9,
         name: "THE ONE PICK",
         type: "tool",

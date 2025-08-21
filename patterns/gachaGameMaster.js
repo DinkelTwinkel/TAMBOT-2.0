@@ -5,6 +5,7 @@ const emptyvccheck = require('./emptyVoiceCheck');
 const GuildConfig = require('../models/GuildConfig');
 const UniqueItem = require('../models/uniqueItems');
 const { getUniqueItemById } = require('../data/uniqueItemsSheet');
+const { checkConditionalOwnership } = require('./conditionalUniqueItems');
 
 // Load gacha server data
 const gachaServersPath = path.join(__dirname, '../data/gachaServers.json');
@@ -256,11 +257,28 @@ module.exports = async (guild) => {
                     const itemData = getUniqueItemById(item.itemId);
                     if (!itemData) continue;
                     
-                    // Reduce maintenance by decay rate
-                    const decayRate = itemData.maintenanceDecayRate || 1;
-                    const oldLevel = item.maintenanceLevel;
+                    // Special handling for Midas' Burden (wealthiest maintenance)
+                    let shouldDecay = true;
+                    if (item.maintenanceType === 'wealthiest' && item.itemId === 10) {
+                        // Check if player is still the richest
+                        const { checkRichestPlayer } = require('./conditionalUniqueItems');
+                        const isRichest = await checkRichestPlayer(item.ownerId, null);
+                        
+                        if (isRichest) {
+                            // Still richest, don't decay maintenance
+                            shouldDecay = false;
+                            console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner still wealthiest, maintenance preserved at ${item.maintenanceLevel}`);
+                        } else {
+                            console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner no longer wealthiest, maintenance will decay`);
+                        }
+                    }
                     
-                    await item.reduceMaintenance(decayRate);
+                    // Reduce maintenance by decay rate if applicable
+                    const oldLevel = item.maintenanceLevel;
+                    if (shouldDecay) {
+                        const decayRate = itemData.maintenanceDecayRate || 1;
+                        await item.reduceMaintenance(decayRate);
+                    }
                     
                     // Set next maintenance check for 24 hours later
                     item.nextMaintenanceCheck = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -280,6 +298,16 @@ module.exports = async (guild) => {
             console.error('[UNIQUE ITEMS] Error in maintenance check:', error);
         }
     }, 60 * 1000); // Check every minute (will only process items that are due)
+    
+    // --- CONDITIONAL UNIQUE ITEMS CHECK ---
+    // Check every 5 minutes for conditional ownership changes
+    setInterval(async () => {
+        try {
+            await checkConditionalOwnership();
+        } catch (error) {
+            console.error('[CONDITIONAL UNIQUE] Error checking ownership:', error);
+        }
+    }, 5 * 60 * 1000); // Check every 5 minutes
     
     // --- INTERVAL CHECK ---
     setInterval(async () => {

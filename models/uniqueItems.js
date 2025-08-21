@@ -36,7 +36,7 @@ const uniqueItemSchema = new Schema({
     maintenanceType: { 
         type: String, 
         required: true,
-        enum: ['coins', 'mining_activity', 'voice_activity', 'combat_activity', 'social_activity']
+        enum: ['coins', 'mining_activity', 'voice_activity', 'combat_activity', 'social_activity', 'wealthiest']
     },
     
     // Cost/requirement for maintenance (interpreted based on type)

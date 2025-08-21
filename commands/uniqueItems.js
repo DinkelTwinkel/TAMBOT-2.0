@@ -12,6 +12,9 @@ const {
     checkMaintenanceStatus
 } = require('../patterns/uniqueItemMaintenance');
 const { getUniqueItemById } = require('../data/uniqueItemsSheet');
+const UniqueItem = require('../models/uniqueItems');
+const Money = require('../models/currency');
+const { checkRichestPlayer, getMidasLuckMultiplier } = require('../patterns/conditionalUniqueItems');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -98,11 +101,22 @@ async function handleInventory(interaction, userId) {
         let fieldValue = `*${item.description}*\n`;
         fieldValue += `**Type:** ${item.type} | **Slot:** ${item.slot}\n`;
         fieldValue += `**Maintenance:** ${maintenanceBar} (${item.maintenanceLevel}/10)\n`;
+        
+        // Special handling for Midas' Burden
+        if (item.id === 10) {
+            const currentMultiplier = getMidasLuckMultiplier();
+            fieldValue += `**🎲 Current Luck:** ${currentMultiplier === 0 ? '💀 CURSED (0x)' : '🌟 BLESSED (100x)'}\n`;
+        }
+        
         fieldValue += `**Abilities:**\n`;
         
         for (const ability of item.abilities) {
             const symbol = ability.powerlevel > 0 ? '➕' : '➖';
-            fieldValue += `${symbol} ${ability.name}: ${ability.powerlevel}\n`;
+            let abilityText = `${symbol} ${ability.name}: ${ability.powerlevel}`;
+            if (item.id === 10 && ability.name === 'luck') {
+                abilityText += ' (randomly 0x or 100x)';
+            }
+            fieldValue += `${abilityText}\n`;
         }
         
         if (item.specialEffects && item.specialEffects.length > 0) {
@@ -178,6 +192,14 @@ async function handleStatus(interaction, userId) {
         .setColor(0x0099FF)
         .setTimestamp();
     
+    // Check if user is richest (for Midas' Burden)
+    let isRichest = false;
+    if (interaction.guild) {
+        const guildMembers = await interaction.guild.members.fetch();
+        const memberIds = guildMembers.map(member => member.id);
+        isRichest = await checkRichestPlayer(userId, interaction.guild.id, memberIds);
+    }
+    
     for (const status of statuses) {
         const maintenanceBar = createMaintenanceBar(status.maintenanceLevel);
         const urgency = getMaintenanceUrgency(status.maintenanceLevel);
@@ -185,11 +207,20 @@ async function handleStatus(interaction, userId) {
         let fieldValue = `${urgency} **Maintenance:** ${maintenanceBar} (${status.maintenanceLevel}/10)\n`;
         
         if (status.requiresMaintenance) {
-            fieldValue += `**Type:** ${formatMaintenanceType(status.maintenanceType)}\n`;
-            fieldValue += `**Requirement:** ${formatMaintenanceCost(status.maintenanceType, status.maintenanceCost)}\n`;
-            
-            if (status.maintenanceType !== 'coins') {
-                fieldValue += `**Progress:** ${formatProgress(status.maintenanceType, status.activityProgress, status.maintenanceCost)}\n`;
+            // Special handling for Midas' Burden
+            if (status.itemId === 10) {
+                fieldValue += `**Type:** ${formatMaintenanceType(status.maintenanceType)}\n`;
+                fieldValue += `**Status:** ${isRichest ? '✅ You are the wealthiest!' : '⚠️ Someone is wealthier than you!'}\n`;
+                if (!isRichest) {
+                    fieldValue += `**Warning:** Maintenance decaying! Regain your wealth or lose the burden!\n`;
+                }
+            } else {
+                fieldValue += `**Type:** ${formatMaintenanceType(status.maintenanceType)}\n`;
+                fieldValue += `**Requirement:** ${formatMaintenanceCost(status.maintenanceType, status.maintenanceCost)}\n`;
+                
+                if (status.maintenanceType !== 'coins' && status.maintenanceType !== 'wealthiest') {
+                    fieldValue += `**Progress:** ${formatProgress(status.maintenanceType, status.activityProgress, status.maintenanceCost)}\n`;
+                }
             }
             
             fieldValue += `*${status.description}*\n`;
@@ -222,16 +253,43 @@ async function handleGlobal(interaction) {
         .setTitle('⚖ Known Unique Items')
         .setColor(0x9B59B6);
     
+    // Check for Midas' Burden specifically
+    const midasBurden = await UniqueItem.findOne({ itemId: 10 });
+    let richestInfo = null;
+    if (interaction.guild) {
+        const guildMembers = await interaction.guild.members.fetch();
+        const memberIds = guildMembers.map(member => member.id);
+        const allMoney = await Money.find({ userId: { $in: memberIds } }).sort({ money: -1 }).limit(1);
+        if (allMoney.length > 0) {
+            richestInfo = allMoney[0];
+        }
+    }
+    
     // List all items with their current status
     if (stats.items.length > 0) {
         const itemsText = stats.items
             .slice(0, 15)
             .map(item => {
-                if (item.owner && item.owner !== 'Unowned') {
-                    return `**${item.name}**: ${item.owner} (Maint: ${item.maintenanceLevel}/10)`;
+                let text = '';
+                if (item.name === "Midas' Burden") {
+                    // Special display for Midas' Burden
+                    text = `👑 **${item.name}**: `;
+                    if (item.owner && item.owner !== 'Unowned') {
+                        text += `${item.owner} (Maint: ${item.maintenanceLevel}/10)`;
+                        if (richestInfo && midasBurden && midasBurden.ownerId !== richestInfo.userId) {
+                            text += ' ⚠️';
+                        }
+                    } else if (richestInfo) {
+                        text += `*Awaiting the wealthiest (${richestInfo.money.toLocaleString()} coins needed)*`;
+                    } else {
+                        text += `*Awaiting the wealthiest soul*`;
+                    }
+                } else if (item.owner && item.owner !== 'Unowned') {
+                    text = `**${item.name}**: ${item.owner} (Maint: ${item.maintenanceLevel}/10)`;
                 } else {
-                    return `**${item.name}**: Undiscovered`;
+                    text = `**${item.name}**: Undiscovered`;
                 }
+                return text;
             })
             .join('\n');
             
@@ -269,6 +327,29 @@ async function handleInfo(interaction) {
         .setTitle(`${getItemEmoji(itemData)} ${itemData.name} ${rarityTag}`)
         .setDescription(storyText)
         .setColor(getColorForRarity(itemData.rarity));
+    
+    // Special info for Midas' Burden
+    if (itemId === 10) {
+        const midasBurden = await UniqueItem.findOne({ itemId: 10 });
+        if (midasBurden && midasBurden.ownerId) {
+            embed.addFields({
+                name: '👑 Current Bearer',
+                value: `${midasBurden.ownerTag} (Maintenance: ${midasBurden.maintenanceLevel}/10)`,
+                inline: false
+            });
+        }
+        
+        embed.addFields({
+            name: '⚡ Unique Mechanics',
+            value: [
+                '• Luck randomly becomes 0x or 100x each calculation',
+                '• Can only be owned by the wealthiest player',
+                '• Transfers automatically when someone becomes richer',
+                '• Maintenance decays only when not the richest'
+            ].join('\n'),
+            inline: false
+        });
+    }
     
     // Add cryptic special effects (rumored effects)
     if (itemData.specialEffects && itemData.specialEffects.length > 0) {
@@ -333,7 +414,8 @@ function formatMaintenanceType(type) {
         'mining_activity': '⛏️ Mining Activity',
         'voice_activity': '🎤 Voice Activity',
         'combat_activity': '⚔️ Combat Activity',
-        'social_activity': '💬 Social Activity'
+        'social_activity': '💬 Social Activity',
+        'wealthiest': '👑 Wealthiest Player'
     };
     return types[type] || type;
 }
@@ -344,7 +426,8 @@ function formatMaintenanceCost(type, cost) {
         'mining_activity': `Mine ${cost} blocks`,
         'voice_activity': `${cost} minutes in voice`,
         'combat_activity': `Win ${cost} battles`,
-        'social_activity': `${cost} interactions`
+        'social_activity': `${cost} interactions`,
+        'wealthiest': `Be the richest player in the guild`
     };
     return formats[type] || `${cost}`;
 }

@@ -9,7 +9,9 @@ const { getUniqueItemById } = require('../data/uniqueItemsSheet');
 const CONDITIONAL_ITEMS = {
     10: { // Midas' Burden
         condition: 'richest_player',
-        checkFunction: checkRichestPlayer,
+        checkFunction: async (playerId, guildId, itemId, guildMemberIds) => {
+            return await checkRichestPlayer(playerId, guildId, guildMemberIds);
+        },
         loseCondition: 'no_longer_richest',
         description: 'Only the wealthiest soul can bear this burden'
     },
@@ -26,32 +28,39 @@ const CONDITIONAL_ITEMS = {
  * @param {string} playerId - Player's Discord ID
  * @param {string} guildId - Guild ID
  * @param {number} itemId - Unique item ID
+ * @param {Array<string>} guildMemberIds - Array of guild member IDs (optional)
  * @returns {Promise<boolean>} Whether player meets the condition
  */
-async function playerMeetsCondition(playerId, guildId, itemId) {
+async function playerMeetsCondition(playerId, guildId, itemId, guildMemberIds = null) {
     const conditionalItem = CONDITIONAL_ITEMS[itemId];
     if (!conditionalItem) return true; // Non-conditional items always meet condition
     
-    return await conditionalItem.checkFunction(playerId, guildId, itemId);
+    return await conditionalItem.checkFunction(playerId, guildId, itemId, guildMemberIds);
 }
 
 /**
  * Check if player is the richest in their guild
  * @param {string} playerId - Player's Discord ID
- * @param {string} guildId - Guild ID
+ * @param {string} guildId - Guild ID (optional)
+ * @param {Array<string>} guildMemberIds - Array of guild member IDs (optional)
  * @returns {Promise<boolean>} Whether player is richest
  */
-async function checkRichestPlayer(playerId, guildId) {
+async function checkRichestPlayer(playerId, guildId, guildMemberIds = null) {
     try {
-        // Get all players' money in the guild
-        const allMoney = await Money.find({}).sort({ money: -1 }).limit(100);
+        let query = {};
+        
+        // If we have guild member IDs, filter by them
+        if (guildMemberIds && Array.isArray(guildMemberIds)) {
+            query = { userId: { $in: guildMemberIds } };
+        }
+        
+        // Get the richest player(s) with the filter
+        const allMoney = await Money.find(query).sort({ money: -1 }).limit(1);
         
         if (allMoney.length === 0) return false;
         
-        // Find richest player
-        const richest = allMoney[0];
-        
         // Check if this player is the richest
+        const richest = allMoney[0];
         return richest.userId === playerId;
     } catch (error) {
         console.error('[CONDITIONAL UNIQUE] Error checking richest player:', error);
@@ -61,17 +70,18 @@ async function checkRichestPlayer(playerId, guildId) {
 
 /**
  * Process conditional unique item drop attempt
- * @param {Object} member - Discord member
+ * @param {Object} member - Discord member object or simplified object with id, user.tag, displayName
  * @param {string} guildId - Guild ID
  * @param {number} itemId - Item to try dropping
+ * @param {Array<string>} guildMemberIds - Array of guild member IDs (optional)
  * @returns {Promise<Object|null>} Drop result or null
  */
-async function tryConditionalDrop(member, guildId, itemId) {
+async function tryConditionalDrop(member, guildId, itemId, guildMemberIds = null) {
     const conditionalItem = CONDITIONAL_ITEMS[itemId];
     if (!conditionalItem) return null;
     
     // Check if player meets condition
-    const meetsCondition = await playerMeetsCondition(member.id, guildId, itemId);
+    const meetsCondition = await conditionalItem.checkFunction(member.id, guildId, itemId, guildMemberIds);
     if (!meetsCondition) return null;
     
     // Check if item exists and is unowned

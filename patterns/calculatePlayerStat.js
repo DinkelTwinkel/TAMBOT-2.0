@@ -3,6 +3,7 @@ const PlayerBuffs = require('../models/PlayerBuff');
 const itemSheet = require('../data/itemSheet.json');
 const UniqueItem = require('../models/uniqueItems');
 const { getUniqueItemById } = require('../data/uniqueItemsSheet');
+const { getMidasLuckMultiplier } = require('./conditionalUniqueItems');
 
 /**
  * Builds a player's stats based on their inventory and all active buffs.
@@ -166,9 +167,19 @@ async function getPlayerStats(playerId) {
 
     // Process UNIQUE ITEMS: These override regular items in their slots
     const uniqueItemsBySlot = {};
+    let hasMidasBurden = false;
+    let midasMultiplier = 1;
+    
     for (const uniqueDbItem of uniqueItems) {
         const uniqueData = getUniqueItemById(uniqueDbItem.itemId);
         if (!uniqueData) continue;
+        
+        // Check if this is Midas' Burden
+        if (uniqueDbItem.itemId === 10) {
+            hasMidasBurden = true;
+            // Get random multiplier (0 or 100)
+            midasMultiplier = getMidasLuckMultiplier();
+        }
         
         // Check maintenance level - item loses effectiveness if not maintained
         const maintenanceRatio = uniqueDbItem.maintenanceLevel / 10; // 0 to 1
@@ -203,11 +214,24 @@ async function getPlayerStats(playerId) {
         for (const abilityObj of uniqueItem.abilities) {
             const ability = abilityObj.name;
             const basePower = Number(abilityObj.powerlevel) || 0;
-            const scaledPower = Math.floor(basePower * uniqueItem.maintenanceRatio);
+            let scaledPower = Math.floor(basePower * uniqueItem.maintenanceRatio);
             
-            if (scaledPower !== 0) { // Allow negative stats
+            // Apply Midas' Burden luck multiplier
+            if (uniqueItem.id === 10 && ability === 'luck') {
+                // Either 0x or 100x the base luck
+                scaledPower = scaledPower * midasMultiplier;
                 playerStats[ability] = (playerStats[ability] || 0) + scaledPower;
-                appliedAbilities.push({ name: ability, power: scaledPower, basePower });
+                appliedAbilities.push({ 
+                    name: ability, 
+                    power: scaledPower, 
+                    basePower,
+                    midasEffect: midasMultiplier === 0 ? 'cursed' : 'blessed'
+                });
+            } else {
+                if (scaledPower !== 0) { // Allow negative stats
+                    playerStats[ability] = (playerStats[ability] || 0) + scaledPower;
+                    appliedAbilities.push({ name: ability, power: scaledPower, basePower });
+                }
             }
         }
         
@@ -218,10 +242,11 @@ async function getPlayerStats(playerId) {
             slot: uniqueItem.slot,
             abilities: appliedAbilities,
             isUnique: true,
-            rarity: 'legendary',
+            rarity: uniqueItem.rarity || 'legendary',
             maintenanceLevel: uniqueItem.dbItem.maintenanceLevel,
             maintenanceRatio: uniqueItem.maintenanceRatio,
-            specialEffects: uniqueItem.specialEffects
+            specialEffects: uniqueItem.specialEffects,
+            midasBlessing: uniqueItem.id === 10 ? midasMultiplier : null
         };
     }
     

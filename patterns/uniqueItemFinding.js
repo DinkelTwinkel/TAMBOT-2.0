@@ -14,6 +14,10 @@ const {
     calculateItemFindChance,
     getAvailableRegularItems 
 } = require('./gachaModes/mining/miningConstants');
+const { 
+    tryConditionalDrop,
+    isConditionalItem 
+} = require('./conditionalUniqueItems');
 
 // Initialize unique items in database if they don't exist
 async function initializeUniqueItems() {
@@ -43,8 +47,27 @@ async function initializeUniqueItems() {
 }
 
 // Roll for item finding
-async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activityType = 'mining', biome = null) {
+async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activityType = 'mining', biome = null, guildId = null) {
     try {
+        // First check for conditional drops (like Midas' Burden)
+        // These have special conditions but still require luck
+        if (guildId && Math.random() < 0.001) { // 0.1% chance to check conditional
+            const conditionalItems = [10]; // Midas' Burden
+            for (const itemId of conditionalItems) {
+                const result = await tryConditionalDrop(
+                    { id: playerId, user: { tag: playerTag }, displayName: playerTag },
+                    guildId,
+                    itemId
+                );
+                if (result) {
+                    return {
+                        type: 'unique',
+                        item: getUniqueItemById(itemId),
+                        message: result.message
+                    };
+                }
+            }
+        }
         // Calculate if an item should be found
         const findChance = calculateItemFindChance(powerLevel, luckStat, activityType);
         
@@ -79,9 +102,12 @@ async function rollForUniqueItem(playerId, playerTag, powerLevel, biome = null) 
         const availableItems = getAvailableUniqueItems(powerLevel);
         if (availableItems.length === 0) return null;
         
-        // Find which ones are unowned
+        // Find which ones are unowned (excluding conditional items)
         const unownedItems = [];
         for (const itemData of availableItems) {
+            // Skip conditional items in normal rolling
+            if (isConditionalItem(itemData.id)) continue;
+            
             const dbItem = await UniqueItem.findOne({ itemId: itemData.id });
             if (dbItem && !dbItem.ownerId) {
                 unownedItems.push({ itemData, dbItem });

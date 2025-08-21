@@ -1,0 +1,177 @@
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const UniqueItem = require('../models/uniqueItems');
+const Money = require('../models/currency');
+const { getUniqueItemById } = require('../data/uniqueItemsSheet');
+const { checkRichestPlayer, getMidasLuckMultiplier } = require('../patterns/conditionalUniqueItems');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('midasburden')
+        .setDescription("Check the status of Midas' Burden - the curse of wealth"),
+
+    async execute(interaction) {
+        await interaction.deferReply();
+
+        try {
+            // Find Midas' Burden in the database
+            const midasBurden = await UniqueItem.findOne({ itemId: 10 });
+            const itemData = getUniqueItemById(10);
+
+            if (!midasBurden) {
+                return interaction.editReply("⚠️ Midas' Burden has not yet manifested in this realm.");
+            }
+
+            // Get guild members for filtering
+            const guildMembers = await interaction.guild.members.fetch();
+            const memberIds = guildMembers.map(member => member.id);
+
+            // Find the richest player in the guild
+            const allMoney = await Money.find({ userId: { $in: memberIds } })
+                .sort({ money: -1 })
+                .limit(5); // Get top 5 for display
+
+            if (allMoney.length === 0) {
+                return interaction.editReply("💰 No wealthy souls found in this guild.");
+            }
+
+            const richest = allMoney[0];
+            const richestMember = guildMembers.get(richest.userId);
+
+            // Build the embed
+            const embed = new EmbedBuilder()
+                .setTitle("👑 Midas' Burden - The Golden Curse")
+                .setColor(0xFFD700)
+                .setThumbnail('https://cdn.discordapp.com/attachments/1391742804237094972/1404748006233866402/01coin.gif')
+                .setDescription(itemData.lore)
+                .addFields(
+                    { 
+                        name: '📜 Description', 
+                        value: itemData.description,
+                        inline: false
+                    }
+                );
+
+            // Current owner information
+            if (midasBurden.ownerId) {
+                const isStillRichest = await checkRichestPlayer(midasBurden.ownerId, interaction.guild.id, memberIds);
+                const ownerMoney = await Money.findOne({ userId: midasBurden.ownerId });
+                
+                embed.addFields(
+                    { 
+                        name: '👤 Current Bearer', 
+                        value: `<@${midasBurden.ownerId}> (${midasBurden.ownerTag})`,
+                        inline: true
+                    },
+                    { 
+                        name: '💰 Their Wealth', 
+                        value: `${ownerMoney ? ownerMoney.money.toLocaleString() : 0} coins`,
+                        inline: true
+                    },
+                    { 
+                        name: '⚡ Maintenance', 
+                        value: `${midasBurden.maintenanceLevel}/10 ${!isStillRichest ? '⚠️ *Decaying*' : '✅ *Stable*'}`,
+                        inline: true
+                    }
+                );
+
+                if (!isStillRichest && richest.userId !== midasBurden.ownerId) {
+                    embed.addFields({
+                        name: '⚠️ Warning',
+                        value: `The burden senses a wealthier soul! <@${richest.userId}> now holds ${richest.money.toLocaleString()} coins!`,
+                        inline: false
+                    });
+                }
+
+                // Show luck effect
+                const currentMultiplier = getMidasLuckMultiplier();
+                embed.addFields({
+                    name: '🎲 Current Luck Effect',
+                    value: currentMultiplier === 0 
+                        ? '💀 **CURSED** - Luck multiplied by 0x (No luck at all!)' 
+                        : '🌟 **BLESSED** - Luck multiplied by 100x (Fortune smiles upon you!)',
+                    inline: false
+                });
+            } else {
+                embed.addFields(
+                    { 
+                        name: '👤 Current Bearer', 
+                        value: '*Unclaimed - Awaiting the wealthiest soul*',
+                        inline: true
+                    },
+                    { 
+                        name: '💰 Required Wealth', 
+                        value: `Be the richest (Currently: ${richest.money.toLocaleString()} coins)`,
+                        inline: true
+                    }
+                );
+
+                // Show who could claim it
+                if (richestMember) {
+                    embed.addFields({
+                        name: '👑 Potential Bearer',
+                        value: `<@${richest.userId}> is the wealthiest with ${richest.money.toLocaleString()} coins`,
+                        inline: false
+                    });
+                }
+            }
+
+            // Show special effects
+            embed.addFields({
+                name: '✨ Special Effects',
+                value: itemData.specialEffects.map(effect => `• ${effect}`).join('\n'),
+                inline: false
+            });
+
+            // Show top wealthy players
+            if (allMoney.length > 0) {
+                const wealthList = allMoney.slice(0, 5).map((entry, index) => {
+                    const crown = index === 0 ? '👑' : `#${index + 1}`;
+                    const warning = midasBurden.ownerId === entry.userId && index !== 0 ? ' ⚠️' : '';
+                    return `${crown} <@${entry.userId}> - ${entry.money.toLocaleString()} coins${warning}`;
+                });
+
+                embed.addFields({
+                    name: '💎 Wealth Rankings',
+                    value: wealthList.join('\n'),
+                    inline: false
+                });
+            }
+
+            // Show history if available
+            if (midasBurden.previousOwners && midasBurden.previousOwners.length > 0) {
+                const recentHistory = midasBurden.previousOwners
+                    .slice(-3)
+                    .reverse()
+                    .map(owner => `• ${owner.userTag} (Lost: ${owner.lostReason})`);
+
+                embed.addFields({
+                    name: '📚 Recent History',
+                    value: recentHistory.join('\n'),
+                    inline: false
+                });
+            }
+
+            // Statistics
+            embed.addFields({
+                name: '📊 Statistics',
+                value: [
+                    `Times Found: ${midasBurden.statistics.timesFound}`,
+                    `Times Lost to Decay: ${midasBurden.statistics.timesLostToMaintenance}`,
+                    `Total Maintenance Performed: ${midasBurden.statistics.totalMaintenancePerformed}`
+                ].join('\n'),
+                inline: false
+            });
+
+            embed.setFooter({ 
+                text: `Midas' Burden - Only the wealthiest can bear the golden curse`,
+                iconURL: interaction.user.displayAvatarURL()
+            });
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error('[MIDAS BURDEN] Error checking status:', error);
+            await interaction.editReply('❌ An error occurred while checking Midas\' Burden status.');
+        }
+    }
+};

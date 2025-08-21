@@ -50,6 +50,27 @@ async function runMaintenanceCycle() {
 
 // Maintenance type handlers
 const maintenanceHandlers = {
+    // Wealthiest maintenance - check if player is still the richest
+    async wealthiest(userId, userTag, item, requirement) {
+        // Import here to avoid circular dependency
+        const { checkRichestPlayer } = require('./conditionalUniqueItems');
+        
+        const isRichest = await checkRichestPlayer(userId, null);
+        
+        if (!isRichest) {
+            throw new Error(`You are no longer the wealthiest player. Midas' Burden only serves the richest.`);
+        }
+        
+        // If still richest, restore maintenance to full
+        await item.performMaintenance(userId, 0);
+        
+        return {
+            success: true,
+            message: `Your wealth maintains your hold on Midas' Burden`,
+            newMaintenanceLevel: item.maintenanceLevel
+        };
+    },
+    
     // Coins maintenance - deduct money from player
     async coins(userId, userTag, item, cost) {
         const moneyDoc = await Money.findOne({ userId });
