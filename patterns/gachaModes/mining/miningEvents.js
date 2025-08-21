@@ -180,36 +180,54 @@ async function startThiefGame(channel, dbEntry) {
             }
         );
     } else {
-        // Fallback: Create a fake minecart pool from a portion of players' current money
-        console.log('[THIEF EVENT] No pending minecart value, creating fake pool');
+        // Fallback: Create a fake minecart pool based on 10% of poorest player's money
+        console.log('[THIEF EVENT] No pending minecart value, creating fake pool based on poorest player');
         const Currency = require('../../../models/currency');
         
-        // Instead of stealing from players directly, create a pool
+        // Find the poorest player in the voice channel
+        let poorestPlayerMoney = Infinity;
+        let poorestPlayer = null;
+        
         for (const user of humansArray) {
-            // Get player's current balance
             const playerMoney = await Currency.findOne({ userId: user.id });
+            const balance = playerMoney ? playerMoney.money : 0;
             
-            if (playerMoney && playerMoney.money > 0) {
-                // Calculate a "fake" minecart contribution (5-10% of their money)
-                const percentForPool = Math.floor(Math.random() * 5) + 5; // 5-10%
-                const contribution = Math.floor((percentForPool / 100) * playerMoney.money);
-                
-                if (contribution > 0) {
-                    // Don't actually deduct yet - just track what they would lose
-                    stolenFromPlayers[user.id] = contribution;
-                    stealAmount += contribution;
-                    lossDescriptions.push(`${user.user.username}'s share: ${contribution} coins at risk`);
-                }
+            if (balance < poorestPlayerMoney) {
+                poorestPlayerMoney = balance;
+                poorestPlayer = user;
             }
         }
         
-        // If still no money to steal, create a minimum pool
-        if (stealAmount === 0) {
-            stealAmount = 100 * humansArray.length; // 100 coins per player
-            for (const user of humansArray) {
-                stolenFromPlayers[user.id] = 100;
-                lossDescriptions.push(`${user.user.username}'s share: 100 coins at risk`);
+        // Calculate theft pool as 10% of poorest player's money
+        if (poorestPlayerMoney > 0) {
+            stealAmount = Math.floor(poorestPlayerMoney * 0.1);
+            
+            // If the amount is too small, set a minimum
+            if (stealAmount < 50) {
+                stealAmount = Math.min(50, poorestPlayerMoney); // At least 50 or their full balance if less
             }
+            
+            // Distribute the "loss" evenly among all players
+            const lossPerPlayer = Math.floor(stealAmount / humansArray.length);
+            const remainder = stealAmount - (lossPerPlayer * humansArray.length);
+            
+            for (let i = 0; i < humansArray.length; i++) {
+                const user = humansArray[i];
+                // First player gets the remainder to ensure total matches
+                const playerLoss = lossPerPlayer + (i === 0 ? remainder : 0);
+                stolenFromPlayers[user.id] = playerLoss;
+                lossDescriptions.push(`${user.user.username}'s share: ${playerLoss} coins at risk`);
+            }
+            
+            console.log(`[THIEF EVENT] Poorest player has ${poorestPlayerMoney} coins, theft pool is ${stealAmount} coins`);
+        } else {
+            // If everyone has 0 coins, create a minimal pool
+            stealAmount = 50 * humansArray.length; // 50 coins per player minimum
+            for (const user of humansArray) {
+                stolenFromPlayers[user.id] = 50;
+                lossDescriptions.push(`${user.user.username}'s share: 50 coins at risk`);
+            }
+            console.log('[THIEF EVENT] All players have 0 coins, using minimum pool');
         }
     }
 

@@ -280,7 +280,8 @@ async function handleGlobal(interaction) {
                             text += ' ⚠️';
                         }
                     } else if (richestInfo) {
-                        text += `*Awaiting the wealthiest (${richestInfo.money.toLocaleString()} coins needed)*`;
+                        text += `*Awaiting the wealthiest soul*`;
+                        //text += `*Awaiting the wealthiest (${richestInfo.money.toLocaleString()} coins needed)*`;
                     } else {
                         text += `*Awaiting the wealthiest soul*`;
                     }
