@@ -322,7 +322,7 @@ async function handleInfo(interaction) {
     const rarityTag = `『 ${itemData.rarity.toUpperCase()} 』`;
     
     // Combine description and lore for the embed description
-    const storyText = `*${itemData.description}*\n\n**Lore:**\n${itemData.lore}`;
+    const storyText = '```' + `${itemData.description} ${itemData.lore}` + '```';
     
     const embed = new EmbedBuilder()
         .setTitle(`${getItemEmoji(itemData)} ${itemData.name} ${rarityTag}`)
