@@ -201,6 +201,11 @@ class DatabaseTransaction {
 async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
     const channelId = dbEntry.channelId;
     
+    // Debug logging to verify items are being added
+    if (Math.random() < 0.1) { // Log 10% of additions to avoid spam
+        console.log(`[MINECART] Adding ${amount}x item ${itemId} for player ${playerId} to channel ${channelId}`);
+    }
+    
     try {
         await gachaVC.updateOne(
             { channelId: channelId },
@@ -241,7 +246,8 @@ async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
 }
 
 async function resetMinecart(channelId) {
-    await gachaVC.updateOne(
+    console.log(`[MINECART RESET] Resetting minecart for channel ${channelId}`);
+    const result = await gachaVC.updateOne(
         { channelId: channelId },
         {
             $set: {
@@ -251,6 +257,7 @@ async function resetMinecart(channelId) {
             }
         }
     );
+    console.log(`[MINECART RESET] Reset result for channel ${channelId}:`, result.modifiedCount, 'documents modified');
 }
 
 // Update item durability in inventory
@@ -421,7 +428,8 @@ async function breakPickaxe(playerId, playerTag, pickaxe) {
 
 // Game Data Helpers
 function initializeGameData(dbEntry, channelId) {
-    if (!dbEntry.gameData || dbEntry.gameData.gamemode !== 'mining') {
+    if (!dbEntry.gameData) {
+        console.log(`[INIT] Creating new game data for channel ${channelId}`);
         dbEntry.gameData = {
             gamemode: 'mining',
             map: null, // Will be initialized by map system
@@ -437,32 +445,83 @@ function initializeGameData(dbEntry, channelId) {
                 treasuresFound: 0
             }
         };
+        dbEntry.markModified('gameData');
+    } else {
+        // gameData exists, but we need to ensure all required fields are present
+        let modified = false;
         
-        dbEntry.markModified('gameData');
-    }
-    
-    if (!dbEntry.gameData.minecart) {
-        dbEntry.gameData.minecart = { items: {}, contributors: {} };
-        dbEntry.markModified('gameData');
-    }
-    
-    if (!dbEntry.gameData.stats) {
-        dbEntry.gameData.stats = {
-            totalOreFound: 0,
-            wallsBroken: 0,
-            treasuresFound: 0
-        };
-        dbEntry.markModified('gameData');
+        // CRITICAL FIX: Ensure gamemode field exists
+        if (!dbEntry.gameData.gamemode) {
+            console.log(`[INIT] Adding missing gamemode field for channel ${channelId}`);
+            dbEntry.gameData.gamemode = 'mining';
+            modified = true;
+        }
+        
+        // Ensure minecart exists
+        if (!dbEntry.gameData.minecart) {
+            console.log(`[INIT] Adding missing minecart for channel ${channelId}`);
+            dbEntry.gameData.minecart = { items: {}, contributors: {} };
+            modified = true;
+        }
+        
+        // Ensure stats exists
+        if (!dbEntry.gameData.stats) {
+            console.log(`[INIT] Adding missing stats for channel ${channelId}`);
+            dbEntry.gameData.stats = {
+                totalOreFound: 0,
+                wallsBroken: 0,
+                treasuresFound: 0
+            };
+            modified = true;
+        }
+        
+        // Ensure minecart has required structure
+        if (!dbEntry.gameData.minecart.items) {
+            dbEntry.gameData.minecart.items = {};
+            modified = true;
+        }
+        if (!dbEntry.gameData.minecart.contributors) {
+            dbEntry.gameData.minecart.contributors = {};
+            modified = true;
+        }
+        
+        if (modified) {
+            dbEntry.markModified('gameData');
+        }
     }
 }
 
 // Enhanced Mining Summary
 async function createMiningSummary(channel, dbEntry) {
+    console.log(`[MINECART SUMMARY] Starting summary for channel ${channel.id}`);
+    
     const gameData = dbEntry.gameData;
-    if (!gameData || gameData.gamemode !== 'mining') return;
+    
+    // FIX: Auto-repair missing gamemode
+    if (gameData && !gameData.gamemode) {
+        console.log(`[MINECART SUMMARY] Auto-fixing missing gamemode for channel ${channel.id}`);
+        dbEntry.gameData.gamemode = 'mining';
+        dbEntry.markModified('gameData');
+        await dbEntry.save();
+    }
+    
+    // Now safe to check
+    if (!gameData || (gameData.gamemode && gameData.gamemode !== 'mining')) {
+        console.log(`[MINECART SUMMARY] No game data or wrong gamemode for channel ${channel.id}`);
+        return;
+    }
 
     const minecart = gameData.minecart;
     const sessionStats = gameData.stats || { totalOreFound: 0, wallsBroken: 0, treasuresFound: 0 };
+    
+    console.log(`[MINECART SUMMARY] Minecart contents:`, minecart ? Object.keys(minecart.items || {}) : 'No minecart');
+    if (minecart && minecart.items) {
+        const itemsWithQuantity = Object.entries(minecart.items).filter(([id, data]) => data.quantity > 0);
+        console.log(`[MINECART SUMMARY] Items with quantity > 0:`, itemsWithQuantity.map(([id, data]) => `${id}: ${data.quantity}`));
+    }
+    console.log(`[MINECART SUMMARY] Session stats:`, sessionStats);
+    console.log(`[MINECART SUMMARY] Mining item pool has ${miningItemPool.length} items`);
+    console.log(`[MINECART SUMMARY] Treasure items pool has ${treasureItems.length} items`);
     
     if (!minecart || !minecart.items) {
         const { EmbedBuilder } = require('discord.js');
@@ -619,7 +678,10 @@ async function createMiningSummary(channel, dbEntry) {
         .setTimestamp();
 
     await channel.send({ embeds: [embed] });
+    
+    console.log(`[MINECART SUMMARY] Sent summary embed, now resetting minecart for channel ${channel.id}`);
     await resetMinecart(channel.id);
+    console.log(`[MINECART SUMMARY] Minecart reset complete for channel ${channel.id}`);
 }
 
 module.exports = {

@@ -964,6 +964,14 @@ module.exports = async (channel, dbEntry, json, client) => {
         if (!dbEntry.gameData) {
             initializeGameData(dbEntry, channel.id);
             await dbEntry.save();
+        } else {
+            // FIX: Even if gameData exists, ensure gamemode is set
+            if (!dbEntry.gameData.gamemode) {
+                console.log(`[MINING] Fixing missing gamemode for channel ${channel.id}`);
+                dbEntry.gameData.gamemode = 'mining';
+                dbEntry.markModified('gameData');
+                await dbEntry.save();
+            }
         }
 
         if (!channel?.isVoiceBased()) {
@@ -1029,7 +1037,15 @@ module.exports = async (channel, dbEntry, json, client) => {
             
             // ALWAYS create mining summary to distribute rewards
             // This ensures players get their coins before any events
-            await createMiningSummary(channel, dbEntry);
+            console.log(`[MINING] Creating mining summary for channel ${channel.id}...`);
+            try {
+                await createMiningSummary(channel, dbEntry);
+                console.log(`[MINING] Mining summary created successfully for channel ${channel.id}`);
+            } catch (summaryError) {
+                console.error(`[MINING] ERROR creating mining summary for channel ${channel.id}:`, summaryError);
+                console.error('Stack trace:', summaryError.stack);
+                // Continue with break even if summary fails to prevent getting stuck
+            }
             
             if (isLongBreak) {
                 // Long break - pre-select the event to avoid double selection
