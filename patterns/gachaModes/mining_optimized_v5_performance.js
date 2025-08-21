@@ -31,7 +31,7 @@ const {
     getAvailableTreasures,
     miningItemPool,
     treasureItems
-} = require('./mining/miningConstants');
+} = require('./mining/miningConstants_unified');
 
 const {
     calculateTeamVisibility,

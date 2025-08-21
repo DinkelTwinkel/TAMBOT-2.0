@@ -1,5 +1,5 @@
 // miningUtils.js - Utility functions for mining operations
-const { TILE_TYPES, miningItemPool, treasureItems } = require('./miningConstants');
+const { TILE_TYPES, miningItemPool, treasureItems } = require('./miningConstants_unified');
 
 // Enhanced RNG System
 function seededRandom(seed) {
