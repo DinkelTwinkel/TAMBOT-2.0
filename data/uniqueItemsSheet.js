@@ -4,7 +4,7 @@
 
 const UNIQUE_ITEMS = [
     {
-        id: 1, // Unique numerical ID
+        id: 9, // Unique numerical ID
         name: "Blue Breeze",
         type: "tool",
         slot: "mining",
@@ -87,7 +87,7 @@ const UNIQUE_ITEMS = [
         ],
         
         // Conditional drop settings
-        dropWeight: 0.001, // Extremely rare even when conditions are met
+        dropWeight: 5, // Somewhat not rare when conditions are met.
         minPowerLevel: 1, // Can appear at any power level
         preferredBiomes: ["golden_vault", "treasure_room", "midas_tomb"],
         conditional: true, // Marks this as a conditional item
@@ -98,7 +98,7 @@ const UNIQUE_ITEMS = [
     },
     
     {
-        id: 9,
+        id: 1,
         name: "THE ONE PICK",
         type: "tool",
         slot: "mining",
