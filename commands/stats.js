@@ -78,7 +78,10 @@ module.exports = {
             // Calculate durability percentage and add visual indicator for tools and equipment
             const maxDurability = item.durability || 100;
             const currentDurability = item.currentDurability !== undefined ? item.currentDurability : maxDurability;
-            const durabilityPercent = Math.round((currentDurability / maxDurability) * 100);
+            // Ensure we don't divide by zero and handle edge cases
+            const durabilityPercent = maxDurability > 0 
+              ? Math.round((currentDurability / maxDurability) * 100)
+              : 100; // Default to 100% if maxDurability is 0 or invalid
             const durabilityBar = getDurabilityBar(durabilityPercent);
             
             // Format with primary stat inline and additional stats on separate lines
@@ -266,9 +269,19 @@ function getMaintenanceBar(level) {
 
 // Helper function to create a visual durability bar
 function getDurabilityBar(percent) {
+  // Validate and clamp percent to 0-100 range
+  if (isNaN(percent) || percent === null || percent === undefined) {
+    percent = 100; // Default to full durability if invalid
+  }
+  percent = Math.max(0, Math.min(100, percent)); // Clamp between 0 and 100
+  
   const barLength = 10;
   const filled = Math.round((percent / 100) * barLength);
   const empty = barLength - filled;
+  
+  // Extra validation to ensure filled and empty are valid
+  const validFilled = Math.max(0, Math.min(barLength, filled));
+  const validEmpty = Math.max(0, barLength - validFilled);
   
   let barChar, emptyChar, emoji;
   
@@ -290,5 +303,5 @@ function getDurabilityBar(percent) {
     emoji = '🔨';
   }
   //${emoji} 
-  return `${barChar.repeat(filled)}${emptyChar.repeat(empty)}`;
+  return `${barChar.repeat(validFilled)}${emptyChar.repeat(validEmpty)}`;
 }

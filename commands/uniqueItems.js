@@ -219,29 +219,30 @@ async function handleGlobal(interaction) {
     }
     
     const embed = new EmbedBuilder()
-        .setTitle('🌍 Global Unique Items Statistics')
-        .setDescription(`Tracking **${stats.totalItems}** legendary items across all players`)
-        .addFields(
-            { name: '📊 Overview', value: `Owned: **${stats.ownedItems}**\nAvailable: **${stats.unownedItems}**`, inline: true },
-            { name: '🏆 Most Found', value: stats.mostFound ? `**${stats.mostFound.name}**\nFound ${stats.mostFound.timesFound} times` : 'None yet', inline: true },
-            { name: '💔 Most Lost', value: stats.mostLost ? `**${stats.mostLost.name}**\nLost ${stats.mostLost.timesLost} times` : 'None yet', inline: true }
-        )
-        .setColor(0x9B59B6)
-        .setTimestamp();
+        .setTitle('⚖ Known Unique Items')
+        .setColor(0x9B59B6);
     
-    // Add current owners
+    // List all items with their current status
     if (stats.items.length > 0) {
-        const ownersText = stats.items
-            .slice(0, 10)
-            .map(item => `**${item.name}**: ${item.owner} (Maint: ${item.maintenanceLevel}/10)`)
+        const itemsText = stats.items
+            .slice(0, 15)
+            .map(item => {
+                if (item.owner && item.owner !== 'Unowned') {
+                    return `**${item.name}**: ${item.owner} (Maint: ${item.maintenanceLevel}/10)`;
+                } else {
+                    return `**${item.name}**: Undiscovered`;
+                }
+            })
             .join('\n');
             
         embed.addFields({
-            name: '👑 Current Owners',
-            value: ownersText.substring(0, 1024),
+            name: '🌟 Legendary Artifacts',
+            value: itemsText.substring(0, 1024),
             inline: false
         });
     }
+    
+    embed.setFooter({ text: 'Legendary loot awaits brave adventurers who dare to delve deep...' });
     
     return interaction.editReply({ embeds: [embed] });
 }
@@ -258,37 +259,22 @@ async function handleInfo(interaction) {
         });
     }
     
+    // Format rarity tag
+    const rarityTag = `『 ${itemData.rarity.toUpperCase()} 』`;
+    
     const embed = new EmbedBuilder()
-        .setTitle(`${getItemEmoji(itemData)} ${itemData.name}`)
-        .setDescription(`*${itemData.description}*`)
-        .addFields(
-            { name: '📜 Lore', value: itemData.lore, inline: false },
-            { name: '⚙️ Type', value: `${itemData.type} (${itemData.slot})`, inline: true },
-            { name: '💎 Rarity', value: itemData.rarity, inline: true },
-            { name: '❓ Power', value: 'Hidden', inline: true }
-        )
-        .setColor(getColorForRarity(itemData.rarity))
-        .setTimestamp();
+        .setTitle(`${getItemEmoji(itemData)} ${itemData.name} ${rarityTag}`)
+        .setColor(getColorForRarity(itemData.rarity));
     
-    // Add cryptic hints about abilities
-    const abilityHints = [];
-    for (const ability of itemData.abilities) {
-        if (ability.powerlevel > 0) {
-            abilityHints.push(`• Enhances ${ability.name}`);
-        } else if (ability.powerlevel < 0) {
-            abilityHints.push(`• Weakens ${ability.name}`);
-        }
-    }
+    // Combine description and lore in a code block
+    const storyText = `${itemData.description}\n\n${itemData.lore}`;
+    embed.addFields({
+        name: '📜 Ancient Text',
+        value: `\`\`\`\n${storyText}\n\`\`\``,
+        inline: false
+    });
     
-    if (abilityHints.length > 0) {
-        embed.addFields({ 
-            name: '🔮 Whispered Properties', 
-            value: abilityHints.join('\n') + '\n*The true power remains a mystery...*', 
-            inline: false 
-        });
-    }
-    
-    // Add cryptic special effects
+    // Add cryptic special effects (rumored effects)
     if (itemData.specialEffects && itemData.specialEffects.length > 0) {
         const crypticEffects = itemData.specialEffects.map(effect => {
             // Make effects more mysterious
@@ -310,7 +296,8 @@ async function handleInfo(interaction) {
         });
     }
     
-    // Add cryptic maintenance info
+    // Set maintenance info in footer
+    let footerText = '';
     if (itemData.requiresMaintenance) {
         let maintType = 'Unknown ritual';
         switch(itemData.maintenanceType) {
@@ -320,29 +307,12 @@ async function handleInfo(interaction) {
             case 'combat_activity': maintType = 'Thirsts for battle'; break;
             case 'social_activity': maintType = 'Craves interaction'; break;
         }
-        
-        embed.addFields({
-            name: '🕯️ Maintenance Ritual',
-            value: `*${maintType}*\n"${itemData.maintenanceDescription}"\n\nThose who neglect the ritual lose everything...`,
-            inline: false
-        });
+        footerText = `Maintenance: ${maintType}`;
     } else {
-        embed.addFields({
-            name: '🕯️ Maintenance',
-            value: '*This artifact requires no earthly maintenance.*',
-            inline: false
-        });
+        footerText = 'This artifact requires no earthly maintenance';
     }
     
-    // Add cryptic rarity info
-    embed.addFields({
-        name: '🌙 Rarity',
-        value: `*Seekers say it appears once in ${Math.floor(1 / (itemData.dropWeight || 0.1) * 1000)} moons...*\n` +
-               `*Only those of power level ${itemData.minPowerLevel} or greater may glimpse it.*`,
-        inline: false
-    });
-    
-    embed.setFooter({ text: 'The true nature of legendary items remains shrouded in mystery...' });
+    embed.setFooter({ text: footerText });
     
     return interaction.reply({ embeds: [embed] });
 }
