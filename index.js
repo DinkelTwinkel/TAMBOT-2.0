@@ -62,7 +62,7 @@ client.once(Events.ClientReady, async c => {
     const gachaGM = require('./patterns/gachaGameMaster');
 
     //Global Listeners:
-    const eatTheRichListener = require('./patterns/eatTheRich');
+    const eatTheRichListener = require('./patterns/misc/eatTheRich');
     eatTheRichListener(client);
     const ShopHandler = require('./patterns/shopHandler');
     const ItemTransferHandler = require('./patterns/itemTransferHandler'); 
