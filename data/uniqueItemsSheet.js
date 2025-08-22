@@ -511,7 +511,6 @@ const UNIQUE_ITEMS = [
         rarity: "mythic",
         description: "An obsidian amulet bound with three restless shadows. They echo your every move in the mines, feeding on stone, treasure… and perhaps your soul.",
         lore: "Whispers speak of Mor'duun, the Wraith King, who bound three generals into this amulet. The shadows obey without question, mining alongside their master. But each strike of the pick seems to draw something unseen… a toll only the wearer pays.",
-
         value: 750000,
         vendable: false,
         
@@ -545,15 +544,13 @@ const UNIQUE_ITEMS = [
         ],
         
         rumoredEffects: [
-            "Three shadows follow your every move",
-            "They toil in perfect synchronization",
-            "All treasures flow through dimensional rifts",
-            "Bound eternally to mirror your actions",
-            "Each shadow may stumble into danger alone",
-            "Darkness itself yields precious shadow essence",
-            "Others see your legion marching through stone",
-            "Fallen shadows rise again from the void",
-            "Your power echoes threefold through the depths"
+            "Three shadows echo your every strike",
+            "Treasure flows from rifts unseen",
+            "Bound eternally to mirror your will",
+            "Dark ore surfaces where none should be",
+            "Shadows fall, but always rise again",
+            "Others glimpse your legion in the stone",
+            "The void whispers profits… and prices"
         ],
         
         dropWeight: 0.001,
