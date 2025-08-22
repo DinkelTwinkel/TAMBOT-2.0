@@ -1,18 +1,18 @@
 // Utility functions for easily pulling tracking data
-// Import this in your index.js or wherever you need stats
+// This version uses your existing MongoDB connection
 
 const StatTracker = require('./patterns/statTracking');
 
 class StatsUtility {
-    constructor(mongoUri) {
-        this.tracker = new StatTracker(mongoUri);
-        this.connected = false;
+    constructor() {
+        this.tracker = new StatTracker();
+        this.initialized = false;
     }
 
-    async connect() {
-        if (!this.connected) {
-            await this.tracker.connect();
-            this.connected = true;
+    async ensureInitialized() {
+        if (!this.initialized) {
+            await this.tracker.initialize();
+            this.initialized = true;
         }
     }
 
@@ -24,7 +24,7 @@ class StatsUtility {
      * @returns {number} Total number of voice channel joins
      */
     async getTotalVCJoins(guildId) {
-        await this.connect();
+        await this.ensureInitialized();
         return await this.tracker.getTotalVCJoins(guildId);
     }
 
@@ -34,7 +34,7 @@ class StatsUtility {
      * @returns {object} { averageHours, totalHours, userCount }
      */
     async getAverageHoursSpent(guildId) {
-        await this.connect();
+        await this.ensureInitialized();
         return await this.tracker.getAverageHoursSpent(guildId);
     }
 
@@ -44,7 +44,7 @@ class StatsUtility {
      * @returns {number} Number of unique users tracked
      */
     async getUniqueUsers(guildId) {
-        await this.connect();
+        await this.ensureInitialized();
         return await this.tracker.getUniqueUsers(guildId);
     }
 
@@ -54,7 +54,7 @@ class StatsUtility {
      * @returns {string} Total hours formatted to 2 decimal places
      */
     async getTotalHoursAllUsers(guildId) {
-        await this.connect();
+        await this.ensureInitialized();
         return await this.tracker.getTotalHours(guildId);
     }
 
@@ -64,7 +64,7 @@ class StatsUtility {
      * @returns {number} Total number of messages
      */
     async getTotalMessagesSent(guildId) {
-        await this.connect();
+        await this.ensureInitialized();
         return await this.tracker.getTotalMessages(guildId);
     }
 
@@ -75,7 +75,7 @@ class StatsUtility {
      * @returns {Array} Array of user objects with voice time data
      */
     async getEachUserHoursInVC(guildId, limit = null) {
-        await this.connect();
+        await this.ensureInitialized();
         return await this.tracker.getUserVoiceHours(guildId, limit);
     }
 
@@ -87,7 +87,7 @@ class StatsUtility {
      * @returns {object} Complete stats object
      */
     async getAllStats(guildId) {
-        await this.connect();
+        await this.ensureInitialized();
         
         const [
             totalVCJoins,
@@ -122,7 +122,7 @@ class StatsUtility {
      * @returns {string} Formatted stats report
      */
     async getFormattedReport(guildId) {
-        await this.connect();
+        await this.ensureInitialized();
         const stats = await this.getAllStats(guildId);
         
         let report = '📊 **SERVER STATISTICS REPORT**\n';
@@ -154,7 +154,7 @@ class StatsUtility {
      * @returns {object} User stats object
      */
     async getUserStats(userId, guildId) {
-        await this.connect();
+        await this.ensureInitialized();
         return await this.tracker.getUserStats(userId, guildId);
     }
 
@@ -166,7 +166,7 @@ class StatsUtility {
      * @returns {object} Stats for the date range
      */
     async getDateRangeStats(guildId, startDate, endDate) {
-        await this.connect();
+        await this.ensureInitialized();
         return await this.tracker.getDateRangeStats(guildId, startDate, endDate);
     }
 
@@ -222,7 +222,7 @@ class StatsUtility {
      * @returns {object} Complete export of all stats data
      */
     async exportStats(guildId) {
-        await this.connect();
+        await this.ensureInitialized();
         return await this.tracker.exportStats(guildId);
     }
 
@@ -232,27 +232,17 @@ class StatsUtility {
      * @returns {number} Number of sessions cleaned
      */
     async cleanupOldSessions(daysOld = 30) {
-        await this.connect();
+        await this.ensureInitialized();
         return await this.tracker.cleanupOldSessions(daysOld);
-    }
-
-    /**
-     * Disconnect from database
-     */
-    async disconnect() {
-        if (this.connected) {
-            await this.tracker.disconnect();
-            this.connected = false;
-        }
     }
 }
 
 // Example usage in your index.js:
 /*
 const StatsUtility = require('./statsUtility');
-const stats = new StatsUtility(process.env.MONGODB_URI);
+const stats = new StatsUtility();
 
-// In a command handler:
+// After MongoDB is connected, in a command handler:
 client.on('messageCreate', async (message) => {
     if (message.content === '!fullstats') {
         const report = await stats.getFormattedReport(message.guild.id);

@@ -193,7 +193,7 @@
     "failureOther": ["You dare disturb the eternal depths?!", "-ECHOES OMINOUSLY", "BEGONE!"],
     "cost": 0,
     "staticItems": [27],
-    "rotationalAmount": 5,
+    "rotationalAmount": 4,
     "itemPool": [27,26,25,35,36,40,41,46],
     "image": "coalMineShop",
     "priceChangeFactor": 0.15,
