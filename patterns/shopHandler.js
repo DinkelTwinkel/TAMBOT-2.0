@@ -11,6 +11,7 @@ const gachaData = require('../data/gachaServers.json');
 const shopData = require('../data/shops.json');
 const itemSheet = require('../data/itemSheet.json');
 const { calculateFluctuatedPrice, getShopPrices, generatePurchaseDialogue, generateSellDialogue, generatePoorDialogue, generateNoItemDialogue } = require('./generateShop');
+const getPlayerStats = require('./calculatePlayerStat');
 const InnPurchaseHandler = require('./gachaModes/innKeeping/innPurchaseHandler');
 
 // Performance optimization: Cache for shop prices (TTL: 5 minutes)
@@ -307,6 +308,9 @@ class ShopHandler {
         const currentBuyPrice = fluctuatedPrices[item.id].buy;
         const totalCost = currentBuyPrice;
         
+        // Get player context for AI dialogue
+        const playerContext = await this.getPlayerContext(userId, guildId, currency.money);
+        
         if (currency.money < totalCost) {
             const shortBy = totalCost - currency.money;
             await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor, shopInfo, 'poor', item, shortBy);
@@ -326,6 +330,9 @@ class ShopHandler {
             { upsert: true }
         );
 
+        // Track spending for consumables too
+        this.trackSpending(userId, totalCost);
+        
         // Apply buff and get detailed information
         const applyConsumableBuff = require('./applyConsumeableBuff');
         const buffResult = await applyConsumableBuff(userId, item);
@@ -387,7 +394,7 @@ class ShopHandler {
             });
         }
         
-        await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice, interaction.user, 1); // quantity = 1 for consumables
+        await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice, interaction.member, 1, playerContext); // quantity = 1 for consumables
     }
 
     async handleModalSubmit(interaction) {
@@ -452,6 +459,8 @@ class ShopHandler {
     }
 
     async handleBuyModal(interaction, item, quantity, userCurrency, userInv, shopInfo, fluctuatedPrice) {
+        // Get player context for AI dialogue
+        const playerContext = await this.getPlayerContext(interaction.user.id, interaction.guild.id, userCurrency.money);
         const userId = interaction.user.id;  // Get userId from interaction
         const currentBuyPrice = fluctuatedPrice.buy;
         const totalCost = quantity * currentBuyPrice;
@@ -513,6 +522,9 @@ class ShopHandler {
 
             const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
             
+            // Track spending for this purchase
+            this.trackSpending(userId, totalCost);
+            
             // Create enhanced response message
             let responseMessage = `${interaction.member} ✅ Purchased ${quantity} x **${item.name}** for ${totalCost} coins! (${currentBuyPrice}c${priceIndicator} each)`;
             
@@ -561,7 +573,7 @@ class ShopHandler {
                 await interaction.channel.send({ content: publicMessage });
             }
             
-            await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice * quantity, interaction.user, quantity);
+            await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice * quantity, interaction.member, quantity, playerContext);
         } catch (error) {
             console.error('[SHOP] Error processing purchase:', error);
             
@@ -578,6 +590,8 @@ class ShopHandler {
     }
 
     async handleSellModal(interaction, item, quantity, userCurrency, userInv, shopInfo, fluctuatedPrice) {
+        // Get player context for AI dialogue
+        const playerContext = await this.getPlayerContext(interaction.user.id, interaction.guild.id, userCurrency.money);
         const userId = interaction.user.id;  // Get userId from interaction
         const currentSellPrice = fluctuatedPrice.sell;
         const ownedItem = userInv.items.find(it => it.itemId === item.id);
@@ -640,7 +654,7 @@ class ShopHandler {
                 await interaction.channel.send({ content: publicMessage });
             }
             
-            await this.updateShopDescription(interaction.message, shopInfo?.successSell, shopInfo, 'sell', item, currentSellPrice * quantity, null, quantity);
+            await this.updateShopDescription(interaction.message, shopInfo?.successSell, shopInfo, 'sell', item, currentSellPrice * quantity, interaction.member, quantity, playerContext);
         } catch (error) {
             console.error('[SHOP] Error processing sale:', error);
             await interaction.editReply({ 
@@ -649,7 +663,7 @@ class ShopHandler {
         }
     }
 
-    async updateShopDescription(shopMessage, descriptions, shopInfo = null, dialogueType = null, item = null, price = null, buyer = null, quantity = 1) {
+    async updateShopDescription(shopMessage, descriptions, shopInfo = null, dialogueType = null, item = null, price = null, buyer = null, quantity = 1, playerContext = null) {
         try {
             let newDescription;
             
@@ -657,10 +671,22 @@ class ShopHandler {
             if (shopInfo && dialogueType) {
                 try {
                     if (dialogueType === 'purchase' && item && price) {
-                        newDescription = await generatePurchaseDialogue(shopInfo, item, price, buyer, quantity);
+                        // Extract buyer info with nickname priority
+                        const buyerInfo = buyer ? {
+                            username: buyer.user?.username || buyer.username,
+                            displayName: buyer.nickname || buyer.displayName || buyer.user?.username || buyer.username,
+                            id: buyer.user?.id || buyer.id
+                        } : null;
+                        newDescription = await generatePurchaseDialogue(shopInfo, item, price, buyerInfo, quantity, playerContext);
                         console.log(`[SHOP] Generated AI purchase dialogue for ${shopInfo.shopkeeper?.name}`);
                     } else if (dialogueType === 'sell' && item && price) {
-                        newDescription = await generateSellDialogue(shopInfo, item, price, quantity);
+                        // Extract seller info with nickname priority
+                        const sellerInfo = buyer ? {
+                            username: buyer.user?.username || buyer.username,
+                            displayName: buyer.nickname || buyer.displayName || buyer.user?.username || buyer.username,
+                            id: buyer.user?.id || buyer.id
+                        } : null;
+                        newDescription = await generateSellDialogue(shopInfo, item, price, quantity, playerContext, sellerInfo);
                         console.log(`[SHOP] Generated AI sell dialogue for ${shopInfo.shopkeeper?.name}`);
                     } else if (dialogueType === 'poor' && item) {
                         const shortBy = price || 0;
@@ -751,6 +777,145 @@ class ShopHandler {
             'speed': 'Enables multiple actions per mining cycle'
         };
         return statDescriptions[statName];
+    }
+    
+    /**
+     * Get player context for AI dialogue
+     * @param {string} userId - User ID
+     * @param {string} guildId - Guild ID
+     * @param {number} currentMoney - Player's current money
+     * @returns {Object} Player context for dialogue generation
+     */
+    async getPlayerContext(userId, guildId, currentMoney = 0) {
+        try {
+            const context = {
+                money: currentMoney,
+                isRichest: false,
+                stats: {},
+                totalSpent: 0,
+                wealthTier: 'poor',
+                legendaryItems: [],
+                uniqueItems: [],
+                hasMidasBurden: false
+            };
+            
+            // Get player stats and equipped items
+            try {
+                const playerData = await getPlayerStats(userId);
+                context.stats = playerData.stats || {};
+                
+                // Check for notable stats
+                context.hasHighStats = Object.values(context.stats).some(stat => stat > 50);
+                context.totalStatPower = Object.values(context.stats).reduce((sum, stat) => sum + (stat || 0), 0);
+                
+                // Check for legendary and unique items
+                if (playerData.equippedItems) {
+                    for (const [itemId, itemData] of Object.entries(playerData.equippedItems)) {
+                        if (itemData.isUnique) {
+                            context.uniqueItems.push({
+                                name: itemData.name,
+                                rarity: itemData.rarity,
+                                maintenanceLevel: itemData.maintenanceLevel
+                            });
+                            
+                            // Check for legendary rarity
+                            if (itemData.rarity === 'legendary' || itemData.rarity === 'mythic') {
+                                context.legendaryItems.push({
+                                    name: itemData.name,
+                                    rarity: itemData.rarity,
+                                    wellMaintained: itemData.maintenanceLevel >= 7
+                                });
+                            }
+                            
+                            // Special check for Midas' Burden
+                            if (itemData.name && itemData.name.includes('Midas')) {
+                                context.hasMidasBurden = true;
+                                context.midasBlessing = itemData.midasBlessing; // 0 for cursed, 100 for blessed
+                            }
+                        }
+                    }
+                }
+                
+                context.hasLegendary = context.legendaryItems.length > 0;
+                context.legendaryCount = context.legendaryItems.length;
+                context.hasMultipleLegendaries = context.legendaryItems.length > 1;
+                
+            } catch (e) {
+                console.log('[SHOP] Could not get player stats:', e.message);
+            }
+            
+            // Check if player is the richest (top 3)
+            try {
+                const allProfiles = await Currency.find({ money: { $gt: 0 } })
+                    .sort({ money: -1 })
+                    .limit(3)
+                    .lean();
+                    
+                if (allProfiles.length > 0) {
+                    const topPlayer = allProfiles[0];
+                    context.isRichest = topPlayer.userId === userId;
+                    context.isTopThree = allProfiles.some(p => p.userId === userId);
+                    
+                    // Determine wealth tier
+                    if (context.isRichest) {
+                        context.wealthTier = 'richest';
+                    } else if (context.isTopThree) {
+                        context.wealthTier = 'wealthy';
+                    } else if (currentMoney > 10000) {
+                        context.wealthTier = 'rich';
+                    } else if (currentMoney > 1000) {
+                        context.wealthTier = 'comfortable';
+                    } else if (currentMoney > 100) {
+                        context.wealthTier = 'modest';
+                    } else {
+                        context.wealthTier = 'poor';
+                    }
+                }
+            } catch (e) {
+                console.log('[SHOP] Could not check wealth status:', e.message);
+            }
+            
+            // Track spending (simple session tracking for now)
+            if (!this.playerSpending) {
+                this.playerSpending = new Map();
+            }
+            context.totalSpent = this.playerSpending.get(userId) || 0;
+            
+            // Determine customer type based on spending
+            if (context.totalSpent > 10000) {
+                context.customerType = 'vip';
+            } else if (context.totalSpent > 1000) {
+                context.customerType = 'regular';
+            } else if (context.totalSpent > 100) {
+                context.customerType = 'returning';
+            } else {
+                context.customerType = 'new';
+            }
+            
+            return context;
+        } catch (error) {
+            console.error('[SHOP] Error getting player context:', error);
+            return {
+                money: currentMoney,
+                isRichest: false,
+                stats: {},
+                totalSpent: 0,
+                wealthTier: 'unknown'
+            };
+        }
+    }
+    
+    /**
+     * Track player spending
+     * @param {string} userId - User ID
+     * @param {number} amount - Amount spent
+     */
+    trackSpending(userId, amount) {
+        if (!this.playerSpending) {
+            this.playerSpending = new Map();
+        }
+        const current = this.playerSpending.get(userId) || 0;
+        this.playerSpending.set(userId, current + amount);
     }
     
     // Performance monitoring methods

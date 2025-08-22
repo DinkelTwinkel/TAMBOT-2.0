@@ -377,11 +377,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#2F4F4F", // Dark Slate Gray
         particleEffect: "shadow_trail",
         
-        maintenanceType: "social_activity",
-        maintenanceCost: 10, // Need 10 social interactions per cycle
+        maintenanceType: "movement_activity",
+        maintenanceCost: 500, // Need to move 500 tiles per cycle
         maintenanceDecayRate: 1,
-        requiresMaintenance: false, // This item doesn't require maintenance
-        maintenanceDescription: "These boots feed on social energy and connections.",
+        requiresMaintenance: true,
+        maintenanceDescription: "These boots must keep moving or they lose their shadow essence. Walk 500 tiles in mining to maintain their power.",
         
         specialEffects: [
             "25% chance to dodge any hazard",

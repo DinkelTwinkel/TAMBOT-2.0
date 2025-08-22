@@ -15,7 +15,11 @@ const {
     getChainMiningTargets
 } = require('./mining/uniqueItemBonuses');
 
-const { sendLegendaryAnnouncement } = require('../uniqueItemFinding');
+// Import legendary announcement system
+const sendLegendaryAnnouncement = require('../uniqueItemFinding').sendLegendaryAnnouncement || (async () => {
+    console.error('[LEGENDARY] sendLegendaryAnnouncement not found in exports');
+    return false;
+});
 
 // Import instance manager for preventing parallel execution
 const instanceManager = require('./instance-manager');
@@ -87,8 +91,16 @@ const {
 // Import unique item integration
 const { 
     processUniqueItemFinding,
-    updateMiningActivity
+    updateMiningActivity,
+    updateMovementActivity
 } = require('./mining/uniqueItemIntegration');
+
+// Import maintenance display
+const {
+    getMaintenanceWarnings,
+    shouldShowMaintenanceReminder,
+    formatMaintenanceTooltip
+} = require('./mining/maintenanceDisplay');
 
 // Enhanced Concurrency Manager with Instance Management
 class EnhancedConcurrencyManager {
@@ -266,6 +278,11 @@ const healthMetrics = {
 
 // Track recent movements to prevent straight-line behavior
 const playerMovementHistory = new Map();
+
+// Track legendary/unique cooldowns per player
+const legendaryFindCooldowns = new Map();
+const LEGENDARY_COOLDOWN = 30 * 60 * 1000; // 30 minutes
+const UNIQUE_COOLDOWN = 45 * 60 * 1000; // 45 minutes
 
 // Enhanced cache management with size limits
 function addToCache(cache, key, value, maxSize = MAX_CACHE_SIZE) {
@@ -516,16 +533,46 @@ function getRandomFloorTile(mapData) {
 // Enhanced mining system with power level filtering and error handling
 async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency) {
     try {
+        // Tier weight multipliers - makes legendaries much rarer
+        const tierMultipliers = {
+            common: 1.0,
+            uncommon: 0.5,
+            rare: 0.2,
+            epic: 0.05,
+            legendary: 0.01,  // 1% of common weight
+            unique: 0.005,    // 0.5% of common weight
+            mythic: 0.001     // 0.1% of common weight
+        };
+        
         let eligibleItems = availableItems.filter(item => {
+            // Treasure chest tiles no longer spawn - remove this logic
             if (tileType === TILE_TYPES.TREASURE_CHEST) {
-                return item.tier === 'epic' || item.tier === 'legendary';
+                // Legacy code - treasure chests disabled
+                return false;
             } else if (tileType === TILE_TYPES.RARE_ORE) {
+                // REVERSED LOGIC - Higher power levels have LOWER legendary chance
+                const roll = Math.random();
                 if (powerLevel <= 2) {
-                    return item.tier !== 'common';
+                    // Low level: mostly common/uncommon
+                    if (roll < 0.4) return item.tier === 'common';
+                    else if (roll < 0.7) return item.tier === 'uncommon';
+                    else if (roll < 0.9) return item.tier === 'rare';
+                    else if (roll < 0.98) return item.tier === 'epic';
+                    else return item.tier === 'legendary';
                 } else if (powerLevel <= 4) {
-                    return item.tier === 'rare' || item.tier === 'epic' || item.tier === 'legendary';
+                    // Mid level: balanced distribution
+                    if (roll < 0.3) return item.tier === 'common';
+                    else if (roll < 0.5) return item.tier === 'uncommon';
+                    else if (roll < 0.75) return item.tier === 'rare';
+                    else if (roll < 0.95) return item.tier === 'epic';
+                    else return item.tier === 'legendary';
                 } else {
-                    return item.tier === 'epic' || item.tier === 'legendary';
+                    // High level: mostly rare/epic, legendary is still rare
+                    if (roll < 0.1) return item.tier === 'common';
+                    else if (roll < 0.25) return item.tier === 'uncommon';
+                    else if (roll < 0.6) return item.tier === 'rare';
+                    else if (roll < 0.97) return item.tier === 'epic';
+                    else return item.tier === 'legendary'; // Only 3% chance
                 }
             } else {
                 return true;
@@ -536,12 +583,18 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             eligibleItems = availableItems;
         }
         
-        const totalWeight = eligibleItems.reduce((sum, item) => sum + item.baseWeight, 0);
+        // Apply tier multipliers to weights
+        const weightedItems = eligibleItems.map(item => ({
+            ...item,
+            adjustedWeight: item.baseWeight * (tierMultipliers[item.tier] || 0.1)
+        }));
+        
+        const totalWeight = weightedItems.reduce((sum, item) => sum + item.adjustedWeight, 0);
         let random = Math.random() * totalWeight;
         
-        let selectedItem = eligibleItems[0];
-        for (const item of eligibleItems) {
-            random -= item.baseWeight;
+        let selectedItem = weightedItems[0];
+        for (const item of weightedItems) {
+            random -= item.adjustedWeight;
             if (random <= 0) {
                 selectedItem = item;
                 break;
@@ -550,22 +603,63 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         
         let quantity = 1;
         
+        // REDUCED multipliers with hard caps
         if (miningPower > 0) {
-            const maxBonus = Math.min(miningPower, 4);
+            const maxBonus = Math.min(miningPower * 0.5, 2); // Cap at 2x instead of 4x
             quantity = 1 + Math.floor(Math.random() * maxBonus);
         }
         
         if (luckStat && luckStat > 0) {
-            const bonusChance = Math.min(0.6, luckStat * 0.08);
+            const bonusChance = Math.min(0.3, luckStat * 0.04); // Reduced from 0.6 and 0.08
             if (Math.random() < bonusChance) {
-                quantity += Math.floor(1 + Math.random() * 3);
+                quantity += Math.floor(1 + Math.random() * 2); // Reduced from 3
             }
         }
         
         if (tileType === TILE_TYPES.RARE_ORE) {
-            quantity *= 2;
-        } else if (tileType === TILE_TYPES.TREASURE_CHEST) {
-            quantity = Math.max(quantity, 3);
+            quantity *= 1.5; // Reduced from 2x
+        }
+        
+        // Apply tier-based quantity caps
+        const quantityCaps = {
+            common: 20,
+            uncommon: 15,
+            rare: 10,
+            epic: 5,
+            legendary: 2,  // Max 2 legendary items at once
+            unique: 1,      // Only 1 unique at a time
+            mythic: 1       // Only 1 mythic at a time
+        };
+        
+        quantity = Math.min(quantity, quantityCaps[selectedItem.tier] || 5);
+        
+        // Check cooldown for legendary/unique items
+        if (selectedItem.tier === 'legendary' || selectedItem.tier === 'unique' || selectedItem.tier === 'mythic') {
+            const playerId = member.id;
+            const cooldownKey = `${playerId}_${selectedItem.tier}`;
+            const lastFind = legendaryFindCooldowns.get(cooldownKey) || 0;
+            const cooldownTime = selectedItem.tier === 'unique' ? UNIQUE_COOLDOWN : LEGENDARY_COOLDOWN;
+            
+            if (Date.now() - lastFind < cooldownTime) {
+                // Downgrade to a lower tier
+                const downgradeTiers = {
+                    mythic: 'legendary',
+                    legendary: 'epic',
+                    unique: 'epic'
+                };
+                
+                const downgradeTargetTier = downgradeTiers[selectedItem.tier];
+                const downgradeOptions = availableItems.filter(item => item.tier === downgradeTargetTier);
+                
+                if (downgradeOptions.length > 0) {
+                    selectedItem = downgradeOptions[Math.floor(Math.random() * downgradeOptions.length)];
+                    // Recalculate quantity for downgraded item
+                    quantity = Math.min(quantity, quantityCaps[selectedItem.tier] || 5);
+                }
+            } else {
+                // Update cooldown
+                legendaryFindCooldowns.set(cooldownKey, Date.now());
+            }
         }
         
         const enhancedValue = Math.floor(selectedItem.value * efficiency.valueMultiplier);
@@ -583,13 +677,43 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
     }
 }
 
-// Enhanced treasure generation with power level requirements
+// Enhanced treasure generation with power level requirements and rarity weights
 async function generateTreasure(powerLevel, efficiency) {
     try {
         const availableTreasures = getAvailableTreasures(powerLevel);
         
-        if (Math.random() < efficiency.treasureChance && availableTreasures.length > 0) {
-            const treasure = availableTreasures[Math.floor(Math.random() * availableTreasures.length)];
+        // Reduced treasure chance - make exploration bonuses rarer
+        const adjustedTreasureChance = efficiency.treasureChance * 0.3; // 30% of original chance
+        
+        if (Math.random() < adjustedTreasureChance && availableTreasures.length > 0) {
+            // Apply tier weights to treasure selection too
+            const tierWeights = {
+                common: 1.0,
+                uncommon: 0.5,
+                rare: 0.2,
+                epic: 0.05,
+                legendary: 0.01,
+                unique: 0.005,
+                mythic: 0.001
+            };
+            
+            const weightedTreasures = availableTreasures.map(t => ({
+                ...t,
+                adjustedWeight: (t.baseWeight || 1) * (tierWeights[t.tier] || 0.1)
+            }));
+            
+            const totalWeight = weightedTreasures.reduce((sum, t) => sum + t.adjustedWeight, 0);
+            let random = Math.random() * totalWeight;
+            
+            let treasure = weightedTreasures[0];
+            for (const t of weightedTreasures) {
+                random -= t.adjustedWeight;
+                if (random <= 0) {
+                    treasure = t;
+                    break;
+                }
+            }
+            
             const enhancedValue = Math.floor(treasure.value * efficiency.valueMultiplier);
             
             return {
@@ -1486,6 +1610,17 @@ module.exports = async (channel, dbEntry, json, client) => {
                 newPlayers.push(member);
                 const powerLevelConfig = POWER_LEVEL_CONFIG[serverPowerLevel];
                 eventLogs.push(`👋 ${member.displayName} joined the ${powerLevelConfig?.name || 'Expedition'}!`);
+                
+                // Check for maintenance warnings for new player
+                try {
+                    const warnings = await getMaintenanceWarnings(member.id);
+                    if (warnings.length > 0) {
+                        // Only show the most critical warning
+                        eventLogs.push(warnings[0]);
+                    }
+                } catch (err) {
+                    console.error(`[MINING] Error checking maintenance for ${member.displayName}:`, err);
+                }
             }
         }
         
@@ -1770,7 +1905,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 break;
             }
             
-            if (Math.random() < efficiency.treasureChance) {
+            // Reduced random treasure generation while mining
+            if (Math.random() < efficiency.treasureChance * 0.2) { // Only 20% of original chance
                 const treasure = await generateTreasure(powerLevel, efficiency);
                 if (treasure) {
                     await addItemToMinecart(dbEntry, member.id, treasure.itemId, 1);
@@ -1807,8 +1943,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 if (checkY >= 0 && checkY < mapData.height && checkX >= 0 && checkX < mapData.width) {
                     const tile = mapData.tiles[checkY][checkX];
                     if (tile && (tile.type === TILE_TYPES.WALL_WITH_ORE || 
-                               tile.type === TILE_TYPES.RARE_ORE ||
-                               tile.type === TILE_TYPES.TREASURE_CHEST)) {
+                               tile.type === TILE_TYPES.RARE_ORE)) {
                         adjacentTarget = { x: checkX, y: checkY, tile };
                         break;
                     }
@@ -1829,8 +1964,23 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         finalValue = Math.floor(item.value * bonus);
                     }
                     
-                    finalQuantity = applyDoubleOreBonus(finalQuantity, uniqueBonuses.doubleOreChance, member, eventLogs);
-                    finalQuantity = Math.floor(finalQuantity * uniqueBonuses.lootMultiplier);
+                    // Apply bonuses but with caps based on tier
+                    // Reduce double ore chance based on maintenance
+                    const effectiveDoubleOreChance = uniqueBonuses.doubleOreChance * 0.5; // Apply nerf from drop rate reduction
+                    finalQuantity = applyDoubleOreBonus(finalQuantity, effectiveDoubleOreChance, member, eventLogs);
+                    finalQuantity = Math.floor(finalQuantity * Math.min(1.5, uniqueBonuses.lootMultiplier)); // Cap loot multiplier at 1.5x
+                    
+                    // Re-apply tier-based caps after all multipliers
+                    const finalQuantityCaps = {
+                        common: 25,
+                        uncommon: 20,
+                        rare: 12,
+                        epic: 6,
+                        legendary: 3,
+                        unique: 1,
+                        mythic: 1
+                    };
+                    finalQuantity = Math.min(finalQuantity, finalQuantityCaps[item.tier] || 10);
                     
                     await addItemToMinecart(dbEntry, member.id, item.itemId, finalQuantity);
                     
@@ -1839,10 +1989,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     wallsBroken++;
                     
                     let findMessage;
-                    if (tile.type === TILE_TYPES.TREASURE_CHEST) {
-                        findMessage = `💍 ${member.displayName} discovered treasure! Found『 ${item.name} x ${finalQuantity} 』!`;
-                        treasuresFound++;
-                    } else if (tile.type === TILE_TYPES.RARE_ORE) {
+                    // Treasure chests no longer spawn
+                    if (tile.type === TILE_TYPES.RARE_ORE) {
                         findMessage = `💎 ${member.displayName} struck rare ore! Harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
                     } else {
                         findMessage = `⛏️ ${member.displayName} harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
@@ -1878,28 +2026,59 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     
                     eventLogs.push(findMessage);
                     
+                    // Add maintenance warning if needed
+                    if (bestPickaxe && isUniquePickaxe) {
+                        if (uniqueBonuses.uniqueItems.length > 0) {
+                            const uniqueItem = uniqueBonuses.uniqueItems[0];
+                            if (uniqueItem.maintenanceRatio < 0.5) {
+                                const percent = Math.round(uniqueItem.maintenanceRatio * 100);
+                                if (uniqueItem.maintenanceRatio < 0.3) {
+                                    eventLogs.push(`⚠️ ${bestPickaxe.name} at ${percent}% maintenance - CRITICAL!`);
+                                } else {
+                                    eventLogs.push(`⚠️ ${bestPickaxe.name} needs maintenance (${percent}%)`);
+                                }
+                            }
+                        }
+                    }
+                    
                     await updateMiningActivity(member.id, 1);
                     
-                    const itemFind = await processUniqueItemFinding(
-                        member,
-                        'mining',
-                        powerLevel,
-                        luckStat,
-                        null
-                    );
+                    // RARE unique item finding - only 0.1% chance instead of every time
+                    const uniqueFindChance = 0.001; // 0.1% base chance
+                    const luckBonus = Math.min(0.002, luckStat * 0.0001); // Max +0.2% from luck
                     
-                    if (itemFind) {
-                        eventLogs.push(itemFind.message);
-                            // NEW: Check for legendary announcement
-                            if (itemFind.systemAnnouncement && itemFind.systemAnnouncement.enabled) {
-                                // Send the legendary announcement to all channels
-                                await sendLegendaryAnnouncement(
-                                    client,  // You'll need to pass the client from the main function
-                                    channel.guild.id,
-                                    itemFind,
-                                    member.displayName
-                                );
-                            }
+                    if (Math.random() < (uniqueFindChance + luckBonus)) {
+                        const itemFind = await processUniqueItemFinding(
+                            member,
+                            'mining',
+                            powerLevel,
+                            luckStat,
+                            null
+                        );
+                        
+                        if (itemFind) {
+                            eventLogs.push(itemFind.message);
+                                // Check for legendary announcement
+                                if (itemFind.systemAnnouncement && itemFind.systemAnnouncement.enabled) {
+                                    // Send the legendary announcement to all channels
+                                    try {
+                                        await sendLegendaryAnnouncement(
+                                            client,
+                                            channel.guild.id,
+                                            itemFind,
+                                            member.displayName
+                                        );
+                                        console.log(`[LEGENDARY] Announcement sent for ${itemFind.item.name} found by ${member.displayName}`);
+                                    } catch (err) {
+                                        console.error('[LEGENDARY] Failed to send announcement:', err);
+                                    }
+                                }
+                                
+                                // Show initial maintenance status for new legendary
+                                if (itemFind.type === 'unique' && itemFind.item) {
+                                    eventLogs.push(`🔧 ${itemFind.item.name} starts at 100% maintenance`);
+                                }
+                        }
                     }
                     
                     if (uniqueBonuses.areaDamageChance > 0) {
@@ -1939,10 +2118,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     }
                 } else {
                     let findMessage;
-                    if (tile.type === TILE_TYPES.TREASURE_CHEST) {
-                        findMessage = `${member.displayName} discovered treasure! But failed to open it...)`;
-                        treasuresFound++;
-                    } else if (tile.type === TILE_TYPES.RARE_ORE) {
+                    // Treasure chests no longer spawn
+                    if (tile.type === TILE_TYPES.RARE_ORE) {
                         findMessage = `${member.displayName} struck rare ore! But they were parried! Wait what?)`;
                     } else {
                         findMessage = `${member.displayName} struck the ore wall but nothing happened...)`;
@@ -1952,7 +2129,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 continue;
             }
             
-            const visibleTargets = [TILE_TYPES.TREASURE_CHEST, TILE_TYPES.RARE_ORE, TILE_TYPES.WALL_WITH_ORE];
+            // Treasure chests no longer spawn - removed from targets
+            const visibleTargets = [TILE_TYPES.RARE_ORE, TILE_TYPES.WALL_WITH_ORE];
             const nearestTarget = findNearestTarget(position, teamVisibleTiles, mapData.tiles, visibleTargets);
             
             let direction;
@@ -2017,27 +2195,38 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             const targetTile = mapData.tiles[newY] && mapData.tiles[newY][newX];
             if (!targetTile) continue;
             
-            if ([TILE_TYPES.WALL, TILE_TYPES.REINFORCED_WALL, TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE, TILE_TYPES.TREASURE_CHEST].includes(targetTile.type)) {
+            if ([TILE_TYPES.WALL, TILE_TYPES.REINFORCED_WALL, TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
                 const canBreak = await canBreakTile(member.id, miningPower, targetTile);
                 if (canBreak) {
                     if (Math.random() < 0.15 && targetTile.type === TILE_TYPES.WALL) {
                         continue;
                     }
-                    if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE, TILE_TYPES.TREASURE_CHEST].includes(targetTile.type)) {
+                    if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
                         const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, targetTile.type, availableItems, efficiency);
                         
                         let finalQuantity = quantity;
                         if (serverModifiers.itemBonuses && serverModifiers.itemBonuses[item.itemId]) {
-                            finalQuantity = Math.floor(quantity * serverModifiers.itemBonuses[item.itemId]);
+                            const modifier = Math.min(1.5, serverModifiers.itemBonuses[item.itemId]); // Cap server modifier at 1.5x
+                            finalQuantity = Math.floor(quantity * modifier);
                         }
+                        
+                        // Apply tier-based caps for wall mining during movement
+                        const movementQuantityCaps = {
+                            common: 15,
+                            uncommon: 10,
+                            rare: 8,
+                            epic: 4,
+                            legendary: 2,
+                            unique: 1,
+                            mythic: 1
+                        };
+                        finalQuantity = Math.min(finalQuantity, movementQuantityCaps[item.tier] || 8);
                         
                         await addItemToMinecart(dbEntry, member.id, item.itemId, finalQuantity);
                         
                         let findMessage;
-                        if (targetTile.type === TILE_TYPES.TREASURE_CHEST) {
-                            findMessage = `👑 ${member.displayName} opened treasure! Found『 ${item.name} x${finalQuantity} 』!`;
-                            treasuresFound++;
-                        } else if (targetTile.type === TILE_TYPES.RARE_ORE) {
+                        // Treasure chests no longer spawn
+                        if (targetTile.type === TILE_TYPES.RARE_ORE) {
                             findMessage = `💎 ${member.displayName} mined rare ore! Found『 ${item.name} x${finalQuantity} 』!`;
                         } else {
                             findMessage = `⛏️ ${member.displayName} harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
@@ -2053,9 +2242,28 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     wallsBroken++;
                 }
             } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
+                // Track movement for maintenance
+                const oldX = position.x;
+                const oldY = position.y;
                 position.x = newX;
                 position.y = newY;
                 mapChanged = true;
+                
+                // Only count as movement if actually moved to a different tile
+                if (oldX !== newX || oldY !== newY) {
+                    await updateMovementActivity(member.id, 1);
+                    
+                    // Show progress for movement-based maintenance items (like Shadowstep Boots)
+                    // Only show occasionally to avoid spam
+                    if (Math.random() < 0.02) { // 2% chance to show progress
+                        const hasMovementItem = uniqueBonuses.uniqueItems.some(item => 
+                            item.name && item.name.includes('Shadowstep')
+                        );
+                        if (hasMovementItem) {
+                            eventLogs.push(`👟 ${member.displayName}'s boots whisper through the shadows...`);
+                        }
+                    }
+                }
                 
                 if (hazardStorage.hasHazard(hazardsData, newX, newY)) {
                     // Check sight stat first - removes hazard without triggering
@@ -2101,7 +2309,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         const foundItems = [];
                         
                         for (let i = 0; i < itemCount; i++) {
-                            const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, TILE_TYPES.TREASURE_CHEST, availableItems, efficiency);
+                            // Use RARE_ORE type since treasure chests no longer spawn
+                            const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, TILE_TYPES.RARE_ORE, availableItems, efficiency);
                             await addItemToMinecart(dbEntry, member.id, item.itemId, quantity);
                             foundItems.push(`${item.name} x${quantity}`);
                             totalValue += item.value * quantity;
@@ -2110,16 +2319,34 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         eventLogs.push(`💎 ${member.displayName} found ${hazard.type.replace('_', ' ')}! Got: ${foundItems.join(', ')}`);
                         treasuresFound++;
                         
-                        const treasureFind = await processUniqueItemFinding(
-                            member,
-                            'treasure',
-                            powerLevel,
-                            luckStat,
-                            null
-                        );
-                        
-                        if (treasureFind) {
-                            eventLogs.push(treasureFind.message);
+                        // Slightly higher chance for treasure finds, but still rare
+                        if (Math.random() < 0.005) { // 0.5% chance for treasure hazards
+                            const treasureFind = await processUniqueItemFinding(
+                                member,
+                                'treasure',
+                                powerLevel,
+                                luckStat,
+                                null
+                            );
+                            
+                            if (treasureFind) {
+                                eventLogs.push(treasureFind.message);
+                                
+                                // Check for legendary announcement for treasure finds too
+                                if (treasureFind.systemAnnouncement && treasureFind.systemAnnouncement.enabled) {
+                                    try {
+                                        await sendLegendaryAnnouncement(
+                                            client,
+                                            channel.guild.id,
+                                            treasureFind,
+                                            member.displayName
+                                        );
+                                        console.log(`[LEGENDARY] Treasure announcement sent for ${treasureFind.item.name}`);
+                                    } catch (err) {
+                                        console.error('[LEGENDARY] Failed to send treasure announcement:', err);
+                                    }
+                                }
+                            }
                         }
                         
                         hazardStorage.removeHazard(hazardsData, newX, newY);
@@ -2151,10 +2378,25 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     }
                 }
                 
-                if (Math.random() < EXPLORATION_BONUS_CHANCE * efficiency.speedMultiplier) {
-                    const bonusItems = availableItems.filter(item => item.tier === 'common');
+                // Exploration bonus - made much rarer and limited to common items
+                const explorationChance = (EXPLORATION_BONUS_CHANCE * efficiency.speedMultiplier) * 0.1; // 10% of original chance
+                if (Math.random() < explorationChance) {
+                    const bonusItems = availableItems.filter(item => item.tier === 'common' || item.tier === 'uncommon');
                     if (bonusItems.length > 0) {
-                        const bonusItem = bonusItems[Math.floor(Math.random() * bonusItems.length)];
+                        // Weight towards common items even for exploration
+                        const weights = bonusItems.map(item => item.tier === 'common' ? 10 : 1);
+                        const totalWeight = weights.reduce((a, b) => a + b, 0);
+                        let random = Math.random() * totalWeight;
+                        
+                        let bonusItem = bonusItems[0];
+                        for (let i = 0; i < bonusItems.length; i++) {
+                            random -= weights[i];
+                            if (random <= 0) {
+                                bonusItem = bonusItems[i];
+                                break;
+                            }
+                        }
+                        
                         eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
                         await addItemToMinecart(dbEntry, member.id, bonusItem.itemId, 1);
                     }
@@ -2190,6 +2432,7 @@ function cleanupAllChannels() {
     
     messageQueue.recentMessages.clear();
     playerMovementHistory.clear();
+    legendaryFindCooldowns.clear(); // Clear legendary cooldowns
     dbCache.clear();
     efficiencyCache.clear();
     healthMetrics.lastProcessed.clear();
@@ -2197,6 +2440,19 @@ function cleanupAllChannels() {
     healthMetrics.averageProcessingTime.clear();
     healthMetrics.stuckChannels.clear();
 }
+
+// Periodic cleanup of old cooldowns to prevent memory leaks
+setInterval(() => {
+    const now = Date.now();
+    const maxCooldown = Math.max(LEGENDARY_COOLDOWN, UNIQUE_COOLDOWN);
+    
+    // Clean up expired cooldowns
+    for (const [key, timestamp] of legendaryFindCooldowns.entries()) {
+        if (now - timestamp > maxCooldown * 2) { // Keep for 2x max cooldown
+            legendaryFindCooldowns.delete(key);
+        }
+    }
+}, 60 * 60 * 1000); // Run every hour
 
 // Set up periodic health check for all channels
 let healthCheckInterval = null;

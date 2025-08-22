@@ -37,6 +37,7 @@ class AIShopDialogueGenerator {
         };
         
         // Shop keeper opinions on The One Pick (5% chance to mention)
+// Note: THE ONE PICK is the ultimate mythic item that may not even exist
         this.onePickOpinions = {
             believer: [
                 "I'd stake my entire shop on The One Pick being real... seen too much to doubt.",
@@ -289,7 +290,7 @@ Respond with ONLY the dialogue or action, no quotation marks or attribution.`;
      * @param {number} quantity - Number of items purchased
      * @returns {Promise<string>} Generated dialogue
      */
-    async generatePurchaseDialogue(shop, item, price, buyer = {}, quantity = 1) {
+    async generatePurchaseDialogue(shop, item, price, buyer = {}, quantity = 1, playerContext = null) {
         try {
             const shopkeeper = shop.shopkeeper;
             if (!shopkeeper) {
@@ -301,13 +302,74 @@ Respond with ONLY the dialogue or action, no quotation marks or attribution.`;
             const isSmallPurchase = quantity === 1;
             const isModerateQuantity = quantity > 1 && quantity <= 5;
             
+            // Build customer profile string
+            let customerProfile = '';
+            if (playerContext) {
+                // Legendary status comes first - it's the most impressive
+                if (playerContext.hasMultipleLegendaries) {
+                    customerProfile += `\n⚡ LEGENDARY COLLECTOR - Owns ${playerContext.legendaryCount} legendary items!`;
+                    const legendaryNames = playerContext.legendaryItems.map(item => item.name).join(', ');
+                    customerProfile += `\n   Wielding: ${legendaryNames}`;
+                } else if (playerContext.hasLegendary) {
+                    customerProfile += `\n⚡ LEGENDARY OWNER - Possesses the ${playerContext.legendaryItems[0].name}!`;
+                    if (!playerContext.legendaryItems[0].wellMaintained) {
+                        customerProfile += ' (poorly maintained)';
+                    }
+                }
+                
+                // Special item mentions
+                if (playerContext.hasMidasBurden) {
+                    if (playerContext.midasBlessing === 0) {
+                        customerProfile += "\n🎲 Bearer of Midas' Burden - CURSED with terrible luck!";
+                    } else if (playerContext.midasBlessing === 100) {
+                        customerProfile += "\n🎲 Bearer of Midas' Burden - BLESSED with incredible fortune!";
+                    } else {
+                        customerProfile += "\n🎲 Bearer of the legendary Midas' Burden!";
+                    }
+                }
+                
+                // Wealth status
+                if (playerContext.isRichest) {
+                    customerProfile += '\n💰 THE RICHEST PLAYER IN THE SERVER!';
+                } else if (playerContext.wealthTier === 'wealthy') {
+                    customerProfile += '\n💰 Wealthy customer (top 3 richest).';
+                } else if (playerContext.wealthTier === 'rich') {
+                    customerProfile += '\n💰 Rich customer.';
+                }
+                
+                // Customer loyalty
+                if (playerContext.customerType === 'vip') {
+                    customerProfile += '\n⭐ VIP CUSTOMER - has spent over 10,000 coins in your shop!';
+                } else if (playerContext.customerType === 'regular') {
+                    customerProfile += '\n⭐ Regular customer - frequently shops here.';
+                }
+                
+                // Stats and power
+                if (playerContext.totalStatPower > 100) {
+                    customerProfile += '\n💪 Very powerful miner with exceptional stats.';
+                } else if (playerContext.hasHighStats) {
+                    customerProfile += '\n💪 Experienced miner with good equipment.';
+                }
+                
+                if (playerContext.stats.luck > 50 && !playerContext.hasMidasBurden) {
+                    customerProfile += '\n🍀 Extremely lucky individual!';
+                }
+                if (playerContext.stats.mining > 50) {
+                    customerProfile += '\n⛏️ Master miner!';
+                }
+            }
+            
             const prompt = `You are ${shopkeeper.name}, shopkeeper of ${shop.name}.
             
 Background: ${shopkeeper.bio}
 Personality: ${shopkeeper.personality}
+${customerProfile}
 
 A customer just purchased: ${quantity}x ${item.name} for ${price} coins total (${pricePerItem} each)
-${buyer.username ? `Customer name: ${buyer.username}` : ''}
+${buyer?.displayName ? `Customer name: "${buyer.displayName}"` : ''}
+${buyer?.username && buyer?.username !== buyer?.displayName ? `(username: ${buyer.username})` : ''}
+${playerContext ? `Customer wealth: ${playerContext.money} coins (${playerContext.wealthTier})` : ''}
+${playerContext && playerContext.totalSpent > 0 ? `Total spent in your shop: ${playerContext.totalSpent} coins` : ''}
 ${this.isPriceGood(item, pricePerItem) ? 'This was a good deal for you!' : 'This was at a discount.'}
 ${isBulkPurchase ? 'This is a BULK PURCHASE - react accordingly!' : ''}
 ${isSmallPurchase ? 'Just a single item.' : ''}
@@ -316,14 +378,37 @@ ${isModerateQuantity ? 'A moderate quantity purchase.' : ''}
 Generate a brief success dialogue (1 sentence) that:
 - Reflects your personality
 - MUST react to the quantity (${quantity} items) - mention if it's a lot, bulk order, etc.
-- Might comment on the bulk deal or total price
-- Sounds natural and conversational
-- Shows appropriate reaction to the purchase size
+${buyer?.displayName ? `- You MAY address the customer by name ("${buyer.displayName}") when it feels natural` : ''}
+${playerContext?.hasLegendary ? '- BE IN AWE of their legendary item(s) - show respect, fear, or greed based on personality' : ''}
+${playerContext?.hasMidasBurden ? '- Reference their cursed/blessed Midas item if appropriate' : ''}
+${playerContext?.hasMultipleLegendaries ? '- Express amazement at their legendary collection' : ''}
+${playerContext?.isRichest ? '- Acknowledge their wealth status or VIP treatment' : ''}
+${playerContext?.customerType === 'vip' ? '- Show appreciation for their loyalty' : ''}
+${playerContext?.wealthTier === 'poor' && quantity > 1 ? '- Maybe comment on them spending beyond their means' : ''}
+- Might comment on the bulk deal, their legendary status, or total price
+- Sounds natural and conversational - use their name sparingly, not every time
+- Shows appropriate reaction to legendary owners (awe, respect, jealousy, or suspicion based on your personality)
 
 Examples of reacting to quantity:
 - Bulk: "That's quite the haul!" or "Buying in bulk, smart move!" or "${quantity} of them? You're cleaning me out!"
 - Single: "Just the one?" or "A fine choice!"
 - Moderate: "${quantity} should last you a while!" or "Good stock for your adventures!"
+
+Examples of using customer names naturally:
+- VIP: "Welcome back, DragonSlayer! Your usual bulk order?"
+- Legendary: "Lord Thunder, with Earthshaker in hand, buying more supplies?"
+- Wealthy: "Ah, GoldKing returns! My finest wares await!"
+- Poor: "Careful with your coins, young Miner..."
+- First time: "Haven't seen you before... what brings you to my shop?"
+
+Examples of reacting to legendary status:
+- Awe: "By the stones! Is that really Blue Breeze? An honor to serve you, WindMaster!"
+- Respect: "Lord Titan, wielder of Earthshaker, my shop is honored!"
+- Greed: "With Greed's Embrace on your chest, GoldHeart, surely you can afford everything!"
+- Suspicion: "How did you acquire the Whisper of the Void, stranger? That was lost centuries ago!"
+- Fear: "Y-yes, Your Majesty! The Crown speaks, I obey!"
+- Midas: "So YOU'RE the one, RichKing! Midas chose you as the wealthiest!"
+- Multiple: "THREE legendaries, MythKeeper? You're more museum than miner!"
 
 Respond with ONLY the dialogue with quotation marks`;
 
@@ -391,7 +476,7 @@ Respond with ONLY the dialogue, with quotation marks.`;
      * @param {number} quantity - Number of items being sold
      * @returns {Promise<string>} Generated dialogue
      */
-    async generateSellDialogue(shop, item, price, quantity = 1) {
+    async generateSellDialogue(shop, item, price, quantity = 1, playerContext = null, seller = null) {
         try {
             const shopkeeper = shop.shopkeeper;
             if (!shopkeeper) {
@@ -403,12 +488,53 @@ Respond with ONLY the dialogue, with quotation marks.`;
             const isSingleItem = quantity === 1;
             const isModerateQuantity = quantity > 1 && quantity <= 5;
             
+            // Build customer profile for selling
+            let customerProfile = '';
+            if (playerContext) {
+                // Legendary status - most notable
+                if (playerContext.hasMultipleLegendaries) {
+                    customerProfile += `\n⚡ LEGENDARY COLLECTOR with ${playerContext.legendaryCount} legendary items is selling to you!`;
+                    const legendaryNames = playerContext.legendaryItems.map(item => item.name).join(', ');
+                    customerProfile += `\n   They possess: ${legendaryNames}`;
+                } else if (playerContext.hasLegendary) {
+                    customerProfile += `\n⚡ Bearer of the legendary ${playerContext.legendaryItems[0].name} is selling to you!`;
+                }
+                
+                if (playerContext.hasMidasBurden) {
+                    if (playerContext.midasBlessing === 0) {
+                        customerProfile += "\n🎲 Cursed by Midas' Burden - desperately unlucky!";
+                    } else if (playerContext.midasBlessing === 100) {
+                        customerProfile += "\n🎲 Blessed by Midas' Burden - incredibly fortunate!";
+                    }
+                }
+                
+                // Wealth context for selling
+                if (playerContext.isRichest) {
+                    customerProfile += '\n💰 THE RICHEST PLAYER selling to you (suspicious?)!';
+                } else if (playerContext.wealthTier === 'poor') {
+                    customerProfile += '\n💰 Poor customer, probably needs the money.';
+                } else if (playerContext.wealthTier === 'wealthy') {
+                    customerProfile += '\n💰 Wealthy customer (why are they selling?).';
+                }
+                
+                if (playerContext.stats.mining > 50) {
+                    customerProfile += '\n⛏️ Master miner - probably has quality goods.';
+                }
+                if (playerContext.customerType === 'vip') {
+                    customerProfile += '\n⭐ Your best customer is selling back to you.';
+                }
+            }
+            
             const prompt = `You are ${shopkeeper.name}, shopkeeper of ${shop.name}.
             
 Background: ${shopkeeper.bio}
 Personality: ${shopkeeper.personality}
+${customerProfile}
 
 A customer just sold you: ${quantity}x ${item.name} for ${price} coins total (${pricePerItem} each)
+${seller?.displayName ? `Seller name: "${seller.displayName}"` : ''}
+${seller?.username && seller?.username !== seller?.displayName ? `(username: ${seller.username})` : ''}
+${playerContext ? `Customer current wealth: ${playerContext.money} coins` : ''}
 ${this.isGoodBuy(item, pricePerItem) ? 'This was a great deal for your shop!' : 'This was a fair price.'}
 ${isBulkSale ? 'This is a BULK SALE - they are offloading a lot of items!' : ''}
 ${isSingleItem ? 'Just a single item.' : ''}
@@ -417,13 +543,35 @@ ${isModerateQuantity ? 'A moderate quantity.' : ''}
 Generate a brief dialogue (1 sentence) for accepting this sale that:
 - Reflects your personality
 - MUST react to the quantity (${quantity} items) being sold
-- Might comment on why they're selling so many/few
-- Shows your business sense and reaction to bulk sales
+${seller?.displayName ? `- You MAY address the seller by name ("${seller.displayName}") when it feels natural` : ''}
+${playerContext?.hasLegendary ? '- REACT to a legendary hero selling items - show awe, suspicion, or opportunism' : ''}
+${playerContext?.hasMultipleLegendaries ? '- Express shock that someone with multiple legendaries needs to sell' : ''}
+${playerContext?.hasMidasBurden && playerContext?.midasBlessing === 0 ? '- Maybe reference their cursed luck' : ''}
+${playerContext?.isRichest ? '- Wonder why the richest player needs to sell items' : ''}
+${playerContext?.wealthTier === 'poor' ? '- Might show sympathy or take advantage based on personality' : ''}
+${playerContext?.customerType === 'vip' ? '- Acknowledge their loyalty even when buying from them' : ''}
+- Might comment on why a legendary hero is selling, their financial situation, or the irony
+- Use their name sparingly for natural conversation
+- Shows your business sense and reaction to legendary owners selling items
 
 Examples of reacting to quantity:
-- Bulk sale: "${quantity} of them? Business must be good!" or "I'll take all ${quantity} off your hands!" or "That's a lot of ${item.name}, you clearing out?"
+- Bulk sale: "${quantity} of them? Business must be good!" or "I'll take all ${quantity} off your hands!"
 - Single: "Just the one? I'll take it." or "I can work with that."
-- Moderate: "${quantity} pieces, reasonable amount." or "I can move ${quantity} of these."
+
+Examples of using seller names naturally:
+- Legendary: "ShadowLord, why would you need to sell with all those legendaries?"
+- Poor: "Times tough, MinerBob? I'll give you a fair price."
+- VIP: "Even my best customer needs coin sometimes, eh GemQueen?"
+- Suspicious: "Interesting goods you're selling, DarkMiner..."
+
+Examples of reacting to legendary owners selling:
+- Suspicious: "Why would the bearer of Blue Breeze need my coins, StormCaller?"
+- Opportunistic: "Ore mined by Earthshaker? I'll sell it for triple, thank you IronFist!"
+- Sympathetic: "Even with Phoenix Feather, times are tough FireBird? Fair price, friend."
+- Awestruck: "The legendary ShadowWalker is selling to ME?"
+- Mocking: "The mighty CrownBearer reduced to peddling scraps?"
+- Midas Cursed: "Ah GoldenOne, Midas' curse strikes again! Bad luck today?"
+- Multiple legendaries: "LegendKeeper, with all those legendaries, why sell common ore?"
 
 Respond with ONLY the dialogue, with quotation marks.`;
 

@@ -36,7 +36,7 @@ const uniqueItemSchema = new Schema({
     maintenanceType: { 
         type: String, 
         required: true,
-        enum: ['coins', 'mining_activity', 'voice_activity', 'combat_activity', 'social_activity', 'wealthiest']
+        enum: ['coins', 'mining_activity', 'voice_activity', 'combat_activity', 'social_activity', 'wealthiest', 'movement_activity']
     },
     
     // Cost/requirement for maintenance (interpreted based on type)
@@ -69,10 +69,12 @@ const uniqueItemSchema = new Schema({
         lastVoiceJoin: { type: Date },
         lastCombatTime: { type: Date },
         lastSocialInteraction: { type: Date },
+        lastMovementTime: { type: Date },
         miningBlocksThisCycle: { type: Number, default: 0 },
         voiceMinutesThisCycle: { type: Number, default: 0 },
         combatWinsThisCycle: { type: Number, default: 0 },
-        socialInteractionsThisCycle: { type: Number, default: 0 }
+        socialInteractionsThisCycle: { type: Number, default: 0 },
+        tilesMovedThisCycle: { type: Number, default: 0 }
     },
     
     // History tracking
@@ -150,7 +152,8 @@ uniqueItemSchema.methods.reduceMaintenance = function(amount = 1) {
             miningBlocksThisCycle: 0,
             voiceMinutesThisCycle: 0,
             combatWinsThisCycle: 0,
-            socialInteractionsThisCycle: 0
+            socialInteractionsThisCycle: 0,
+            tilesMovedThisCycle: 0
         };
     }
     
@@ -177,6 +180,7 @@ uniqueItemSchema.methods.performMaintenance = async function(userId, cost) {
     this.activityTracking.voiceMinutesThisCycle = 0;
     this.activityTracking.combatWinsThisCycle = 0;
     this.activityTracking.socialInteractionsThisCycle = 0;
+        this.activityTracking.tilesMovedThisCycle = 0;
     
     return this.save();
 };

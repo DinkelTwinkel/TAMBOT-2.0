@@ -27,17 +27,56 @@ async function calculateEffectivenessBonus(memberId, baseSalary) {
         const playerData = await getPlayerStats(memberId);
         const speedStat = playerData.stats.speed || 0;
         const sightStat = playerData.stats.sight || 0;
+        const luckStat = playerData.stats.luck || 0;
+        const miningStat = playerData.stats.mining || 0;
         
-        // Combined effectiveness from speed and sight
-        // Each stat point adds 1% effectiveness
-        const effectivenessMultiplier = 1 + ((speedStat + sightStat) / 100);
+        // Speed affects service efficiency (0.5% per point, max 50% bonus)
+        // - Faster order taking and delivery
+        // - Ability to handle rush hours
+        // - Quick table turnaround
+        const speedBonus = Math.min(speedStat * 0.005, 0.5);
+        
+        // Sight affects customer satisfaction (0.4% per point, max 40% bonus)
+        // - Notice when customers need refills
+        // - Spot big tippers and VIPs
+        // - Remember regular customer preferences
+        const sightBonus = Math.min(sightStat * 0.004, 0.4);
+        
+        // Luck affects tips and special events (0.2% per point, max 20% bonus)
+        // - Chance for generous tips
+        // - Attract wealthy customers
+        const luckBonus = Math.min(luckStat * 0.002, 0.2);
+        
+        // Mining strength helps with heavy lifting (0.1% per point, max 10% bonus)
+        // - Carrying multiple orders
+        // - Moving kegs and supplies
+        const strengthBonus = Math.min(miningStat * 0.001, 0.1);
+        
+        // Calculate total multiplier
+        const effectivenessMultiplier = 1 + speedBonus + sightBonus + luckBonus + strengthBonus;
         const effectivenessBonus = Math.floor(baseSalary * (effectivenessMultiplier - 1));
+        
+        // Calculate performance tier for dialogue
+        let performanceTier = 'average';
+        const totalStats = speedStat + sightStat;
+        if (totalStats >= 150) performanceTier = 'legendary';
+        else if (totalStats >= 100) performanceTier = 'excellent';
+        else if (totalStats >= 50) performanceTier = 'good';
+        else if (totalStats >= 25) performanceTier = 'decent';
+        else if (totalStats < 10) performanceTier = 'poor';
         
         return {
             bonus: effectivenessBonus,
             speedStat,
             sightStat,
-            multiplier: effectivenessMultiplier
+            luckStat,
+            miningStat,
+            speedBonus: Math.floor(speedBonus * 100),
+            sightBonus: Math.floor(sightBonus * 100),
+            luckBonus: Math.floor(luckBonus * 100),
+            strengthBonus: Math.floor(strengthBonus * 100),
+            multiplier: effectivenessMultiplier,
+            performanceTier
         };
     } catch (error) {
         console.error('[InnKeeper] Error calculating effectiveness:', error);
@@ -45,7 +84,14 @@ async function calculateEffectivenessBonus(memberId, baseSalary) {
             bonus: 0,
             speedStat: 0,
             sightStat: 0,
-            multiplier: 1
+            luckStat: 0,
+            miningStat: 0,
+            speedBonus: 0,
+            sightBonus: 0,
+            luckBonus: 0,
+            strengthBonus: 0,
+            multiplier: 1,
+            performanceTier: 'average'
         };
     }
 }
@@ -317,7 +363,17 @@ async function distributeProfits(channel, dbEntry) {
                 payoutSummary = `✨ **${soloPayout.member.user.username}'s Shift** ✨\n`;
                 payoutSummary += `\`\`\`\n`;
                 payoutSummary += `Base Earnings: ${soloPayout.base}c | Tips: ${soloPayout.tips}c\n`;
-                payoutSummary += `Salary: ${soloPayout.salary}c | Effectiveness Bonus: ${soloPayout.effectivenessBonus}c\n`;
+                payoutSummary += `Salary: ${soloPayout.salary}c | Effectiveness: +${soloPayout.effectivenessBonus}c\n`;
+                payoutSummary += `\nPerformance Breakdown:\n`;
+                payoutSummary += `  Speed (${soloPayout.speedStat}): +${soloPayout.speedBonus}% service\n`;
+                payoutSummary += `  Sight (${soloPayout.sightStat}): +${soloPayout.sightBonus}% attention\n`;
+                if (soloPayout.luckBonus > 0) {
+                    payoutSummary += `  Luck (${soloPayout.luckStat}): +${soloPayout.luckBonus}% fortune\n`;
+                }
+                if (soloPayout.strengthBonus > 0) {
+                    payoutSummary += `  Mining (${soloPayout.miningStat}): +${soloPayout.strengthBonus}% strength\n`;
+                }
+                payoutSummary += `\nPerformance Rating: ${soloPayout.performanceTier.toUpperCase()}\n`;
                 payoutSummary += `\`\`\`\n`;
                 payoutSummary += `\n**Total Payout:**  『 **${soloPayout.total}c** 』\n`;
             } else if (employeeOfTheDay) {
@@ -326,7 +382,17 @@ async function distributeProfits(channel, dbEntry) {
                 payoutSummary += `**${employeePayout.member.user.username}** has been selected!\n\n`;
                 payoutSummary += `\`\`\`\n`;
                 payoutSummary += `Base Earnings: ${employeePayout.base}c | Tips: ${employeePayout.tips}c\n`;
-                payoutSummary += `Salary: ${employeePayout.salary}c | Bonus: ${employeePayout.effectivenessBonus}c\n`;
+                payoutSummary += `Salary: ${employeePayout.salary}c | Effectiveness: +${employeePayout.effectivenessBonus}c\n`;
+                payoutSummary += `\nPerformance Breakdown:\n`;
+                payoutSummary += `  Speed (${employeePayout.speedStat}): +${employeePayout.speedBonus}% service\n`;
+                payoutSummary += `  Sight (${employeePayout.sightStat}): +${employeePayout.sightBonus}% attention\n`;
+                if (employeePayout.luckBonus > 0) {
+                    payoutSummary += `  Luck (${employeePayout.luckStat}): +${employeePayout.luckBonus}% fortune\n`;
+                }
+                if (employeePayout.strengthBonus > 0) {
+                    payoutSummary += `  Mining (${employeePayout.miningStat}): +${employeePayout.strengthBonus}% strength\n`;
+                }
+                payoutSummary += `\nPerformance Rating: ${employeePayout.performanceTier.toUpperCase()}\n`;
                 payoutSummary += `\`\`\`\n`;
                 payoutSummary += `\n**Total Payout:**  『 **${employeePayout.total}c** 』 *(2x bonus!)*\n`;
             }
@@ -387,7 +453,16 @@ async function distributeProfits(channel, dbEntry) {
                 
                 itemSalesList += `${payout.member.user.username}:\n`;
                 itemSalesList += `  Base: ${payout.base}c | Tips: ${payout.tips}c\n`;
-                itemSalesList += `  Effectiveness: +${payout.effectivenessBonus}c (Speed: ${payout.speedStat}, Sight: ${payout.sightStat})\n`;
+                itemSalesList += `  Effectiveness Bonus: +${payout.effectivenessBonus}c\n`;
+                itemSalesList += `    Speed (${payout.speedStat}): +${payout.speedBonus}% service\n`;
+                itemSalesList += `    Sight (${payout.sightStat}): +${payout.sightBonus}% attention\n`;
+                if (payout.luckBonus > 0) {
+                    itemSalesList += `    Luck (${payout.luckStat}): +${payout.luckBonus}% fortune\n`;
+                }
+                if (payout.strengthBonus > 0) {
+                    itemSalesList += `    Mining (${payout.miningStat}): +${payout.strengthBonus}% strength\n`;
+                }
+                itemSalesList += `  Performance: ${payout.performanceTier.toUpperCase()}\n`;
                 itemSalesList += `  TOTAL: ${payout.total}c\n`;
                 itemSalesList += '─────\n';
             }

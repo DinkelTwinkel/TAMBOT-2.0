@@ -1,4 +1,10 @@
-// patterns/gachaModes/mining/uniqueItemBonuses.js
+            case 10: // Midas' Burden
+                // Midas' effect is handled specially in calculatePlayerStat
+                // But we still apply the loot multiplier
+                bonuses.lootMultiplier *= (1 + 0.5 * maintenanceRatio);
+                bonuses.doubleOreChance += 0.1 * maintenanceRatio;
+                // Note: The luck multiplier (0x or 100x) is handled in stats calculation
+                break;// patterns/gachaModes/mining/uniqueItemBonuses.js
 // Handles unique item special abilities and bonuses in mining
 
 const { getUniqueItemById } = require('../../../data/uniqueItemsSheet');
@@ -38,26 +44,59 @@ function parseUniqueItemBonuses(equippedItems) {
     for (const [id, item] of Object.entries(equippedItems)) {
         if (!item.isUnique) continue;
         
-        // Track unique item
+        // Get maintenance ratio - default to 1 if not set (for backwards compatibility)
+        const maintenanceRatio = item.maintenanceRatio !== undefined ? item.maintenanceRatio : 1;
+        
+        // Skip items with 0 maintenance (broken)
+        if (maintenanceRatio <= 0) {
+            console.log(`[UNIQUE] Skipping ${item.name} - maintenance ratio is 0 (item is broken)`);
+            continue;
+        }
+        
+        // Track unique item with its maintenance status
         bonuses.uniqueItems.push({
             id: item.itemId,
             name: item.name,
-            maintenanceRatio: item.maintenanceRatio || 1
+            maintenanceRatio: maintenanceRatio,
+            maintenanceLevel: item.maintenanceLevel || Math.round(maintenanceRatio * 10)
         });
         
         // Unique items never break from durability
         bonuses.neverBreaks = true;
         
         // Parse special effects based on item name or ID
-        const itemId = parseInt(item.itemId.replace('unique_', ''));
-        const maintenanceRatio = item.maintenanceRatio || 1;
+        // Extract numeric ID from "unique_X" format
+        let itemId;
+        if (typeof item.itemId === 'string' && item.itemId.startsWith('unique_')) {
+            itemId = parseInt(item.itemId.replace('unique_', ''));
+        } else if (typeof item.itemId === 'number') {
+            itemId = item.itemId;
+        } else {
+            console.warn(`[UNIQUE] Unknown item ID format: ${item.itemId}`);
+            continue;
+        }
+        
+        console.log(`[UNIQUE] Processing ${item.name} (ID: ${itemId}) with maintenance ratio: ${maintenanceRatio}`);
         
         switch(itemId) {
-            case 1: // Blue Breeze
+            case 9: // Blue Breeze
                 bonuses.doubleOreChance += 0.15 * maintenanceRatio; // 15% chance at full maintenance
                 bonuses.hazardResistance += 0.8 * maintenanceRatio; // 80% hazard resistance
                 bonuses.movementSpeedBonus += 0.2 * maintenanceRatio; // 20% speed bonus
                 bonuses.durabilityDamageReduction += 0.5 * maintenanceRatio; // 50% less durability damage
+                break;
+            
+            case 1: // THE ONE PICK (Mythic)
+                // This legendary pick maintains itself
+                bonuses.doubleOreChance += 1.0; // 100% double ore (not affected by maintenance)
+                bonuses.hazardResistance += 1.0; // Complete immunity
+                bonuses.movementSpeedBonus += 0.5; // 50% speed bonus
+                bonuses.sightThroughWalls += 10; // See entire map
+                bonuses.lootMultiplier *= 2; // Double all loot
+                bonuses.chainMiningChance += 1.0; // Always chains
+                bonuses.areaDamageChance += 1.0; // Always area damage
+                bonuses.teamMiningBonus += 0.5; // 50% bonus to team
+                bonuses.neverBreaks = true;
                 break;
                 
             case 2: // Earthshaker
@@ -101,10 +140,22 @@ function parseUniqueItemBonuses(equippedItems) {
     
     // Cap bonuses at reasonable maximums
     bonuses.doubleOreChance = Math.min(bonuses.doubleOreChance, 0.5); // Max 50%
-    bonuses.hazardResistance = Math.min(bonuses.hazardResistance, 0.9); // Max 90%
+    bonuses.hazardResistance = Math.min(bonuses.hazardResistance, 0.95); // Max 95% (was 0.9)
     bonuses.movementSpeedBonus = Math.min(bonuses.movementSpeedBonus, 1.0); // Max 100% bonus
     bonuses.dodgeChance = Math.min(bonuses.dodgeChance, 0.5); // Max 50%
     bonuses.durabilityDamageReduction = Math.min(bonuses.durabilityDamageReduction, 0.9); // Max 90%
+    bonuses.chainMiningChance = Math.min(bonuses.chainMiningChance, 1.0); // Max 100%
+    bonuses.areaDamageChance = Math.min(bonuses.areaDamageChance, 1.0); // Max 100%
+    
+    // Log final bonuses for debugging
+    if (bonuses.uniqueItems.length > 0) {
+        console.log(`[UNIQUE] Final bonuses for player:`, {
+            items: bonuses.uniqueItems.map(i => `${i.name} (${Math.round(i.maintenanceRatio * 100)}%)`),
+            doubleOre: `${Math.round(bonuses.doubleOreChance * 100)}%`,
+            hazardResist: `${Math.round(bonuses.hazardResistance * 100)}%`,
+            speedBonus: `${Math.round(bonuses.movementSpeedBonus * 100)}%`
+        });
+    }
     
     return bonuses;
 }

@@ -94,6 +94,15 @@ async function updateVoiceActivity(playerId, minutes) {
     }
 }
 
+// Update movement activity tracking for unique items
+async function updateMovementActivity(playerId, tilesMoved) {
+    try {
+        await updateActivityTracking(playerId, 'movement', tilesMoved);
+    } catch (error) {
+        console.error('[MINING] Error updating movement activity:', error);
+    }
+}
+
 // Get player's unique items for display
 async function getPlayerUniqueItemsForDisplay(playerId) {
     try {
@@ -199,6 +208,7 @@ module.exports = {
     processUniqueItemFinding,
     updateMiningActivity,
     updateVoiceActivity,
+    updateMovementActivity,
     getPlayerUniqueItemsForDisplay,
     getUniqueItemBonuses,
     addUniqueItemToMinecart

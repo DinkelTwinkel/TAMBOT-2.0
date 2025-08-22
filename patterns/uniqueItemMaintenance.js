@@ -163,6 +163,24 @@ const maintenanceHandlers = {
             message: `Social requirement met (${interactions}/${requirement} interactions)`,
             newMaintenanceLevel: item.maintenanceLevel
         };
+    },
+    
+    // Movement activity maintenance - check tiles moved in mining
+    async movement_activity(userId, userTag, item, requirement) {
+        const tilesMoved = item.activityTracking.tilesMovedThisCycle || 0;
+        
+        if (tilesMoved < requirement) {
+            throw new Error(`Insufficient movement. Need to move ${requirement} tiles in mining (current: ${tilesMoved}).`);
+        }
+        
+        // Perform maintenance
+        await item.performMaintenance(userId, 0);
+        
+        return {
+            success: true,
+            message: `Movement requirement met (${tilesMoved}/${requirement} tiles)`,
+            newMaintenanceLevel: item.maintenanceLevel
+        };
     }
 };
 
@@ -247,6 +265,10 @@ async function updateActivityTracking(userId, activityType, amount = 1) {
                     item.activityTracking.socialInteractionsThisCycle += amount;
                     item.activityTracking.lastSocialInteraction = new Date();
                     break;
+                case 'movement':
+                    item.activityTracking.tilesMovedThisCycle += amount;
+                    item.activityTracking.lastMovementTime = new Date();
+                    break;
             }
             
             await item.save();
@@ -281,7 +303,8 @@ async function checkMaintenanceStatus(userId) {
                     mining: item.activityTracking.miningBlocksThisCycle,
                     voice: item.activityTracking.voiceMinutesThisCycle,
                     combat: item.activityTracking.combatWinsThisCycle,
-                    social: item.activityTracking.socialInteractionsThisCycle
+                    social: item.activityTracking.socialInteractionsThisCycle,
+                    movement: item.activityTracking.tilesMovedThisCycle
                 }
             });
         }

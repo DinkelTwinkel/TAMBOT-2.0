@@ -312,6 +312,9 @@ Your personality traits:
 - Typical tip behavior: ${npc.tipModifier > 1 ? 'generous' : npc.tipModifier < 0.5 ? 'stingy' : 'average'}
 - Frequency of visits: ${npc.frequency}
 
+Service Quality Today:
+${options.workerPerformance ? this.getServiceDescription(options.workerPerformance) : 'Normal service'}
+
 You are purchasing: ${item.name} for ${price} coins
 ${options.tip ? `You're leaving a ${options.tip} coin tip.` : ''}
 ${options.isHungry ? "You're particularly hungry/thirsty today." : ''}
@@ -321,6 +324,7 @@ Generate a single line of dialogue (1-2 sentences max) that this character would
 The dialogue should:
 - Reflect your personality and background
 - Possibly reference the item, price, weather, time of day, the inn's specialties, or recent events
+${options.workerPerformance ? this.getDialogueInstructions(options.workerPerformance) : ''}
 - Be natural and conversational
 - Stay in character
 
@@ -349,7 +353,7 @@ Respond with ONLY the dialogue, no quotation marks or attribution.`;
      * @param {Object} player - Player data (username, etc.)
      * @param {Object} item - Item being purchased
      * @param {number} price - Price being paid
-     * @param {Object} options - Additional options
+     * @param {Object} options - Additional options (including worker stats)
      * @returns {Promise<string>} Generated dialogue
      */
     async generatePlayerDialogue(player, item, price, options = {}) {
@@ -373,6 +377,7 @@ Context:
 - Inn atmosphere: ${this.innDetails.atmosphere}
 - Known for: ${this.innDetails.specialties.join(', ')}
 ${innkeeperContext}
+${options.workerPerformance ? `\nService Quality: ${this.getServiceDescription(options.workerPerformance)}` : ''}
 ${options.tip ? `- Leaving a generous ${options.tip} coin tip` : ''}
 ${options.previousPurchases ? `- Regular customer who has been here ${options.previousPurchases} times before` : '- New customer'}
 ${options.playerClass ? `- Character class/profession: ${options.playerClass}` : ''}
@@ -380,6 +385,7 @@ ${options.playerClass ? `- Character class/profession: ${options.playerClass}` :
 Generate a single brief comment (1 sentence) that a customer might say. It should be:
 - Natural and conversational
 - Possibly reference the item, inn's specialties, innkeeper, weather, or how their day is going
+${options.workerPerformance ? this.getDialogueInstructions(options.workerPerformance) : ''}
 - Friendly and appropriate for a fantasy inn setting
 - Different each time
 
@@ -471,6 +477,104 @@ Respond with ONLY the dialogue, no quotation marks.`;
         }
     }
 
+    /**
+     * Get dialogue instructions based on worker performance
+     * @param {Object} performance - Worker performance data
+     * @returns {string} Dialogue instructions
+     */
+    getDialogueInstructions(performance) {
+        if (!performance) return '';
+        
+        const instructions = [];
+        
+        // React to speed
+        if (performance.speedStat >= 100) {
+            instructions.push('- MUST comment on the incredibly fast service');
+        } else if (performance.speedStat >= 50) {
+            instructions.push('- Maybe mention the quick service');
+        } else if (performance.speedStat < 10) {
+            instructions.push('- Might complain about slow service');
+        }
+        
+        // React to attentiveness
+        if (performance.sightStat >= 100) {
+            instructions.push('- Be impressed by staff anticipating your needs');
+        } else if (performance.sightStat >= 50) {
+            instructions.push('- Appreciate the attentive service');
+        } else if (performance.sightStat < 10) {
+            instructions.push('- Might mention having to get staff attention');
+        }
+        
+        // React to overall performance
+        if (performance.performanceTier === 'legendary') {
+            instructions.push('- Be AMAZED by the exceptional service quality');
+        } else if (performance.performanceTier === 'excellent') {
+            instructions.push('- Compliment the excellent service');
+        } else if (performance.performanceTier === 'poor') {
+            instructions.push('- Express disappointment with service');
+        }
+        
+        return instructions.join('\n');
+    }
+    
+    /**
+     * Get service quality description based on worker performance
+     * @param {Object} performance - Worker performance data
+     * @returns {string} Service description
+     */
+    getServiceDescription(performance) {
+        if (!performance) return 'Normal service';
+        
+        const descriptions = [];
+        
+        // Describe speed of service
+        if (performance.speedStat >= 100) {
+            descriptions.push('Lightning-fast service - orders appear almost instantly');
+        } else if (performance.speedStat >= 50) {
+            descriptions.push('Very quick service - minimal waiting time');
+        } else if (performance.speedStat >= 25) {
+            descriptions.push('Prompt service - reasonable wait times');
+        } else if (performance.speedStat >= 10) {
+            descriptions.push('Standard service speed');
+        } else {
+            descriptions.push('Slow service - noticeable delays');
+        }
+        
+        // Describe attentiveness
+        if (performance.sightStat >= 100) {
+            descriptions.push('Staff anticipates needs before you ask');
+        } else if (performance.sightStat >= 50) {
+            descriptions.push('Very attentive staff - notices empty glasses immediately');
+        } else if (performance.sightStat >= 25) {
+            descriptions.push('Attentive service - checks on customers regularly');
+        } else if (performance.sightStat >= 10) {
+            descriptions.push('Basic attention to customer needs');
+        } else {
+            descriptions.push('Inattentive service - have to flag down staff');
+        }
+        
+        // Overall performance tier
+        if (performance.performanceTier === 'legendary') {
+            descriptions.push('LEGENDARY SERVICE - the best you\'ve ever experienced!');
+        } else if (performance.performanceTier === 'excellent') {
+            descriptions.push('Excellent overall performance');
+        } else if (performance.performanceTier === 'good') {
+            descriptions.push('Good, professional service');
+        } else if (performance.performanceTier === 'poor') {
+            descriptions.push('Service could be better');
+        }
+        
+        // Special mentions for high stats
+        if (performance.luckStat >= 50) {
+            descriptions.push('Something feels lucky about this place today');
+        }
+        if (performance.miningStat >= 50) {
+            descriptions.push('Staff handles heavy kegs and supplies with ease');
+        }
+        
+        return descriptions.join('. ');
+    }
+    
     /**
      * Check if AI is available and configured
      * @returns {boolean} Whether AI dialogue generation is available

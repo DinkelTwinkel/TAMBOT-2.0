@@ -566,13 +566,13 @@ function getAIShopDialogue() {
  * @param {number} quantity - Number of items purchased
  * @returns {Promise<string>} - Generated dialogue or fallback
  */
-async function generatePurchaseDialogue(shop, item, price, buyer, quantity = 1) {
+async function generatePurchaseDialogue(shop, item, price, buyer, quantity = 1, playerContext = null) {
     if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
         return shop.successBuy?.[0] || "A pleasure doing business!";
     }
     
     try {
-        return await aiShopDialogue.generatePurchaseDialogue(shop, item, price, buyer, quantity);
+        return await aiShopDialogue.generatePurchaseDialogue(shop, item, price, buyer, quantity, playerContext);
     } catch (error) {
         console.error('[GenerateShop] Purchase dialogue generation failed:', error);
         return shop.successBuy?.[0] || "A pleasure doing business!";
@@ -587,13 +587,13 @@ async function generatePurchaseDialogue(shop, item, price, buyer, quantity = 1) 
  * @param {number} quantity - Number of items being sold
  * @returns {Promise<string>} - Generated dialogue or fallback
  */
-async function generateSellDialogue(shop, item, price, quantity = 1) {
+async function generateSellDialogue(shop, item, price, quantity = 1, playerContext = null, seller = null) {
     if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
         return shop.successSell?.[0] || "I'll take that off your hands.";
     }
     
     try {
-        return await aiShopDialogue.generateSellDialogue(shop, item, price, quantity);
+        return await aiShopDialogue.generateSellDialogue(shop, item, price, quantity, playerContext, seller);
     } catch (error) {
         console.error('[GenerateShop] Sell dialogue generation failed:', error);
         return shop.successSell?.[0] || "I'll take that off your hands.";
