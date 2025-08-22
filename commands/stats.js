@@ -37,11 +37,27 @@ module.exports = {
         .setTitle(`📜 ${target.username}'s Stats`)
         .setColor(0x00AE86);
 
-      // Add profile picture as thumbnail if available, otherwise use Discord avatar
-      if (playerProfile?.profilePicture?.url) {
-        embed.setThumbnail(playerProfile.profilePicture.url);
-      } else {
-        embed.setThumbnail(target.displayAvatarURL({ dynamic: true, size: 256 }));
+      // Add profile picture as thumbnail - use stored CDN URL or fallback to Discord avatar
+      try {
+        if (playerProfile?.profilePicture?.url) {
+          // Use stored CDN URL if available
+          embed.setThumbnail(playerProfile.profilePicture.url);
+        } else {
+          // Fallback to Discord avatar with optimal size (512 for better quality)
+          // dynamic: true ensures we get animated avatars if they have one
+          // size: 512 is a good balance between quality and load time
+          const avatarUrl = target.displayAvatarURL({ 
+            dynamic: true, 
+            size: 512,
+            format: 'png' // Force PNG for better quality (will be overridden if avatar is animated)
+          });
+          embed.setThumbnail(avatarUrl);
+        }
+      } catch (error) {
+        // If avatar fetch fails for any reason, continue without thumbnail
+        console.error('Failed to set thumbnail:', error);
+        // Optionally, you could set a default placeholder image here
+        // embed.setThumbnail('https://your-cdn.com/default-avatar.png');
       }
 
       // Add combined stats display (equipment + buffs)

@@ -8,6 +8,7 @@ const itemSheet = require('../data/itemSheet.json');
 const registerBotMessage = require('./registerBotMessage');
 const generateShopImage = require('./generateShopImage');
 const path = require('path');
+const fs = require('fs');
 const AIShopDialogueGenerator = require('./aiShopDialogueGenerator');
 
 // Initialize AI dialogue generator
@@ -100,12 +101,21 @@ function validateItemIds(itemIds) {
 }
 
 async function generateShop(channel, closingTime = 20) {
+    // Default to coalMineShop as fallback
+    const DEFAULT_SHOP_ID = 'coalMineShop';
     
     const matchingVC = await GachaVC.findOne({ channelId: channel.id }).lean();
     if (!matchingVC) return channel.send('⚘ Not an active Gacha VC channel!');
 
-    const shopInfo = shopData.find(s => s.id === gachaData.find(g => g.id === matchingVC.typeId)?.shop);
-    if (!shopInfo) return channel.send('⚠️ No shop data found for this VC!');
+    // Try to find the shop info, fallback to coalMineShop if not found
+    let shopInfo = shopData.find(s => s.id === gachaData.find(g => g.id === matchingVC.typeId)?.shop);
+    if (!shopInfo) {
+        console.warn(`⚠️ No shop data found for VC type ${matchingVC.typeId}, defaulting to ${DEFAULT_SHOP_ID}`);
+        shopInfo = shopData.find(s => s.id === DEFAULT_SHOP_ID);
+        if (!shopInfo) {
+            return channel.send('⚠️ No shop data found and default shop is missing!');
+        }
+    }
     
     const now = Date.now();
     if (new Date(matchingVC.nextShopRefresh).getTime() < now) matchingVC.nextShopRefresh = new Date(now + 25 * 60 * 1000);
@@ -192,7 +202,28 @@ async function generateShop(channel, closingTime = 20) {
         })
         .filter(item => item !== null); // Remove any null entries
     
-    const imageBuffer = await generateShopImage(shopInfo, buyPoolWithPrices);
+    // Generate shop image with fallback to coalMineShop if generation fails
+    let imageBuffer;
+    try {
+        imageBuffer = await generateShopImage(shopInfo, buyPoolWithPrices);
+    } catch (error) {
+        console.error(`Failed to generate shop image for ${shopInfo.id}, falling back to coalMineShop:`, error);
+        // Try to use coalMineShop as fallback
+        const fallbackShop = shopData.find(s => s.id === 'coalMineShop');
+        if (fallbackShop) {
+            try {
+                // Use the same items but with coalMineShop's visual assets
+                imageBuffer = await generateShopImage(fallbackShop, buyPoolWithPrices);
+                console.log('Successfully generated fallback shop image using coalMineShop assets');
+            } catch (fallbackError) {
+                console.error('Failed to generate fallback shop image:', fallbackError);
+                // If even the fallback fails, create a simple placeholder
+                return channel.send('⚠️ Unable to generate shop image. Please try again later.');
+            }
+        } else {
+            return channel.send('⚠️ Unable to generate shop image and fallback shop not found.');
+        }
+    }
     const attachment = new AttachmentBuilder(imageBuffer, { name: 'shop.png' });
 
     const nextRefreshTime = new Date(matchingVC.nextShopRefresh).getTime();
@@ -209,7 +240,39 @@ async function generateShop(channel, closingTime = 20) {
         refreshText = `    ✧      ✧   shop refreshing in ${diffMinutes}m    ✧      ✧`;
     }
 
-    const thumbAttachment = new AttachmentBuilder(`./assets/shops/${path.basename(shopInfo.image)}_shopKeeper.gif`, { name: 'thumb.gif' });
+    // Load shopkeeper thumbnail with fallback to coalMineShop
+    let thumbAttachment;
+    const shopkeeperPath = `./assets/shops/${path.basename(shopInfo.image)}_shopKeeper.gif`;
+    const fallbackShopkeeperPath = './assets/shops/coalMineShop_shopKeeper.gif';
+    
+    try {
+        // Check if the shopkeeper image exists
+        if (fs.existsSync(shopkeeperPath)) {
+            thumbAttachment = new AttachmentBuilder(shopkeeperPath, { name: 'thumb.gif' });
+        } else {
+            console.warn(`Shopkeeper image not found: ${shopkeeperPath}, using coalMineShop fallback`);
+            if (fs.existsSync(fallbackShopkeeperPath)) {
+                thumbAttachment = new AttachmentBuilder(fallbackShopkeeperPath, { name: 'thumb.gif' });
+            } else {
+                // If even the fallback doesn't exist, proceed without thumbnail
+                console.error('Fallback shopkeeper image also not found');
+                thumbAttachment = null;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading shopkeeper image:', error);
+        // Try fallback
+        try {
+            if (fs.existsSync(fallbackShopkeeperPath)) {
+                thumbAttachment = new AttachmentBuilder(fallbackShopkeeperPath, { name: 'thumb.gif' });
+            } else {
+                thumbAttachment = null;
+            }
+        } catch (fallbackError) {
+            console.error('Error loading fallback shopkeeper image:', fallbackError);
+            thumbAttachment = null;
+        }
+    }
 
     // Include shopkeeper name if available
     // const shopTitle = shopInfo.shopkeeper?.name ? 
@@ -224,7 +287,7 @@ async function generateShop(channel, closingTime = 20) {
         .setDescription('```' + formatDescription(pickShopDescription) + '```')
         .setImage('attachment://shop.png')
         .setFooter({ text: refreshText })
-        .setThumbnail('attachment://thumb.gif');
+        .setThumbnail(thumbAttachment ? 'attachment://thumb.gif' : null);
     
     // Add shopkeeper bio as a field if available
     if (shopInfo.shopkeeper?.bio) {
@@ -250,15 +313,23 @@ async function generateShop(channel, closingTime = 20) {
     
     if (existingShopMessage) {
         // Edit the existing message
+        // Edit with available attachments
+        const files = [attachment];
+        if (thumbAttachment) files.push(thumbAttachment);
+        
         shopMessage = await existingShopMessage.edit({ 
             embeds: [embed], 
-            files: [attachment, thumbAttachment],
+            files: files,
             attachments: [] // Clear old attachments
         });
         console.log(`✏️ Edited existing shop message in channel ${channel.id}`);
     } else {
         // Create new message if no existing one found in last 3 messages
-        shopMessage = await channel.send({ embeds: [embed], files: [attachment, thumbAttachment] });
+        // Send with available attachments
+        const files = [attachment];
+        if (thumbAttachment) files.push(thumbAttachment);
+        
+        shopMessage = await channel.send({ embeds: [embed], files: files });
         console.log(`✅ Created new shop message in channel ${channel.id}`);
     }
 

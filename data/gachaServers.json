@@ -231,7 +231,7 @@
         "name": "🍖 Miner's Inn",
         "type": "innkeeper",
         "rarity": "rare",
-        "spawnWeight": 1,
+        "spawnWeight": 30,
         "description": "A hearty tavern where weary miners gather after long shifts underground. Known for its generous portions of meat and ale, this rustic inn offers warm beds and warmer company to those who work the depths.",
         "power": 1,
         "script": "innkeeper.js",
