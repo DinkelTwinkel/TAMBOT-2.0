@@ -13,7 +13,7 @@ class AIDialogueGenerator {
         
         // Inn and area details - customize these for your setting
         this.innDetails = {
-            name: "The Pickaxe & Ale",
+            name: "Miner's Inn",
             location: "Mining District, Lower Quarter",
             atmosphere: "Cozy but worn, frequented by miners and travelers",
             specialties: ["Hearty Miner's Stew", "Dwarven Ale", "Rock Bread"],
