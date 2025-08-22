@@ -10,7 +10,7 @@ const GuildConfig = require('../models/GuildConfig');
 const gachaData = require('../data/gachaServers.json');
 const shopData = require('../data/shops.json');
 const itemSheet = require('../data/itemSheet.json');
-const { calculateFluctuatedPrice, getShopPrices, generatePurchaseDialogue, generateSellDialogue, generatePoorDialogue } = require('./generateShop');
+const { calculateFluctuatedPrice, getShopPrices, generatePurchaseDialogue, generateSellDialogue, generatePoorDialogue, generateNoItemDialogue } = require('./generateShop');
 const InnPurchaseHandler = require('./gachaModes/innKeeping/innPurchaseHandler');
 
 // Performance optimization: Cache for shop prices (TTL: 5 minutes)
@@ -584,7 +584,7 @@ class ShopHandler {
         const maxQty = ownedItem?.quantity || 0;
 
         if (quantity > maxQty) {
-            await this.updateShopDescription(interaction.message, shopInfo?.failureOther, shopInfo, 'poor', item, 0);
+            await this.updateShopDescription(interaction.message, shopInfo?.failureOther, shopInfo, 'noitem', item, quantity, maxQty);
             const priceIndicator = currentSellPrice > Math.floor(item.value / 2) ? ' ▲' : currentSellPrice < Math.floor(item.value / 2) ? ' ▼' : '';
             return interaction.editReply({ 
                 content: `⚘ You only have **${maxQty}** x ${item.name} to sell.\n` +
@@ -666,6 +666,12 @@ class ShopHandler {
                         const shortBy = price || 0;
                         newDescription = await generatePoorDialogue(shopInfo, item, shortBy);
                         console.log(`[SHOP] Generated AI poor dialogue for ${shopInfo.shopkeeper?.name}`);
+                    } else if (dialogueType === 'noitem' && item) {
+                        // price = quantity attempted, buyer = quantity available for noitem
+                        const quantity = price || 1;
+                        const available = buyer || 0;
+                        newDescription = await generateNoItemDialogue(shopInfo, item, quantity, available);
+                        console.log(`[SHOP] Generated AI no item dialogue for ${shopInfo.shopkeeper?.name}`);
                     }
                 } catch (aiError) {
                     console.log('[SHOP] AI dialogue generation failed, using fallback');

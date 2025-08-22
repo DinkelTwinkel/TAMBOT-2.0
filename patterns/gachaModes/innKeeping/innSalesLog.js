@@ -11,21 +11,54 @@ const itemMap = new Map(itemSheet.map(item => [item.id, item]));
 const npcMap = new Map(npcs.map(npc => [npc.id, npc]));
 
 class InnSalesLog {
-    // Initialize AI dialogue generator
+    // Initialize AI dialogue generator (will be set per channel)
     static aiDialogue = null;
+    static aiDialogueMap = new Map(); // Store per-channel AI instances
     
-    static initializeAI() {
+    static initializeAI(channelId = null) {
         try {
-            this.aiDialogue = new AIDialogueGenerator();
-            if (this.aiDialogue.isAvailable()) {
-                console.log('[InnSalesLog] AI dialogue generator initialized');
+            // If channelId provided, create/get channel-specific instance
+            if (channelId) {
+                if (!this.aiDialogueMap.has(channelId)) {
+                    const AIDialogueGenerator = require('./aiDialogueGenerator');
+                    const aiInstance = new AIDialogueGenerator(channelId);
+                    if (aiInstance.isAvailable()) {
+                        this.aiDialogueMap.set(channelId, aiInstance);
+                        console.log(`[InnSalesLog] AI dialogue generator initialized for channel ${channelId}`);
+                    } else {
+                        console.log('[InnSalesLog] AI dialogue generator not configured (no API key)');
+                        return null;
+                    }
+                }
+                return this.aiDialogueMap.get(channelId);
             } else {
-                console.log('[InnSalesLog] AI dialogue generator not configured (no API key)');
+                // Fallback to generic instance
+                if (!this.aiDialogue) {
+                    const AIDialogueGenerator = require('./aiDialogueGenerator');
+                    this.aiDialogue = new AIDialogueGenerator();
+                    if (this.aiDialogue.isAvailable()) {
+                        console.log('[InnSalesLog] Generic AI dialogue generator initialized');
+                    } else {
+                        console.log('[InnSalesLog] AI dialogue generator not configured (no API key)');
+                        this.aiDialogue = null;
+                    }
+                }
+                return this.aiDialogue;
             }
         } catch (error) {
             console.error('[InnSalesLog] Failed to initialize AI dialogue:', error.message);
-            this.aiDialogue = null;
+            return null;
         }
+    }
+    
+    /**
+     * Get AI dialogue instance for a channel
+     */
+    static getAIForChannel(channelId) {
+        if (channelId && this.aiDialogueMap.has(channelId)) {
+            return this.aiDialogueMap.get(channelId);
+        }
+        return this.aiDialogue; // Fallback to generic
     }
     /**
      * Find existing sales log in recent messages
@@ -160,11 +193,15 @@ class InnSalesLog {
      * @param {Object} dbEntry - The database entry with gameData
      * @param {Object} latestSale - Optional latest sale info with buyer details
      * @param {Guild} guild - Discord guild for fetching member info
+     * @param {string} channelId - Channel ID for AI context
      * @returns {Object} - Object with embed and files array
      */
-    static async createSalesLogEmbed(dbEntry, latestSale = null, guild = null) {
+    static async createSalesLogEmbed(dbEntry, latestSale = null, guild = null, channelId = null) {
         const sales = dbEntry.gameData?.sales || [];
         const files = [];
+        
+        // Get or initialize AI for this channel
+        const aiDialogue = channelId ? this.initializeAI(channelId) : this.getAIForChannel(channelId);
         
         // Default embed for no sales
         if (sales.length === 0) {
@@ -200,9 +237,9 @@ class InnSalesLog {
             authorText = npc.description;
             
             // Try AI-generated dialogue first
-            if (this.aiDialogue && this.aiDialogue.isAvailable()) {
+            if (aiDialogue && aiDialogue.isAvailable()) {
                 try {
-                    dialogueText = await this.aiDialogue.generateNPCDialogue(
+                    dialogueText = await aiDialogue.generateNPCDialogue(
                         npc,
                         item || { name: itemName },
                         lastSale.price || 0,
@@ -244,21 +281,21 @@ class InnSalesLog {
                     playerName = member.nickname || member.user.username || playerName;
                     
                     // Try AI-generated dialogue first
-                    if (this.aiDialogue && this.aiDialogue.isAvailable()) {
+                    if (aiDialogue && aiDialogue.isAvailable()) {
                         try {
                             // Count previous purchases by this player
                             const previousPurchases = sales.filter(s => 
                                 !s.isNPC && s.buyer === memberId
                             ).length;
                             
-                            dialogueText = await this.aiDialogue.generatePlayerDialogue(
+                            dialogueText = await aiDialogue.generatePlayerDialogue(
                                 { username: playerName },
                                 item || { name: itemName },
                                 lastSale.price || 0,
                                 {
                                     tip: lastSale.tip || 0,
                                     previousPurchases: previousPurchases,
-                                    playerClass: member.roles.cache.first()?.name || 'Miner'
+                                    playerClass: member.roles.cache.first()?.name || null
                                 }
                             );
                             console.log(`[InnSalesLog] Generated AI dialogue for player ${playerName}`);
@@ -269,7 +306,7 @@ class InnSalesLog {
                         }
                     } else {
                         // Use existing getUserBio method
-                        dialogueText = '"' + await this.getUserBio(guild, memberId) + '"';
+                        dialogueText = await this.getUserBio(guild, memberId);
                     }
                 } catch (err) {
                     console.log('[InnSalesLog] Could not fetch member info:', err.message);
@@ -332,7 +369,7 @@ class InnSalesLog {
         
         // Add dialogue in code block
         if (dialogueText) {
-            descriptionText += `\`\`\`\n${dialogueText}\n\`\`\`\n`;
+            descriptionText += `\`\`\`\n"${dialogueText}"\n\`\`\`\n`;
         }
         
         // Add purchase info
@@ -439,7 +476,7 @@ class InnSalesLog {
     static async postOrUpdateSalesLog(channel, dbEntry, latestSale = null) {
         try {
             const guild = channel.guild;
-            const { embed, files } = await this.createSalesLogEmbed(dbEntry, latestSale, guild);
+            const { embed, files } = await this.createSalesLogEmbed(dbEntry, latestSale, guild, channel.id);
             
             // First check if there's a log in the last 2 messages we can update
             const existingLog = await this.findExistingSalesLog(channel, 2);
@@ -553,12 +590,14 @@ class InnSalesLog {
      * Generate special event dialogue
      * @param {string} eventType - Type of event
      * @param {Object} context - Event context
+     * @param {string} channelId - Channel ID for context
      * @returns {Promise<string|null>} - Generated dialogue or null
      */
-    static async generateEventDialogue(eventType, context) {
-        if (this.aiDialogue && this.aiDialogue.isAvailable()) {
+    static async generateEventDialogue(eventType, context, channelId = null) {
+        const aiDialogue = channelId ? this.getAIForChannel(channelId) : this.aiDialogue;
+        if (aiDialogue && aiDialogue.isAvailable()) {
             try {
-                return await this.aiDialogue.generateEventDialogue(eventType, context);
+                return await aiDialogue.generateEventDialogue(eventType, context);
             } catch (err) {
                 console.log('[InnSalesLog] Event dialogue generation failed');
                 return null;
@@ -568,7 +607,7 @@ class InnSalesLog {
     }
 }
 
-// Initialize AI on module load
+// Initialize generic AI on module load
 InnSalesLog.initializeAI();
 
 module.exports = InnSalesLog;

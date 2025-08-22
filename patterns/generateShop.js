@@ -473,6 +473,33 @@ async function generatePoorDialogue(shop, item, shortBy) {
     }
 }
 
+/**
+ * Generate no item dialogue using AI
+ * @param {Object} shop - Shop data
+ * @param {Object} item - Item attempted to sell
+ * @param {number} quantity - Quantity they tried to sell
+ * @param {number} available - How many they actually have
+ * @returns {Promise<string>} - Generated dialogue or fallback
+ */
+async function generateNoItemDialogue(shop, item, quantity, available) {
+    if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
+        if (available === 0) {
+            return shop.failureOther?.[0] || "You don't seem to have that item.";
+        }
+        return shop.failureOther?.[0] || `You only have ${available} of those.`;
+    }
+    
+    try {
+        return await aiShopDialogue.generateNoItemDialogue(shop, item, quantity, available);
+    } catch (error) {
+        console.error('[GenerateShop] No item dialogue generation failed:', error);
+        if (available === 0) {
+            return shop.failureOther?.[0] || "You don't seem to have that item.";
+        }
+        return shop.failureOther?.[0] || `You only have ${available} of those.`;
+    }
+}
+
 // Export the main function and all helpers
 module.exports = generateShop;
 module.exports.calculateFluctuatedPrice = calculateFluctuatedPrice;
@@ -481,3 +508,4 @@ module.exports.getAIShopDialogue = getAIShopDialogue;
 module.exports.generatePurchaseDialogue = generatePurchaseDialogue;
 module.exports.generateSellDialogue = generateSellDialogue;
 module.exports.generatePoorDialogue = generatePoorDialogue;
+module.exports.generateNoItemDialogue = generateNoItemDialogue;

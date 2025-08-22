@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const getPlayerStats = require('../patterns/calculatePlayerStat');
 const PlayerBuffs = require('../models/PlayerBuff');
+const PlayerProfile = require('../models/PlayerProfile');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -29,9 +30,19 @@ module.exports = {
       const now = new Date();
       const activeBuffs = buffDoc?.buffs?.filter(buff => buff.expiresAt > now) || [];
 
+      // Get player profile for thumbnail
+      const playerProfile = await PlayerProfile.findOne({ playerId: target.id });
+
       const embed = new EmbedBuilder()
         .setTitle(`📜 ${target.username}'s Stats`)
         .setColor(0x00AE86);
+
+      // Add profile picture as thumbnail if available, otherwise use Discord avatar
+      if (playerProfile?.profilePicture?.url) {
+        embed.setThumbnail(playerProfile.profilePicture.url);
+      } else {
+        embed.setThumbnail(target.displayAvatarURL({ dynamic: true, size: 256 }));
+      }
 
       // Add combined stats display (equipment + buffs)
       if (Object.keys(stats).length > 0) {

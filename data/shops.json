@@ -5,7 +5,7 @@
     "shopkeeper": {
       "name": "Grimsby Coalhand",
       "bio": "A grizzled veteran miner turned merchant, face permanently stained with coal dust. Lost three fingers to a cave-in but never his business sense.",
-      "personality": "Gruff, practical, and skeptical of anything he can't hold in his remaining seven fingers. Respects hard work above all else."
+      "personality": "Mean and uncaring, Gruff, practical, and skeptical of anything he can't hold in his remaining seven fingers. Respects hard work above all else."
     },
     "idleDialogue": [
       "The children yearn for the mines...", 

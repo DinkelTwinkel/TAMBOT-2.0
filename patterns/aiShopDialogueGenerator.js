@@ -83,6 +83,54 @@ class AIShopDialogueGenerator {
     }
 
     /**
+     * Generate dialogue for failed sale (don't have item)
+     * @param {Object} shop - Shop data
+     * @param {Object} item - Item attempted to sell
+     * @param {number} quantity - Quantity they tried to sell
+     * @param {number} available - How many they actually have
+     * @returns {Promise<string>} Generated dialogue
+     */
+    async generateNoItemDialogue(shop, item = null, quantity = 0, available = 0) {
+        try {
+            const shopkeeper = shop.shopkeeper;
+            if (!shopkeeper) {
+                throw new Error('Shop missing shopkeeper data');
+            }
+
+            const prompt = `You are ${shopkeeper.name}, shopkeeper of ${shop.name}.
+            
+Background: ${shopkeeper.bio}
+Personality: ${shopkeeper.personality}
+
+A customer is trying to sell ${quantity} x ${item ? item.name : 'an item'} but they only have ${available}.
+${available === 0 ? "They don't have any to sell!" : `They only have ${available}.`}
+
+Generate a brief response (1 sentence) that:
+- Points out they don't have the item (or enough of it)
+- Reflects your personality
+- Stays in character
+- Is about them not having the item, NOT about money
+
+Respond with ONLY the dialogue, no quotation marks.`;
+
+            const response = await this.openai.chat.completions.create({
+                model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
+                messages: [{ role: "user", content: prompt }],
+                max_tokens: 40,
+                temperature: 0.8,
+            });
+
+            return response.choices[0].message.content.trim();
+        } catch (error) {
+            console.error('[AIShopDialogue] Error generating no item dialogue:', error.message);
+            if (available === 0) {
+                return shop.failureOther?.[0] || "You don't seem to have that item.";
+            }
+            return shop.failureOther?.[0] || `You only have ${available} of those.`;
+        }
+    }
+
+    /**
      * Determine shopkeeper's stance on The One Pick based on personality
      */
     getOnePickStance(shopkeeper) {
@@ -154,10 +202,10 @@ ${mentionTheOnePick ? '- Naturally incorporates your opinion about The One Pick'
 - Stays completely in character
 
 You can EITHER:
-1. Say something (just write the dialogue without quotes)
+1. Say something (just write the dialogue with quotes like "Another slow day in the mines.")
 2. Perform an action (start with * for actions like *yawns* or *scratches beard*)
 3. Make a sound/gesture (start with ~ for sounds like ~sighs or ~hums)
-4. Combine both if needed (like: *looks up from ledger* Another slow day in the mines.)
+4. Combine both if needed (like: *looks up from ledger* "Another slow day in the mines.")
 
 Respond with ONLY the dialogue or action, no quotation marks or attribution.`;
 
@@ -209,7 +257,7 @@ Generate a brief success dialogue (1 sentence) for completing this sale that:
 - Sounds natural and conversational
 - Shows satisfaction with the transaction
 
-Respond with ONLY the dialogue, no quotation marks.`;
+Respond with ONLY the dialogue with quotation marks`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
@@ -251,7 +299,7 @@ Generate a brief rejection dialogue (1 sentence) that:
 - Tells them they need more money
 - Stays in character
 
-Respond with ONLY the dialogue, no quotation marks.`;
+Respond with ONLY the dialogue, with quotation marks.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
@@ -294,7 +342,7 @@ Generate a brief dialogue (1 sentence) for accepting this sale that:
 - Might comment on the item's quality or the deal
 - Shows your business sense
 
-Respond with ONLY the dialogue, no quotation marks.`;
+Respond with ONLY the dialogue, with quotation marks.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",

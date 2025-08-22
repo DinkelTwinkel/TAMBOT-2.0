@@ -1,0 +1,111 @@
+# Profile Picture System Documentation
+
+## Features Added
+
+### New MongoDB Schema: `PlayerProfile`
+- Stores player profile information including profile pictures
+- Fields:
+  - `playerId`: Unique player identifier
+  - `profilePicture`: Object containing:
+    - `url`: CDN URL of the image
+    - `messageId`: Discord message ID in storage channel
+    - `channelId`: Storage channel ID
+    - `guildId`: Storage guild ID
+    - `uploadedAt`: Upload timestamp
+  - `bio`: Optional player bio (for future use)
+  - Timestamps for tracking
+
+### Updated Commands
+
+#### `/stats view [user]`
+- View your own or another player's stats
+- Displays profile picture as thumbnail
+- Falls back to Discord avatar if no custom picture set
+- Shows tip to set profile picture if none exists
+
+#### `/stats profilepicture [attachment]`
+- Upload a custom profile picture
+- Supported formats: JPG, PNG, GIF, WebP
+- Max file size: 8MB
+- Automatically replaces old profile picture
+- Stores image in designated channel for persistence
+- Returns ephemeral success message with preview
+
+#### `/stats removeprofile`
+- Removes your custom profile picture
+- Deletes the stored message from storage channel
+- Clears database entry
+- Returns to using Discord avatar as fallback
+
+## Configuration
+
+The following constants are configured in the stats.js file:
+```javascript
+const PROFILE_STORAGE_GUILD_ID = '1221772148385910835';
+const PROFILE_STORAGE_CHANNEL_ID = '1408543899185840250';
+```
+
+## How It Works
+
+1. **Image Upload**: When a user uploads a profile picture, the bot:
+   - Validates the file type and size
+   - Uploads it to the designated storage channel
+   - Saves the CDN URL and message metadata to MongoDB
+
+2. **Image Display**: When viewing stats:
+   - Fetches the profile picture URL from database
+   - Sets it as the embed thumbnail
+   - Falls back to Discord avatar if no custom picture
+
+3. **Image Management**:
+   - Old profile pictures are automatically deleted when replaced
+   - Users can remove their profile picture entirely
+   - Storage channel acts as a persistent CDN
+
+## Security Features
+
+- File type validation (only image formats)
+- File size limit (8MB)
+- User can only modify their own profile picture
+- Ephemeral responses for sensitive operations
+- Automatic cleanup of old images
+
+## Error Handling
+
+- Graceful fallback to Discord avatar
+- Detailed error messages for invalid uploads
+- Automatic cleanup attempts for orphaned messages
+- Database transaction safety
+
+## Future Enhancements
+
+The schema includes a `bio` field for potential future features:
+- Player biographies
+- Custom status messages
+- Achievement showcases
+- Social features
+
+## Usage Examples
+
+### Setting a Profile Picture
+```
+/stats profilepicture image:[upload your image]
+```
+
+### Viewing Stats with Profile Picture
+```
+/stats view
+/stats view user:@SomeUser
+```
+
+### Removing Profile Picture
+```
+/stats removeprofile
+```
+
+## Technical Notes
+
+- Images are stored as Discord messages in a dedicated channel
+- Discord's CDN provides permanent URLs for attached images
+- MongoDB stores references to enable cleanup and management
+- The system handles migration from old messages gracefully
