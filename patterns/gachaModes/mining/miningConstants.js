@@ -155,7 +155,7 @@ const ENCOUNTER_CONFIG = {
         image: 'treasure_chest',  // Image filename without extension
         description: 'Contains valuable items and resources',
         powerRequirement: 1,
-        weight: 20,
+        weight: 2,
         isHazard: false,
         minItems: 1,
         maxItems: 3
@@ -167,7 +167,7 @@ const ENCOUNTER_CONFIG = {
         image: 'rare_treasure',  // Image filename without extension
         description: 'Contains rare and epic items',
         powerRequirement: 3,
-        weight: 5,
+        weight: 1,
         isHazard: false,
         minItems: 2,
         maxItems: 5

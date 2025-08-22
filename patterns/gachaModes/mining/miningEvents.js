@@ -9,22 +9,15 @@ const Canvas = require('canvas');
 // ============ LONG BREAK SPECIAL EVENTS ============
 
 /**
- * Rail Building Event - Builds rails from entrance to a random player position
+ * Rail Building Event - Builds rails from entrance in straight lines
+ * Uses persistent rail storage that survives map expansions
  */
 async function startRailBuildingEvent(channel, dbEntry) {
     if (!channel?.isVoiceBased()) return;
     
     const { EmbedBuilder } = require('discord.js');
-    const { buildMinecartRails } = require('./railPathfinding');
     const railStorage = require('./railStorage');
     const { TILE_TYPES } = require('./miningConstants');
-    
-    // Get active players in the channel
-    const members = channel.members.filter(m => !m.user.bot);
-    if (members.size === 0) {
-        console.log('[RAIL EVENT] No players to build rails to.');
-        return '⚠️ No players for rail building';
-    }
     
     // Get current map data
     const mapData = dbEntry.gameData?.map;
@@ -33,99 +26,257 @@ async function startRailBuildingEvent(channel, dbEntry) {
         return 'Map not initialized for rail building';
     }
     
-    // Get player positions BEFORE they're reset to entrance
-    const playerPositions = mapData.playerPositions || {};
+    const { entranceX, entranceY, width, height, tiles } = mapData;
     
-    // Filter for valid player positions (not at entrance)
-    const validPlayers = [];
-    for (const [playerId, position] of Object.entries(playerPositions)) {
-        // Don't build rails to players already at entrance
-        const distFromEntrance = Math.abs(position.x - mapData.entranceX) + Math.abs(position.y - mapData.entranceY);
-        if (distFromEntrance > 1) { // At least 2 blocks away from entrance
-            const member = members.get(playerId);
-            if (member) {
-                validPlayers.push({ member, position, distance: distFromEntrance });
-            }
-        }
-    }
+    // Get existing rails data using persistent storage
+    const existingRails = await railStorage.getRailsData(channel.id);
+    const railPositions = railStorage.getAllRailPositions(existingRails);
     
-    if (validPlayers.length === 0) {
-        console.log('[RAIL EVENT] All players are too close to entrance for rail building.');
-        return '⚠️ No valid rail destinations';
-    }
-    
-    // Sort by distance and pick one of the furthest players (makes rails more useful)
-    validPlayers.sort((a, b) => b.distance - a.distance);
-    
-    // Pick from the top 50% furthest players for variety
-    const topHalfCount = Math.max(1, Math.floor(validPlayers.length / 2));
-    const selectedIndex = Math.floor(Math.random() * topHalfCount);
-    const selectedPlayer = validPlayers[selectedIndex];
-    
-    // Starting position is one block away from entrance (not on the entrance itself)
+    // Check if there are existing rails adjacent to entrance
     const entranceNeighbors = [
-        { x: mapData.entranceX, y: mapData.entranceY - 1 }, // North
-        { x: mapData.entranceX + 1, y: mapData.entranceY }, // East
-        { x: mapData.entranceX, y: mapData.entranceY + 1 }, // South
-        { x: mapData.entranceX - 1, y: mapData.entranceY }  // West
+        { x: entranceX, y: entranceY - 1, dir: 'north' },
+        { x: entranceX + 1, y: entranceY, dir: 'east' },
+        { x: entranceX, y: entranceY + 1, dir: 'south' },
+        { x: entranceX - 1, y: entranceY, dir: 'west' }
     ];
     
-    // Find the best starting position (floor tile closest to target)
-    let startPos = null;
-    let shortestDistance = Infinity;
+    const hasRailsAtEntrance = entranceNeighbors.some(pos => 
+        railStorage.hasRail(existingRails, pos.x, pos.y)
+    );
     
-    for (const neighbor of entranceNeighbors) {
-        // Check if this neighbor is valid and is a floor tile
-        if (neighbor.x >= 0 && neighbor.x < mapData.width && 
-            neighbor.y >= 0 && neighbor.y < mapData.height) {
-            const tile = mapData.tiles[neighbor.y]?.[neighbor.x];
-            if (tile && tile.type === TILE_TYPES.FLOOR) {
-                const dist = Math.abs(neighbor.x - selectedPlayer.position.x) + 
-                           Math.abs(neighbor.y - selectedPlayer.position.y);
-                if (dist < shortestDistance) {
-                    shortestDistance = dist;
-                    startPos = neighbor;
+    const newRailPaths = [];
+    let totalNewRails = 0;
+    
+    if (!hasRailsAtEntrance || railPositions.length < 10) {
+        // Build from entrance in all 4 directions
+        console.log('[RAIL EVENT] Building initial rails from entrance in all directions');
+        
+        for (const neighbor of entranceNeighbors) {
+            const path = buildStraightLine(
+                tiles, 
+                neighbor.x, 
+                neighbor.y, 
+                neighbor.dir, 
+                width, 
+                height
+            );
+            
+            if (path.length > 0) {
+                newRailPaths.push(path);
+                totalNewRails += path.length;
+            }
+        }
+    } else {
+        // Pick 4 random points along existing rails and build perpendicular
+        console.log('[RAIL EVENT] Building perpendicular rails from existing network');
+        
+        // Get all connected rail positions (not just any rail)
+        const connectedRails = getConnectedRails(existingRails, entranceNeighbors);
+        
+        if (connectedRails.length >= 4) {
+            // Shuffle and pick 4 random points
+            const shuffled = [...connectedRails].sort(() => Math.random() - 0.5);
+            const selectedPoints = shuffled.slice(0, Math.min(4, shuffled.length));
+            
+            for (const point of selectedPoints) {
+                // Determine which directions are perpendicular based on existing connections
+                const connections = railStorage.getRailConnections(existingRails, point.x, point.y);
+                const perpendicularDirs = getPerpendicularDirections(connections);
+                
+                // Build in perpendicular directions
+                for (const dir of perpendicularDirs) {
+                    const path = buildStraightLine(
+                        tiles,
+                        point.x + dir.dx,
+                        point.y + dir.dy,
+                        dir.name,
+                        width,
+                        height
+                    );
+                    
+                    if (path.length > 0) {
+                        // Include the starting point in the path
+                        path.unshift(point);
+                        newRailPaths.push(path);
+                        totalNewRails += path.length;
+                    }
+                }
+            }
+        } else {
+            // Not enough connected rails, build more from entrance
+            console.log('[RAIL EVENT] Not enough connected rails, building more from entrance');
+            
+            for (const neighbor of entranceNeighbors) {
+                if (!railStorage.hasRail(existingRails, neighbor.x, neighbor.y)) {
+                    const path = buildStraightLine(
+                        tiles,
+                        neighbor.x,
+                        neighbor.y,
+                        neighbor.dir,
+                        width,
+                        height
+                    );
+                    
+                    if (path.length > 0) {
+                        newRailPaths.push(path);
+                        totalNewRails += path.length;
+                    }
                 }
             }
         }
     }
     
-    if (!startPos) {
-        console.log('[RAIL EVENT] Could not find valid starting position for rails.');
-        return '⚠️ No valid rail start position';
+    // Merge all new rail paths with existing rails (preserves existing)
+    for (const path of newRailPaths) {
+        await railStorage.mergeRailPath(channel.id, path);
     }
     
-    // Build the rails
-    const result = await buildMinecartRails(dbEntry, startPos, selectedPlayer.position);
-    
-    if (!result.success) {
-        console.log(`[RAIL EVENT] Failed to build rails: ${result.error}`);
-        return `⚠️ Rail building failed: ${result.error}`;
-    }
-    
-    // Calculate rail network stats
-    const railsData = await railStorage.getRailsData(channel.id);
-    const railCount = railStorage.countRails(railsData);
+    // Get updated rail count
+    const updatedRails = await railStorage.getRailsData(channel.id);
+    const totalRailCount = railStorage.countRails(updatedRails);
     
     // Create announcement embed
     const embed = new EmbedBuilder()
         .setTitle('🚂 RAIL CONSTRUCTION EVENT! 🚂')
         .setDescription(
             `The mining company has invested in infrastructure!\n\n` +
-            `Rails have been constructed from the **entrance** to **${selectedPlayer.member.displayName}'s position**!\n\n` +
-            `📍 **Destination:** (${selectedPlayer.position.x}, ${selectedPlayer.position.y})\n` +
-            `🛤️ **New Rails:** ${result.pathLength} segments\n` +
-            `📊 **Total Rails:** ${railCount} segments\n\n` +
-            `⚡ **Rail Boost:** Players within 3 blocks of rails get **2x speed boost** for more actions per round!`
+            (hasRailsAtEntrance ? 
+                `Rails have been extended from **${newRailPaths.length} points** along the existing network!` :
+                `Rails have been constructed from the **entrance** in all directions!`) +
+            `\n\n` +
+            `🛤️ **New Rails:** ${totalNewRails} segments\n` +
+            `📊 **Total Rails:** ${totalRailCount} segments\n\n` +
+            `⚡ **Rail Boost:** Players within 3 blocks of rails get **2x speed boost** for more actions per round!\n` +
+            `💡 **Persistence:** Rails are permanently stored and won't move when the map expands!`
         )
         .setColor(0x4169E1)
         .setTimestamp()
-        .setFooter({ text: 'Rails persist until manually cleared!' });
+        .setFooter({ text: 'Use /build to manually extend the rail network!' });
     
     await channel.send({ embeds: [embed] });
-    console.log(`[RAIL EVENT] Built ${result.pathLength} rails to ${selectedPlayer.member.displayName}'s position!`);
+    console.log(`[RAIL EVENT] Built ${totalNewRails} new rail segments!`);
     
-    return `🚂 RAIL EVENT: Built ${result.pathLength} rails to ${selectedPlayer.member.displayName}'s position!`;
+    return `🚂 RAIL EVENT: Built ${totalNewRails} new rail segments!`;
+}
+
+/**
+ * Build a straight line of rails in a given direction until hitting a wall
+ */
+function buildStraightLine(tiles, startX, startY, direction, width, height) {
+    const path = [];
+    const { TILE_TYPES } = require('./miningConstants');
+    
+    const directions = {
+        north: { dx: 0, dy: -1 },
+        south: { dx: 0, dy: 1 },
+        east: { dx: 1, dy: 0 },
+        west: { dx: -1, dy: 0 }
+    };
+    
+    const dir = directions[direction];
+    if (!dir) return path;
+    
+    let x = startX;
+    let y = startY;
+    
+    // Continue until we hit a wall or map boundary
+    while (x >= 0 && x < width && y >= 0 && y < height) {
+        const tile = tiles[y]?.[x];
+        
+        // Stop if we hit a wall or invalid tile
+        if (!tile || 
+            tile.type === TILE_TYPES.WALL ||
+            tile.type === TILE_TYPES.WALL_WITH_ORE ||
+            tile.type === TILE_TYPES.RARE_ORE ||
+            tile.type === TILE_TYPES.REINFORCED_WALL ||
+            tile.type === TILE_TYPES.TREASURE_CHEST) {
+            break;
+        }
+        
+        // Add floor tiles to the path
+        if (tile.type === TILE_TYPES.FLOOR) {
+            path.push({ x, y });
+        }
+        
+        // Move to next position
+        x += dir.dx;
+        y += dir.dy;
+    }
+    
+    return path;
+}
+
+/**
+ * Get all rails connected to the entrance
+ */
+function getConnectedRails(railsData, entranceNeighbors) {
+    const railStorage = require('./railStorage');
+    const connected = new Set();
+    const toCheck = [];
+    
+    // Start with rails adjacent to entrance
+    for (const pos of entranceNeighbors) {
+        if (railStorage.hasRail(railsData, pos.x, pos.y)) {
+            toCheck.push(pos);
+            connected.add(`${pos.x},${pos.y}`);
+        }
+    }
+    
+    // Flood fill to find all connected rails
+    while (toCheck.length > 0) {
+        const current = toCheck.pop();
+        const neighbors = [
+            { x: current.x, y: current.y - 1 },
+            { x: current.x + 1, y: current.y },
+            { x: current.x, y: current.y + 1 },
+            { x: current.x - 1, y: current.y }
+        ];
+        
+        for (const neighbor of neighbors) {
+            const key = `${neighbor.x},${neighbor.y}`;
+            if (!connected.has(key) && railStorage.hasRail(railsData, neighbor.x, neighbor.y)) {
+                connected.add(key);
+                toCheck.push(neighbor);
+            }
+        }
+    }
+    
+    // Convert back to array of positions
+    return Array.from(connected).map(key => {
+        const [x, y] = key.split(',').map(Number);
+        return { x, y };
+    });
+}
+
+/**
+ * Get perpendicular directions based on existing rail connections
+ */
+function getPerpendicularDirections(connections) {
+    const dirs = [];
+    
+    // If rail runs north-south, build east-west
+    if (connections.north || connections.south) {
+        if (!connections.east) dirs.push({ name: 'east', dx: 1, dy: 0 });
+        if (!connections.west) dirs.push({ name: 'west', dx: -1, dy: 0 });
+    }
+    
+    // If rail runs east-west, build north-south
+    if (connections.east || connections.west) {
+        if (!connections.north) dirs.push({ name: 'north', dx: 0, dy: -1 });
+        if (!connections.south) dirs.push({ name: 'south', dx: 0, dy: 1 });
+    }
+    
+    // If no connections (shouldn't happen), build in all directions
+    if (dirs.length === 0) {
+        dirs.push(
+            { name: 'north', dx: 0, dy: -1 },
+            { name: 'south', dx: 0, dy: 1 },
+            { name: 'east', dx: 1, dy: 0 },
+            { name: 'west', dx: -1, dy: 0 }
+        );
+    }
+    
+    return dirs;
 }
 
 /**
