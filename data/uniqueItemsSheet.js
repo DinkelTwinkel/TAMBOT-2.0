@@ -496,6 +496,81 @@ const UNIQUE_ITEMS = [
         
         baseDurability: 450,
         durabilityLossReduction: 0.4
+    },
+    
+    {
+        id: 11,
+        name: "👥 Shadow Legion Amulet",
+        type: "charm",
+        slot: "charm",
+        rarity: "mythic",
+        description: "An obsidian amulet containing three bound shadow spirits. When worn, the shadows take physical form and mirror your every action in the mines.",
+        lore: "Forged in the Shadowrealm by the Wraith King Mor'duun, this amulet was created to amplify his presence across multiple dimensions simultaneously. The three shadow spirits bound within were once his most loyal generals, now cursed to eternally serve whoever possesses the amulet. Each shadow maintains its own consciousness but is compelled to perfectly mirror the wearer's mining techniques. The shadows work tirelessly, channeling all their findings directly to their master through dimensional rifts. Legend says that wearing the amulet slowly drains one's essence, as maintaining three additional forms across reality requires immense spiritual energy. Many who have worn it report hearing whispers from the shadows, speaking of profits beyond imagination... and prices beyond comprehension. The shadows seem to grow stronger with each ore mined, as if feeding on the very act of extraction. Some claim the shadows occasionally act on their own, discovering treasures their master never knew existed.",
+        value: 750000,
+        vendable: false,
+        
+        abilities: [
+            { name: "mining", powerlevel: 20 },
+            { name: "shadow_legion", powerlevel: 3 },
+            { name: "soul_drain", powerlevel: -15 },
+            { name: "collective_fortune", powerlevel: 40 }
+        ],
+        
+        image: "shadow_legion_amulet_mythic",
+        glowColor: "#1C1C1C",
+        particleEffect: "shadow_wisps",
+        
+        maintenanceType: "mining_activity",
+        maintenanceCost: 500,
+        maintenanceDecayRate: 2,
+        requiresMaintenance: true,
+        maintenanceDescription: "The shadow spirits feed on the destruction of earth and stone. Mine at least 500 blocks per day to maintain their corporeal forms.",
+        
+        specialEffects: [
+            "Creates 3 shadow clones that mine independently",
+            "Each clone has 75% of your mining stats",
+            "All coins and items from clones transfer to you",
+            "Clones join/leave when you join/leave the mine",
+            "Clones can trigger their own hazards and events",
+            "10% chance clones find bonus shadow ore each action",
+            "Clones are visible to other players as dark silhouettes",
+            "If a clone is knocked out by hazards, it respawns in 2 minutes",
+            "Clones share your equipment bonuses but at reduced effectiveness"
+        ],
+        
+        rumoredEffects: [
+            "Three shadows follow your every move",
+            "They toil in perfect synchronization",
+            "All treasures flow through dimensional rifts",
+            "Bound eternally to mirror your actions",
+            "Each shadow may stumble into danger alone",
+            "Darkness itself yields precious shadow essence",
+            "Others see your legion marching through stone",
+            "Fallen shadows rise again from the void",
+            "Your power echoes threefold through the depths"
+        ],
+        
+        dropWeight: 0.001,
+        minPowerLevel: 6,
+        preferredBiomes: ["shadow_realm", "void_depths", "wraith_kingdom", "dimensional_rift"],
+        conditional: true,
+        condition: "shadow_affinity",
+        
+        baseDurability: 666,
+        durabilityLossReduction: 0.7,
+        
+        cloneConfig: {
+            count: 3,
+            statMultiplier: 0.75,
+            namePrefix: "Shadow",
+            respawnTime: 120000,
+            transferRate: 1.0,
+            independentActions: true,
+            visibleToOthers: true,
+            shadowOreChance: 0.1,
+            sharesEquipment: true,
+            equipmentEffectiveness: 0.5
+        }
     }
 ];
 
