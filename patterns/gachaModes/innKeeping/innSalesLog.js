@@ -4,12 +4,29 @@ const itemSheet = require('../../../data/itemSheet.json');
 const npcs = require('../../../data/npcs.json');
 const path = require('path');
 const fs = require('fs');
+const AIDialogueGenerator = require('./aiDialogueGenerator');
 
 // Create item lookup map for performance
 const itemMap = new Map(itemSheet.map(item => [item.id, item]));
 const npcMap = new Map(npcs.map(npc => [npc.id, npc]));
 
 class InnSalesLog {
+    // Initialize AI dialogue generator
+    static aiDialogue = null;
+    
+    static initializeAI() {
+        try {
+            this.aiDialogue = new AIDialogueGenerator();
+            if (this.aiDialogue.isAvailable()) {
+                console.log('[InnSalesLog] AI dialogue generator initialized');
+            } else {
+                console.log('[InnSalesLog] AI dialogue generator not configured (no API key)');
+            }
+        } catch (error) {
+            console.error('[InnSalesLog] Failed to initialize AI dialogue:', error.message);
+            this.aiDialogue = null;
+        }
+    }
     /**
      * Find existing sales log in recent messages
      * @param {Channel} channel - The Discord channel
@@ -181,7 +198,29 @@ class InnSalesLog {
             const npc = lastSale.npcData;
             title = `📋 Inn Sales - ${npc.name}`;
             authorText = npc.description;
-            dialogueText = lastSale.npcDialogue || "The usual, please.";
+            
+            // Try AI-generated dialogue first
+            if (this.aiDialogue && this.aiDialogue.isAvailable()) {
+                try {
+                    dialogueText = await this.aiDialogue.generateNPCDialogue(
+                        npc,
+                        item || { name: itemName },
+                        lastSale.price || 0,
+                        {
+                            tip: lastSale.tip || 0,
+                            mood: this.getNPCMood(npc, sales),
+                            isHungry: Math.random() > 0.5
+                        }
+                    );
+                    console.log(`[InnSalesLog] Generated AI dialogue for ${npc.name}`);
+                } catch (err) {
+                    console.log('[InnSalesLog] AI dialogue generation failed, using fallback');
+                    dialogueText = lastSale.npcDialogue || npc.dialogue?.[Math.floor(Math.random() * npc.dialogue.length)] || "The usual, please.";
+                }
+            } else {
+                // Fallback to existing dialogue
+                dialogueText = lastSale.npcDialogue || npc.dialogue?.[Math.floor(Math.random() * npc.dialogue.length)] || "The usual, please.";
+            }
             
             // Try to add NPC image as thumbnail if it exists
             const npcImagePath = path.join(__dirname, '..', '..', '..', 'assets', 'npcs', npc.image);
@@ -204,8 +243,34 @@ class InnSalesLog {
                     const member = await guild.members.fetch(memberId);
                     playerName = member.nickname || member.user.username || playerName;
                     
-                    // Get user bio using the improved method
-                    dialogueText = await this.getUserBio(guild, memberId);
+                    // Try AI-generated dialogue first
+                    if (this.aiDialogue && this.aiDialogue.isAvailable()) {
+                        try {
+                            // Count previous purchases by this player
+                            const previousPurchases = sales.filter(s => 
+                                !s.isNPC && s.buyer === memberId
+                            ).length;
+                            
+                            dialogueText = await this.aiDialogue.generatePlayerDialogue(
+                                { username: playerName },
+                                item || { name: itemName },
+                                lastSale.price || 0,
+                                {
+                                    tip: lastSale.tip || 0,
+                                    previousPurchases: previousPurchases,
+                                    playerClass: member.roles.cache.first()?.name || null
+                                }
+                            );
+                            console.log(`[InnSalesLog] Generated AI dialogue for player ${playerName}`);
+                        } catch (err) {
+                            console.log('[InnSalesLog] AI dialogue generation failed for player, using fallback');
+                            // Fall back to getUserBio
+                            dialogueText = await this.getUserBio(guild, memberId);
+                        }
+                    } else {
+                        // Use existing getUserBio method
+                        dialogueText = await this.getUserBio(guild, memberId);
+                    }
                 } catch (err) {
                     console.log('[InnSalesLog] Could not fetch member info:', err.message);
                 }
@@ -463,6 +528,47 @@ class InnSalesLog {
             console.error('[InnSalesLog] Error clearing sales log:', error);
         }
     }
+
+    /**
+     * Helper method to determine NPC mood based on context
+     * @param {Object} npc - NPC object
+     * @param {Array} sales - Recent sales array
+     * @returns {string} - Mood string
+     */
+    static getNPCMood(npc, sales) {
+        // Determine mood based on various factors
+        const recentSales = sales.slice(-5);
+        const npcPurchaseCount = recentSales.filter(s => s.buyer === npc.id).length;
+        
+        if (npcPurchaseCount > 1) return "impatient";
+        if (npc.budget === "low") return "cautious";
+        if (npc.budget === "high") return "cheerful";
+        if (npc.tipModifier < 0.5) return "grumpy";
+        if (npc.tipModifier > 1.5) return "generous";
+        
+        return "neutral";
+    }
+
+    /**
+     * Generate special event dialogue
+     * @param {string} eventType - Type of event
+     * @param {Object} context - Event context
+     * @returns {Promise<string|null>} - Generated dialogue or null
+     */
+    static async generateEventDialogue(eventType, context) {
+        if (this.aiDialogue && this.aiDialogue.isAvailable()) {
+            try {
+                return await this.aiDialogue.generateEventDialogue(eventType, context);
+            } catch (err) {
+                console.log('[InnSalesLog] Event dialogue generation failed');
+                return null;
+            }
+        }
+        return null;
+    }
 }
+
+// Initialize AI on module load
+InnSalesLog.initializeAI();
 
 module.exports = InnSalesLog;

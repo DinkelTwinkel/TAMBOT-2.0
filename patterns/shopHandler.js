@@ -1,6 +1,6 @@
 // shopHandler.js - Centralized shop interaction handler with guild config price fluctuation
-// BACKUP YOUR ORIGINAL FILE BEFORE REPLACING
-// This version includes all performance optimizations
+// FIXED VERSION - Resolves Discord interaction timeout issues
+// This version shows modals immediately to prevent "Unknown interaction" errors
 
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const Currency = require('../models/currency');
@@ -139,8 +139,6 @@ class ShopHandler {
         console.log(`[SHOP] Cleared caches for guild ${this.guildId}`);
     }
 
-
-
     // Optimized helper function with caching
     async getShopFluctuatedPrices(channelId, guildId) {
         const cacheKey = `${channelId}_${guildId}`;
@@ -187,8 +185,12 @@ class ShopHandler {
             return cached.data;
         }
         
-        // Fetch with lean() for better performance
-        const matchingVC = await GachaVC.findOne({ channelId }).lean();
+        // OPTIMIZATION: Only fetch the typeId field we need, not the entire document
+        const matchingVC = await GachaVC.findOne(
+            { channelId },
+            { typeId: 1, _id: 0 }  // Only fetch typeId, exclude _id
+        ).lean();
+        
         if (!matchingVC) return null;
         
         const gachaInfo = gachaData.find(g => g.id === matchingVC.typeId);
@@ -208,231 +210,196 @@ class ShopHandler {
     }
 
     async handleShopSelectMenu(interaction) {
-        // CRITICAL FIX: Defer immediately to prevent timeout
-        // Handle consumables differently since they don't need a modal
         const selectedItemId = interaction.values[0];
         const item = itemMap.get(selectedItemId); // O(1) lookup
-        
-        if (item && item.type === 'consumable' && interaction.customId.startsWith('shop_buy_select')) {
-            // Defer for consumables since we're processing immediately
-            await interaction.deferUpdate();
-        } else {
-            // For non-consumables, we'll show a modal which acts as the response
-            // So we don't defer here to avoid double-responding
-        }
-        
         const userId = interaction.user.id;
         const channelId = interaction.channel.id;
-        const guildId = interaction.guild.id;
         
         // Extract shop message ID from custom ID
         const shopMessageId = interaction.customId.split('_').pop();
 
         if (!item) {
-            if (!interaction.deferred) await interaction.deferUpdate();
+            await interaction.deferUpdate();
             return interaction.followUp({ content: '⚘ Item not found', ephemeral: true });
         }
 
-        // OPTIMIZATION: Parallel data fetching
+        // Handle consumables - defer immediately and process
+        if (item.type === 'consumable' && interaction.customId.startsWith('shop_buy_select')) {
+            // Defer immediately for consumables
+            await interaction.deferUpdate();
+            
+            // Now do the heavy processing for consumables
+            await this.processConsumablePurchase(interaction, item, userId, channelId, shopMessageId);
+            return;
+        }
+
+        // For non-consumables (buy or sell), show modal IMMEDIATELY
+        // This prevents the timeout issue
+        if (interaction.customId.startsWith('shop_buy_select')) {
+            // Create buy modal with minimal information
+            const modal = new ModalBuilder()
+                .setCustomId(`buy_modal_${item.id}_${userId}_${shopMessageId}_${channelId}`)
+                .setTitle(`Buy ${item.name}`)
+                .addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('quantity')
+                            .setLabel(`Enter quantity to purchase`)
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(true)
+                            .setPlaceholder(`How many ${item.name} would you like to buy?`)
+                            .setMaxLength(10)
+                    )
+                );
+
+            // Show modal immediately - this acts as the response
+            await interaction.showModal(modal);
+            
+        } else if (interaction.customId.startsWith('shop_sell_select')) {
+            // Create sell modal with minimal information
+            const modal = new ModalBuilder()
+                .setCustomId(`sell_modal_${item.id}_${userId}_${shopMessageId}_${channelId}`)
+                .setTitle(`Sell ${item.name}`)
+                .addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('quantity')
+                            .setLabel(`Enter quantity to sell`)
+                            .setStyle(TextInputStyle.Short)
+                            .setRequired(true)
+                            .setPlaceholder(`How many ${item.name} would you like to sell?`)
+                            .setMaxLength(10)
+                    )
+                );
+
+            // Show modal immediately - this acts as the response
+            await interaction.showModal(modal);
+        }
+    }
+
+    async processConsumablePurchase(interaction, item, userId, channelId, shopMessageId) {
+        const guildId = interaction.guild.id;
+        
+        // Fetch all necessary data
         const [fluctuatedPrices, userDataResult, shopInfo] = await Promise.all([
             this.getShopFluctuatedPrices(channelId, guildId),
-            // Fetch both user currency and inventory in parallel
             Promise.all([
-                Currency.findOne({ userId }).lean(),
-                PlayerInventory.findOne({ playerId: userId }).lean()
+                // Only fetch the fields we need
+                Currency.findOne(
+                    { userId },
+                    { money: 1, userId: 1, usertag: 1 }
+                ).lean(),
+                PlayerInventory.findOne(
+                    { playerId: userId },
+                    { items: 1, playerId: 1, playerTag: 1 }
+                ).lean()
             ]),
             this.getCachedShopConfig(channelId)
         ]);
         
         const [userCurrency, userInv] = userDataResult;
 
-        if (!fluctuatedPrices || !fluctuatedPrices[selectedItemId]) {
-            if (!interaction.deferred) await interaction.deferUpdate();
+        if (!fluctuatedPrices || !fluctuatedPrices[item.id]) {
             return interaction.followUp({ content: '⚘ Could not get current prices', ephemeral: true });
         }
 
-        // Create default objects if not found
         const currency = userCurrency || { userId, money: 0 };
-        const inventory = userInv || { playerId: userId, items: [] };
-
-        if (interaction.customId.startsWith('shop_buy_select')) {
-            await this.handleBuyInteraction(interaction, item, currency, inventory, shopInfo, shopMessageId, fluctuatedPrices[selectedItemId]);
-        } else if (interaction.customId.startsWith('shop_sell_select')) {
-            await this.handleSellInteraction(interaction, item, currency, inventory, shopInfo, shopMessageId, fluctuatedPrices[selectedItemId]);
-        }
-    }
-
-    async handleBuyInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId, fluctuatedPrice) {
-        const userId = interaction.user.id;
-        const currentBuyPrice = fluctuatedPrice.buy;
-
-        // Handle consumables - buy 1 immediately
-        if (item.type === 'consumable') {
-            const totalCost = currentBuyPrice;
-            
-            if (userCurrency.money < totalCost) {
-                await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor);
-                return interaction.followUp({ 
-                    content: `⚘ You need ${totalCost} coins but only have ${userCurrency.money}.`, 
-                    ephemeral: true 
-                });
-            }
-
-            // Use atomic operation for better performance and consistency
-            await Currency.updateOne(
-                { userId },
-                { 
-                    $inc: { money: -totalCost },
-                    $setOnInsert: { usertag: interaction.user.tag }
-                },
-                { upsert: true }
-            );
-
-            // Apply buff and get detailed information
-            const applyConsumableBuff = require('./applyConsumeableBuff');
-            const buffResult = await applyConsumableBuff(userId, item);
-
-            // Format buff effects for display
-            const buffEffects = [];
-            for (const [statName, powerLevel] of buffResult.effects) {
-                const statDisplay = this.formatStatName(statName);
-                buffEffects.push(`${statDisplay} +${powerLevel}`);
-            }
-
-            // Calculate remaining time
-            const remainingMs = buffResult.expiresAt.getTime() - Date.now();
-            const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
-
-            // Create response message
-            let responseMessage = `${interaction.member} ✅ **Used ${item.name}!**\n`;
-            
-            if (buffResult.refreshed) {
-                responseMessage += `🔄 **Buff Refreshed:** ${buffEffects.join(', ')}\n`;
-                responseMessage += `⏰ **Duration Extended:** ${remainingMinutes} minutes remaining`;
-            } else {
-                responseMessage += `⚡ **Buff Applied:** ${buffEffects.join(', ')}\n`;
-                responseMessage += `⏰ **Duration:** ${remainingMinutes} minutes`;
-            }
-
-            // Add a description of what the stats do
-            const statDescriptions = [];
-            for (const [statName] of buffResult.effects) {
-                const description = this.getStatDescription(statName);
-                if (description) statDescriptions.push(description);
-            }
-            
-            if (statDescriptions.length > 0) {
-                responseMessage += `\n💡 *${statDescriptions.join(', ')}*`;
-            }
-            
-            // Add remaining balance
-            responseMessage += `\n💰 **Balance:** ${userCurrency.money - totalCost} coins`;
-
-            // Process inn sale if applicable
-            const innResult = await InnPurchaseHandler.processInnSale({
-                channel: interaction.channel,
-                itemId: item.id,
-                salePrice: currentBuyPrice,
-                costBasis: InnPurchaseHandler.calculateCostBasis(item.value),
-                buyer: interaction.user
-            });
-            
-            // // Add tip info to response message if it was an inn sale
-            // if (innResult.isInn && innResult.tipData && innResult.tipData.amount > 0) {
-            //     responseMessage += `\n${InnPurchaseHandler.formatTipMessage(innResult.tipData)}`;
-            // }
-            
-            await interaction.followUp({
-                content: responseMessage,
-                ephemeral: innResult.isInn
-            });
-            
-            await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
-            return;
-        }
-
-        // Handle non-consumables - show modal for quantity
-        const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
+        const currentBuyPrice = fluctuatedPrices[item.id].buy;
+        const totalCost = currentBuyPrice;
         
-        // Create a shorter label that fits within Discord's 45 character limit
-        const shortLabel = `Qty? ${currentBuyPrice}c${priceIndicator} | Bal: ${userCurrency.money}c`;
-        
-        // If still too long, truncate further
-        const finalLabel = shortLabel.length > 45 ? 
-            `Qty? ${currentBuyPrice}c${priceIndicator}` : 
-            shortLabel;
-        
-        const modal = new ModalBuilder()
-            .setCustomId(`buy_modal_${item.id}_${userId}_${shopMessageId}`)
-            .setTitle(`Buy ${item.name}`)
-            .addComponents(
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId('quantity')
-                        .setLabel(finalLabel)
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true)
-                        .setPlaceholder(`Enter quantity. Cost: ${currentBuyPrice}c${priceIndicator} each`)
-                )
-            );
-
-        // ShowModal acts as the response (no need to defer since modal is the response)
-        await interaction.showModal(modal);
-    }
-
-    async handleSellInteraction(interaction, item, userCurrency, userInv, shopInfo, shopMessageId, fluctuatedPrice) {
-        const userId = interaction.user.id;
-        const currentSellPrice = fluctuatedPrice.sell;
-        const ownedItem = userInv.items.find(it => it.itemId === item.id);
-        const maxQty = ownedItem?.quantity || 0;
-
-        if (maxQty === 0) {
-            await interaction.deferUpdate();
+        if (currency.money < totalCost) {
+            await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor);
             return interaction.followUp({ 
-                content: `⚘ You don't own any ${item.name} to sell.`, 
+                content: `⚘ You need ${totalCost} coins but only have ${currency.money}.`, 
                 ephemeral: true 
             });
         }
 
-        const priceIndicator = currentSellPrice > Math.floor(item.value / 2) ? ' ▲' : currentSellPrice < Math.floor(item.value / 2) ? ' ▼' : '';
+        // Use atomic operation for better performance and consistency
+        await Currency.updateOne(
+            { userId },
+            { 
+                $inc: { money: -totalCost },
+                $setOnInsert: { usertag: interaction.user.tag }
+            },
+            { upsert: true }
+        );
 
-        // Create a shorter label that fits within Discord's 45 character limit
-        const shortLabel = `Sell? ${currentSellPrice}c${priceIndicator} | Have ${maxQty}`;
+        // Apply buff and get detailed information
+        const applyConsumableBuff = require('./applyConsumeableBuff');
+        const buffResult = await applyConsumableBuff(userId, item);
+
+        // Format buff effects for display
+        const buffEffects = [];
+        for (const [statName, powerLevel] of buffResult.effects) {
+            const statDisplay = this.formatStatName(statName);
+            buffEffects.push(`${statDisplay} +${powerLevel}`);
+        }
+
+        // Calculate remaining time
+        const remainingMs = buffResult.expiresAt.getTime() - Date.now();
+        const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
+
+        // Create response message
+        let responseMessage = `${interaction.member} ✅ **Used ${item.name}!**\n`;
         
-        // If still too long, truncate further
-        const finalLabel = shortLabel.length > 45 ? 
-            `Sell? ${currentSellPrice}c${priceIndicator}` : 
-            shortLabel;
+        if (buffResult.refreshed) {
+            responseMessage += `🔄 **Buff Refreshed:** ${buffEffects.join(', ')}\n`;
+            responseMessage += `⏰ **Duration Extended:** ${remainingMinutes} minutes remaining`;
+        } else {
+            responseMessage += `⚡ **Buff Applied:** ${buffEffects.join(', ')}\n`;
+            responseMessage += `⏰ **Duration:** ${remainingMinutes} minutes`;
+        }
 
-        const modal = new ModalBuilder()
-            .setCustomId(`sell_modal_${item.id}_${userId}_${shopMessageId}`)
-            .setTitle(`Sell ${item.name}`)
-            .addComponents(
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId('quantity')
-                        .setLabel(finalLabel)
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true)
-                        .setPlaceholder(`Max: ${maxQty}. Price: ${currentSellPrice}c${priceIndicator} each`)
-                )
-            );
+        // Add a description of what the stats do
+        const statDescriptions = [];
+        for (const [statName] of buffResult.effects) {
+            const description = this.getStatDescription(statName);
+            if (description) statDescriptions.push(description);
+        }
+        
+        if (statDescriptions.length > 0) {
+            responseMessage += `\n💡 *${statDescriptions.join(', ')}*`;
+        }
+        
+        // Add remaining balance
+        responseMessage += `\n💰 **Balance:** ${currency.money - totalCost} coins`;
 
-        // ShowModal acts as the response
-        await interaction.showModal(modal);
+        // Process inn sale if applicable
+        const innResult = await InnPurchaseHandler.processInnSale({
+            channel: interaction.channel,
+            itemId: item.id,
+            salePrice: currentBuyPrice,
+            costBasis: InnPurchaseHandler.calculateCostBasis(item.value),
+            buyer: interaction.user
+        });
+        
+        await interaction.followUp({
+            content: responseMessage,
+            ephemeral: true  // Always private
+        });
+        
+        // Send public announcement for non-inn sales
+        if (!innResult.isInn) {
+            await interaction.channel.send({
+                content: `✨ ${interaction.user} used **${item.name}** for **${currentBuyPrice}c**`
+            });
+        }
+        
+        await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
     }
 
     async handleModalSubmit(interaction) {
-        // CRITICAL FIX: Defer reply immediately for modal submissions
-        // Check if it's an inn channel to determine ephemeral setting
-        const isInn = await InnPurchaseHandler.isInnChannel(interaction.channel.id);
-        await interaction.deferReply({ ephemeral: isInn });
+        // CRITICAL: Defer reply immediately - NO async operations before this!
+        // All shop interactions are private
+        await interaction.deferReply({ ephemeral: true });
         
         const customIdParts = interaction.customId.split('_');
         const action = customIdParts[0]; // 'buy' or 'sell'
         const itemId = customIdParts[2];
         const userId = customIdParts[3];
         const shopMessageId = customIdParts[4];
+        const channelId = customIdParts[5]; // Added channel ID to the modal custom ID
 
         // Verify the user is the one who initiated the modal
         if (interaction.user.id !== userId) {
@@ -445,26 +412,36 @@ class ShopHandler {
         }
 
         const quantity = Number(interaction.fields.getTextInputValue('quantity'));
-        if (isNaN(quantity) || quantity <= 0) {
+        if (isNaN(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
             await this.updateShopDescription(interaction.message, null, 'failure');
-            return interaction.editReply({ content: '⚘ Invalid quantity.' });
+            return interaction.editReply({ content: '⚘ Invalid quantity. Please enter a positive whole number.' });
         }
 
-        // OPTIMIZATION: Parallel fetch all needed data
+        // NOW fetch all the heavy data after modal submission
+        const startTime = Date.now();
         const [fluctuatedPrices, userCurrency, userInv, shopInfo] = await Promise.all([
-            this.getShopFluctuatedPrices(interaction.channel.id, interaction.guild.id),
-            Currency.findOne({ userId }),
-            PlayerInventory.findOne({ playerId: userId }),
-            this.getCachedShopConfig(interaction.channel.id)
+            this.getShopFluctuatedPrices(channelId || interaction.channel.id, interaction.guild.id),
+            // Use projection to only fetch needed fields
+            Currency.findOne(
+                { userId },
+                { money: 1, userId: 1, usertag: 1 }
+            ).lean(),
+            PlayerInventory.findOne(
+                { playerId: userId },
+                { items: 1, playerId: 1, playerTag: 1 }
+            ).lean(),
+            this.getCachedShopConfig(channelId || interaction.channel.id)
         ]);
+        
+        console.log(`[SHOP] Data fetch took ${Date.now() - startTime}ms`);
 
         if (!fluctuatedPrices || !fluctuatedPrices[itemId]) {
-            return interaction.editReply({ content: '⚘ Could not get current prices' });
+            return interaction.editReply({ content: '⚘ Could not get current prices. Please try again.' });
         }
 
-        // Ensure documents exist (create if needed)
-        const currency = userCurrency || new Currency({ userId, usertag: interaction.user.tag, money: 0 });
-        const inventory = userInv || new PlayerInventory({ playerId: userId, playerTag: interaction.user.tag, items: [] });
+        // Handle lean documents - they're plain objects, not Mongoose documents
+        const currency = userCurrency || { userId, usertag: interaction.user.tag, money: 0 };
+        const inventory = userInv || { playerId: userId, playerTag: interaction.user.tag, items: [] };
 
         if (action === 'buy') {
             await this.handleBuyModal(interaction, item, quantity, currency, inventory, shopInfo, fluctuatedPrices[itemId]);
@@ -474,51 +451,63 @@ class ShopHandler {
     }
 
     async handleBuyModal(interaction, item, quantity, userCurrency, userInv, shopInfo, fluctuatedPrice) {
+        const userId = interaction.user.id;  // Get userId from interaction
         const currentBuyPrice = fluctuatedPrice.buy;
         const totalCost = quantity * currentBuyPrice;
         
         if (userCurrency.money < totalCost) {
             await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor);
+            const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
             return interaction.editReply({ 
-                content: `⚘ You need ${totalCost} coins but only have ${userCurrency.money}.`
+                content: `⚘ You need **${totalCost}** coins but only have **${userCurrency.money}**.\n` +
+                         `Current price: ${currentBuyPrice}c${priceIndicator} per item (Base: ${item.value}c)`
             });
         }
 
-        // Use a transaction or atomic operation to prevent duplicate processing
+        // Use atomic operations for database updates
         try {
-            // If userCurrency is a new document, save it first
-            if (userCurrency.isNew) {
-                await userCurrency.save();
-            }
-            
-            // Use atomic operation for money update
+            // Create or update currency atomically
             await Currency.updateOne(
-                { userId: userCurrency.userId },
-                { $inc: { money: -totalCost } }
+                { userId: userId },  // Use the userId from customIdParts
+                { 
+                    $inc: { money: -totalCost },
+                    $setOnInsert: { usertag: interaction.user.tag }
+                },
+                { upsert: true }
             );
 
-            // Add items to inventory
+            // Prepare inventory update
             const existing = userInv.items.find(it => it.itemId === item.id);
+            let inventoryUpdate;
+            
             if (existing) {
-                existing.quantity += quantity;
+                // Increment existing item quantity
+                inventoryUpdate = {
+                    $inc: { "items.$[elem].quantity": quantity }
+                };
             } else {
+                // Add new item
                 const newItem = { itemId: item.id, quantity };
-                
-                // Add currentDurability if the item has durability
                 if (item.durability) {
                     newItem.currentDurability = item.durability;
                 }
-                
-                userInv.items.push(newItem);
+                inventoryUpdate = {
+                    $push: { items: newItem }
+                };
             }
             
-            // Save inventory
-            if (userInv.isNew) {
-                await userInv.save();
-            } else {
-                userInv.markModified('items');
-                await userInv.save();
-            }
+            // Update inventory atomically
+            await PlayerInventory.updateOne(
+                { playerId: userId },
+                {
+                    ...inventoryUpdate,
+                    $setOnInsert: { playerTag: interaction.user.tag }
+                },
+                {
+                    upsert: true,
+                    arrayFilters: existing ? [{ "elem.itemId": item.id }] : undefined
+                }
+            );
 
             const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
             
@@ -561,13 +550,22 @@ class ShopHandler {
                 content: responseMessage
             });
             
+            // Send public announcement for non-inn sales
+            if (!innResult.isInn) {
+                const publicMessage = quantity === 1 
+                    ? `🛒 ${interaction.user} bought **${item.name}** for **${totalCost}c**`
+                    : `🛒 ${interaction.user} bought **${quantity}x ${item.name}** for **${totalCost}c**`;
+                
+                await interaction.channel.send({ content: publicMessage });
+            }
+            
             await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
         } catch (error) {
             console.error('[SHOP] Error processing purchase:', error);
             
             // Rollback money if inventory save failed
             await Currency.updateOne(
-                { userId: userCurrency.userId },
+                { userId: userId },
                 { $inc: { money: totalCost } }
             );
             
@@ -578,32 +576,42 @@ class ShopHandler {
     }
 
     async handleSellModal(interaction, item, quantity, userCurrency, userInv, shopInfo, fluctuatedPrice) {
+        const userId = interaction.user.id;  // Get userId from interaction
         const currentSellPrice = fluctuatedPrice.sell;
         const ownedItem = userInv.items.find(it => it.itemId === item.id);
         const maxQty = ownedItem?.quantity || 0;
 
         if (quantity > maxQty) {
             await this.updateShopDescription(interaction.message, shopInfo?.failureOther);
+            const priceIndicator = currentSellPrice > Math.floor(item.value / 2) ? ' ▲' : currentSellPrice < Math.floor(item.value / 2) ? ' ▼' : '';
             return interaction.editReply({ 
-                content: `⚘ Invalid quantity. You can sell between 1 and ${maxQty}.`
+                content: `⚘ You only have **${maxQty}** x ${item.name} to sell.\n` +
+                         `Current sell price: ${currentSellPrice}c${priceIndicator} per item (Base: ${Math.floor(item.value / 2)}c)`
             });
         }
 
         try {
-            // Remove items from inventory
-            if (ownedItem) {
-                ownedItem.quantity -= quantity;
-                if (ownedItem.quantity <= 0) {
-                    userInv.items = userInv.items.filter(it => it.itemId !== item.id);
-                }
-                userInv.markModified('items');
-                await userInv.save();
+            // Update inventory atomically
+            const newQuantity = ownedItem.quantity - quantity;
+            
+            if (newQuantity <= 0) {
+                // Remove item completely
+                await PlayerInventory.updateOne(
+                    { playerId: userId },
+                    { $pull: { items: { itemId: item.id } } }
+                );
+            } else {
+                // Decrement quantity
+                await PlayerInventory.updateOne(
+                    { playerId: userId, "items.itemId": item.id },
+                    { $inc: { "items.$.quantity": -quantity } }
+                );
             }
 
             // Add money using atomic operation
             const totalSell = currentSellPrice * quantity;
             await Currency.updateOne(
-                { userId: userCurrency.userId },
+                { userId: userId },
                 { 
                     $inc: { money: totalSell },
                     $setOnInsert: { usertag: interaction.user.tag }
@@ -617,6 +625,18 @@ class ShopHandler {
             await interaction.editReply({ 
                 content: `${interaction.member}💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! (${currentSellPrice}c${priceIndicator} each) | Balance: ${userCurrency.money + totalSell}c`
             });
+            
+            // Check if it's an inn channel
+            const isInn = await InnPurchaseHandler.isInnChannel(interaction.channel.id);
+            
+            // Send public announcement for non-inn sales
+            if (!isInn) {
+                const publicMessage = quantity === 1
+                    ? `💰 ${interaction.user} sold **${item.name}** for **${totalSell}c**`
+                    : `💰 ${interaction.user} sold **${quantity}x ${item.name}** for **${totalSell}c**`;
+                
+                await interaction.channel.send({ content: publicMessage });
+            }
             
             await this.updateShopDescription(interaction.message, shopInfo?.successSell);
         } catch (error) {
