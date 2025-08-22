@@ -605,5 +605,226 @@
     ],
     "image": "miners_multitool_improved",
     "durability": 20
+  },
+  {
+    "id": "48",
+    "name": "Bread Loaf",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Simple but filling bread. Restores stamina.",
+    "value": 5,
+    "vendable": true,
+    "abilities": [
+      { "name": "stamina_regen", "powerlevel": 1 }
+    ],
+    "image": "bread",
+    "duration": 30
+  },
+  {
+    "id": "49",
+    "name": "Ale Mug",
+    "type": "consumable",
+    "subtype": "drink",
+    "description": "A refreshing mug of ale. Warms the body.",
+    "value": 8,
+    "vendable": true,
+    "abilities": [
+      { "name": "health_regen", "powerlevel": 1 }
+    ],
+    "image": "ale",
+    "duration": 30
+  },
+  {
+    "id": "50",
+    "name": "Hearty Stew",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "A warming bowl of stew with meat and vegetables.",
+    "value": 15,
+    "vendable": true,
+    "abilities": [
+      { "name": "health_regen", "powerlevel": 2 },
+      { "name": "stamina_regen", "powerlevel": 1 }
+    ],
+    "image": "stew",
+    "duration": 45
+  },
+  {
+    "id": "51",
+    "name": "Cheese Wheel",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Aged cheese, perfect for a quick energy boost.",
+    "value": 12,
+    "vendable": true,
+    "abilities": [
+      { "name": "speed", "powerlevel": 1 },
+      { "name": "stamina_regen", "powerlevel": 1 }
+    ],
+    "image": "cheese",
+    "duration": 40
+  },
+  {
+    "id": "52",
+    "name": "Roasted Meat",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Perfectly seasoned roasted meat. Builds strength.",
+    "value": 25,
+    "vendable": true,
+    "abilities": [
+      { "name": "strength", "powerlevel": 2 },
+      { "name": "health_regen", "powerlevel": 2 }
+    ],
+    "image": "roasted_meat",
+    "duration": 60
+  },
+  {
+    "id": "53",
+    "name": "Fine Wine",
+    "type": "consumable",
+    "subtype": "drink",
+    "description": "An aged vintage that improves fortune and mood.",
+    "value": 30,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 2 },
+      { "name": "stamina_regen", "powerlevel": 2 }
+    ],
+    "image": "wine",
+    "duration": 60
+  },
+  {
+    "id": "54",
+    "name": "Hunter's Brew",
+    "type": "consumable",
+    "subtype": "drink",
+    "description": "A strong brew favored by hunters. Sharpens the senses.",
+    "value": 20,
+    "vendable": true,
+    "abilities": [
+      { "name": "sight", "powerlevel": 2 },
+      { "name": "speed", "powerlevel": 1 }
+    ],
+    "image": "hunters_brew",
+    "duration": 50
+  },
+  {
+    "id": "55",
+    "name": "Venison Steak",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Wild game meat, lean and energizing.",
+    "value": 35,
+    "vendable": true,
+    "abilities": [
+      { "name": "strength", "powerlevel": 3 },
+      { "name": "speed", "powerlevel": 2 }
+    ],
+    "image": "venison",
+    "duration": 70
+  },
+  {
+    "id": "56",
+    "name": "Royal Feast",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "A magnificent feast fit for royalty. Grants many boons.",
+    "value": 50,
+    "vendable": true,
+    "abilities": [
+      { "name": "all_stats", "powerlevel": 2 },
+      { "name": "health_regen", "powerlevel": 3 }
+    ],
+    "image": "royal_feast",
+    "duration": 90
+  },
+  {
+    "id": "57",
+    "name": "Golden Mead",
+    "type": "consumable",
+    "subtype": "drink",
+    "description": "Honey mead infused with gold flakes. Beloved by nobles.",
+    "value": 40,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 3 },
+      { "name": "all_stats", "powerlevel": 1 }
+    ],
+    "image": "golden_mead",
+    "duration": 80
+  },
+  {
+    "id": "58",
+    "name": "Adventurer's Rations",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Dried meat and hardtack. Practical and long-lasting.",
+    "value": 10,
+    "vendable": true,
+    "abilities": [
+      { "name": "stamina_regen", "powerlevel": 2 }
+    ],
+    "image": "rations",
+    "duration": 50
+  },
+  {
+    "id": "59",
+    "name": "Spiced Cider",
+    "type": "consumable",
+    "subtype": "drink",
+    "description": "Warm cider with cinnamon and cloves. Comforting.",
+    "value": 12,
+    "vendable": true,
+    "abilities": [
+      { "name": "health_regen", "powerlevel": 2 }
+    ],
+    "image": "cider",
+    "duration": 40
+  },
+  {
+    "id": "60",
+    "name": "Fish and Chips",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Fresh fish with crispy chips. A tavern favorite.",
+    "value": 18,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 1 },
+      { "name": "stamina_regen", "powerlevel": 2 }
+    ],
+    "image": "fish_chips",
+    "duration": 55
+  },
+  {
+    "id": "61",
+    "name": "Dragon's Breath Whiskey",
+    "type": "consumable",
+    "subtype": "drink",
+    "description": "Incredibly potent whiskey. Burns going down.",
+    "value": 45,
+    "vendable": true,
+    "abilities": [
+      { "name": "strength", "powerlevel": 4 },
+      { "name": "speed", "powerlevel": -1 }
+    ],
+    "image": "dragons_whiskey",
+    "duration": 60
+  },
+  {
+    "id": "62",
+    "name": "Shepherd's Pie",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Meat and vegetables topped with mashed potatoes.",
+    "value": 22,
+    "vendable": true,
+    "abilities": [
+      { "name": "health_regen", "powerlevel": 3 },
+      { "name": "mining", "powerlevel": 1 }
+    ],
+    "image": "shepherds_pie",
+    "duration": 65
   }
 ]
