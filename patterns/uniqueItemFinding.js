@@ -365,7 +365,7 @@ async function getGlobalUniqueItemStats() {
     }
 }
 
-// Send legendary announcement to ALL text channels in the guild
+// Send legendary announcement to PUBLIC channels only (text channels and voice channel text)
 async function sendLegendaryAnnouncement(client, guildId, itemResult, playerTag) {
     try {
         if (!itemResult.systemAnnouncement || !itemResult.systemAnnouncement.enabled) {
@@ -379,14 +379,37 @@ async function sendLegendaryAnnouncement(client, guildId, itemResult, playerTag)
             return false;
         }
         
-        // Get all text channels in the guild
-        const textChannels = guild.channels.cache.filter(channel => 
-            channel.type === 0 && // 0 = GUILD_TEXT channel type
-            channel.permissionsFor(guild.members.me).has(['SendMessages', 'ViewChannel'])
-        );
+        // Get @everyone role to check public channels
+        const everyoneRole = guild.roles.everyone;
         
-        if (textChannels.size === 0) {
-            console.error('[LEGENDARY] No accessible text channels in guild:', guildId);
+        // Get all public channels (text channels and voice channel text areas)
+        const publicChannels = guild.channels.cache.filter(channel => {
+            // Check if it's a text channel (0) or voice channel (2) 
+            const isTextChannel = channel.type === 0; // GUILD_TEXT
+            const isVoiceChannel = channel.type === 2; // GUILD_VOICE
+            
+            // Skip if not text or voice
+            if (!isTextChannel && !isVoiceChannel) return false;
+            
+            // Check if bot can send messages
+            const botPerms = channel.permissionsFor(guild.members.me);
+            if (!botPerms || !botPerms.has(['SendMessages', 'ViewChannel'])) return false;
+            
+            // Check if @everyone can view the channel (making it "public")
+            const everyonePerms = channel.permissionsFor(everyoneRole);
+            if (!everyonePerms || !everyonePerms.has('ViewChannel')) return false;
+            
+            // For voice channels, only include if text-in-voice is enabled
+            if (isVoiceChannel) {
+                // Voice channels can have text if SendMessages permission exists
+                return botPerms.has('SendMessages');
+            }
+            
+            return true;
+        });
+        
+        if (publicChannels.size === 0) {
+            console.error('[LEGENDARY] No accessible public channels in guild:', guildId);
             return false;
         }
         
@@ -397,10 +420,10 @@ async function sendLegendaryAnnouncement(client, guildId, itemResult, playerTag)
         let successCount = 0;
         let failCount = 0;
         
-        console.log(`[LEGENDARY] Sending announcement to ${textChannels.size} channels...`);
+        console.log(`[LEGENDARY] Sending announcement to ${publicChannels.size} public channels...`);
         
-        // Send to all text channels with a small delay to avoid rate limits
-        for (const [channelId, channel] of textChannels) {
+        // Send to all public channels with a small delay to avoid rate limits
+        for (const [channelId, channel] of publicChannels) {
             try {
                 // Send the announcement
                 const message = await channel.send(announcementMessage);
@@ -426,7 +449,7 @@ async function sendLegendaryAnnouncement(client, guildId, itemResult, playerTag)
             }
         }
         
-        console.log(`[LEGENDARY] Announced ${itemResult.item.name} found by ${playerTag} in ${successCount}/${textChannels.size} channels`);
+        console.log(`[LEGENDARY] Announced ${itemResult.item.name} found by ${playerTag} in ${successCount}/${publicChannels.size} public channels`);
         
         return successCount > 0;
         
@@ -466,16 +489,39 @@ async function sendLegendaryAnnouncementWithEmbed(client, guildId, itemResult, p
             .setTimestamp()
             .setFooter({ text: 'A legendary moment in server history!' });
         
-        // Get all text channels
-        const textChannels = guild.channels.cache.filter(channel => 
-            channel.type === 0 && // 0 = GUILD_TEXT
-            channel.permissionsFor(guild.members.me).has(['SendMessages', 'ViewChannel', 'EmbedLinks'])
-        );
+        // Get @everyone role to check public channels
+        const everyoneRole = guild.roles.everyone;
         
-        // Send to all channels
+        // Get all public channels (text channels and voice channel text areas)
+        const publicChannels = guild.channels.cache.filter(channel => {
+            // Check if it's a text channel (0) or voice channel (2)
+            const isTextChannel = channel.type === 0; // GUILD_TEXT
+            const isVoiceChannel = channel.type === 2; // GUILD_VOICE
+            
+            // Skip if not text or voice
+            if (!isTextChannel && !isVoiceChannel) return false;
+            
+            // Check if bot can send messages and embeds
+            const botPerms = channel.permissionsFor(guild.members.me);
+            if (!botPerms || !botPerms.has(['SendMessages', 'ViewChannel', 'EmbedLinks'])) return false;
+            
+            // Check if @everyone can view the channel (making it "public")
+            const everyonePerms = channel.permissionsFor(everyoneRole);
+            if (!everyonePerms || !everyonePerms.has('ViewChannel')) return false;
+            
+            // For voice channels, only include if text-in-voice is enabled
+            if (isVoiceChannel) {
+                // Voice channels can have text if SendMessages permission exists
+                return botPerms.has('SendMessages');
+            }
+            
+            return true;
+        });
+        
+        // Send to all public channels
         let successCount = 0;
         
-        for (const [channelId, channel] of textChannels) {
+        for (const [channelId, channel] of publicChannels) {
             try {
                 // Send both the big text and the embed
                 const message = await channel.send({
@@ -499,7 +545,7 @@ async function sendLegendaryAnnouncementWithEmbed(client, guildId, itemResult, p
             }
         }
         
-        console.log(`[LEGENDARY] Sent legendary announcement to ${successCount} channels`);
+        console.log(`[LEGENDARY] Sent legendary announcement to ${successCount} public channels`);
         return successCount > 0;
         
     } catch (error) {

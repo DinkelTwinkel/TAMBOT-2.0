@@ -15,6 +15,8 @@ const {
     getChainMiningTargets
 } = require('./mining/uniqueItemBonuses');
 
+const { sendLegendaryAnnouncement } = require('../uniqueItemFinding');
+
 // Import instance manager for preventing parallel execution
 const instanceManager = require('./instance-manager');
 
@@ -1888,6 +1890,16 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     
                     if (itemFind) {
                         eventLogs.push(itemFind.message);
+                            // NEW: Check for legendary announcement
+                            if (itemFind.systemAnnouncement && itemFind.systemAnnouncement.enabled) {
+                                // Send the legendary announcement to all channels
+                                await sendLegendaryAnnouncement(
+                                    client,  // You'll need to pass the client from the main function
+                                    channel.guild.id,
+                                    itemFind,
+                                    member.displayName
+                                );
+                            }
                     }
                     
                     if (uniqueBonuses.areaDamageChance > 0) {

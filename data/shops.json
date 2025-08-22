@@ -1,7 +1,7 @@
 [
   {
     "id": 1,
-    "name": "Coal Mine Trading Desk",
+    "name": "⛏️ Coal Mine Trading Desk",
     "idleDialogue": [
       "The children yearn for the mines...", 
       "Keep mining!", 
@@ -26,7 +26,7 @@
   },
   {
     "id": 2,
-    "name": "Topaz Mine Trading Desk",
+    "name": "🟨 Topaz Mine Trading Desk",
     "idleDialogue": [
       "Golden opportunities await!", 
       "These gems shine bright!", 
@@ -51,7 +51,7 @@
   },
   {
     "id": 3,
-    "name": "Diamond Mine Trading Shop",
+    "name": "💎 Diamond Mine Trading Shop",
     "idleDialogue": [
       "Diamonds are forever!", 
       "The finest cuts available!", 
@@ -76,7 +76,7 @@
   },
   {
     "id": 4,
-    "name": "Emerald Cavern Bazaar",
+    "name": "🍃 Emerald Cavern Bazaar",
     "idleDialogue": [
       "Green is the color of prosperity!", 
       "These emeralds pulse with energy!", 
@@ -101,7 +101,7 @@
   },
   {
     "id": 5,
-    "name": "Ruby Depths Emporium",
+    "name": "🌋 Ruby Depths Emporium",
     "idleDialogue": [
       "Feel the heat of these rubies!", 
       "Forged in fire and passion!", 
@@ -126,7 +126,7 @@
   },
   {
     "id": 6,
-    "name": "Obsidian Forge Marketplace",
+    "name": "🗡️ Obsidian Forge Marketplace",
     "idleDialogue": [
       "Volcanic glass, sharp as death!", 
       "Forged in the earth's fury!", 
@@ -151,7 +151,7 @@
   },
   {
     "id": 7,
-    "name": "Mythril Sanctum Treasury",
+    "name": "🌌 Mythril Sanctum Treasury",
     "idleDialogue": [
       "Blessed mythril, gift of the gods!", 
       "This metal sings with ancient power!", 
@@ -176,7 +176,7 @@
   },
   {
     "id": 8,
-    "name": "Adamantite Abyss Vault",
+    "name": "🌑 Adamantite Abyss Vault",
     "idleDialogue": [
       "Adamantite... the ultimate metal!", 
       "Harder than reality itself!", 
@@ -201,7 +201,7 @@
   },
   {
     "id": 9,
-    "name": "Copper Quarry Exchange",
+    "name": "🔨 Copper Quarry Exchange",
     "idleDialogue": [
       "Honest copper for honest folk!", 
       "Reliable metal, reliable profits!", 
@@ -226,7 +226,7 @@
   },
   {
     "id": 10,
-    "name": "Iron Stronghold Armory",
+    "name": "⚔️ Iron Stronghold Armory",
     "idleDialogue": [
       "Strong iron for strong souls!", 
       "Forged for battle, tested in fire!", 
@@ -251,7 +251,7 @@
   },
   {
     "id": 11,
-    "name": "Crystal Grotto Emporium",
+    "name": "🔮 Crystal Grotto Emporium",
     "idleDialogue": [
       "Crystals sing with magical energy!", 
       "Each shard holds ancient power!", 
@@ -276,7 +276,7 @@
   },
   {
     "id": 12,
-    "name": "Fossil Excavation Museum",
+    "name": "🦴 Fossil Excavation Museum",
     "idleDialogue": [
       "History for sale!", 
       "Ancient treasures, modern prices!", 
@@ -297,6 +297,33 @@
     "itemPool": [22,21,1,2,4,8,17,18,20,14,29,33,34],
     "image": "coalMineShop",
     "priceChangeFactor": 0.65,
+    "itemDisplayScale": 1
+  },
+  {
+    "id": 13,
+    "name": "🍺 Miner's Inn Tavern 🎶",
+    "idleDialogue": [
+      "Pull up a stool, friend! First round's never free though!", 
+      "Fresh meat stew on the fire, just like the deep diggers love it!", 
+      "These tunnels echo with more than just pickaxes at night...", 
+      "*-Wipes down the bar with a grimy cloth*", 
+      "*~Pours another ale*",
+      "Had a fellow in here swearing he found The One Pick... 'course he was three sheets to the wind.",
+      "The Miner King? Ha! After enough ale, everyone's seen him!",
+      "They say The One Pick's hidden in a place no living soul can reach... probably just means it's at the bottom of a tankard!",
+      "Best cure for cave-blindness? A warm bed and a cold drink!",
+      "Every scar has a story, every story needs a drink!"
+    ],
+    "successSell": ["Pleasure doing business! Now, how about an ale?"],
+    "successBuy": ["That'll keep you going in the depths!"],
+    "failureTooPoor": ["No coin, no comfort! The mines are that way!", "This ain't a charity house, friend!"],
+    "failureOther": ["I run an inn, not a circus!", "-GRUNTS", "Order something or move along!"],
+    "cost": 0,
+    "staticItems": [49, 50],
+    "rotationalAmount": 1,
+    "itemPool": [4, 5, 10, 11, 48, 49, 50, 51, 52, 53, 54, 58, 59, 60, 62],
+    "image": "coalMineShop",
+    "priceChangeFactor": 0.75,
     "itemDisplayScale": 1
   }
 ]

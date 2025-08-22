@@ -188,8 +188,7 @@ function buildStraightLine(tiles, startX, startY, direction, width, height) {
             tile.type === TILE_TYPES.WALL ||
             tile.type === TILE_TYPES.WALL_WITH_ORE ||
             tile.type === TILE_TYPES.RARE_ORE ||
-            tile.type === TILE_TYPES.REINFORCED_WALL ||
-            tile.type === TILE_TYPES.TREASURE_CHEST) {
+            tile.type === TILE_TYPES.REINFORCED_WALL) {
             break;
         }
         
@@ -605,15 +604,15 @@ async function startMineCollapseEvent(channel, dbEntry) {
         
         bonusMessage = `\n\n💰 **Solo Survivor Bonus**: ${survivalBonus} coins for weathering the collapse alone!`;
         
-        // Guarantee at least one treasure chest for solo players
+        // Guarantee at least one rare ore zone for solo players
         if (collapsedZones.length > 0) {
-            const treasureZone = collapsedZones[0];
-            mapData.tiles[treasureZone.center.y][treasureZone.center.x] = {
-                type: TILE_TYPES.TREASURE_CHEST,
+            const rareZone = collapsedZones[0];
+            mapData.tiles[rareZone.center.y][rareZone.center.x] = {
+                type: TILE_TYPES.RARE_ORE,
                 discovered: true,
-                hardness: 2
+                hardness: 3
             };
-            bonusMessage += `\n📍 **Treasure detected at (${treasureZone.center.x}, ${treasureZone.center.y})**`;
+            bonusMessage += `\n📍 **Rare ore detected at (${rareZone.center.x}, ${rareZone.center.y})**`;
         }
     }
     
@@ -641,7 +640,7 @@ function pickCollapseType() {
         { name: 'Cave-in', weight: 35, distribution: { wall: 50, ore: 30, reinforced: 15, hazard: 5 } },
         { name: 'Dead Zone', weight: 20, distribution: { wall: 60, reinforced: 30, hazard: 10 } },
         { name: 'Danger Zone', weight: 10, distribution: { hazard: 40, wall: 30, reinforced: 20, ore: 10 } },
-        { name: 'Crystal Cave', weight: 10, distribution: { rare: 40, treasure: 20, ore: 30, wall: 10 } }
+        { name: 'Crystal Cave', weight: 10, distribution: { rare: 50, ore: 35, wall: 15 } }
     ];
     
     const totalWeight = types.reduce((sum, t) => sum + t.weight, 0);
@@ -675,10 +674,11 @@ function getRandomTileFromCollapseType(collapseType) {
         if (rand < accumulated) return TILE_TYPES.RARE_ORE;
     }
     
-    if (dist.treasure) {
-        accumulated += dist.treasure;
-        if (rand < accumulated) return TILE_TYPES.TREASURE_CHEST;
-    }
+    // Treasure tiles removed - no longer used
+    // if (dist.treasure) {
+    //     accumulated += dist.treasure;
+    //     if (rand < accumulated) return TILE_TYPES.TREASURE_CHEST;
+    // }
     
     if (dist.hazard) {
         accumulated += dist.hazard;
@@ -705,7 +705,7 @@ function getTileHardness(tileType) {
         [TILE_TYPES.WALL_WITH_ORE]: 2,
         [TILE_TYPES.RARE_ORE]: 3,
         [TILE_TYPES.REINFORCED_WALL]: 5,
-        [TILE_TYPES.TREASURE_CHEST]: 2,
+        // [TILE_TYPES.TREASURE_CHEST]: 2, // Removed - no longer used
         [TILE_TYPES.HAZARD]: 0,
         [TILE_TYPES.FLOOR]: 0
     };

@@ -5,21 +5,26 @@ const {
     BASE_ORE_SPAWN_CHANCE, 
     MAX_MAP_SIZE, 
     TILE_TYPES,
+    POWER_LEVEL_CONFIG,
     getHazardSpawnChance
 } = require('./miningConstants');
 const hazardStorage = require('./hazardStorage');
 const { createMapSeed, seededRandom } = require('./miningUtils');
 const coordinateManager = require('./coordinateManager');
 
-// Enhanced Map Generation
-function generateTileType(channelId, x, y) {
+// Enhanced Map Generation with power level support
+function generateTileType(channelId, x, y, powerLevel = 1) {
     const mapSeed = createMapSeed(channelId, x, y);
     const random = seededRandom(mapSeed);
     
-    if (random < 0.01) return TILE_TYPES.TREASURE_CHEST;
+    // Get reinforced wall chance from power level config
+    const powerConfig = POWER_LEVEL_CONFIG[powerLevel] || POWER_LEVEL_CONFIG[1];
+    const reinforcedWallChance = powerConfig.reinforcedWallChance || 0.05;
+    
+    //if (random < 0.01) return TILE_TYPES.TREASURE_CHEST;
     if (random < 0.03) return TILE_TYPES.RARE_ORE;
     // Note: Hazards are now stored separately, not as tile types
-    if (random < 0.05) return TILE_TYPES.REINFORCED_WALL;
+    if (random < reinforcedWallChance) return TILE_TYPES.REINFORCED_WALL;  // Dynamic based on power level
     if (random < BASE_ORE_SPAWN_CHANCE + 0.15) return TILE_TYPES.WALL_WITH_ORE;
     
     return TILE_TYPES.WALL;
@@ -36,13 +41,13 @@ function getTileHardness(tileType) {
     }
 }
 
-function initializeMap(channelId) {
+function initializeMap(channelId, powerLevel = 1) {
     const map = [];
     
     for (let y = 0; y < INITIAL_MAP_HEIGHT; y++) {
         const row = [];
         for (let x = 0; x < INITIAL_MAP_WIDTH; x++) {
-            const tileType = generateTileType(channelId, x, y);
+            const tileType = generateTileType(channelId, x, y, powerLevel);
             row.push({ 
                 type: tileType, 
                 discovered: false,
@@ -78,7 +83,7 @@ function initializeMap(channelId) {
     };
 }
 
-function expandMap(mapData, direction, channelId) {
+function expandMap(mapData, direction, channelId, powerLevel = 1) {
     const { tiles, width, height } = mapData;
     
     console.log(`[MAP] Attempting to expand map ${direction} from ${width}x${height}`);
@@ -95,7 +100,7 @@ function expandMap(mapData, direction, channelId) {
         case 'north':
             const newNorthRow = [];
             for (let x = 0; x < width; x++) {
-                const tileType = generateTileType(channelId, x, -1);
+                const tileType = generateTileType(channelId, x, -1, powerLevel);
                 newNorthRow.push({ 
                     type: tileType, 
                     discovered: false,
@@ -116,7 +121,7 @@ function expandMap(mapData, direction, channelId) {
             newTiles = [...tiles];
             const newSouthRow = [];
             for (let x = 0; x < width; x++) {
-                const tileType = generateTileType(channelId, x, height);
+                const tileType = generateTileType(channelId, x, height, powerLevel);
                 newSouthRow.push({ 
                     type: tileType, 
                     discovered: false,
@@ -130,7 +135,7 @@ function expandMap(mapData, direction, channelId) {
             
         case 'east':
             newTiles = tiles.map((row, y) => {
-                const tileType = generateTileType(channelId, width, y);
+                const tileType = generateTileType(channelId, width, y, powerLevel);
                 return [...row, { 
                     type: tileType, 
                     discovered: false,
@@ -143,7 +148,7 @@ function expandMap(mapData, direction, channelId) {
             
         case 'west':
             newTiles = tiles.map((row, y) => {
-                const tileType = generateTileType(channelId, -1, y);
+                const tileType = generateTileType(channelId, -1, y, powerLevel);
                 return [{ 
                     type: tileType, 
                     discovered: false,
@@ -245,6 +250,7 @@ function cleanupPlayerPositions(mapData, currentPlayerIds) {
  * @param {number} hazardSpawnChanceOverride - Optional override for hazard spawn chance (for danger 6-7)
  */
 async function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = null, serverPowerLevel = 1, hazardSpawnChanceOverride = null) {
+    // Note: serverPowerLevel is already passed in, use it for map expansion
     let needsExpansion = false;
     let expansionDirection = '';
     
@@ -277,7 +283,7 @@ async function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = n
     
     if (needsExpansion && expansionDirection) {
         console.log(`[MAP] Expansion needed at (${newX}, ${newY}) - direction: ${expansionDirection}`);
-        const expandedMap = expandMap(mapData, expansionDirection, channelId);
+        const expandedMap = expandMap(mapData, expansionDirection, channelId, serverPowerLevel);
         
         // Calculate coordinate shift
         const shiftX = expandedMap.entranceX - originalEntranceX;

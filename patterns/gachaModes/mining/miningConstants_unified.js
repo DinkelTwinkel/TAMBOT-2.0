@@ -17,7 +17,8 @@ const POWER_LEVEL_CONFIG = {
         rareOreBonus: 0.0,
         treasureChance: 0.01,
         speedBonus: 1.0,
-        valueMultiplier: 1.0
+        valueMultiplier: 1.0,
+        reinforcedWallChance: 0.05  // 5% base chance
     },
     2: {
         name: "Apprentice Expedition", 
@@ -26,7 +27,8 @@ const POWER_LEVEL_CONFIG = {
         rareOreBonus: 0.005,
         treasureChance: 0.015,
         speedBonus: 1.1,
-        valueMultiplier: 1.2
+        valueMultiplier: 1.2,
+        reinforcedWallChance: 0.07  // 7% chance
     },
     3: {
         name: "Skilled Expedition",
@@ -35,7 +37,8 @@ const POWER_LEVEL_CONFIG = {
         rareOreBonus: 0.01,
         treasureChance: 0.02,
         speedBonus: 1.2,
-        valueMultiplier: 1.5
+        valueMultiplier: 1.5,
+        reinforcedWallChance: 0.10  // 10% chance
     },
     4: {
         name: "Expert Expedition",
@@ -44,7 +47,8 @@ const POWER_LEVEL_CONFIG = {
         rareOreBonus: 0.02,
         treasureChance: 0.03,
         speedBonus: 1.3,
-        valueMultiplier: 1.8
+        valueMultiplier: 1.8,
+        reinforcedWallChance: 0.13  // 13% chance
     },
     5: {
         name: "Master Expedition",
@@ -53,7 +57,8 @@ const POWER_LEVEL_CONFIG = {
         rareOreBonus: 0.03,
         treasureChance: 0.04,
         speedBonus: 1.4,
-        valueMultiplier: 2.2
+        valueMultiplier: 2.2,
+        reinforcedWallChance: 0.16  // 16% chance
     },
     6: {
         name: "Legendary Expedition",
@@ -62,7 +67,8 @@ const POWER_LEVEL_CONFIG = {
         rareOreBonus: 0.05,
         treasureChance: 0.06,
         speedBonus: 1.6,
-        valueMultiplier: 2.8
+        valueMultiplier: 2.8,
+        reinforcedWallChance: 0.20  // 20% chance
     },
     7: {
         name: "Abyssal Expedition",
@@ -71,7 +77,8 @@ const POWER_LEVEL_CONFIG = {
         rareOreBonus: 0.08,
         treasureChance: 0.1,
         speedBonus: 2.0,
-        valueMultiplier: 3.5
+        valueMultiplier: 3.5,
+        reinforcedWallChance: 0.25  // 25% chance - maximum difficulty!
     }
 };
 
@@ -1164,6 +1171,12 @@ function getHazardSpawnChance(powerLevel) {
     return config.spawnChance;
 }
 
+// Function to get reinforced wall chance for power level
+function getReinforcedWallChance(powerLevel) {
+    const config = POWER_LEVEL_CONFIG[powerLevel] || POWER_LEVEL_CONFIG[1];
+    return config.reinforcedWallChance || 0.05;  // Default 5% if not specified
+}
+
 // Function to get encounter type based on power level
 function getEncounterTypeForPowerLevel(powerLevel) {
     const config = ENCOUNTER_SPAWN_CONFIG[powerLevel] || ENCOUNTER_SPAWN_CONFIG[1];
@@ -1283,5 +1296,6 @@ module.exports = {
     getEncounterTypeForPowerLevel,
     getEncounterSpawnChance,
     getHazardTypeForPowerLevel,
-    getHazardSpawnChance
+    getHazardSpawnChance,
+    getReinforcedWallChance
 };

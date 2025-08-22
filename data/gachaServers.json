@@ -225,5 +225,19 @@
         "shop": 12,
         "colour": "DEB887",
         "image": "fossilMine"
+    },
+    {
+        "id": "13",
+        "name": "🍖 Miner's Inn",
+        "type": "innkeeper",
+        "rarity": "rare",
+        "spawnWeight": 1,
+        "description": "A hearty tavern where weary miners gather after long shifts underground. Known for its generous portions of meat and ale, this rustic inn offers warm beds and warmer company to those who work the depths.",
+        "power": 1,
+        "script": "innkeeper.js",
+        "profitMargins": 0.1,
+        "shop": 13,
+        "colour": "DEB887",
+        "image": "fossilMine"
     }
 ]

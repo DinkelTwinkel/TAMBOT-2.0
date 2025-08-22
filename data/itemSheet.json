@@ -290,7 +290,7 @@
     "name": "Bun Pack",
     "type": "consumable",
     "description": "Longer lasting buns! Moderate boost.",
-    "value": 40,
+    "value": 200,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 2 }
@@ -303,7 +303,7 @@
     "name": "Water",
     "type": "consumable",
     "description": "Drink some water and stay sharp.",
-    "value": 6,
+    "value": 8,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 1 }
@@ -316,7 +316,7 @@
     "name": "Mine Beer",
     "type": "consumable",
     "description": "Brewed for miners. Greatly boosts morale and efficiency.",
-    "value": 100,
+    "value": 420,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 3 }
@@ -395,7 +395,7 @@
     "name": "Lucky Charm Necklace",
     "type": "charm",
     "description": "A simple charm that brings a bit of good fortune.",
-    "value": 35,
+    "value": 500,
     "vendable": true,
     "abilities": [
       { "name": "luck", "powerlevel": 1 }
@@ -540,7 +540,7 @@
     "name": "Luck Potion",
     "type": "consumable",
     "description": "A bubbling green potion that temporarily improves your fortune.",
-    "value": 25,
+    "value": 35,
     "vendable": true,
     "abilities": [
       { "name": "luck", "powerlevel": 3 }
@@ -553,7 +553,7 @@
     "name": "Vision Elixir",
     "type": "consumable",
     "description": "A crystal-clear elixir that sharpens your sight and reveals hidden details.",
-    "value": 20,
+    "value": 25,
     "vendable": true,
     "abilities": [
       { "name": "sight", "powerlevel": 3 }
@@ -611,11 +611,11 @@
     "name": "Bread Loaf",
     "type": "consumable",
     "subtype": "food",
-    "description": "Simple but filling bread. Restores stamina.",
-    "value": 5,
+    "description": "Simple but filling bread. Provides energy for mining.",
+    "value": 15,
     "vendable": true,
     "abilities": [
-      { "name": "stamina_regen", "powerlevel": 1 }
+      { "name": "mining", "powerlevel": 1 }
     ],
     "image": "bread",
     "duration": 30
@@ -625,11 +625,11 @@
     "name": "Ale Mug",
     "type": "consumable",
     "subtype": "drink",
-    "description": "A refreshing mug of ale. Warms the body.",
-    "value": 8,
+    "description": "A refreshing mug of ale. Makes you feel lucky!",
+    "value": 18,
     "vendable": true,
     "abilities": [
-      { "name": "health_regen", "powerlevel": 1 }
+      { "name": "luck", "powerlevel": 1 }
     ],
     "image": "ale",
     "duration": 30
@@ -639,14 +639,13 @@
     "name": "Hearty Stew",
     "type": "consumable",
     "subtype": "food",
-    "description": "A warming bowl of stew with meat and vegetables.",
-    "value": 15,
+    "description": "A warming bowl of stew that fuels your mining efforts.",
+    "value": 120,
     "vendable": true,
     "abilities": [
-      { "name": "health_regen", "powerlevel": 2 },
-      { "name": "stamina_regen", "powerlevel": 1 }
+      { "name": "mining", "powerlevel": 2 }
     ],
-    "image": "stew",
+    "image": "hearty_stew",
     "duration": 45
   },
   {
@@ -654,12 +653,11 @@
     "name": "Cheese Wheel",
     "type": "consumable",
     "subtype": "food",
-    "description": "Aged cheese, perfect for a quick energy boost.",
-    "value": 12,
+    "description": "Aged cheese that makes you light on your feet.",
+    "value": 35,
     "vendable": true,
     "abilities": [
-      { "name": "speed", "powerlevel": 1 },
-      { "name": "stamina_regen", "powerlevel": 1 }
+      { "name": "speed", "powerlevel": 1 }
     ],
     "image": "cheese",
     "duration": 40
@@ -669,12 +667,11 @@
     "name": "Roasted Meat",
     "type": "consumable",
     "subtype": "food",
-    "description": "Perfectly seasoned roasted meat. Builds strength.",
-    "value": 25,
+    "description": "Perfectly seasoned meat that enhances your mining prowess.",
+    "value": 380,
     "vendable": true,
     "abilities": [
-      { "name": "strength", "powerlevel": 2 },
-      { "name": "health_regen", "powerlevel": 2 }
+      { "name": "mining", "powerlevel": 3 }
     ],
     "image": "roasted_meat",
     "duration": 60
@@ -684,12 +681,11 @@
     "name": "Fine Wine",
     "type": "consumable",
     "subtype": "drink",
-    "description": "An aged vintage that improves fortune and mood.",
-    "value": 30,
+    "description": "An aged vintage that brings good fortune.",
+    "value": 220,
     "vendable": true,
     "abilities": [
-      { "name": "luck", "powerlevel": 2 },
-      { "name": "stamina_regen", "powerlevel": 2 }
+      { "name": "luck", "powerlevel": 2 }
     ],
     "image": "wine",
     "duration": 60
@@ -700,7 +696,7 @@
     "type": "consumable",
     "subtype": "drink",
     "description": "A strong brew favored by hunters. Sharpens the senses.",
-    "value": 20,
+    "value": 180,
     "vendable": true,
     "abilities": [
       { "name": "sight", "powerlevel": 2 },
@@ -714,11 +710,10 @@
     "name": "Venison Steak",
     "type": "consumable",
     "subtype": "food",
-    "description": "Wild game meat, lean and energizing.",
-    "value": 35,
+    "description": "Wild game meat that makes you swift as a deer.",
+    "value": 250,
     "vendable": true,
     "abilities": [
-      { "name": "strength", "powerlevel": 3 },
       { "name": "speed", "powerlevel": 2 }
     ],
     "image": "venison",
@@ -729,12 +724,14 @@
     "name": "Royal Feast",
     "type": "consumable",
     "subtype": "food",
-    "description": "A magnificent feast fit for royalty. Grants many boons.",
-    "value": 50,
+    "description": "A magnificent feast that enhances all your abilities.",
+    "value": 1000,
     "vendable": true,
     "abilities": [
-      { "name": "all_stats", "powerlevel": 2 },
-      { "name": "health_regen", "powerlevel": 3 }
+      { "name": "mining", "powerlevel": 2 },
+      { "name": "luck", "powerlevel": 1 },
+      { "name": "speed", "powerlevel": 1 },
+      { "name": "sight", "powerlevel": 1 }
     ],
     "image": "royal_feast",
     "duration": 90
@@ -744,12 +741,11 @@
     "name": "Golden Mead",
     "type": "consumable",
     "subtype": "drink",
-    "description": "Honey mead infused with gold flakes. Beloved by nobles.",
-    "value": 40,
+    "description": "Honey mead infused with gold that brings exceptional luck.",
+    "value": 650,
     "vendable": true,
     "abilities": [
-      { "name": "luck", "powerlevel": 3 },
-      { "name": "all_stats", "powerlevel": 1 }
+      { "name": "luck", "powerlevel": 3 }
     ],
     "image": "golden_mead",
     "duration": 80
@@ -759,11 +755,11 @@
     "name": "Adventurer's Rations",
     "type": "consumable",
     "subtype": "food",
-    "description": "Dried meat and hardtack. Practical and long-lasting.",
-    "value": 10,
+    "description": "Dried provisions that sustain miners on long expeditions.",
+    "value": 45,
     "vendable": true,
     "abilities": [
-      { "name": "stamina_regen", "powerlevel": 2 }
+      { "name": "mining", "powerlevel": 1 }
     ],
     "image": "rations",
     "duration": 50
@@ -773,11 +769,11 @@
     "name": "Spiced Cider",
     "type": "consumable",
     "subtype": "drink",
-    "description": "Warm cider with cinnamon and cloves. Comforting.",
-    "value": 12,
+    "description": "Warm cider that sharpens your vision in the dark.",
+    "value": 50,
     "vendable": true,
     "abilities": [
-      { "name": "health_regen", "powerlevel": 2 }
+      { "name": "sight", "powerlevel": 2 }
     ],
     "image": "cider",
     "duration": 40
@@ -787,12 +783,12 @@
     "name": "Fish and Chips",
     "type": "consumable",
     "subtype": "food",
-    "description": "Fresh fish with crispy chips. A tavern favorite.",
-    "value": 18,
+    "description": "Fresh fish with crispy chips that boosts mining and speed.",
+    "value": 150,
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 1 },
-      { "name": "stamina_regen", "powerlevel": 2 }
+      { "name": "speed", "powerlevel": 1 }
     ],
     "image": "fish_chips",
     "duration": 55
@@ -802,12 +798,12 @@
     "name": "Dragon's Breath Whiskey",
     "type": "consumable",
     "subtype": "drink",
-    "description": "Incredibly potent whiskey. Burns going down.",
-    "value": 45,
+    "description": "Potent whiskey that brings luck and clarity of vision.",
+    "value": 450,
     "vendable": true,
     "abilities": [
-      { "name": "strength", "powerlevel": 4 },
-      { "name": "speed", "powerlevel": -1 }
+      { "name": "luck", "powerlevel": 2 },
+      { "name": "sight", "powerlevel": 1 }
     ],
     "image": "dragons_whiskey",
     "duration": 60
@@ -817,12 +813,11 @@
     "name": "Shepherd's Pie",
     "type": "consumable",
     "subtype": "food",
-    "description": "Meat and vegetables topped with mashed potatoes.",
-    "value": 22,
+    "description": "Hearty pie that improves mining efficiency.",
+    "value": 75,
     "vendable": true,
     "abilities": [
-      { "name": "health_regen", "powerlevel": 3 },
-      { "name": "mining", "powerlevel": 1 }
+      { "name": "mining", "powerlevel": 2 }
     ],
     "image": "shepherds_pie",
     "duration": 65

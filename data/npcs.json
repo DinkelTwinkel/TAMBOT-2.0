@@ -1,0 +1,242 @@
+[
+  {
+    "id": "npc_1",
+    "name": "Gruff McGrufferson",
+    "description": "A burly miner with coal dust permanently etched into his skin",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
+    "preferences": ["consumable", "food", "drink"],
+    "budget": "low",
+    "tipModifier": 0.5,
+    "frequency": "common",
+    "dialogue": [
+      "Just finished a 12-hour shift, need something filling!",
+      "Me stomach's rumbling louder than the mine carts.",
+      "Got any of that hearty stew left?"
+    ]
+  },
+  {
+    "id": "npc_2",
+    "name": "Lady Goldworth",
+    "description": "A wealthy merchant's wife with expensive tastes",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "high",
+    "tipModifier": 2.5,
+    "frequency": "rare",
+    "dialogue": [
+      "I'll have your finest vintage, money is no object.",
+      "This establishment comes highly recommended.",
+      "The ambiance here is... quaint."
+    ]
+  },
+  {
+    "id": "npc_3",
+    "name": "Old Pete",
+    "description": "A regular patron who knows everyone's business",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "medium",
+    "tipModifier": 1.0,
+    "frequency": "very_common",
+    "dialogue": [
+      "The usual, if you please!",
+      "Heard about the cave-in on level 3? Nasty business.",
+      "Been coming here for 30 years, never gets old."
+    ]
+  },
+  {
+    "id": "npc_4",
+    "name": "Sparkles the Gnome",
+    "description": "An eccentric gnome inventor with deep pockets",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
+    "preferences": ["consumable", "tool"],
+    "budget": "high",
+    "tipModifier": 1.8,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Fascinating establishment! Do you have anything... unusual?",
+      "My latest invention requires sustenance for testing!",
+      "Eureka! This ale gives me IDEAS!"
+    ]
+  },
+  {
+    "id": "npc_5",
+    "name": "Tired Tom",
+    "description": "An exhausted worker who just wants a quick meal",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
+    "preferences": ["consumable", "food"],
+    "budget": "low",
+    "tipModifier": 0.3,
+    "frequency": "common",
+    "dialogue": [
+      "*yawns* Just... anything edible, please.",
+      "Too tired to read the menu. Surprise me.",
+      "Need fuel for the night shift..."
+    ]
+  },
+  {
+    "id": "npc_6",
+    "name": "Captain Ironbeard",
+    "description": "A boisterous mine foreman who treats his crew",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
+    "preferences": ["consumable", "drink", "food"],
+    "budget": "high",
+    "tipModifier": 2.0,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Drinks for me whole crew! We struck a rich vein today!",
+      "Keep 'em coming! The boys earned it!",
+      "Best inn in the whole mining district!"
+    ]
+  },
+  {
+    "id": "npc_7",
+    "name": "Whisper Jane",
+    "description": "A mysterious figure who speaks in hushed tones",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
+    "preferences": ["consumable"],
+    "budget": "medium",
+    "tipModifier": 1.5,
+    "frequency": "rare",
+    "dialogue": [
+      "*whispers* Something discrete, if you would...",
+      "*glances around nervously* Quick service, please.",
+      "*slides coins across counter* Keep the change."
+    ]
+  },
+  {
+    "id": "npc_8",
+    "name": "Young Billy",
+    "description": "An apprentice miner on his first payday",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "food", "tool"],
+    "budget": "low",
+    "tipModifier": 0.8,
+    "frequency": "common",
+    "dialogue": [
+      "First week's wages! Time to celebrate!",
+      "What's good here? I'm new to this.",
+      "My pa said this place serves honest food."
+    ]
+  },
+  {
+    "id": "npc_9",
+    "name": "The Merchant",
+    "description": "A traveling trader looking for supplies",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
+    "preferences": ["consumable", "tool"],
+    "budget": "medium",
+    "tipModifier": 1.2,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Need provisions for the road ahead.",
+      "Your prices are fair. I'll remember this place.",
+      "Do you have anything that travels well?"
+    ]
+  },
+  {
+    "id": "npc_10",
+    "name": "Madame Crystalgazer",
+    "description": "A fortune teller who claims to see the future",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
+    "preferences": ["consumable", "charm"],
+    "budget": "medium",
+    "tipModifier": 1.3,
+    "frequency": "rare",
+    "dialogue": [
+      "The spirits tell me this inn holds good fortune...",
+      "I foresee... a generous tip in your future!",
+      "The mystic energies here are quite strong."
+    ]
+  },
+  {
+    "id": "npc_11",
+    "name": "Grumpy Gus",
+    "description": "Never satisfied, always complaining",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
+    "preferences": ["consumable", "food"],
+    "budget": "medium",
+    "tipModifier": 0.2,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Hmph. I suppose this will have to do.",
+      "Back in my day, portions were bigger!",
+      "The other inn down the road is cheaper..."
+    ]
+  },
+  {
+    "id": "npc_12",
+    "name": "Sister Mercy",
+    "description": "A kind healer tending to injured miners",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
+    "preferences": ["consumable"],
+    "budget": "low",
+    "tipModifier": 1.0,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Blessings upon this house of respite.",
+      "Just water for me, but bread for the hungry, please.",
+      "Your kindness to the miners doesn't go unnoticed."
+    ]
+  },
+  {
+    "id": "npc_13",
+    "name": "Rowdy Rick",
+    "description": "Always ready for a good time",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "medium",
+    "tipModifier": 1.4,
+    "frequency": "common",
+    "dialogue": [
+      "WOOHOO! Let's get this party started!",
+      "Another round! The night is young!",
+      "This is the best inn in town, I tell ya!"
+    ]
+  },
+  {
+    "id": "npc_14",
+    "name": "The Inspector",
+    "description": "A stern official checking mining permits",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "food"],
+    "budget": "medium",
+    "tipModifier": 0.9,
+    "frequency": "rare",
+    "dialogue": [
+      "Everything appears to be in order. I'll have lunch.",
+      "Hmm. Your establishment meets regulations.",
+      "A simple meal will suffice. Nothing fancy."
+    ]
+  },
+  {
+    "id": "npc_15",
+    "name": "Lucky Lou",
+    "description": "Claims to have the best luck in the mines",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
+    "preferences": ["consumable", "charm", "tool"],
+    "budget": "high",
+    "tipModifier": 2.2,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Found three diamonds today! Drinks are on me!",
+      "My lucky streak continues! Time to celebrate!",
+      "Lady Luck smiles upon this establishment!"
+    ]
+  }
+]

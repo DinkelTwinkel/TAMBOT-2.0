@@ -1,15 +1,46 @@
 // commands/debugUnique.js
-// Debug command for testing unique items system (OWNER ONLY)
+// Enhanced debug command with announcement features
 
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const UniqueItem = require('../models/uniqueItems');
 const { UNIQUE_ITEMS, getUniqueItemById } = require('../data/uniqueItemsSheet');
+const { sendLegendaryAnnouncement, sendLegendaryAnnouncementWithEmbed } = require('../patterns/uniqueItemFinding');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('debug-unique')
         .setDescription('Debug command for unique items (Admin only)')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('announce')
+                .setDescription('Manually announce a unique item discovery')
+                .addIntegerOption(option =>
+                    option.setName('item_id')
+                        .setDescription('The unique item ID to announce')
+                        .setRequired(true))
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('The user who "found" the item')
+                        .setRequired(false))
+                .addBooleanOption(option =>
+                    option.setName('with_embed')
+                        .setDescription('Use the fancy embed version')
+                        .setRequired(false)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('test-announcement')
+                .setDescription('Test announcement system with a fake item')
+                .addStringOption(option =>
+                    option.setName('channels')
+                        .setDescription('How many channels to test (all/first/specific number)')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: 'All Channels', value: 'all' },
+                            { name: 'First Channel Only', value: 'first' },
+                            { name: 'First 3 Channels', value: '3' },
+                            { name: 'First 5 Channels', value: '5' }
+                        )))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('assign')
@@ -81,6 +112,12 @@ module.exports = {
         const subcommand = interaction.options.getSubcommand();
         
         switch (subcommand) {
+            case 'announce':
+                await handleAnnounce(interaction);
+                break;
+            case 'test-announcement':
+                await handleTestAnnouncement(interaction);
+                break;
             case 'assign':
                 await handleAssign(interaction);
                 break;
@@ -106,6 +143,175 @@ module.exports = {
     }
 };
 
+// New function to handle manual announcements
+async function handleAnnounce(interaction) {
+    const itemId = interaction.options.getInteger('item_id');
+    const targetUser = interaction.options.getUser('user') || interaction.user;
+    const withEmbed = interaction.options.getBoolean('with_embed') || false;
+    
+    await interaction.deferReply({ ephemeral: true });
+    
+    try {
+        // Get item data
+        const itemData = getUniqueItemById(itemId);
+        if (!itemData) {
+            return interaction.editReply(`❌ Invalid item ID: ${itemId}`);
+        }
+        
+        // Create a fake item result object that matches what the system expects
+        const itemResult = {
+            type: 'unique',
+            item: itemData,
+            message: `🌟 LEGENDARY FIND! ${targetUser.tag} discovered **${itemData.name}**!`,
+            systemAnnouncement: {
+                enabled: true,
+                bigText: true,
+                message: `# 🌟 LEGENDARY DISCOVERY! 🌟\n## ${targetUser.tag} has found the legendary **${itemData.name}**!\n### ${itemData.description || 'A unique and powerful item!'}\n\n*This item is one-of-a-kind and now belongs to ${targetUser.tag}!*`
+            }
+        };
+        
+        // Send the announcement
+        let success;
+        if (withEmbed) {
+            success = await sendLegendaryAnnouncementWithEmbed(
+                interaction.client,
+                interaction.guild.id,
+                itemResult,
+                targetUser.tag
+            );
+        } else {
+            success = await sendLegendaryAnnouncement(
+                interaction.client,
+                interaction.guild.id,
+                itemResult,
+                targetUser.tag
+            );
+        }
+        
+        if (success) {
+            return interaction.editReply(`✅ Successfully announced **${itemData.name}** discovery by ${targetUser.tag} across all channels!`);
+        } else {
+            return interaction.editReply(`❌ Failed to send announcement. Check bot permissions.`);
+        }
+        
+    } catch (error) {
+        console.error('Error sending announcement:', error);
+        return interaction.editReply(`❌ Error: ${error.message}`);
+    }
+}
+
+// New function to test announcement system
+async function handleTestAnnouncement(interaction) {
+    const channelOption = interaction.options.getString('channels') || 'first';
+    
+    await interaction.deferReply({ ephemeral: true });
+    
+    try {
+        // Create a test item for announcement
+        const testItem = {
+            id: 999,
+            name: '🌈 Test Crystal of Debugging',
+            description: 'A magical crystal that tests if announcements are working properly!',
+            powerLevel: 99,
+            rarity: 'LEGENDARY'
+        };
+        
+        const itemResult = {
+            type: 'unique',
+            item: testItem,
+            message: `🧪 TEST: ${interaction.user.tag} found a test item!`,
+            systemAnnouncement: {
+                enabled: true,
+                bigText: true,
+                message: `# 🧪 ANNOUNCEMENT TEST 🧪\n## This is a test announcement!\n### Testing if the legendary item announcement system works.\n\n*Triggered by ${interaction.user.tag} - This is not a real item!*`
+            }
+        };
+        
+        // Get @everyone role to check public channels
+        const everyoneRole = interaction.guild.roles.everyone;
+        
+        // Get public channels only (text channels and voice channel text areas)
+        const publicChannels = interaction.guild.channels.cache.filter(channel => {
+            // Check if it's a text channel (0) or voice channel (2)
+            const isTextChannel = channel.type === 0; // GUILD_TEXT
+            const isVoiceChannel = channel.type === 2; // GUILD_VOICE
+            
+            // Skip if not text or voice
+            if (!isTextChannel && !isVoiceChannel) return false;
+            
+            // Check if bot can send messages
+            const botPerms = channel.permissionsFor(interaction.guild.members.me);
+            if (!botPerms || !botPerms.has(['SendMessages', 'ViewChannel'])) return false;
+            
+            // Check if @everyone can view the channel (making it "public")
+            const everyonePerms = channel.permissionsFor(everyoneRole);
+            if (!everyonePerms || !everyonePerms.has('ViewChannel')) return false;
+            
+            // For voice channels, only include if text-in-voice is enabled
+            if (isVoiceChannel) {
+                return botPerms.has('SendMessages');
+            }
+            
+            return true;
+        });
+        
+        let targetChannels = [];
+        
+        switch(channelOption) {
+            case 'all':
+                targetChannels = Array.from(publicChannels.values());
+                break;
+            case 'first':
+                targetChannels = [publicChannels.first()];
+                break;
+            case '3':
+                targetChannels = Array.from(publicChannels.values()).slice(0, 3);
+                break;
+            case '5':
+                targetChannels = Array.from(publicChannels.values()).slice(0, 5);
+                break;
+        }
+        
+        if (targetChannels.length === 0) {
+            return interaction.editReply('❌ No accessible public channels found! (Private channels are excluded)');
+        }
+        
+        let successCount = 0;
+        let failCount = 0;
+        
+        for (const channel of targetChannels) {
+            try {
+                const channelType = channel.type === 2 ? '🔊' : '#';
+                await channel.send(itemResult.systemAnnouncement.message);
+                successCount++;
+                console.log(`[TEST] Sent to ${channelType}${channel.name}`);
+                await new Promise(resolve => setTimeout(resolve, 100)); // Rate limit protection
+            } catch (error) {
+                failCount++;
+                console.error(`Failed to send to ${channel.name}:`, error.message);
+            }
+        }
+        
+        const channelBreakdown = {
+            text: targetChannels.filter(c => c.type === 0).length,
+            voice: targetChannels.filter(c => c.type === 2).length
+        };
+        
+        return interaction.editReply(
+            `✅ Test announcement sent to PUBLIC channels only!\n` +
+            `📊 Results: ${successCount}/${targetChannels.length} successful\n` +
+            `📝 Channel Types: ${channelBreakdown.text} text, ${channelBreakdown.voice} voice\n` +
+            `${failCount > 0 ? `⚠️ ${failCount} channels failed (check permissions)` : '✨ All public channels received the test!'}\n` +
+            `ℹ️ Private/restricted channels were excluded from the announcement.`
+        );
+        
+    } catch (error) {
+        console.error('Error in test announcement:', error);
+        return interaction.editReply(`❌ Error: ${error.message}`);
+    }
+}
+
+// Keep all the original functions from the original file
 async function handleAssign(interaction) {
     const itemId = interaction.options.getInteger('item_id');
     const targetUser = interaction.options.getUser('user') || interaction.user;
@@ -301,9 +507,6 @@ async function handleList(interaction) {
 }
 
 async function handleGrantTheOne(interaction) {
-    // Admin check is already done in the main execute function
-    // This function will only be called by admins
-    
     const chosenUser = interaction.options.getUser('chosen');
     await interaction.deferReply();
     

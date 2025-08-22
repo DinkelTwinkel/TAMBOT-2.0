@@ -11,6 +11,7 @@ const gachaData = require('../data/gachaServers.json');
 const shopData = require('../data/shops.json');
 const itemSheet = require('../data/itemSheet.json');
 const { calculateFluctuatedPrice, getShopPrices } = require('./generateShop');
+const InnPurchaseHandler = require('./gachaModes/innKeeping/innPurchaseHandler');
 
 // Performance optimization: Cache for shop prices (TTL: 5 minutes)
 const priceCache = new Map();
@@ -137,6 +138,8 @@ class ShopHandler {
         shopConfigCache.clear();
         console.log(`[SHOP] Cleared caches for guild ${this.guildId}`);
     }
+
+
 
     // Optimized helper function with caching
     async getShopFluctuatedPrices(channelId, guildId) {
@@ -325,9 +328,23 @@ class ShopHandler {
             // Add remaining balance
             responseMessage += `\n💰 **Balance:** ${userCurrency.money - totalCost} coins`;
 
+            // Process inn sale if applicable
+            const innResult = await InnPurchaseHandler.processInnSale({
+                channel: interaction.channel,
+                itemId: item.id,
+                salePrice: currentBuyPrice,
+                costBasis: InnPurchaseHandler.calculateCostBasis(item.value),
+                buyer: interaction.user
+            });
+            
+            // // Add tip info to response message if it was an inn sale
+            // if (innResult.isInn && innResult.tipData && innResult.tipData.amount > 0) {
+            //     responseMessage += `\n${InnPurchaseHandler.formatTipMessage(innResult.tipData)}`;
+            // }
+            
             await interaction.followUp({
                 content: responseMessage,
-                ephemeral: false
+                ephemeral: innResult.isInn
             });
             
             await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
@@ -407,7 +424,9 @@ class ShopHandler {
 
     async handleModalSubmit(interaction) {
         // CRITICAL FIX: Defer reply immediately for modal submissions
-        await interaction.deferReply({ ephemeral: false });
+        // Check if it's an inn channel to determine ephemeral setting
+        const isInn = await InnPurchaseHandler.isInnChannel(interaction.channel.id);
+        await interaction.deferReply({ ephemeral: isInn });
         
         const customIdParts = interaction.customId.split('_');
         const action = customIdParts[0]; // 'buy' or 'sell'
@@ -523,6 +542,20 @@ class ShopHandler {
             
             // Add remaining balance
             responseMessage += `\n💰 **Balance:** ${userCurrency.money - totalCost} coins`;
+            
+            // Process inn sale if applicable
+            const innResult = await InnPurchaseHandler.processInnSale({
+                channel: interaction.channel,
+                itemId: item.id,
+                salePrice: currentBuyPrice * quantity,  // Total revenue from sale
+                costBasis: InnPurchaseHandler.calculateCostBasis(item.value, quantity),
+                buyer: interaction.user
+            });
+            
+            // Add tip info if it was an inn sale
+            if (innResult.isInn && innResult.tipData && innResult.tipData.amount > 0) {
+                responseMessage += `\n${InnPurchaseHandler.formatTipMessage(innResult.tipData)}`;
+            }
             
             await interaction.editReply({ 
                 content: responseMessage

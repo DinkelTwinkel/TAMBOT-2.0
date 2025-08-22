@@ -5,7 +5,7 @@
 const UNIQUE_ITEMS = [
     {
         id: 9, // Unique numerical ID
-        name: "Blue Breeze",
+        name: "🌊 Blue Breeze",
         type: "tool",
         slot: "mining",
         rarity: "legendary",
@@ -36,14 +36,14 @@ const UNIQUE_ITEMS = [
         // Special properties
         specialEffects: [
             "Chance to find double ore on lucky strikes",
-            "Generates a protective wind barrier reducing hazard damage",
+            "Generates a powerful protective wind barrier (80% hazard resistance)",
             "Creates updrafts that increase movement speed in mines"
         ],
         
         // Mysterious rumored effects shown to players
         rumoredEffects: [
             "Sometimes multiplies rewards beyond expectation",
-            "Offers mysterious protection from the earth's wrath",
+            "Offers legendary protection from the earth's wrath",
             "Hastens your movements through ancient winds"
         ],
         
@@ -59,7 +59,7 @@ const UNIQUE_ITEMS = [
     
     {
         id: 10,
-        name: "Midas' Burden",
+        name: "🥇 Midas' Burden",
         type: "charm",
         slot: "charm",
         rarity: "legendary",
@@ -171,7 +171,7 @@ const UNIQUE_ITEMS = [
     
     {
         id: 2,
-        name: "Earthshaker",
+        name: "🐹 Earthshaker",
         type: "tool",
         slot: "mining",
         rarity: "legendary",
@@ -208,7 +208,7 @@ const UNIQUE_ITEMS = [
             "Reveals treasures hidden deep below"
         ],
         
-        dropWeight: 0.8,
+        dropWeight: 0.5,
         minPowerLevel: 4,
         preferredBiomes: ["volcanic_tunnels", "deep_caverns"],
         
@@ -218,7 +218,7 @@ const UNIQUE_ITEMS = [
     
     {
         id: 3,
-        name: "Whisper of the Void",
+        name: "🌑 Whisper of the Void",
         type: "tool",
         slot: "sight",
         rarity: "legendary",
@@ -348,7 +348,7 @@ const UNIQUE_ITEMS = [
             "Slowly mends wounds with phoenix warmth"
         ],
         
-        dropWeight: 0.4,
+        dropWeight: 0.2,
         minPowerLevel: 7,
         preferredBiomes: ["volcanic_core", "phoenix_nest"],
         
@@ -395,7 +395,7 @@ const UNIQUE_ITEMS = [
             "Vanishes from mortal sight and memory"
         ],
         
-        dropWeight: 0.6,
+        dropWeight: 0.1,
         minPowerLevel: 4,
         preferredBiomes: ["shadow_realm", "thieves_den"],
         
@@ -443,7 +443,7 @@ const UNIQUE_ITEMS = [
             "The crown's curse steals memories away"
         ],
         
-        dropWeight: 0.2,
+        dropWeight: 0.1,
         minPowerLevel: 6,
         preferredBiomes: ["ancient_throne", "royal_tombs"],
         
@@ -490,7 +490,7 @@ const UNIQUE_ITEMS = [
             "Breathes electric life into dead machines"
         ],
         
-        dropWeight: 0.5,
+        dropWeight: 0.08,
         minPowerLevel: 5,
         preferredBiomes: ["storm_peaks", "electric_caverns"],
         

@@ -31,8 +31,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setTitle(`📜 ${target.username}'s Stats`)
-        .setColor(0x00AE86)
-        .setTimestamp();
+        .setColor(0x00AE86);
 
       // Add combined stats display (equipment + buffs)
       if (Object.keys(stats).length > 0) {
@@ -42,13 +41,13 @@ module.exports = {
           .join(' | ');
         
         embed.addFields({
-          name: '💎 Total Power',
+          name: 'Total Power',
           value: statsDisplay,
           inline: false
         });
       } else {
         embed.addFields({
-          name: '💎 Total Power',
+          name: 'Total Power',
           value: '*No stats yet - visit the shop to get started!*',
           inline: false
         });
@@ -56,7 +55,8 @@ module.exports = {
 
       // Build equipment description with categories and durability bars
       if (Object.keys(equippedItems).length > 0) {
-        // Group items by type
+        // Group items by type and rarity
+        const legendaryItems = [];
         const tools = [];
         const equipment = [];
         const charms = [];
@@ -87,49 +87,27 @@ module.exports = {
             // Format with primary stat inline and additional stats on separate lines
             let itemDisplay;
             
-            // Add legendary indicator for unique items
-            const itemName = item.isUnique ? `🌟 ${item.name} [LEGENDARY]` : item.name;
+            // Regular item name (no legendary tag here anymore)
+            const itemName = item.name;
+            
+            // Check if legendary and format accordingly
+            if (item.isUnique) {
+              // Store legendary items separately for special formatting
+              legendaryItems.push(item);
+              continue; // Skip to next item
+            }
             
             if (item.abilities.length === 1) {
               // Single stat - show inline
-              if (item.isUnique) {
-                // Unique items don't show durability bar
-                itemDisplay = `• ${itemName} **(${statsStr})**`;
-              } else {
-                itemDisplay = `• ${itemName} **(${statsStr})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)`;
-              }
+              itemDisplay = `• ${itemName} **(${statsStr})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)`;
             } else {
               // Multiple stats - show first inline, rest with └
-              const primaryStat = item.abilities[0].basePower && item.isUnique && item.abilities[0].power !== item.abilities[0].basePower
-                ? `${item.abilities[0].name} +${item.abilities[0].power} (${item.abilities[0].basePower})`
-                : `${item.abilities[0].name} +${item.abilities[0].power}`;
+              const primaryStat = `${item.abilities[0].name} +${item.abilities[0].power}`;
               const additionalStats = item.abilities.slice(1)
-                .map(a => {
-                  if (item.isUnique && a.basePower && a.power !== a.basePower) {
-                    return `${a.name} +${a.power} (${a.basePower})`;
-                  }
-                  return `${a.name} +${a.power}`;
-                })
+                .map(a => `${a.name} +${a.power}`)
                 .join(', ');
               
-              if (item.isUnique) {
-                // Unique items don't show durability bar
-                itemDisplay = `• ${itemName} **(${primaryStat})**\n  └ ${additionalStats}`;
-              } else {
-                itemDisplay = `• ${itemName} **(${primaryStat})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)\n  └ ${additionalStats}`;
-              }
-            }
-            
-            // Add maintenance level for unique items
-            if (item.isUnique && item.maintenanceLevel !== undefined) {
-              const maintBar = getMaintenanceBar(item.maintenanceLevel);
-              itemDisplay += `\n  📧 Maintenance: ${maintBar} ${item.maintenanceLevel}/10`;
-            }
-            
-            // Add special effects for unique items (simplified)
-            if (item.isUnique && item.specialEffects && item.specialEffects.length > 0) {
-              const effectCount = item.specialEffects.length;
-              itemDisplay += `\n  ✨ ${effectCount} special effect${effectCount > 1 ? 's' : ''} (use /unique status for details)`;
+              itemDisplay = `• ${itemName} **(${primaryStat})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)\n  └ ${additionalStats}`;
             }
             
             if (item.type === 'tool') {
@@ -138,14 +116,56 @@ module.exports = {
               equipment.push(itemDisplay);
             }
           } else if (item.type === 'charm') {
-            // Simplified format for charms - no durability needed
-            const charmName = item.isUnique ? `🌟 ${item.name}` : item.name;
-            charms.push({ name: charmName, stats: statsStr, isUnique: item.isUnique });
+            // Check if legendary charm
+            if (item.isUnique) {
+              legendaryItems.push(item);
+            } else {
+              // Simplified format for regular charms - no durability needed
+              charms.push({ name: item.name, stats: statsStr, isUnique: false });
+            }
           }
         }
         
         // Build description sections
         const descriptionParts = [];
+        
+        // Add legendary items at the top with special formatting
+        if (legendaryItems.length > 0) {
+          let legendarySection = '# ';
+          
+          for (const legendary of legendaryItems) {
+            // Bold name without bullet point
+            legendarySection += `**${legendary.name} [LEGENDARY]**\n` + '```';
+            
+            // List all stats on the same line
+            const statsLine = legendary.abilities
+              .map(ability => {
+                const powerDisplay = ability.basePower && ability.power !== ability.basePower
+                  ? `${ability.name} +${ability.power} (base: ${ability.basePower})`
+                  : `${ability.name} +${ability.power}`;
+                return powerDisplay;
+              })
+              .join(', ');
+            legendarySection += `${statsLine}\n`;
+
+            // Add special effects count
+            if (legendary.specialEffects && legendary.specialEffects.length > 0) {
+              const effectCount = legendary.specialEffects.length;
+              legendarySection += `✨ ${effectCount} special effect${effectCount > 1 ? 's' : ''} (use /unique status for details)\n` + '```';
+            }
+            
+            // Add maintenance level if applicable
+            if (legendary.maintenanceLevel !== undefined) {
+              const maintBar = getMaintenanceBar(legendary.maintenanceLevel);
+              legendarySection += `🔧 MAINTAIN: `;
+              legendarySection += `${maintBar} ${legendary.maintenanceLevel}/10`;
+            }
+            
+            
+          }
+          
+          descriptionParts.push(legendarySection);
+        }
         
         if (tools.length > 0) {
           descriptionParts.push(`**⛏️ Tools**\n${tools.join('\n')}`);

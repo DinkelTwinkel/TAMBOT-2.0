@@ -83,7 +83,7 @@ function validateItemIds(itemIds) {
     });
 }
 
-async function generateShop(channel, closingTime) {
+async function generateShop(channel, closingTime = 20) {
     
     const matchingVC = await GachaVC.findOne({ channelId: channel.id }).lean();
     if (!matchingVC) return channel.send('⚘ Not an active Gacha VC channel!');
@@ -152,25 +152,41 @@ async function generateShop(channel, closingTime) {
     const thumbAttachment = new AttachmentBuilder(`./assets/shops/${path.basename(shopInfo.image)}_shopKeeper.gif`, { name: 'thumb.gif' });
 
     const embed = new EmbedBuilder()
-        .setTitle(`🛒 ${shopInfo.name}`)
+        .setTitle(`${shopInfo.name}`)
         .setColor('Gold')
         .setDescription('```' + formatDescription(pickShopDescription) + '```')
         .setImage('attachment://shop.png')
         .setFooter({ text: refreshText })
         .setThumbnail('attachment://thumb.gif');
 
-    // Clean up old shop messages
-    const messages = await channel.messages.fetch({ limit: 10 });
-    messages.forEach(msg => {
+    // Check last 3 messages for existing shop message with same title
+    const recentMessages = await channel.messages.fetch({ limit: 3 });
+    let existingShopMessage = null;
+    
+    for (const [, msg] of recentMessages) {
         if (msg.embeds.length > 0 && msg.embeds[0].title === embed.data.title) {
-            msg.delete().catch(() => {});
+            existingShopMessage = msg;
+            break;
         }
-    });
+    }
 
-    // Send shop message first to get the message ID
-    const shopMessage = await channel.send({ embeds: [embed], files: [attachment, thumbAttachment] });
+    let shopMessage;
+    
+    if (existingShopMessage) {
+        // Edit the existing message
+        shopMessage = await existingShopMessage.edit({ 
+            embeds: [embed], 
+            files: [attachment, thumbAttachment],
+            attachments: [] // Clear old attachments
+        });
+        console.log(`✏️ Edited existing shop message in channel ${channel.id}`);
+    } else {
+        // Create new message if no existing one found in last 3 messages
+        shopMessage = await channel.send({ embeds: [embed], files: [attachment, thumbAttachment] });
+        console.log(`✅ Created new shop message in channel ${channel.id}`);
+    }
 
-    registerBotMessage(shopMessage.guild.id, shopMessage.channel.id, shopMessage.id, 5);
+    //registerBotMessage(shopMessage.guild.id, shopMessage.channel.id, shopMessage.id, 50);
 
     // Create buy menu with fluctuated prices
     const buyMenu = new ActionRowBuilder().addComponents(
@@ -261,11 +277,11 @@ async function generateShop(channel, closingTime) {
     // Edit the shop message to add the menus
     await shopMessage.edit({ components: [buyMenu, sellMenu] });
 
-    console.log(`✅ Shop generated for channel ${channel.id} with message ID ${shopMessage.id}`);
+    console.log(`✅ Shop ${existingShopMessage ? 'updated' : 'generated'} for channel ${channel.id} with message ID ${shopMessage.id}`);
     
     setTimeout(async () => {
         await closeShop(shopMessage);
-    }, 5 * 60 * 1000);
+    }, 20 * 60 * 1000);
 
     return shopMessage;
 }

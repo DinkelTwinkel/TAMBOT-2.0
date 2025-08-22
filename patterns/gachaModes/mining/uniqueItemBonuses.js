@@ -55,7 +55,7 @@ function parseUniqueItemBonuses(equippedItems) {
         switch(itemId) {
             case 1: // Blue Breeze
                 bonuses.doubleOreChance += 0.15 * maintenanceRatio; // 15% chance at full maintenance
-                bonuses.hazardResistance += 0.3 * maintenanceRatio; // 30% hazard resistance
+                bonuses.hazardResistance += 0.8 * maintenanceRatio; // 80% hazard resistance
                 bonuses.movementSpeedBonus += 0.2 * maintenanceRatio; // 20% speed bonus
                 bonuses.durabilityDamageReduction += 0.5 * maintenanceRatio; // 50% less durability damage
                 break;
@@ -134,7 +134,7 @@ function applyDoubleOreBonus(baseQuantity, doubleOreChance, member, eventLogs) {
  */
 function checkHazardResistance(hazardResistance, member, eventLogs) {
     if (hazardResistance > 0 && Math.random() < hazardResistance) {
-        eventLogs.push(`🛡️ ${member.displayName}'s protective wind barrier deflects the hazard!`);
+        eventLogs.push(`🛡️ ${member.displayName}'s powerful wind barrier completely deflects the hazard!`);
         return true;
     }
     return false;
