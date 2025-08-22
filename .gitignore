@@ -18,3 +18,4 @@ data/mapData.json
 *.vsix
 
 data/mapData.json
+/patterns/gachaModes/.mining-locks

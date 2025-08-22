@@ -1,4 +1,4 @@
-// shopHandler.js - Centralized shop interaction handler with guild config price fluctuation
+// shopHandler.js - Centralized shop interaction handler with guild config price fluctuation and AI dialogue
 // FIXED VERSION - Resolves Discord interaction timeout issues
 // This version shows modals immediately to prevent "Unknown interaction" errors
 
@@ -10,7 +10,7 @@ const GuildConfig = require('../models/GuildConfig');
 const gachaData = require('../data/gachaServers.json');
 const shopData = require('../data/shops.json');
 const itemSheet = require('../data/itemSheet.json');
-const { calculateFluctuatedPrice, getShopPrices } = require('./generateShop');
+const { calculateFluctuatedPrice, getShopPrices, generatePurchaseDialogue, generateSellDialogue, generatePoorDialogue } = require('./generateShop');
 const InnPurchaseHandler = require('./gachaModes/innKeeping/innPurchaseHandler');
 
 // Performance optimization: Cache for shop prices (TTL: 5 minutes)
@@ -308,7 +308,8 @@ class ShopHandler {
         const totalCost = currentBuyPrice;
         
         if (currency.money < totalCost) {
-            await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor);
+            const shortBy = totalCost - currency.money;
+            await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor, shopInfo, 'poor', item, shortBy);
             return interaction.followUp({ 
                 content: `⚘ You need ${totalCost} coins but only have ${currency.money}.`, 
                 ephemeral: true 
@@ -386,7 +387,7 @@ class ShopHandler {
             });
         }
         
-        await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
+        await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice, interaction.user);
     }
 
     async handleModalSubmit(interaction) {
@@ -456,7 +457,8 @@ class ShopHandler {
         const totalCost = quantity * currentBuyPrice;
         
         if (userCurrency.money < totalCost) {
-            await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor);
+            const shortBy = totalCost - userCurrency.money;
+            await this.updateShopDescription(interaction.message, shopInfo?.failureTooPoor, shopInfo, 'poor', item, shortBy);
             const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
             return interaction.editReply({ 
                 content: `⚘ You need **${totalCost}** coins but only have **${userCurrency.money}**.\n` +
@@ -559,7 +561,7 @@ class ShopHandler {
                 await interaction.channel.send({ content: publicMessage });
             }
             
-            await this.updateShopDescription(interaction.message, shopInfo?.successBuy);
+            await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice * quantity, interaction.user);
         } catch (error) {
             console.error('[SHOP] Error processing purchase:', error);
             
@@ -582,7 +584,7 @@ class ShopHandler {
         const maxQty = ownedItem?.quantity || 0;
 
         if (quantity > maxQty) {
-            await this.updateShopDescription(interaction.message, shopInfo?.failureOther);
+            await this.updateShopDescription(interaction.message, shopInfo?.failureOther, shopInfo, 'poor', item, 0);
             const priceIndicator = currentSellPrice > Math.floor(item.value / 2) ? ' ▲' : currentSellPrice < Math.floor(item.value / 2) ? ' ▼' : '';
             return interaction.editReply({ 
                 content: `⚘ You only have **${maxQty}** x ${item.name} to sell.\n` +
@@ -638,7 +640,7 @@ class ShopHandler {
                 await interaction.channel.send({ content: publicMessage });
             }
             
-            await this.updateShopDescription(interaction.message, shopInfo?.successSell);
+            await this.updateShopDescription(interaction.message, shopInfo?.successSell, shopInfo, 'sell', item, currentSellPrice * quantity);
         } catch (error) {
             console.error('[SHOP] Error processing sale:', error);
             await interaction.editReply({ 
@@ -647,13 +649,37 @@ class ShopHandler {
         }
     }
 
-    async updateShopDescription(shopMessage, descriptions) {
-        if (!descriptions || !Array.isArray(descriptions) || descriptions.length === 0) {
-            return; // Skip update if no descriptions provided
-        }
-
+    async updateShopDescription(shopMessage, descriptions, shopInfo = null, dialogueType = null, item = null, price = null, buyer = null) {
         try {
-            const newDescription = descriptions[Math.floor(Math.random() * descriptions.length)];
+            let newDescription;
+            
+            // Try to generate AI dialogue if shopInfo is provided
+            if (shopInfo && dialogueType) {
+                try {
+                    if (dialogueType === 'purchase' && item && price) {
+                        newDescription = await generatePurchaseDialogue(shopInfo, item, price, buyer);
+                        console.log(`[SHOP] Generated AI purchase dialogue for ${shopInfo.shopkeeper?.name}`);
+                    } else if (dialogueType === 'sell' && item && price) {
+                        newDescription = await generateSellDialogue(shopInfo, item, price);
+                        console.log(`[SHOP] Generated AI sell dialogue for ${shopInfo.shopkeeper?.name}`);
+                    } else if (dialogueType === 'poor' && item) {
+                        const shortBy = price || 0;
+                        newDescription = await generatePoorDialogue(shopInfo, item, shortBy);
+                        console.log(`[SHOP] Generated AI poor dialogue for ${shopInfo.shopkeeper?.name}`);
+                    }
+                } catch (aiError) {
+                    console.log('[SHOP] AI dialogue generation failed, using fallback');
+                }
+            }
+            
+            // Fallback to provided descriptions if AI failed or not available
+            if (!newDescription && descriptions && Array.isArray(descriptions) && descriptions.length > 0) {
+                newDescription = descriptions[Math.floor(Math.random() * descriptions.length)];
+            }
+            
+            if (!newDescription) {
+                return; // No dialogue to update
+            }
             
             if (!shopMessage?.embeds?.length) {
                 console.warn("[SHOP] No embeds found in shopMessage");
@@ -682,7 +708,11 @@ class ShopHandler {
         if (str.startsWith('*') && str.endsWith('*')) {
             return str.slice(1, -1);
         }
-        return `"${str}"`; // wrap in quotes otherwise
+        // Remove surrounding quotes if present
+        if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+            return str.slice(1, -1);
+        }
+        return str; // Return as-is, no extra quotes
     }
 
     // Helper method to format stat names for display

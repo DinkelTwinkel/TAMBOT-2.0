@@ -340,7 +340,11 @@ const formatDescription = (str) => {
     if (str.startsWith('*') && str.endsWith('*')) {
         return str.slice(1, -1);
     }
-    return `"${str}"`; // wrap in quotes otherwise
+    // Remove surrounding quotes if present
+    if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+        return str.slice(1, -1);
+    }
+    return str; // Return as-is, no extra quotes
 };
 
 /**
