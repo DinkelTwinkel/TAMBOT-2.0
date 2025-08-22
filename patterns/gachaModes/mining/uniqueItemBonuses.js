@@ -1,10 +1,4 @@
-            case 10: // Midas' Burden
-                // Midas' effect is handled specially in calculatePlayerStat
-                // But we still apply the loot multiplier
-                bonuses.lootMultiplier *= (1 + 0.5 * maintenanceRatio);
-                bonuses.doubleOreChance += 0.1 * maintenanceRatio;
-                // Note: The luck multiplier (0x or 100x) is handled in stats calculation
-                break;// patterns/gachaModes/mining/uniqueItemBonuses.js
+// patterns/gachaModes/mining/uniqueItemBonuses.js
 // Handles unique item special abilities and bonuses in mining
 
 const { getUniqueItemById } = require('../../../data/uniqueItemsSheet');
@@ -134,6 +128,23 @@ function parseUniqueItemBonuses(equippedItems) {
             case 8: // Stormcaller's Gauntlets
                 bonuses.chainMiningChance += 0.2 * maintenanceRatio;
                 bonuses.hazardResistance += 0.3 * maintenanceRatio; // Electric immunity
+                break;
+                
+            case 10: // Midas' Burden
+                // Midas' effect is handled specially in calculatePlayerStat
+                // But we still apply the loot multiplier
+                bonuses.lootMultiplier *= (1 + 0.5 * maintenanceRatio);
+                bonuses.doubleOreChance += 0.1 * maintenanceRatio;
+                // Note: The luck multiplier (0x or 100x) is handled in stats calculation
+                break;
+                
+            case 11: // Shadow Legion Amulet
+                // Shadow clone spawning is handled separately in shadowCloneSystem.js
+                // Here we add the base bonuses from the amulet itself
+                bonuses.lootMultiplier *= 1.4; // 40% more loot from collective fortune
+                bonuses.movementSpeedBonus += 0.1 * maintenanceRatio; // Small speed bonus
+                // Note: The soul drain penalty is applied in calculatePlayerStat
+                // Note: Clone management happens in the main mining loop
                 break;
         }
     }
