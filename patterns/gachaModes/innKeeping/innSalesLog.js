@@ -258,7 +258,7 @@ class InnSalesLog {
                                 {
                                     tip: lastSale.tip || 0,
                                     previousPurchases: previousPurchases,
-                                    playerClass: member.roles.cache.first()?.name || null
+                                    playerClass: member.roles.cache.first()?.name || 'Miner'
                                 }
                             );
                             console.log(`[InnSalesLog] Generated AI dialogue for player ${playerName}`);
