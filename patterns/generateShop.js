@@ -185,9 +185,11 @@ async function generateShop(channel, closingTime = 20) {
     const thumbAttachment = new AttachmentBuilder(`./assets/shops/${path.basename(shopInfo.image)}_shopKeeper.gif`, { name: 'thumb.gif' });
 
     // Include shopkeeper name if available
-    const shopTitle = shopInfo.shopkeeper?.name ? 
-        `${shopInfo.name} - ${shopInfo.shopkeeper.name}` : 
-        shopInfo.name;
+    // const shopTitle = shopInfo.shopkeeper?.name ? 
+    //     `${shopInfo.name} - ${shopInfo.shopkeeper.name}` : 
+    //     shopInfo.name;
+
+    const shopTitle = shopInfo.name;
 
     const embed = new EmbedBuilder()
         .setTitle(shopTitle)
@@ -200,7 +202,7 @@ async function generateShop(channel, closingTime = 20) {
     // Add shopkeeper bio as a field if available
     if (shopInfo.shopkeeper?.bio) {
         embed.addFields({
-            name: 'About the Shopkeeper',
+            name: '\n\n',
             value: `*${shopInfo.shopkeeper.bio}*`,
             inline: false
         });
