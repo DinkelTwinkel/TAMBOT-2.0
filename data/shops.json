@@ -2,6 +2,11 @@
   {
     "id": 1,
     "name": "⛏️ Coal Mine Trading Desk",
+    "shopkeeper": {
+      "name": "Grimsby Coalhand",
+      "bio": "A grizzled veteran miner turned merchant, face permanently stained with coal dust. Lost three fingers to a cave-in but never his business sense.",
+      "personality": "Gruff, practical, and skeptical of anything he can't hold in his remaining seven fingers. Respects hard work above all else."
+    },
     "idleDialogue": [
       "The children yearn for the mines...", 
       "Keep mining!", 
@@ -27,6 +32,11 @@
   {
     "id": 2,
     "name": "🟨 Topaz Mine Trading Desk",
+    "shopkeeper": {
+      "name": "Aurelius Goldgleam",
+      "bio": "Former jeweler to nobility, now running the topaz trade after a scandal involving counterfeit gems forced him underground.",
+      "personality": "Optimistic and flamboyant, with an eye for quality and a weakness for gossip. Believes in luck and fortune."
+    },
     "idleDialogue": [
       "Golden opportunities await!", 
       "These gems shine bright!", 
@@ -52,6 +62,11 @@
   {
     "id": 3,
     "name": "💎 Diamond Mine Trading Shop",
+    "shopkeeper": {
+      "name": "Lady Crystalline Devere",
+      "bio": "Mysterious aristocrat who controls the diamond trade with silk gloves and an iron will. Rumors say she murdered her husband for his mine claims.",
+      "personality": "Refined, calculating, and utterly ruthless in business. Speaks in honeyed tones while mentally counting profits."
+    },
     "idleDialogue": [
       "Diamonds are forever!", 
       "The finest cuts available!", 
@@ -77,6 +92,11 @@
   {
     "id": 4,
     "name": "🍃 Emerald Cavern Bazaar",
+    "shopkeeper": {
+      "name": "Verdania Mosswhisper",
+      "bio": "Half-elf druid who discovered the emerald caverns while following underground root systems. Claims the stones speak to her.",
+      "personality": "Mystical, serene, and slightly unhinged. Often speaks in riddles and treats gems like living beings."
+    },
     "idleDialogue": [
       "Green is the color of prosperity!", 
       "These emeralds pulse with energy!", 
@@ -102,6 +122,11 @@
   {
     "id": 5,
     "name": "🌋 Ruby Depths Emporium",
+    "shopkeeper": {
+      "name": "Ignis Burnbrand",
+      "bio": "Dwarf forge-master who mines rubies from active lava tubes. His beard is singed at the edges and his eyes glow with reflected fire.",
+      "personality": "Passionate, hot-tempered, and prone to dramatic gestures. Takes personal offense at lowball offers."
+    },
     "idleDialogue": [
       "Feel the heat of these rubies!", 
       "Forged in fire and passion!", 
@@ -127,6 +152,11 @@
   {
     "id": 6,
     "name": "🗡️ Obsidian Forge Marketplace",
+    "shopkeeper": {
+      "name": "Shadowblade Vex",
+      "bio": "Former assassin who retired to volcanic mining after a job went wrong. Still wears all black and speaks in whispers.",
+      "personality": "Brooding, intense, and darkly philosophical. Has an unsettling habit of testing blade sharpness while talking."
+    },
     "idleDialogue": [
       "Volcanic glass, sharp as death!", 
       "Forged in the earth's fury!", 
@@ -152,6 +182,11 @@
   {
     "id": 7,
     "name": "🌌 Mythril Sanctum Treasury",
+    "shopkeeper": {
+      "name": "High Keeper Celestius",
+      "bio": "Ancient monk who guards the mythril deposits as a sacred duty. Claims to be over 200 years old, blessed by the metal's properties.",
+      "personality": "Ethereal, wise, and insufferably pretentious. Judges customers' 'spiritual worthiness' before sales."
+    },
     "idleDialogue": [
       "Blessed mythril, gift of the gods!", 
       "This metal sings with ancient power!", 
@@ -177,6 +212,11 @@
   {
     "id": 8,
     "name": "🌑 Adamantite Abyss Vault",
+    "shopkeeper": {
+      "name": "The Voidkeeper",
+      "bio": "No one knows their real name or face. They emerged from the deepest shafts years ago, changed. Now they speak only in echoes.",
+      "personality": "Alien, cryptic, and deeply unsettling. May not be entirely human anymore. Refers to themselves in third person."
+    },
     "idleDialogue": [
       "Adamantite... the ultimate metal!", 
       "Harder than reality itself!", 
@@ -202,6 +242,11 @@
   {
     "id": 9,
     "name": "🔨 Copper Quarry Exchange",
+    "shopkeeper": {
+      "name": "Chuck 'Copper' McGillian",
+      "bio": "Blue-collar family man who inherited the quarry from his father. Has six kids and a mortgage, just trying to make an honest living.",
+      "personality": "Down-to-earth, friendly, and relentlessly practical. Doesn't have time for legends when there's work to be done."
+    },
     "idleDialogue": [
       "Honest copper for honest folk!", 
       "Reliable metal, reliable profits!", 
@@ -227,6 +272,11 @@
   {
     "id": 10,
     "name": "⚔️ Iron Stronghold Armory",
+    "shopkeeper": {
+      "name": "General Magnus Ironforge",
+      "bio": "Retired military commander who turned his tactical mind to iron trading. Still runs his shop like a military operation.",
+      "personality": "Disciplined, honorable, and intimidating. Expects customers to show proper respect and punctuality."
+    },
     "idleDialogue": [
       "Strong iron for strong souls!", 
       "Forged for battle, tested in fire!", 
@@ -252,6 +302,11 @@
   {
     "id": 11,
     "name": "🔮 Crystal Grotto Emporium",
+    "shopkeeper": {
+      "name": "Prisma the Seer",
+      "bio": "Fortune teller who discovered she could hear prophecies in crystal vibrations. May actually be psychic, or just very observant.",
+      "personality": "Mystical, dramatic, and prone to sudden 'visions' that conveniently suggest customers buy more expensive items."
+    },
     "idleDialogue": [
       "Crystals sing with magical energy!", 
       "Each shard holds ancient power!", 
@@ -277,6 +332,11 @@
   {
     "id": 12,
     "name": "🦴 Fossil Excavation Museum",
+    "shopkeeper": {
+      "name": "Professor Ptolemy Dustborn",
+      "bio": "Eccentric archaeologist who got lost in the mines twenty years ago and decided to stay. Has written seventeen unpublished papers.",
+      "personality": "Academic, absent-minded, and obsessively detailed. Gets more excited about fossil dating methods than profits."
+    },
     "idleDialogue": [
       "History for sale!", 
       "Ancient treasures, modern prices!", 
@@ -302,6 +362,11 @@
   {
     "id": 13,
     "name": "🍺 Miner's Inn Tavern 🎶",
+    "shopkeeper": {
+      "name": "Big Martha Brewstone",
+      "bio": "Former mine forewoman who opened the tavern after saving a year's wages. Known for her bone-crushing hugs and secret stew recipe.",
+      "personality": "Warm, maternal, and tough as nails. Has thrown out men twice her size and nursed back twice as many from cave-sickness."
+    },
     "idleDialogue": [
       "Pull up a stool, friend! First round's never free though!", 
       "Fresh meat stew on the fire, just like the deep diggers love it!", 

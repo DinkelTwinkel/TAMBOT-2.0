@@ -1,4 +1,4 @@
-// Updated generateShop.js - Added price fluctuation system with global guild config seeding
+// Updated generateShop.js - Added price fluctuation system with global guild config seeding and AI dialogue
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, AttachmentBuilder } = require('discord.js');
 const GachaVC = require('../models/activevcs');
 const GuildConfig = require('../models/GuildConfig');
@@ -8,6 +8,22 @@ const itemSheet = require('../data/itemSheet.json');
 const registerBotMessage = require('./registerBotMessage');
 const generateShopImage = require('./generateShopImage');
 const path = require('path');
+const AIShopDialogueGenerator = require('./aiShopDialogueGenerator');
+
+// Initialize AI dialogue generator
+let aiShopDialogue = null;
+try {
+    aiShopDialogue = new AIShopDialogueGenerator();
+    if (aiShopDialogue.isAvailable()) {
+        console.log('[GenerateShop] AI shop dialogue generator initialized');
+    } else {
+        console.log('[GenerateShop] AI shop dialogue not configured (no API key)');
+        aiShopDialogue = null;
+    }
+} catch (error) {
+    console.error('[GenerateShop] Failed to initialize AI shop dialogue:', error.message);
+    aiShopDialogue = null;
+}
 
 function seededRandom(seed) {
     let x = Math.sin(seed++) * 10000;
@@ -115,7 +131,24 @@ async function generateShop(channel, closingTime = 20) {
     const allShopItems = Array.from(new Set([...validStaticItems, ...validItemPool]));
     const fluctuatedPrices = await getShopPrices(allShopItems, channel.guild.id, shopInfo.priceChangeFactor);
 
-    const pickShopDescription = shopInfo.idleDialogue[Math.floor(shopInfo.idleDialogue.length * Math.random())];
+    // Generate AI dialogue or use fallback
+    let pickShopDescription;
+    if (aiShopDialogue && aiShopDialogue.isAvailable()) {
+        try {
+            // Generate contextual dialogue with 5% chance to mention The One Pick
+            pickShopDescription = await aiShopDialogue.generateIdleDialogue(shopInfo, {
+                mood: getShopkeeperMood(shopInfo),
+                playerClass: 'miner' // You can make this dynamic based on user roles
+            });
+            console.log(`[GenerateShop] Generated AI dialogue for ${shopInfo.shopkeeper?.name || shopInfo.name}`);
+        } catch (err) {
+            console.log('[GenerateShop] AI dialogue generation failed, using fallback');
+            pickShopDescription = shopInfo.idleDialogue[Math.floor(shopInfo.idleDialogue.length * Math.random())];
+        }
+    } else {
+        // Fallback to existing dialogue
+        pickShopDescription = shopInfo.idleDialogue[Math.floor(shopInfo.idleDialogue.length * Math.random())];
+    }
     
     // Create buyPool with fluctuated prices for image generation
     const buyPoolWithPrices = buyPool
@@ -151,13 +184,27 @@ async function generateShop(channel, closingTime = 20) {
 
     const thumbAttachment = new AttachmentBuilder(`./assets/shops/${path.basename(shopInfo.image)}_shopKeeper.gif`, { name: 'thumb.gif' });
 
+    // Include shopkeeper name if available
+    const shopTitle = shopInfo.shopkeeper?.name ? 
+        `${shopInfo.name} - ${shopInfo.shopkeeper.name}` : 
+        shopInfo.name;
+
     const embed = new EmbedBuilder()
-        .setTitle(`${shopInfo.name}`)
+        .setTitle(shopTitle)
         .setColor('Gold')
         .setDescription('```' + formatDescription(pickShopDescription) + '```')
         .setImage('attachment://shop.png')
         .setFooter({ text: refreshText })
         .setThumbnail('attachment://thumb.gif');
+    
+    // Add shopkeeper bio as a field if available
+    if (shopInfo.shopkeeper?.bio) {
+        embed.addFields({
+            name: 'About the Shopkeeper',
+            value: `*${shopInfo.shopkeeper.bio}*`,
+            inline: false
+        });
+    }
 
     // Check last 3 messages for existing shop message with same title
     const recentMessages = await channel.messages.fetch({ limit: 3 });
@@ -316,7 +363,105 @@ async function closeShop(shopMessage) {
     }
 }
 
-// Export the price calculation functions for use in shopHandler
+/**
+ * Helper function to determine shopkeeper mood based on various factors
+ * @param {Object} shopInfo - Shop information
+ * @returns {string} - Mood string
+ */
+function getShopkeeperMood(shopInfo) {
+    const hour = new Date().getHours();
+    const moods = [];
+    
+    // Time-based moods
+    if (hour < 6) moods.push('tired', 'grumpy');
+    else if (hour < 12) moods.push('energetic', 'welcoming');
+    else if (hour < 17) moods.push('busy', 'focused');
+    else if (hour < 21) moods.push('relaxed', 'chatty');
+    else moods.push('tired', 'closing-soon');
+    
+    // Shop-based moods
+    if (shopInfo.name.includes('Inn')) moods.push('friendly', 'hospitable');
+    if (shopInfo.name.includes('Abyss')) moods.push('ominous', 'cryptic');
+    if (shopInfo.name.includes('Diamond')) moods.push('superior', 'calculating');
+    if (shopInfo.name.includes('Copper')) moods.push('practical', 'no-nonsense');
+    
+    return moods[Math.floor(Math.random() * moods.length)];
+}
+
+/**
+ * Get AI dialogue generator instance
+ * @returns {AIShopDialogueGenerator|null} - AI dialogue generator or null
+ */
+function getAIShopDialogue() {
+    return aiShopDialogue;
+}
+
+/**
+ * Generate purchase dialogue using AI
+ * @param {Object} shop - Shop data
+ * @param {Object} item - Item being purchased
+ * @param {number} price - Purchase price
+ * @param {Object} buyer - Buyer information
+ * @returns {Promise<string>} - Generated dialogue or fallback
+ */
+async function generatePurchaseDialogue(shop, item, price, buyer) {
+    if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
+        return shop.successBuy?.[0] || "A pleasure doing business!";
+    }
+    
+    try {
+        return await aiShopDialogue.generatePurchaseDialogue(shop, item, price, buyer);
+    } catch (error) {
+        console.error('[GenerateShop] Purchase dialogue generation failed:', error);
+        return shop.successBuy?.[0] || "A pleasure doing business!";
+    }
+}
+
+/**
+ * Generate sell dialogue using AI
+ * @param {Object} shop - Shop data
+ * @param {Object} item - Item being sold
+ * @param {number} price - Sell price
+ * @returns {Promise<string>} - Generated dialogue or fallback
+ */
+async function generateSellDialogue(shop, item, price) {
+    if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
+        return shop.successSell?.[0] || "I'll take that off your hands.";
+    }
+    
+    try {
+        return await aiShopDialogue.generateSellDialogue(shop, item, price);
+    } catch (error) {
+        console.error('[GenerateShop] Sell dialogue generation failed:', error);
+        return shop.successSell?.[0] || "I'll take that off your hands.";
+    }
+}
+
+/**
+ * Generate poor dialogue using AI
+ * @param {Object} shop - Shop data
+ * @param {Object} item - Item attempted to purchase
+ * @param {number} shortBy - How much money they're short
+ * @returns {Promise<string>} - Generated dialogue or fallback
+ */
+async function generatePoorDialogue(shop, item, shortBy) {
+    if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
+        return shop.failureTooPoor?.[0] || "You need more coins!";
+    }
+    
+    try {
+        return await aiShopDialogue.generatePoorDialogue(shop, item, shortBy);
+    } catch (error) {
+        console.error('[GenerateShop] Poor dialogue generation failed:', error);
+        return shop.failureTooPoor?.[0] || "You need more coins!";
+    }
+}
+
+// Export the main function and all helpers
 module.exports = generateShop;
 module.exports.calculateFluctuatedPrice = calculateFluctuatedPrice;
 module.exports.getShopPrices = getShopPrices;
+module.exports.getAIShopDialogue = getAIShopDialogue;
+module.exports.generatePurchaseDialogue = generatePurchaseDialogue;
+module.exports.generateSellDialogue = generateSellDialogue;
+module.exports.generatePoorDialogue = generatePoorDialogue;
