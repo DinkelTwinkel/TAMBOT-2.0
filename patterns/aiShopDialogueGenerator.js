@@ -146,14 +146,20 @@ ${options.mood ? `Your current mood: ${options.mood}` : ''}
 Make it feel organic to your personality and current conversation.`;
             }
 
-            prompt += `\nGenerate a single line of idle shop dialogue (1-2 sentences) that:
+            prompt += `\nGenerate a single line of idle shop dialogue or action that:
 - Reflects your personality and background
 - Might reference your wares, the weather, recent events, or mining life
 - Sounds natural for someone standing in their shop
 ${mentionTheOnePick ? '- Naturally incorporates your opinion about The One Pick' : ''}
 - Stays completely in character
 
-Respond with ONLY the dialogue, no quotation marks or attribution.`;
+You can EITHER:
+1. Say something (just write the dialogue without quotes)
+2. Perform an action (start with * for actions like *yawns* or *scratches beard*)
+3. Make a sound/gesture (start with ~ for sounds like ~sighs or ~hums)
+4. Combine both if needed (like: *looks up from ledger* Another slow day in the mines.)
+
+Respond with ONLY the dialogue or action, no quotation marks or attribution.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",

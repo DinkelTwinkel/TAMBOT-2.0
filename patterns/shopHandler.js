@@ -703,16 +703,26 @@ class ShopHandler {
 
     formatDescription(str) {
         if (!str) return '';
-        str = str.toString();
-        // Remove surrounding * if present
-        if (str.startsWith('*') && str.endsWith('*')) {
-            return str.slice(1, -1);
+        str = str.toString().trim();
+        
+        // Check if it's an action (starts with * or ~ or -)
+        const isAction = str.startsWith('*') || str.startsWith('~') || str.startsWith('-');
+        
+        if (isAction) {
+            // For actions, remove surrounding asterisks but keep the content as-is
+            if (str.startsWith('*') && str.endsWith('*')) {
+                return str.slice(1, -1);
+            }
+            return str; // Return action as-is
         }
-        // Remove surrounding quotes if present
+        
+        // For dialogue, remove existing quotes first to avoid doubles
         if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
-            return str.slice(1, -1);
+            str = str.slice(1, -1);
         }
-        return str; // Return as-is, no extra quotes
+        
+        // Add quotes for spoken dialogue
+        return `"${str}"`;
     }
 
     // Helper method to format stat names for display
