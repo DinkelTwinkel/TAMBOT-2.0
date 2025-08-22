@@ -269,7 +269,7 @@ class InnSalesLog {
                         }
                     } else {
                         // Use existing getUserBio method
-                        dialogueText = await this.getUserBio(guild, memberId);
+                        dialogueText = '"' + await this.getUserBio(guild, memberId) + '"';
                     }
                 } catch (err) {
                     console.log('[InnSalesLog] Could not fetch member info:', err.message);
@@ -332,7 +332,7 @@ class InnSalesLog {
         
         // Add dialogue in code block
         if (dialogueText) {
-            descriptionText += `\`\`\`\n"${dialogueText}"\n\`\`\`\n`;
+            descriptionText += `\`\`\`\n${dialogueText}\n\`\`\`\n`;
         }
         
         // Add purchase info
