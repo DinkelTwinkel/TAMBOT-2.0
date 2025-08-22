@@ -22,6 +22,7 @@ function parseUniqueItemBonuses(equippedItems) {
         autoReviveChance: 0,
         dodgeChance: 0,
         phaseWalkChance: 0,
+        shadowTeleportChance: 0, // Shadowstep Boots teleportation
         teamMiningBonus: 0,
         chainMiningChance: 0,
         
@@ -117,6 +118,7 @@ function parseUniqueItemBonuses(equippedItems) {
             case 6: // Shadowstep Boots
                 bonuses.dodgeChance += 0.25 * maintenanceRatio;
                 bonuses.phaseWalkChance += 0.1 * maintenanceRatio; // 10% chance to phase through walls
+                bonuses.shadowTeleportChance += 0.05 * maintenanceRatio; // 5% chance to teleport
                 bonuses.movementSpeedBonus += 0.3 * maintenanceRatio;
                 break;
                 
@@ -249,7 +251,7 @@ function applyAreaDamage(position, mapData, areaDamageChance, member, eventLogs)
         return 0;
     }
     
-    const { TILE_TYPES } = require('./miningConstants');
+    const { TILE_TYPES } = require('./miningConstants_unified');
     let wallsBroken = 0;
     
     const adjacentPositions = [
@@ -297,7 +299,7 @@ function getChainMiningTargets(position, mapData, chainMiningChance, member, eve
         return [];
     }
     
-    const { TILE_TYPES } = require('./miningConstants');
+    const { TILE_TYPES } = require('./miningConstants_unified');
     const targets = [];
     
     // Get one random adjacent ore wall
@@ -343,6 +345,52 @@ function applyDurabilityDamageReduction(baseDamage, reduction) {
     return baseDamage;
 }
 
+/**
+ * Check for Shadowstep Boots random teleportation
+ * @param {Object} position - Current player position
+ * @param {Object} mapData - Map data
+ * @param {number} teleportChance - Chance to teleport
+ * @param {Object} member - Discord member
+ * @param {Array} eventLogs - Event logs array
+ * @returns {Object|null} New position if teleported, null otherwise
+ */
+function checkShadowstepTeleport(position, mapData, teleportChance, member, eventLogs) {
+    if (teleportChance <= 0 || Math.random() > teleportChance) {
+        return null;
+    }
+    
+    const { TILE_TYPES } = require('./miningConstants_unified');
+    
+    // Find all discovered floor tiles
+    const floorTiles = [];
+    for (let y = 0; y < mapData.height; y++) {
+        for (let x = 0; x < mapData.width; x++) {
+            const tile = mapData.tiles[y]?.[x];
+            if (tile && tile.type === TILE_TYPES.FLOOR && tile.discovered) {
+                // Don't include current position
+                if (x !== position.x || y !== position.y) {
+                    floorTiles.push({ x, y });
+                }
+            }
+        }
+    }
+    
+    // No valid teleport destinations
+    if (floorTiles.length === 0) {
+        return null;
+    }
+    
+    // Pick a random floor tile
+    const destination = floorTiles[Math.floor(Math.random() * floorTiles.length)];
+    
+    // Calculate distance for the log message
+    const distance = Math.abs(destination.x - position.x) + Math.abs(destination.y - position.y);
+    
+    eventLogs.push(`🌑 ${member.displayName} shadowsteps ${distance} tiles away in a blur of darkness!`);
+    
+    return destination;
+}
+
 module.exports = {
     parseUniqueItemBonuses,
     applyDoubleOreBonus,
@@ -351,5 +399,6 @@ module.exports = {
     checkUniquePickaxeBreak,
     applyAreaDamage,
     getChainMiningTargets,
-    applyDurabilityDamageReduction
+    applyDurabilityDamageReduction,
+    checkShadowstepTeleport
 };

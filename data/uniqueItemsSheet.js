@@ -378,7 +378,7 @@ const UNIQUE_ITEMS = [
         particleEffect: "shadow_trail",
         
         maintenanceType: "movement_activity",
-        maintenanceCost: 500, // Need to move 500 tiles per cycle
+        maintenanceCost: 500, // Need to move 500 tiles per day
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
         maintenanceDescription: "These boots must keep moving or they lose their shadow essence. Walk 500 tiles in mining to maintain their power.",
@@ -386,13 +386,18 @@ const UNIQUE_ITEMS = [
         specialEffects: [
             "25% chance to dodge any hazard",
             "Can phase through walls once every 10 minutes",
-            "Invisible on minimap to other players"
+            "Invisible on minimap to other players",
+            "5% chance each move to teleport to a random floor tile",
+            "Leaves no footprints or traces in the mine",
+            "Movement speed increases based on maintenance level"
         ],
         
         rumoredEffects: [
             "Dances between danger and safety",
             "Steps through solid stone like shadow",
-            "Vanishes from mortal sight and memory"
+            "Vanishes from mortal sight and memory",
+            "Sometimes appears miles from where you stood",
+            "The shadows remember every step taken"
         ],
         
         dropWeight: 0.1,
