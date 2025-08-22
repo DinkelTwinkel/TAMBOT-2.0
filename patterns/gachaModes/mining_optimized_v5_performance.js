@@ -12,8 +12,12 @@ const {
     applyMovementSpeedBonus,
     checkUniquePickaxeBreak,
     applyAreaDamage,
-    getChainMiningTargets
+    getChainMiningTargets,
+    checkShadowstepTeleport
 } = require('./mining/uniqueItemBonuses');
+
+// Import shadow clone system
+const shadowCloneSystem = require('./mining/shadowCloneSystem');
 
 // Import legendary announcement system
 const sendLegendaryAnnouncement = require('../uniqueItemFinding').sendLegendaryAnnouncement || (async () => {
@@ -1627,6 +1631,52 @@ module.exports = async (channel, dbEntry, json, client) => {
         mapData = initializeBreakPositions(mapData, members, false);
         mapChanged = true;
         
+        // Initialize shadow clones for players with Shadow Legion Amulet
+        const shadowCloneResults = [];
+        const MAX_TOTAL_CLONES = 30; // Maximum clones across all players
+        
+        // Helper function to check if we can spawn more clones
+        function canSpawnMoreClones() {
+            let totalClones = 0;
+            for (const clones of shadowCloneSystem.activeShadowClones.values()) {
+                totalClones += clones.length;
+            }
+            return totalClones < MAX_TOTAL_CLONES;
+        }
+        
+        for (const member of members.values()) {
+            const playerData = playerStatsMap.get(member.id);
+            
+            // Check if player has Shadow Legion Amulet and initialize clones
+            if (shadowCloneSystem.hasShadowLegionAmulet(playerData)) {
+                // Check clone limit
+                if (!canSpawnMoreClones()) {
+                    eventLogs.push(`⚠️ Maximum shadow limit reached in this mine!`);
+                    continue;
+                }
+                const cloneResult = shadowCloneSystem.initializeShadowClones(
+                    member.id,
+                    member.displayName,
+                    playerData,
+                    mapData
+                );
+                
+                if (cloneResult.mapChanged) {
+                    mapChanged = true;
+                }
+                
+                if (cloneResult.clones.length > 0) {
+                    shadowCloneResults.push({
+                        ownerId: member.id,
+                        ownerName: member.displayName,
+                        clones: cloneResult.clones
+                    });
+                    
+                    eventLogs.push(`👥 ${member.displayName}'s Shadow Legion has materialized! (${cloneResult.clones.length} shadows)`);
+                }
+            }
+        }
+        
         // Check for players who left
         const currentPlayerIds = Array.from(members.keys());
         const departedPlayers = [];
@@ -1636,6 +1686,15 @@ module.exports = async (channel, dbEntry, json, client) => {
                 departedPlayers.push({ id: playerId, name: memberName });
                 eventLogs.push(`👋 ${memberName} left the mines`);
                 playerMovementHistory.delete(playerId);
+            }
+        }
+        
+        // Remove shadow clones for departed players
+        for (const departed of departedPlayers) {
+            const removeResult = shadowCloneSystem.removeShadowClones(departed.id, mapData);
+            if (removeResult.mapChanged) {
+                mapChanged = true;
+                eventLogs.push(`👥 ${departed.name}'s shadows fade away...`);
             }
         }
         
@@ -1766,6 +1825,62 @@ module.exports = async (channel, dbEntry, json, client) => {
             }
         }
 
+        // Process shadow clone actions
+        for (const shadowData of shadowCloneResults) {
+            const ownerData = playerStatsMap.get(shadowData.ownerId);
+            if (!ownerData) continue;
+            
+            for (const clone of shadowData.clones) {
+                if (!clone.active) continue;
+                
+                try {
+                    const cloneResult = await shadowCloneSystem.processShadowCloneActions(
+                        clone,
+                        ownerData,
+                        mapData,
+                        teamVisibleTiles,
+                        serverPowerLevel,
+                        availableItems,
+                        efficiency,
+                        mineFromTile,
+                        generateTreasure,
+                        transaction,
+                        eventLogs,
+                        hazardsData
+                    );
+                    
+                    // Track results
+                    if (cloneResult.wallsBroken > 0) {
+                        wallsBroken += cloneResult.wallsBroken;
+                    }
+                    if (cloneResult.treasuresFound > 0) {
+                        treasuresFound += cloneResult.treasuresFound;
+                    }
+                    if (cloneResult.mapChanged) {
+                        mapChanged = true;
+                    }
+                    if (cloneResult.hazardTriggered) {
+                        hazardsChanged = true;
+                    }
+                    
+                    // Transfer earnings to owner
+                    const transferResult = shadowCloneSystem.transferCloneEarnings(
+                        clone,
+                        shadowData.ownerId,
+                        transaction
+                    );
+                    
+                    // Update mining activity for maintenance
+                    if (transferResult.items.length > 0 || transferResult.coins > 0) {
+                        await updateMiningActivity(shadowData.ownerId, 1);
+                    }
+                    
+                } catch (cloneError) {
+                    console.error(`[SHADOW LEGION] Error processing clone ${clone.displayName}:`, cloneError);
+                }
+            }
+        }
+
         if (wallsBroken > 0 || treasuresFound > 0) {
             batchDB.queueUpdate(channel.id, {
                 'gameData.stats.wallsBroken': (dbEntry.gameData.stats?.wallsBroken || 0) + wallsBroken,
@@ -1856,6 +1971,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             areaDamageChance: 0,
             chainMiningChance: 0,
             sightThroughWalls: 0,
+            shadowTeleportChance: 0,
+            phaseWalkChance: 0,
             uniqueItems: []
         };
     }
@@ -2196,6 +2313,31 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             if (!targetTile) continue;
             
             if ([TILE_TYPES.WALL, TILE_TYPES.REINFORCED_WALL, TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
+                // Check for Shadowstep Boots phase walk ability
+                if (targetTile.type === TILE_TYPES.WALL && uniqueBonuses.phaseWalkChance > 0) {
+                    if (Math.random() < uniqueBonuses.phaseWalkChance) {
+                        // Phase through the wall
+                        eventLogs.push(`👻 ${member.displayName} phases through solid stone!`);
+                        
+                        // Move to the wall position (it becomes a floor)
+                        position.x = newX;
+                        position.y = newY;
+                        
+                        // Convert wall to floor
+                        mapData.tiles[newY][newX] = { 
+                            type: TILE_TYPES.FLOOR, 
+                            discovered: true, 
+                            hardness: 0 
+                        };
+                        mapChanged = true;
+                        
+                        // Track movement (phasing counts as 2 tiles for maintenance)
+                        await updateMovementActivity(member.id, 2);
+                        
+                        continue; // Skip normal wall breaking
+                    }
+                }
+                
                 const canBreak = await canBreakTile(member.id, miningPower, targetTile);
                 if (canBreak) {
                     if (Math.random() < 0.15 && targetTile.type === TILE_TYPES.WALL) {
@@ -2248,6 +2390,44 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 position.x = newX;
                 position.y = newY;
                 mapChanged = true;
+                
+                // Check for Shadowstep Boots random teleportation
+                if (uniqueBonuses.shadowTeleportChance > 0) {
+                    const teleportDestination = checkShadowstepTeleport(
+                        position,
+                        mapData,
+                        uniqueBonuses.shadowTeleportChance,
+                        member,
+                        eventLogs
+                    );
+                    
+                    if (teleportDestination) {
+                        // Update player position to teleport destination
+                        position.x = teleportDestination.x;
+                        position.y = teleportDestination.y;
+                        mapChanged = true;
+                        
+                        // Track this as movement for maintenance (teleport counts as 10 tiles)
+                        await updateMovementActivity(member.id, 10);
+                        
+                        // Mark tiles around new position as discovered
+                        const teleportRadius = 2;
+                        for (let dy = -teleportRadius; dy <= teleportRadius; dy++) {
+                            for (let dx = -teleportRadius; dx <= teleportRadius; dx++) {
+                                const checkX = teleportDestination.x + dx;
+                                const checkY = teleportDestination.y + dy;
+                                
+                                if (checkX >= 0 && checkX < mapData.width &&
+                                    checkY >= 0 && checkY < mapData.height) {
+                                    if (mapData.tiles[checkY][checkX] && !mapData.tiles[checkY][checkX].discovered) {
+                                        mapData.tiles[checkY][checkX].discovered = true;
+                                        mapChanged = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 
                 // Only count as movement if actually moved to a different tile
                 if (oldX !== newX || oldY !== newY) {
