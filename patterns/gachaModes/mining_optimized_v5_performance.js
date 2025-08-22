@@ -2046,6 +2046,33 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 mapChanged = true;
                 
                 if (hazardStorage.hasHazard(hazardsData, newX, newY)) {
+                    // Check sight stat first - removes hazard without triggering
+                    const sightStat = playerData?.stats?.sight || 0;
+                    const sightAvoidChance = Math.min(0.5, sightStat * 0.05); // 5% per sight point, max 50%
+                    
+                    if (Math.random() < sightAvoidChance) {
+                        const hazard = hazardStorage.getHazard(hazardsData, newX, newY);
+                        if (hazard && !(hazard.type === 'treasure' || hazard.type === 'rare_treasure' || hazard.type === 'legendary_treasure' || hazard.type === 'mythic_treasure')) {
+                            eventLogs.push(`👁️ ${member.displayName}'s keen sight spotted and avoided a ${hazard.type || 'hazard'}!`);
+                            hazardStorage.removeHazard(hazardsData, newX, newY);
+                            hazardsChanged = true;
+                            continue;
+                        }
+                    }
+                    
+                    // Check luck stat - avoids triggering but keeps hazard on map
+                    const luckAvoidChance = Math.min(0.4, luckStat * 0.04); // 4% per luck point, max 40%
+                    
+                    if (Math.random() < luckAvoidChance) {
+                        const hazard = hazardStorage.getHazard(hazardsData, newX, newY);
+                        if (hazard && !(hazard.type === 'treasure' || hazard.type === 'rare_treasure' || hazard.type === 'legendary_treasure' || hazard.type === 'mythic_treasure')) {
+                            eventLogs.push(`🍀 ${member.displayName}'s luck helped them narrowly avoid a ${hazard.type || 'hazard'}!`);
+                            // Don't remove the hazard, just skip triggering it
+                            continue;
+                        }
+                    }
+                    
+                    // Check hazard resistance from unique items
                     if (checkHazardResistance(uniqueBonuses.hazardResistance, member, eventLogs)) {
                         hazardStorage.removeHazard(hazardsData, newX, newY);
                         hazardsChanged = true;
@@ -2101,6 +2128,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                             if (hazardResult.playerDisabled) {
                                 break;
                             }
+                            hazardsChanged = true;
+                        }
+                        
+                        // Always remove the hazard after triggering it (unless it's a special persistent type)
+                        if (hazard && hazard.type !== 'persistent') {
+                            hazardStorage.removeHazard(hazardsData, newX, newY);
                             hazardsChanged = true;
                         }
                     }

@@ -8,17 +8,33 @@ module.exports = (client) => {
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
+    // Check if interaction is still valid
+    if (interaction.replied || interaction.deferred) {
+      console.log('Interaction already handled:', interaction.customId);
+      return;
+    }
+
     const { customId, user, member } = interaction;
 
     // =========================
     // EAT THE RICH LOGIC
     // =========================
     if (customId === 'eat_the_rich') {
+      // Wrap in try-catch to handle timeouts
+      try {
+      // Defer early for database operations
+      const startTime = Date.now();
+      
       const userProfile = await Money.findOne({ userId: user.id });
       if (!userProfile || userProfile.money >= 5) {
         return interaction.reply({ content: "You need to be broke to eat the rich...!", ephemeral: true });
       }
 
+      // Check if we're approaching timeout (2.5 seconds to be safe)
+      if (Date.now() - startTime > 2500) {
+        return interaction.reply({ content: "⏱️ Operation took too long, please try again.", ephemeral: true });
+      }
+      
       // Check cooldown
       let cdDoc = await Cooldown.findOne({ userId: member.id });
       if (!cdDoc) cdDoc = new Cooldown({ userId: member.id, cooldowns: {} });
@@ -67,18 +83,33 @@ module.exports = (client) => {
         content: `You 🍴 ate <@${target.userId}> and got 💰 ${stealAmount.toLocaleString()}!`,
         ephemeral: true
       });
+      } catch (error) {
+        console.error('Error in eat_the_rich:', error);
+        // Try to respond if we haven't already
+        if (!interaction.replied && !interaction.deferred) {
+          return interaction.reply({ content: '❌ An error occurred.', ephemeral: true }).catch(() => {});
+        }
+      }
     }
 
     // =========================
     // DONATE TO JAIRUS LOGIC
     // =========================
     if (customId === 'donate_jairus') {
-      await interaction.deferReply({ ephemeral: false });
+      // Defer immediately to avoid timeout
+      try {
+        await interaction.deferReply({ ephemeral: false });
+      } catch (error) {
+        console.error('Failed to defer reply:', error);
+        return; // Exit if we can't defer
+      }
       const donorId = interaction.user.id;
       const recipientId = '185261455208218624';
 
-      // Fetch donor profile
-      const donorProfile = await Money.findOne({ userId: donorId });
+      // Add try-catch for the entire operation
+      try {
+        // Fetch donor profile
+        const donorProfile = await Money.findOne({ userId: donorId });
       if (!donorProfile || donorProfile.money < 1) {
         return interaction.editReply({ content: "You don't have enough money to donate!" });
       }
@@ -114,7 +145,16 @@ module.exports = (client) => {
         await session.abortTransaction();
         session.endSession();
         console.error(err);
-        return interaction.editReply({ content: '❌ An error occurred while processing your donation.' });
+        return interaction.editReply({ content: '❌ An error occurred while processing your donation.' }).catch(console.error);
+      }
+      } catch (error) {
+        console.error('Error in donate_jairus:', error);
+        // Try to respond if possible
+        if (!interaction.replied && !interaction.deferred) {
+          return interaction.reply({ content: '❌ An error occurred.', ephemeral: true }).catch(() => {});
+        } else if (interaction.deferred) {
+          return interaction.editReply({ content: '❌ An error occurred.' }).catch(() => {});
+        }
       }
     }
 
