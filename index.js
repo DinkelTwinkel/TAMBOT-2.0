@@ -1,3 +1,6 @@
+
+require("dotenv").config();
+const OpenAI = require("openai");
 // Require the necessary discord.js classes
 const fs = require('fs');
 const { Client, Events, GatewayIntentBits, ActivityType, PermissionsBitField, Partials } = require('discord.js');
@@ -7,6 +10,20 @@ const CurrencyProfile = require('./models/currency');
 const ensureMoneyProfilesForGuild = require('./patterns/currency/ensureMoneyProfile');
 const botMessageDeletus = require('./patterns/botMessageCleaner');
 const gachaGM = require('./patterns/gachaGameMaster');
+
+const { 
+    initializeStatTracking, 
+    setupVoiceTracking, 
+    setupMessageTracking, 
+    getQuickStats,
+    getUserStats,
+    getAllUserVoiceHours,
+    cleanupTracking 
+} = require('./trackingIntegration');
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // Create a new client instance
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessageReactions, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates], partials: [
@@ -20,7 +37,7 @@ const registerCommands = require ('./registerCommands');
 
 const mongoose = require('mongoose');
 
-  mongoose.connect(mongourl, { 
+  mongoose.connect(process.env.MONGODB_URI, { 
     useNewUrlParser: true, 
     useUnifiedTopology: true,
     // Performance optimizations
@@ -51,6 +68,11 @@ scanMagentaPixels();
 let shopHandler;
 
 client.once(Events.ClientReady, async c => {
+
+    // Now initialize stat tracking:
+    await initializeStatTracking(client);
+    setupVoiceTracking(client);
+    setupMessageTracking(client);
 
     client.user.setActivity('SUPER HELLUNGI', { type: ActivityType.Playing });
     console.log(`Ready! Logged in as ${c.user.tag}`);
@@ -290,4 +312,4 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 // Log in to Discord with your client's token
 
-client.login(token);
+client.login(process.env.DISCORD_TOKEN);
