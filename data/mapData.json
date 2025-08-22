@@ -229,5 +229,22 @@
         "y": 85
       }
     ]
+  },
+  "adamantiteAbyssShop_item_map.png": {
+    "pixelCount": 3,
+    "coordinates": [
+      {
+        "x": 116,
+        "y": 79
+      },
+      {
+        "x": 226,
+        "y": 79
+      },
+      {
+        "x": 336,
+        "y": 79
+      }
+    ]
   }
 }

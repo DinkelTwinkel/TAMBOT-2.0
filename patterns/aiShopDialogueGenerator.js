@@ -164,8 +164,10 @@ Respond with ONLY the dialogue, no quotation marks.`;
                 throw new Error('Shop missing shopkeeper data');
             }
 
-            // 5% chance to mention The One Pick
+            // Decide what to mention in dialogue
             const mentionTheOnePick = Math.random() < 0.05;
+            const mentionPrices = Math.random() < 0.3 && options.shopContext;
+            const mentionRotationalItem = Math.random() < 0.25 && options.shopContext?.rotationalItems?.length > 0;
             
             const recentEvent = this.worldContext.recentEvents[
                 Math.floor(Math.random() * this.worldContext.recentEvents.length)
@@ -184,6 +186,34 @@ ${options.playerClass ? `Customer type: ${options.playerClass}` : 'Waiting for c
 ${options.mood ? `Your current mood: ${options.mood}` : ''}
 `;
 
+            // Add shop inventory context if available
+            if (options.shopContext) {
+                const ctx = options.shopContext;
+                
+                // Add price information
+                if (ctx.overallPriceStatus !== 'normal') {
+                    prompt += `\nIMPORTANT: Prices are ${ctx.overallPriceStatus} today!`;
+                }
+                
+                // Add rotational items info
+                if (ctx.rotationalItems && ctx.rotationalItems.length > 0) {
+                    const featuredItems = ctx.rotationalItems.slice(0, 2).map(item => {
+                        let desc = item.name;
+                        if (item.priceStatus === 'high') desc += ' (overpriced today)';
+                        else if (item.priceStatus === 'low') desc += ' (great deal!)';
+                        return desc;
+                    });
+                    prompt += `\nToday's special items: ${featuredItems.join(', ')}`;
+                }
+                
+                // Add static items with notable prices
+                const notableStatic = ctx.staticItems?.filter(item => item.priceStatus !== 'normal');
+                if (notableStatic && notableStatic.length > 0) {
+                    const notable = notableStatic[0];
+                    prompt += `\n${notable.name} is ${notable.priceStatus === 'high' ? 'expensive' : 'cheap'} today at ${notable.currentPrice}c`;
+                }
+            }
+
             if (mentionTheOnePick) {
                 const stance = this.getOnePickStance(shopkeeper);
                 const opinion = this.onePickOpinions[stance][
@@ -194,9 +224,32 @@ ${options.mood ? `Your current mood: ${options.mood}` : ''}
 Make it feel organic to your personality and current conversation.`;
             }
 
+            // Add specific dialogue instructions based on context
+            let dialogueInstructions = [];
+            if (mentionPrices && options.shopContext?.overallPriceStatus && options.shopContext.overallPriceStatus !== 'normal') {
+                if (options.shopContext.overallPriceStatus === 'mostly high') {
+                    dialogueInstructions.push('complain about or mention the high prices today');
+                } else if (options.shopContext.overallPriceStatus === 'mostly low') {
+                    dialogueInstructions.push('advertise the good deals or low prices');
+                } else if (options.shopContext.overallPriceStatus === 'mixed') {
+                    dialogueInstructions.push('comment on the unpredictable price fluctuations');
+                }
+            }
+            if (mentionRotationalItem && options.shopContext?.rotationalItems?.length > 0) {
+                const item = options.shopContext.rotationalItems[0];
+                if (item.priceStatus === 'low') {
+                    dialogueInstructions.push(`promote your special item "${item.name}" at a great price`);
+                } else if (item.priceStatus === 'high') {
+                    dialogueInstructions.push(`mention your rare "${item.name}" (worth the premium price)`);
+                } else {
+                    dialogueInstructions.push(`mention your featured item "${item.name}" that just arrived`);
+                }
+            }
+            
             prompt += `\nGenerate a single line of idle shop dialogue or action that:
 - Reflects your personality and background
 - Might reference your wares, the weather, recent events, or mining life
+${dialogueInstructions.length > 0 ? '- Should ' + dialogueInstructions.join(' OR ') : ''}
 - Sounds natural for someone standing in their shop
 ${mentionTheOnePick ? '- Naturally incorporates your opinion about The One Pick' : ''}
 - Stays completely in character
@@ -231,31 +284,46 @@ Respond with ONLY the dialogue or action, no quotation marks or attribution.`;
      * Generate dialogue for successful purchase
      * @param {Object} shop - Shop data
      * @param {Object} item - Item being purchased
-     * @param {number} price - Purchase price
+     * @param {number} price - Total purchase price
      * @param {Object} buyer - Buyer information
+     * @param {number} quantity - Number of items purchased
      * @returns {Promise<string>} Generated dialogue
      */
-    async generatePurchaseDialogue(shop, item, price, buyer = {}) {
+    async generatePurchaseDialogue(shop, item, price, buyer = {}, quantity = 1) {
         try {
             const shopkeeper = shop.shopkeeper;
             if (!shopkeeper) {
                 throw new Error('Shop missing shopkeeper data');
             }
 
+            const pricePerItem = Math.floor(price / quantity);
+            const isBulkPurchase = quantity > 5;
+            const isSmallPurchase = quantity === 1;
+            const isModerateQuantity = quantity > 1 && quantity <= 5;
+            
             const prompt = `You are ${shopkeeper.name}, shopkeeper of ${shop.name}.
             
 Background: ${shopkeeper.bio}
 Personality: ${shopkeeper.personality}
 
-A customer just purchased: ${item.name} for ${price} coins
+A customer just purchased: ${quantity}x ${item.name} for ${price} coins total (${pricePerItem} each)
 ${buyer.username ? `Customer name: ${buyer.username}` : ''}
-${this.isPriceGood(item, price) ? 'This was a good deal for you!' : 'This was at a discount.'}
+${this.isPriceGood(item, pricePerItem) ? 'This was a good deal for you!' : 'This was at a discount.'}
+${isBulkPurchase ? 'This is a BULK PURCHASE - react accordingly!' : ''}
+${isSmallPurchase ? 'Just a single item.' : ''}
+${isModerateQuantity ? 'A moderate quantity purchase.' : ''}
 
-Generate a brief success dialogue (1 sentence) for completing this sale that:
+Generate a brief success dialogue (1 sentence) that:
 - Reflects your personality
-- Might comment on the item, the deal, or the customer
+- MUST react to the quantity (${quantity} items) - mention if it's a lot, bulk order, etc.
+- Might comment on the bulk deal or total price
 - Sounds natural and conversational
-- Shows satisfaction with the transaction
+- Shows appropriate reaction to the purchase size
+
+Examples of reacting to quantity:
+- Bulk: "That's quite the haul!" or "Buying in bulk, smart move!" or "${quantity} of them? You're cleaning me out!"
+- Single: "Just the one?" or "A fine choice!"
+- Moderate: "${quantity} should last you a while!" or "Good stock for your adventures!"
 
 Respond with ONLY the dialogue with quotation marks`;
 
@@ -319,28 +387,43 @@ Respond with ONLY the dialogue, with quotation marks.`;
      * Generate dialogue for selling items to shop
      * @param {Object} shop - Shop data
      * @param {Object} item - Item being sold
-     * @param {number} price - Sell price
+     * @param {number} price - Total sell price
+     * @param {number} quantity - Number of items being sold
      * @returns {Promise<string>} Generated dialogue
      */
-    async generateSellDialogue(shop, item, price) {
+    async generateSellDialogue(shop, item, price, quantity = 1) {
         try {
             const shopkeeper = shop.shopkeeper;
             if (!shopkeeper) {
                 throw new Error('Shop missing shopkeeper data');
             }
 
+            const pricePerItem = Math.floor(price / quantity);
+            const isBulkSale = quantity > 5;
+            const isSingleItem = quantity === 1;
+            const isModerateQuantity = quantity > 1 && quantity <= 5;
+            
             const prompt = `You are ${shopkeeper.name}, shopkeeper of ${shop.name}.
             
 Background: ${shopkeeper.bio}
 Personality: ${shopkeeper.personality}
 
-A customer just sold you: ${item.name} for ${price} coins
-${this.isGoodBuy(item, price) ? 'This was a great deal for your shop!' : 'This was a fair price.'}
+A customer just sold you: ${quantity}x ${item.name} for ${price} coins total (${pricePerItem} each)
+${this.isGoodBuy(item, pricePerItem) ? 'This was a great deal for your shop!' : 'This was a fair price.'}
+${isBulkSale ? 'This is a BULK SALE - they are offloading a lot of items!' : ''}
+${isSingleItem ? 'Just a single item.' : ''}
+${isModerateQuantity ? 'A moderate quantity.' : ''}
 
 Generate a brief dialogue (1 sentence) for accepting this sale that:
 - Reflects your personality
-- Might comment on the item's quality or the deal
-- Shows your business sense
+- MUST react to the quantity (${quantity} items) being sold
+- Might comment on why they're selling so many/few
+- Shows your business sense and reaction to bulk sales
+
+Examples of reacting to quantity:
+- Bulk sale: "${quantity} of them? Business must be good!" or "I'll take all ${quantity} off your hands!" or "That's a lot of ${item.name}, you clearing out?"
+- Single: "Just the one? I'll take it." or "I can work with that."
+- Moderate: "${quantity} pieces, reasonable amount." or "I can move ${quantity} of these."
 
 Respond with ONLY the dialogue, with quotation marks.`;
 

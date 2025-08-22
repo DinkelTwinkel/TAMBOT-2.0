@@ -131,14 +131,41 @@ async function generateShop(channel, closingTime = 20) {
     const allShopItems = Array.from(new Set([...validStaticItems, ...validItemPool]));
     const fluctuatedPrices = await getShopPrices(allShopItems, channel.guild.id, shopInfo.priceChangeFactor);
 
+    // Prepare shop context for AI dialogue
+    const rotationalItems = buyPool.filter(id => !validStaticItems.includes(id));
+    const shopContext = {
+        staticItems: validStaticItems.map(id => {
+            const item = itemSheet.find(i => i.id === String(id));
+            return item ? {
+                id: id,
+                name: item.name,
+                currentPrice: fluctuatedPrices[id]?.buy || item.value,
+                basePrice: item.value,
+                priceStatus: getPriceStatus(fluctuatedPrices[id]?.buy, item.value)
+            } : null;
+        }).filter(Boolean),
+        rotationalItems: rotationalItems.map(id => {
+            const item = itemSheet.find(i => i.id === String(id));
+            return item ? {
+                id: id,
+                name: item.name,
+                currentPrice: fluctuatedPrices[id]?.buy || item.value,
+                basePrice: item.value,
+                priceStatus: getPriceStatus(fluctuatedPrices[id]?.buy, item.value)
+            } : null;
+        }).filter(Boolean),
+        overallPriceStatus: getOverallPriceStatus(buyPool, fluctuatedPrices, itemSheet)
+    };
+
     // Generate AI dialogue or use fallback
     let pickShopDescription;
     if (aiShopDialogue && aiShopDialogue.isAvailable()) {
         try {
-            // Generate contextual dialogue with 5% chance to mention The One Pick
+            // Generate contextual dialogue with shop inventory awareness
             pickShopDescription = await aiShopDialogue.generateIdleDialogue(shopInfo, {
                 mood: getShopkeeperMood(shopInfo),
-                playerClass: 'miner' // You can make this dynamic based on user roles
+                playerClass: 'miner', // You can make this dynamic based on user roles
+                shopContext: shopContext
             });
             console.log(`[GenerateShop] Generated AI dialogue for ${shopInfo.shopkeeper?.name || shopInfo.name}`);
         } catch (err) {
@@ -380,6 +407,53 @@ async function closeShop(shopMessage) {
 }
 
 /**
+ * Determine if a price is high, low, or normal
+ * @param {number} currentPrice - Current fluctuated price
+ * @param {number} basePrice - Base price from item sheet
+ * @returns {string} - 'high', 'low', or 'normal'
+ */
+function getPriceStatus(currentPrice, basePrice) {
+    if (!currentPrice || !basePrice) return 'normal';
+    const ratio = currentPrice / basePrice;
+    if (ratio > 1.1) return 'high';
+    if (ratio < 0.9) return 'low';
+    return 'normal';
+}
+
+/**
+ * Get overall price status for the shop
+ * @param {Array} buyPool - Items currently for sale
+ * @param {Object} fluctuatedPrices - Current prices
+ * @param {Array} itemSheet - Item data
+ * @returns {string} - Overall price trend
+ */
+function getOverallPriceStatus(buyPool, fluctuatedPrices, itemSheet) {
+    let highCount = 0;
+    let lowCount = 0;
+    let totalItems = 0;
+    
+    buyPool.forEach(id => {
+        const item = itemSheet.find(i => i.id === String(id));
+        if (item && fluctuatedPrices[id]) {
+            const status = getPriceStatus(fluctuatedPrices[id].buy, item.value);
+            if (status === 'high') highCount++;
+            if (status === 'low') lowCount++;
+            totalItems++;
+        }
+    });
+    
+    if (totalItems === 0) return 'normal';
+    
+    const highRatio = highCount / totalItems;
+    const lowRatio = lowCount / totalItems;
+    
+    if (highRatio > 0.5) return 'mostly high';
+    if (lowRatio > 0.5) return 'mostly low';
+    if (highRatio > 0.3 && lowRatio > 0.3) return 'mixed';
+    return 'normal';
+}
+
+/**
  * Helper function to determine shopkeeper mood based on various factors
  * @param {Object} shopInfo - Shop information
  * @returns {string} - Mood string
@@ -418,15 +492,16 @@ function getAIShopDialogue() {
  * @param {Object} item - Item being purchased
  * @param {number} price - Purchase price
  * @param {Object} buyer - Buyer information
+ * @param {number} quantity - Number of items purchased
  * @returns {Promise<string>} - Generated dialogue or fallback
  */
-async function generatePurchaseDialogue(shop, item, price, buyer) {
+async function generatePurchaseDialogue(shop, item, price, buyer, quantity = 1) {
     if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
         return shop.successBuy?.[0] || "A pleasure doing business!";
     }
     
     try {
-        return await aiShopDialogue.generatePurchaseDialogue(shop, item, price, buyer);
+        return await aiShopDialogue.generatePurchaseDialogue(shop, item, price, buyer, quantity);
     } catch (error) {
         console.error('[GenerateShop] Purchase dialogue generation failed:', error);
         return shop.successBuy?.[0] || "A pleasure doing business!";
@@ -438,15 +513,16 @@ async function generatePurchaseDialogue(shop, item, price, buyer) {
  * @param {Object} shop - Shop data
  * @param {Object} item - Item being sold
  * @param {number} price - Sell price
+ * @param {number} quantity - Number of items being sold
  * @returns {Promise<string>} - Generated dialogue or fallback
  */
-async function generateSellDialogue(shop, item, price) {
+async function generateSellDialogue(shop, item, price, quantity = 1) {
     if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
         return shop.successSell?.[0] || "I'll take that off your hands.";
     }
     
     try {
-        return await aiShopDialogue.generateSellDialogue(shop, item, price);
+        return await aiShopDialogue.generateSellDialogue(shop, item, price, quantity);
     } catch (error) {
         console.error('[GenerateShop] Sell dialogue generation failed:', error);
         return shop.successSell?.[0] || "I'll take that off your hands.";

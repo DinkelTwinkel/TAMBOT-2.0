@@ -387,7 +387,7 @@ class ShopHandler {
             });
         }
         
-        await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice, interaction.user);
+        await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice, interaction.user, 1); // quantity = 1 for consumables
     }
 
     async handleModalSubmit(interaction) {
@@ -561,7 +561,7 @@ class ShopHandler {
                 await interaction.channel.send({ content: publicMessage });
             }
             
-            await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice * quantity, interaction.user);
+            await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice * quantity, interaction.user, quantity);
         } catch (error) {
             console.error('[SHOP] Error processing purchase:', error);
             
@@ -640,7 +640,7 @@ class ShopHandler {
                 await interaction.channel.send({ content: publicMessage });
             }
             
-            await this.updateShopDescription(interaction.message, shopInfo?.successSell, shopInfo, 'sell', item, currentSellPrice * quantity);
+            await this.updateShopDescription(interaction.message, shopInfo?.successSell, shopInfo, 'sell', item, currentSellPrice * quantity, null, quantity);
         } catch (error) {
             console.error('[SHOP] Error processing sale:', error);
             await interaction.editReply({ 
@@ -649,7 +649,7 @@ class ShopHandler {
         }
     }
 
-    async updateShopDescription(shopMessage, descriptions, shopInfo = null, dialogueType = null, item = null, price = null, buyer = null) {
+    async updateShopDescription(shopMessage, descriptions, shopInfo = null, dialogueType = null, item = null, price = null, buyer = null, quantity = 1) {
         try {
             let newDescription;
             
@@ -657,10 +657,10 @@ class ShopHandler {
             if (shopInfo && dialogueType) {
                 try {
                     if (dialogueType === 'purchase' && item && price) {
-                        newDescription = await generatePurchaseDialogue(shopInfo, item, price, buyer);
+                        newDescription = await generatePurchaseDialogue(shopInfo, item, price, buyer, quantity);
                         console.log(`[SHOP] Generated AI purchase dialogue for ${shopInfo.shopkeeper?.name}`);
                     } else if (dialogueType === 'sell' && item && price) {
-                        newDescription = await generateSellDialogue(shopInfo, item, price);
+                        newDescription = await generateSellDialogue(shopInfo, item, price, quantity);
                         console.log(`[SHOP] Generated AI sell dialogue for ${shopInfo.shopkeeper?.name}`);
                     } else if (dialogueType === 'poor' && item) {
                         const shortBy = price || 0;
