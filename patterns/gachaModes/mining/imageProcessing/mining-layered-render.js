@@ -810,6 +810,17 @@ async function drawEncounter(ctx, pixelX, pixelY, tileSize, encountersData, tile
     
     if (!encounter) return;
     
+    // Double-check that the hazard actually exists in storage (not already triggered/removed)
+    const stillExists = encounterStorage.hasEncounter ? 
+        encounterStorage.hasEncounter(encountersData, tileX, tileY) :
+        encounterStorage.hasHazard ?
+        encounterStorage.hasHazard(encountersData, tileX, tileY) : false;
+        
+    if (!stillExists) {
+        console.log(`[RENDER] Skipping removed hazard at (${tileX}, ${tileY})`);
+        return;
+    }
+    
     if (!isVisible && !encounter.revealed) return;
     
     ctx.save();
@@ -1092,21 +1103,30 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
             // Adjust visibility based on tile below
             const effectiveIsVisible = isVisible && isTileBelowVisible;
             
-            // Add encounters
+            // Add encounters (only if they still exist in storage - not triggered/removed)
             const hasEncounter = encounterStorage.hasEncounter ? 
                 encounterStorage.hasEncounter(encountersData, x, y) :
                 encounterStorage.hasHazard ?
                 encounterStorage.hasHazard(encountersData, x, y) : false;
                 
             if (hasEncounter && (effectiveIsVisible || wasDiscovered)) {
-                midgroundObjects.push({
-                    type: 'encounter',
-                    y: y,
-                    x: x,
-                    isVisible: effectiveIsVisible,
-                    wasDiscovered: wasDiscovered,
-                    renderY: y * floorTileSize + floorTileSize * 0.5
-                });
+                // Verify the hazard/encounter data is valid and not a removed placeholder
+                const encounter = encounterStorage.getEncounter ? 
+                    encounterStorage.getEncounter(encountersData, x, y) :
+                    encounterStorage.getHazard ? 
+                    encounterStorage.getHazard(encountersData, x, y) : null;
+                    
+                // Only add if we have valid encounter data
+                if (encounter && encounter.type) {
+                    midgroundObjects.push({
+                        type: 'encounter',
+                        y: y,
+                        x: x,
+                        isVisible: effectiveIsVisible,
+                        wasDiscovered: wasDiscovered,
+                        renderY: y * floorTileSize + floorTileSize * 0.5
+                    });
+                }
             }
             
             // Add rails
@@ -1828,9 +1848,14 @@ async function generateTileMapImage(channel) {
     const theme = getMineTheme(result);
     console.log(`Using theme: ${theme} for channel ${channel.id}`);
     
-    // Get rails and encounters data
+    // Get rails and encounters data - always fetch fresh to ensure we have latest state
     const railsData = await railStorage.getRailsData(channel.id);
+    // Force a fresh fetch of hazards data to ensure triggered hazards are not shown
     const encountersData = await (encounterStorage.getEncountersData || encounterStorage.getHazardsData)?.call(encounterStorage, channel.id) || {};
+    
+    // Log hazard count for debugging
+    const hazardCount = encountersData.hazards ? encountersData.hazards.size : 0;
+    console.log(`[RENDER] Found ${hazardCount} active hazards for channel ${channel.id}`);
     
     // Calculate image settings
     const imageSettings = calculateOptimalImageSettings(width, height);
