@@ -2199,12 +2199,21 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     }
                     
                     if (uniqueBonuses.areaDamageChance > 0) {
-                        const extraWalls = applyAreaDamage(
+                        const extraWalls = await applyAreaDamage(
                             { x: adjacentTarget.x, y: adjacentTarget.y },
                             mapData,
                             uniqueBonuses.areaDamageChance,
                             member,
-                            eventLogs
+                            eventLogs,
+                            dbEntry,
+                            mineFromTile,
+                            {
+                                miningPower: miningPower,
+                                luckStat: luckStat,
+                                powerLevel: powerLevel,
+                                availableItems: availableItems,
+                                efficiency: efficiency
+                            }
                         );
                         wallsBroken += extraWalls;
                     }

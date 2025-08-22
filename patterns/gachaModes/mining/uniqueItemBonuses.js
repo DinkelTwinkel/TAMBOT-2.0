@@ -244,15 +244,22 @@ function checkUniquePickaxeBreak(pickaxe, isUnique) {
  * @param {number} areaDamageChance - Chance for area damage
  * @param {Object} member - Discord member
  * @param {Array} eventLogs - Event logs array
- * @returns {number} Number of additional walls broken
+ * @param {Object} dbEntry - Database entry for adding rewards
+ * @param {Function} mineFromTile - Function to generate ore rewards
+ * @param {Object} miningParams - Mining parameters (miningPower, luckStat, powerLevel, availableItems, efficiency)
+ * @returns {Object} Result with walls broken and ore rewards
  */
-function applyAreaDamage(position, mapData, areaDamageChance, member, eventLogs) {
+async function applyAreaDamage(position, mapData, areaDamageChance, member, eventLogs, dbEntry = null, mineFromTile = null, miningParams = {}) {
     if (areaDamageChance <= 0 || Math.random() > areaDamageChance) {
-        return 0;
+        return { wallsBroken: 0, oreRewarded: [] };
     }
     
     const { TILE_TYPES } = require('./miningConstants_unified');
+    const { addItemToMinecart } = require('./miningDatabase');
+    
     let wallsBroken = 0;
+    let oreWallsBroken = 0;
+    const oreRewarded = [];
     
     const adjacentPositions = [
         { x: position.x - 1, y: position.y },
@@ -268,21 +275,81 @@ function applyAreaDamage(position, mapData, areaDamageChance, member, eventLogs)
         }
         
         const tile = mapData.tiles[adj.y][adj.x];
-        if (tile && (tile.type === TILE_TYPES.WALL || tile.type === TILE_TYPES.WALL_WITH_ORE)) {
-            mapData.tiles[adj.y][adj.x] = { 
-                type: TILE_TYPES.FLOOR, 
-                discovered: true,
-                hardness: 0
-            };
-            wallsBroken++;
+        if (tile) {
+            if (tile.type === TILE_TYPES.WALL || tile.type === TILE_TYPES.WALL_WITH_ORE || tile.type === TILE_TYPES.RARE_ORE) {
+                // Check if it's an ore wall and reward accordingly
+                if ((tile.type === TILE_TYPES.WALL_WITH_ORE || tile.type === TILE_TYPES.RARE_ORE) && dbEntry && mineFromTile && miningParams.availableItems) {
+                    try {
+                        // Generate ore reward for this ore wall
+                        const { item, quantity } = await mineFromTile(
+                            member,
+                            miningParams.miningPower || 0,
+                            miningParams.luckStat || 0,
+                            miningParams.powerLevel || 1,
+                            tile.type,
+                            miningParams.availableItems,
+                            miningParams.efficiency || { valueMultiplier: 1 }
+                        );
+                        
+                        // Apply Earthshaker bonus: 50% chance for double rewards from area damage
+                        let finalQuantity = quantity;
+                        if (Math.random() < 0.5) {
+                            finalQuantity = quantity * 2;
+                        }
+                        
+                        // Add to minecart
+                        await addItemToMinecart(dbEntry, member.id, item.itemId, finalQuantity);
+                        
+                        oreRewarded.push({
+                            item: item,
+                            quantity: finalQuantity,
+                            position: adj
+                        });
+                        
+                        oreWallsBroken++;
+                    } catch (error) {
+                        console.error(`[EARTHSHAKER] Error generating ore reward:`, error);
+                    }
+                }
+                
+                // Convert to floor
+                mapData.tiles[adj.y][adj.x] = { 
+                    type: TILE_TYPES.FLOOR, 
+                    discovered: true,
+                    hardness: 0
+                };
+                wallsBroken++;
+            }
         }
     }
     
+    // Create detailed event message
     if (wallsBroken > 0) {
-        eventLogs.push(`💥 Earthshaker's tremor breaks ${wallsBroken} adjacent walls!`);
+        let message = `💥 Earthshaker's tremor breaks ${wallsBroken} adjacent wall${wallsBroken > 1 ? 's' : ''}!`;
+        
+        if (oreWallsBroken > 0 && oreRewarded.length > 0) {
+            // Group rewards by item
+            const rewardSummary = {};
+            for (const reward of oreRewarded) {
+                const key = reward.item.name;
+                if (!rewardSummary[key]) {
+                    rewardSummary[key] = 0;
+                }
+                rewardSummary[key] += reward.quantity;
+            }
+            
+            const rewardText = Object.entries(rewardSummary)
+                .map(([name, qty]) => `${name} x${qty}`)
+                .join(', ');
+            
+            message += ` Harvested: ${rewardText}`;
+        }
+        
+        eventLogs.push(message);
     }
     
-    return wallsBroken;
+    // Return both for backwards compatibility and new functionality
+    return wallsBroken; // Keep returning number for old code
 }
 
 /**

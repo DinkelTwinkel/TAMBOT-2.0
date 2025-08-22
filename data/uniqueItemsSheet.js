@@ -509,8 +509,9 @@ const UNIQUE_ITEMS = [
         type: "charm",
         slot: "charm",
         rarity: "mythic",
-        description: "An obsidian amulet containing three bound shadow spirits. When worn, the shadows take physical form and mirror your every action in the mines.",
-        lore: "Forged in the Shadowrealm by the Wraith King Mor'duun, this amulet was created to amplify his presence across multiple dimensions simultaneously. The three shadow spirits bound within were once his most loyal generals, now cursed to eternally serve whoever possesses the amulet. Each shadow maintains its own consciousness but is compelled to perfectly mirror the wearer's mining techniques. The shadows work tirelessly, channeling all their findings directly to their master through dimensional rifts. Legend says that wearing the amulet slowly drains one's essence, as maintaining three additional forms across reality requires immense spiritual energy. Many who have worn it report hearing whispers from the shadows, speaking of profits beyond imagination... and prices beyond comprehension. The shadows seem to grow stronger with each ore mined, as if feeding on the very act of extraction. Some claim the shadows occasionally act on their own, discovering treasures their master never knew existed.",
+        description: "An obsidian amulet bound with three restless shadows. They echo your every move in the mines, feeding on stone, treasure… and perhaps your soul.",
+        lore: "Whispers speak of Mor'duun, the Wraith King, who bound three generals into this amulet. The shadows obey without question, mining alongside their master. But each strike of the pick seems to draw something unseen… a toll only the wearer pays.",
+
         value: 750000,
         vendable: false,
         
