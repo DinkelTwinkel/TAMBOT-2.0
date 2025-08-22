@@ -13,30 +13,30 @@ async function updateRailCoordinates(channelId, shiftX, shiftY) {
     
     try {
         const railsData = await railStorage.getRailsData(channelId);
-        if (!railsData || !railsData.rails || railsData.rails.size === 0) {
+        if (!railsData || !railsData.positions || Object.keys(railsData.positions).length === 0) {
             return;
         }
         
-        // Create new Map with shifted coordinates
-        const shiftedRails = new Map();
-        for (const [key, rail] of railsData.rails) {
+        // Create new object with shifted coordinates
+        const shiftedRails = {};
+        for (const [key, rail] of Object.entries(railsData.positions)) {
             const [oldX, oldY] = key.split(',').map(Number);
             const newX = oldX + shiftX;
             const newY = oldY + shiftY;
             const newKey = `${newX},${newY}`;
             
-            shiftedRails.set(newKey, {
+            shiftedRails[newKey] = {
                 ...rail,
                 x: newX,
                 y: newY
-            });
+            };
         }
         
         // Update the rails data
-        railsData.rails = shiftedRails;
-        await railStorage.saveRailsData(channelId, railsData);
+        railsData.positions = shiftedRails;
+        await railStorage.setRailsData(channelId, railsData);
         
-        console.log(`[COORD] Updated ${shiftedRails.size} rail segments`);
+        console.log(`[COORD] Updated ${Object.keys(shiftedRails).length} rail segments`);
     } catch (error) {
         console.error('[COORD] Error updating rail coordinates:', error);
     }
