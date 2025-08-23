@@ -201,7 +201,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             channelId: newGachaChannel.id,
             guildId: guild.id,
             typeId: 0,
-            nextTrigger: new Date(Date.now() + 1000 * 30), // 30 second delay before events start.
+            nextTrigger: new Date(Date.now() + 1000 * 10), // 30 second delay before events start.
             nextShopRefresh: new Date(Date.now() + 1000 * 60 * 25), 
             nextLongBreak: new Date(Date.now() + 60 * 1000 * 100),
         })

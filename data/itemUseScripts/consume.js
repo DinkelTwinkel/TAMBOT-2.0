@@ -76,8 +76,26 @@ module.exports = async function consume(context) {
             if (item.value >= 1000) embedColor = 0xE74C3C; // Red for very valuable items
         }
 
-        // Send the detailed info as ephemeral (private)
-        await interaction.editReply({ 
+        // Send a short public message about the consumption as the main reply
+        let publicMessage = `${user} consumed **${item.name}**`;
+        if (item.abilities && item.abilities.length > 0) {
+            const mainAbility = item.abilities[0];
+            publicMessage += ` • ${mainAbility.name.charAt(0).toUpperCase() + mainAbility.name.slice(1)} +${mainAbility.powerlevel}`;
+        }
+        if (item.duration) {
+            publicMessage += ` (${item.duration}m)`;
+        }
+        publicMessage += `! ${item.type === 'consumable' && item.subtype === 'food' ? '🍖' : item.type === 'consumable' && item.subtype === 'drink' ? '🍺' : '✨'}`;
+        
+        // Send public message as the main interaction reply
+        const replyMsg = await interaction.editReply({ 
+            content: publicMessage
+        });
+        // Register for auto-cleanup
+        await registerBotMessage(interaction.guild.id, interaction.channel.id, replyMsg.id, 5);
+        
+        // Send detailed info as ephemeral follow-up
+        await interaction.followUp({ 
             embeds: [new EmbedBuilder()
                 .setTitle('✅ Item Consumed')
                 .setDescription(description)
@@ -98,24 +116,6 @@ module.exports = async function consume(context) {
                 ])],
             ephemeral: true 
         });
-        
-        // Send a short public message about the consumption
-        let publicMessage = `${user} consumed **${item.name}**`;
-        if (item.abilities && item.abilities.length > 0) {
-            const mainAbility = item.abilities[0];
-            publicMessage += ` • ${mainAbility.name.charAt(0).toUpperCase() + mainAbility.name.slice(1)} +${mainAbility.powerlevel}`;
-        }
-        if (item.duration) {
-            publicMessage += ` (${item.duration}m)`;
-        }
-        publicMessage += `! ${item.type === 'consumable' && item.subtype === 'food' ? '🍖' : item.type === 'consumable' && item.subtype === 'drink' ? '🍺' : '✨'}`;
-        
-        const publicMsg = await channel.send({
-            content: publicMessage,
-            allowedMentions: { users: [] }
-        });
-        // Register for auto-cleanup
-        await registerBotMessage(channel.guild.id, channel.id, publicMsg.id, 5);
 
         // Apply actual buff effects if item has duration
         if (item.duration && item.abilities && item.abilities.length > 0) {
@@ -177,52 +177,52 @@ module.exports = async function consume(context) {
             // This is a tool that can be consumed
             description += '\n\n⚠️ *You consumed a tool! Hope it was worth it!*';
             
-            // Send private embed for tool consumption
-            await interaction.editReply({ 
+            // Send short public message for tool consumption
+            let toolMessage = `${user} consumed their **${item.name}** (tool)`;
+            if (item.abilities && item.abilities.length > 0) {
+            const mainAbility = item.abilities[0];
+            toolMessage += ` • ${mainAbility.name.charAt(0).toUpperCase() + mainAbility.name.slice(1)} +${mainAbility.powerlevel}`;
+            }
+            if (item.duration) {
+            toolMessage += ` (${item.duration}m)`;
+            }
+            toolMessage += `! 🔧💥`;
+            
+            // Send public message as the main interaction reply
+            const toolReplyMsg = await interaction.editReply({
+            content: toolMessage
+            });
+            // Register for auto-cleanup
+            await registerBotMessage(interaction.guild.id, interaction.channel.id, toolReplyMsg.id, 5);
+            
+            // Send private embed as follow-up for tool consumption
+            await interaction.followUp({ 
             embeds: [new EmbedBuilder()
-                .setTitle('🔧➡️🍴 Tool Consumed!')
-                .setDescription(description)
-                .setColor(0xFFD700) // Gold color for special consumption
-                .setThumbnail(item.image ? `https://example.com/images/${item.image}.png` : null)
+            .setTitle('🔧➡️🍴 Tool Consumed!')
+            .setDescription(description)
+            .setColor(0xFFD700) // Gold color for special consumption
+            .setThumbnail(item.image ? `https://example.com/images/${item.image}.png` : null)
                 .setFooter({ text: `Tool sacrificed for power! • Item ID: ${item.id}` })
-            .addFields([
-            {
-                name: '💰 Tool Value',
-                value: item.value ? `${item.value} coins` : 'Priceless',
-                    inline: true
-                },
-            {
-                name: '📊 Original Type',
-                value: 'Tool ➡️ Consumed',
-                    inline: true
-                },
-            {
-                name: '⚒️ Lost Durability',
-                value: item.durability ? `${item.durability} uses` : 'N/A',
-                    inline: true
+                    .addFields([
+                        {
+                            name: '💰 Tool Value',
+                            value: item.value ? `${item.value} coins` : 'Priceless',
+                            inline: true
+                    },
+                    {
+                            name: '📊 Original Type',
+                            value: 'Tool ➡️ Consumed',
+                        inline: true
+                        },
+                        {
+                            name: '⚒️ Lost Durability',
+                            value: item.durability ? `${item.durability} uses` : 'N/A',
+                        inline: true
                     }
                     ])],
                 ephemeral: true
-                });
-                
-                // Send short public message for tool consumption
-                let toolMessage = `${user} consumed their **${item.name}** (tool)`;
-                if (item.abilities && item.abilities.length > 0) {
-                    const mainAbility = item.abilities[0];
-                    toolMessage += ` • ${mainAbility.name.charAt(0).toUpperCase() + mainAbility.name.slice(1)} +${mainAbility.powerlevel}`;
-                }
-                if (item.duration) {
-                    toolMessage += ` (${item.duration}m)`;
-                }
-                toolMessage += `! 🔧💥`;
-                
-                const toolPublicMsg = await channel.send({
-                    content: toolMessage,
-                    allowedMentions: { users: [] }
-                });
-                // Register for auto-cleanup
-                await registerBotMessage(channel.guild.id, channel.id, toolPublicMsg.id, 5);
-                return; // Exit early since we already sent the messages
+            });
+            return; // Exit early since we already sent the messages
         }
 
     } catch (error) {

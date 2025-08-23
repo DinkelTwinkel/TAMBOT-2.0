@@ -1014,6 +1014,7 @@ module.exports = async (channel, dbEntry, json) => {
             lastProfitDistribution: new Date(), // Track when profits were last distributed
             lastNPCSale: new Date(), // Track last NPC sale
             lastEvent: new Date(), // Track last event
+            lastShopGeneration: new Date(now - 5 * 60 * 1000), // Track last shop generation (start 5 min ago)
             workState: 'working', // 'working' or 'break'
             workStartTime: new Date(), // When current work period started
             breakEndTime: null // When break should end
@@ -1076,6 +1077,10 @@ module.exports = async (channel, dbEntry, json) => {
         // Initialize lastEvent if not exists
         if (!dbEntry.gameData.lastEvent) {
             dbEntry.gameData.lastEvent = new Date(now - 15 * 1000); // 15 seconds ago
+        }
+        // Initialize lastShopGeneration if not exists
+        if (!dbEntry.gameData.lastShopGeneration) {
+            dbEntry.gameData.lastShopGeneration = new Date(now - 5 * 60 * 1000); // 5 minutes ago
         }
     }
 
@@ -1249,9 +1254,28 @@ module.exports = async (channel, dbEntry, json) => {
     
     await dbEntry.save();
 
-    // Send the event message
+    // Check if we should generate shop (only every 5 minutes when nothing is happening)
     if (channel && channel.isTextBased()) {
-        generateShop(channel);
+        const lastShopGen = new Date(dbEntry.gameData.lastShopGeneration).getTime();
+        const timeSinceLastShop = now - lastShopGen;
+        const SHOP_COOLDOWN = 5 * 60 * 1000; // 5 minutes
+        
+        // Generate shop only if:
+        // 1. It's been at least 5 minutes since last generation
+        // 2. There haven't been recent events (check if last event was > 30 seconds ago)
+        const timeSinceLastEventCheck = now - new Date(dbEntry.gameData.lastEvent).getTime();
+        const timeSinceLastSaleCheck = now - new Date(dbEntry.gameData.lastNPCSale).getTime();
+        
+        // Consider "nothing happening" if no events or sales in the last 30 seconds
+        const nothingHappening = timeSinceLastEventCheck > 30000 && timeSinceLastSaleCheck > 30000;
+        
+        if (timeSinceLastShop >= SHOP_COOLDOWN && nothingHappening) {
+            generateShop(channel);
+            dbEntry.gameData.lastShopGeneration = new Date();
+            dbEntry.markModified('gameData');
+            await dbEntry.save();
+            console.log(`[InnKeeper] Generated shop for channel ${dbEntry.channelId} (quiet period)`);
+        }
         
         // Debug: Log current sales count (optional)
         console.log(`[InnKeeper] Channel ${dbEntry.channelId} - Sales: ${dbEntry.gameData.sales.length}, Events: ${dbEntry.gameData.events.length}`);
