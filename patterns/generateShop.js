@@ -209,7 +209,7 @@ async function generateShop(channel, closingTime = 20) {
     } catch (error) {
         console.error(`Failed to generate shop image for ${shopInfo.id}, falling back to coalMineShop:`, error);
         // Try to use coalMineShop as fallback
-        const fallbackShop = shopData.find(s => s.id === 'coalMineShop');
+        const fallbackShop = shopData.find(s => s.image === 'coalMineShop');
         if (fallbackShop) {
             try {
                 // Use the same items but with coalMineShop's visual assets
