@@ -5,7 +5,6 @@ const getPlayerStats = require('../calculatePlayerStat');
 // Use the new layered rendering system with auto-generated images
 const generateTileMapImage = require('./mining/imageProcessing/mining-layered-render');
 const gachaVC = require('../../models/activevcs');
-const mapCacheSystem = require('./mining/cache/mapCacheSystem');
 const { 
     parseUniqueItemBonuses, 
     applyDoubleOreBonus, 
@@ -306,52 +305,31 @@ if (typeof visibilityCalculator !== 'undefined') {
 }
 
 // Enhanced error-safe database fetch with retry logic
-
-// Enhanced error-safe database fetch with cache system
 async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0) {
     try {
-        // Initialize cache if not already done
-        if (!mapCacheSystem.isCached(channelId) || forceRefresh) {
-            await mapCacheSystem.initialize(channelId, forceRefresh);
+        const now = Date.now();
+        const cached = dbCache.get(channelId);
+        
+        if (!forceRefresh && cached && (now - cached.timestamp) < DB_CACHE_TTL) {
+            return cached.data;
         }
         
-        // Get cached data (instant, from memory)
-        const cached = mapCacheSystem.getCachedData(channelId);
-        
-        if (!cached) {
-            // Fallback to direct DB read if cache fails
-            console.error(`[MINING] Cache miss for channel ${channelId}, falling back to DB`);
-            const entry = await gachaVC.findOne({ channelId });
-            if (entry) {
-                await mapCacheSystem.initialize(channelId, true);
-            }
-            return entry;
+        const entry = await gachaVC.findOne({ channelId });
+        if (!entry) {
+            console.error(`[MINING] No database entry found for channel ${channelId}`);
+            return null;
         }
         
-        // Return cached data formatted like DB entry
-        return {
-            channelId: channelId,
-            gameData: cached,
-            nextShopRefresh: cached.nextShopRefresh,
-            nextTrigger: cached.nextTrigger,
-            save: async function() {
-                const updates = {};
-                for (const [key, value] of Object.entries(this.gameData)) {
-                    if (key !== 'lastUpdated' && key !== 'channelId') {
-                        updates[key] = value;
-                    }
-                }
-                return mapCacheSystem.updateMultiple(channelId, updates);
-            },
-            markModified: function() {}
-        };
-        
+        addToCache(dbCache, channelId, { data: entry, timestamp: now });
+        return entry;
     } catch (error) {
-        console.error(`[MINING] Error fetching cached entry for channel ${channelId}:`, error);
+        console.error(`[MINING] Error fetching DB entry for channel ${channelId}:`, error);
+        
         if (retryCount < 3) {
             await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
             return getCachedDBEntry(channelId, forceRefresh, retryCount + 1);
         }
+        
         return null;
     }
 }
@@ -1220,7 +1198,7 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
                 };
             }
             
-            mapCacheSystem.updateMultiple(channel.id, { 'map.playerPositions': updatedPositions });
+            batchDB.queueUpdate(channel.id, { 'gameData.map.playerPositions': updatedPositions });
             await batchDB.flush();
             
             const updatedDbEntry = await getCachedDBEntry(channel.id, true);
@@ -1403,7 +1381,8 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         const cycleCount = (dbEntry.gameData?.cycleCount || 0) + 1;
         const nextBreakInfo = calculateNextBreakTime({ gameData: { cycleCount } });
         
-        mapCacheSystem.updateMultiple(channel.id, { 'map.playerPositions': resetPositions,
+        batchDB.queueUpdate(channel.id, {
+            'gameData.map.playerPositions': resetPositions,
             'gameData.cycleCount': cycleCount,
             'gameData.breakInfo.justEnded': true,
             'gameData.breakJustEnded': Date.now(),
@@ -1903,7 +1882,8 @@ module.exports = async (channel, dbEntry, json, client) => {
         }
 
         if (wallsBroken > 0 || treasuresFound > 0) {
-            mapCacheSystem.updateMultiple(channel.id, { 'stats.wallsBroken': (dbEntry.gameData.stats?.wallsBroken || 0) + wallsBroken,
+            batchDB.queueUpdate(channel.id, {
+                'gameData.stats.wallsBroken': (dbEntry.gameData.stats?.wallsBroken || 0) + wallsBroken,
                 'gameData.stats.treasuresFound': (dbEntry.gameData.stats?.treasuresFound || 0) + treasuresFound
             });
         }
@@ -2726,21 +2706,3 @@ module.exports.startHealthMonitoring = startHealthMonitoring;
 module.exports.getDiagnostics = getDiagnostics;
 module.exports.concurrencyManager = concurrencyManager;
 module.exports.endBreak = endBreak;
-// Graceful shutdown - save cache before exit
-process.on('SIGINT', async () => {
-    console.log('[MINING] Saving cache before shutdown...');
-    await mapCacheSystem.forceFlush();
-    process.exit(0);
-});
-
-// Cache system exports
-module.exports.mapCacheSystem = mapCacheSystem;
-module.exports.cacheCommands = {
-    forceSave: async () => {
-        await mapCacheSystem.forceFlush();
-        console.log('[CACHE] Force save completed');
-    },
-    getStats: () => mapCacheSystem.getStats(),
-    clearChannel: (channelId) => mapCacheSystem.clearChannel(channelId),
-    preloadAll: async () => await mapCacheSystem.preloadAll()
-};
