@@ -203,7 +203,7 @@ class InnDisplayManager {
                 return {
                     title: '🗣️ Overheard Rumor',
                     description: `${event.npc1} leans over to ${event.npc2}...\n` +
-                                `\`\`\`\n"${event.rumor}"\n\`\`\``
+                                `\`\`\`\n${event.rumor}\n\`\`\``
                 };
                 
             case 'coinFind':

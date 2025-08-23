@@ -146,6 +146,7 @@ class InnAIManager {
         Mood: ${mood}
         Tip amount: ${context.tip || 0} coins
         Keep it under 20 words and match their personality.
+        Do not include quotation marks in the dialogue.
         ${this.config.WORLD_CONTEXT}`;
 
         const fallbacks = this.fallbackDialogue.npc[mood] || this.fallbackDialogue.npc.neutral;
@@ -163,7 +164,8 @@ class InnAIManager {
         const prompt = `Generate a brief customer comment for ${player.username} 
         buying ${item.name} for ${price} coins at an inn.
         ${context.previousPurchases > 3 ? 'They are a regular customer.' : 'They are a new customer.'}
-        Keep it natural and under 15 words.`;
+        Keep it natural and under 15 words.
+        Do not include quotation marks in the dialogue.`;
 
         return await this.generate(prompt, this.fallbackDialogue.player);
     }
@@ -177,13 +179,15 @@ class InnAIManager {
         switch (eventType) {
             case 'barFight':
                 prompt = `Describe a brief bar fight between ${eventContext.npc1} and ${eventContext.npc2} 
-                over ${eventContext.reason}. Keep it under 20 words, action-focused.`;
+                over ${eventContext.reason}. Keep it under 20 words, action-focused.
+                Do not include quotation marks.`;
                 fallbacks = this.fallbackDialogue.events.barFight.start;
                 break;
                 
             case 'rumor':
                 prompt = `Generate a mysterious rumor about interdimensional portals or The One Pick 
                 that ${eventContext.npc1} might share with ${eventContext.npc2}. Under 20 words.
+                Do not include quotation marks in the rumor.
                 ${this.config.WORLD_CONTEXT}`;
                 fallbacks = this.fallbackDialogue.events.rumor;
                 break;
@@ -192,19 +196,22 @@ class InnAIManager {
                 // Enhanced coin find dialogue with establishment context
                 if (eventContext.powerLevel >= 4) {
                     // Noble establishment
-                    prompt = `${eventContext.finder} finds ${eventContext.amount} coins in the luxury establishment "${eventContext.innName}". 
+                    prompt = `${eventContext.finder} finds ${eventContext.amount} coins in the luxury establishment ${eventContext.innName}. 
                     Describe where exactly they found it - maybe ${eventContext.locations ? eventContext.locations[0] : 'in an elegant location'}.
-                    Keep it under 20 words, make it sound appropriate for a high-class venue.`;
+                    Keep it under 20 words, make it sound appropriate for a high-class venue.
+                    Do not include quotation marks.`;
                 } else if (eventContext.powerLevel >= 2) {
                     // Mid-tier establishment
                     prompt = `${eventContext.finder} discovers ${eventContext.amount} coins at ${eventContext.innName}. 
                     Describe the lucky find - perhaps ${eventContext.locations ? eventContext.locations[0] : 'in a common area'}.
-                    Keep it under 20 words, casual tone.`;
+                    Keep it under 20 words, casual tone.
+                    Do not include quotation marks.`;
                 } else {
                     // Basic establishment
                     prompt = `${eventContext.finder} spots ${eventContext.amount} coins on the floor of the humble inn. 
                     Simple description of where - maybe ${eventContext.locations ? eventContext.locations[0] : 'under something'}.
-                    Keep it under 15 words, working-class tone.`;
+                    Keep it under 15 words, working-class tone.
+                    Do not include quotation marks.`;
                 }
                 
                 // Add luck context if very lucky
@@ -221,7 +228,8 @@ class InnAIManager {
                 if (!this.isAvailable()) {
                     return this.selectFallback(fallbacks);
                 }
-                prompt = `Generate an innkeeper action/observation during a ${level} business period. Under 15 words.`;
+                prompt = `Generate an innkeeper action/observation during a ${level} business period. Under 15 words.
+                Do not include quotation marks.`;
                 break;
                 
             default:
@@ -248,7 +256,19 @@ class InnAIManager {
                 temperature: this.config.TEMPERATURE,
             });
 
-            return response.choices[0].message.content.trim();
+            // Strip surrounding quotes from the response
+            let content = response.choices[0].message.content.trim();
+            
+            // Remove surrounding quotes if they exist
+            if ((content.startsWith('"') && content.endsWith('"')) || 
+                (content.startsWith("'") && content.endsWith("'"))) {
+                content = content.slice(1, -1);
+            }
+            
+            // Also remove escaped quotes that might appear
+            content = content.replace(/\\"/g, '"').replace(/\\'/g, "'");
+            
+            return content;
         } catch (error) {
             console.error('[InnAI] OpenAI error:', error);
             return null;
