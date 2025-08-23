@@ -3,6 +3,8 @@ const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const generateShop = require('../generateShop');
 const getPlayerStats = require('../calculatePlayerStat');
 const { canStartBreak, emergencyBreakReset } = require('./mining/mining_break_hotfix');
+// Import improved durability handling for pickaxe breaking
+const { handlePickaxeDurability } = require('./mining/improvedDurabilityHandling');
 // Use the new layered rendering system with auto-generated images
 const generateTileMapImage = require('./mining/imageProcessing/mining-layered-render');
 const gachaVC = require('../../models/activevcs');

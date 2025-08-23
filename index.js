@@ -69,6 +69,9 @@ let shopHandler;
 
 client.once(Events.ClientReady, async c => {
 
+    const testPick = require('./patterns/gachaModes/test_pickaxe_durability.js');
+    testPick.testPickaxeDurability();
+
     // Now initialize stat tracking:
     await initializeStatTracking(client);
     setupVoiceTracking(client);

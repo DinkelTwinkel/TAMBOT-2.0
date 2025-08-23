@@ -63,6 +63,11 @@ async function handlePickaxeDurability(playerId, playerTag, pickaxe, durabilityL
                 console.log(`[DURABILITY] Removed pickaxe from inventory (quantity was 1)`);
             }
             
+            // Ensure playerTag is set if missing
+            if (!inventory.playerTag && playerTag) {
+                inventory.playerTag = playerTag;
+            }
+            
             // Mark as modified and save
             inventory.markModified('items');
             await inventory.save();
@@ -71,6 +76,11 @@ async function handlePickaxeDurability(playerId, playerTag, pickaxe, durabilityL
         } else {
             // Just update durability
             inventory.items[itemIndex].currentDurability = newDurability;
+            
+            // Ensure playerTag is set if missing
+            if (!inventory.playerTag && playerTag) {
+                inventory.playerTag = playerTag;
+            }
             
             // Mark as modified and save
             inventory.markModified('items');
