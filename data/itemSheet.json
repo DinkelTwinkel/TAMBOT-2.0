@@ -112,9 +112,11 @@
     "value": 15,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 2 }
+      { "name": "mining", "powerlevel": 3 }
     ],
+    "script": "consume",
     "image": "banana_axe",
+    "duration": 45,
     "durability": 15
   },
   {
@@ -283,6 +285,7 @@
       { "name": "mining", "powerlevel": 1 }
     ],
     "image": "miningbun",
+    "script": "consume",
     "duration": 30
   },
   {
@@ -296,6 +299,7 @@
       { "name": "mining", "powerlevel": 2 }
     ],
     "image": "bunpack",
+    "script": "consume",
     "duration": 90
   },
   {
@@ -309,6 +313,7 @@
       { "name": "mining", "powerlevel": 1 }
     ],
     "image": "water",
+    "script": "consume",
     "duration": 25
   },
   {
@@ -322,6 +327,7 @@
       { "name": "mining", "powerlevel": 3 }
     ],
     "image": "minebeer",
+    "script": "consume",
     "duration": 60
   },
   {
@@ -533,6 +539,7 @@
       { "name": "speed", "powerlevel": 2 }
     ],
     "image": "energy_drink",
+    "script": "consume",
     "duration": 60
   },
   {
@@ -546,6 +553,7 @@
       { "name": "luck", "powerlevel": 3 }
     ],
     "image": "luck_potion",
+    "script": "consume",
     "duration": 90
   },
   {
@@ -559,6 +567,7 @@
       { "name": "sight", "powerlevel": 3 }
     ],
     "image": "vision_elixir",
+    "script": "consume",
     "duration": 75
   },
   {
@@ -618,6 +627,7 @@
       { "name": "mining", "powerlevel": 1 }
     ],
     "image": "bread",
+    "script": "consume",
     "duration": 30
   },
   {
@@ -632,6 +642,7 @@
       { "name": "luck", "powerlevel": 1 }
     ],
     "image": "minebeer",
+    "script": "consume",
     "duration": 30
   },
   {
@@ -646,6 +657,7 @@
       { "name": "mining", "powerlevel": 2 }
     ],
     "image": "hearty_stew",
+    "script": "consume",
     "duration": 45
   },
   {
@@ -660,6 +672,7 @@
       { "name": "speed", "powerlevel": 1 }
     ],
     "image": "cheese",
+    "script": "consume",
     "duration": 40
   },
   {
@@ -674,6 +687,7 @@
       { "name": "mining", "powerlevel": 3 }
     ],
     "image": "roasted_meat",
+    "script": "consume",
     "duration": 60
   },
   {
@@ -688,6 +702,7 @@
       { "name": "luck", "powerlevel": 2 }
     ],
     "image": "wine",
+    "script": "consume",
     "duration": 60
   },
   {
@@ -703,6 +718,7 @@
       { "name": "speed", "powerlevel": 1 }
     ],
     "image": "hunters_brew",
+    "script": "consume",
     "duration": 50
   },
   {
@@ -717,6 +733,7 @@
       { "name": "speed", "powerlevel": 2 }
     ],
     "image": "venison",
+    "script": "consume",
     "duration": 70
   },
   {
@@ -734,6 +751,7 @@
       { "name": "sight", "powerlevel": 1 }
     ],
     "image": "royal_feast",
+    "script": "consume",
     "duration": 90
   },
   {
@@ -748,6 +766,7 @@
       { "name": "luck", "powerlevel": 3 }
     ],
     "image": "golden_mead",
+    "script": "consume",
     "duration": 80
   },
   {
@@ -762,6 +781,7 @@
       { "name": "mining", "powerlevel": 1 }
     ],
     "image": "rations",
+    "script": "consume",
     "duration": 50
   },
   {
@@ -776,6 +796,7 @@
       { "name": "sight", "powerlevel": 2 }
     ],
     "image": "cider",
+    "script": "consume",
     "duration": 40
   },
   {
@@ -791,6 +812,7 @@
       { "name": "speed", "powerlevel": 1 }
     ],
     "image": "fish_chips",
+    "script": "consume",
     "duration": 55
   },
   {
@@ -806,6 +828,7 @@
       { "name": "sight", "powerlevel": 1 }
     ],
     "image": "dragons_whiskey",
+    "script": "consume",
     "duration": 60
   },
   {
@@ -820,6 +843,7 @@
       { "name": "mining", "powerlevel": 2 }
     ],
     "image": "shepherds_pie",
+    "script": "consume",
     "duration": 65
   }
 ]

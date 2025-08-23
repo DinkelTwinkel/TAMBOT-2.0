@@ -69,8 +69,8 @@ let shopHandler;
 
 client.once(Events.ClientReady, async c => {
 
-    const testPick = require('./patterns/gachaModes/test_pickaxe_durability.js');
-    testPick.testPickaxeDurability();
+    // const testPick = require('./patterns/gachaModes/test_pickaxe_durability.js');
+    // testPick.testPickaxeDurability();
 
     // Now initialize stat tracking:
     await initializeStatTracking(client);
@@ -90,7 +90,8 @@ client.once(Events.ClientReady, async c => {
     const eatTheRichListener = require('./patterns/misc/eatTheRich');
     eatTheRichListener(client);
     const ShopHandler = require('./patterns/shopHandler');
-    const ItemTransferHandler = require('./patterns/itemTransferHandler'); 
+    const ItemTransferHandler = require('./patterns/itemTransferHandler');
+    const ItemUseHandler = require('./patterns/itemUseHandler'); 
 
     console.log('✅ Centralized shop handler initialized');
 
@@ -103,6 +104,10 @@ client.once(Events.ClientReady, async c => {
         // Initialize item transfer handler for this guild
         const itemTransferHandler = new ItemTransferHandler(client, guild.id);
         console.log(`✅ Item transfer handler initialized for guild: ${guild.name}`);
+        
+        // Initialize item use handler for this guild
+        const itemUseHandler = new ItemUseHandler(client, guild.id);
+        console.log(`✅ Item use handler initialized for guild: ${guild.name}`);
 
         // Fetch guild config from MongoDB
         let config = await GuildConfig.findOne({ guildId: guild.id });
@@ -231,10 +236,12 @@ async function removeDuplicateInventoryItems() {
 client.on(Events.GuildCreate, async (guild) => {
     const ShopHandler = require('./patterns/shopHandler');
     const ItemTransferHandler = require('./patterns/itemTransferHandler');
+    const ItemUseHandler = require('./patterns/itemUseHandler');
     
     // Initialize handlers for the new guild
     new ShopHandler(client, guild.id);
     new ItemTransferHandler(client, guild.id);
+    new ItemUseHandler(client, guild.id);
     console.log(`✅ Initialized handlers for new guild: ${guild.name} (${guild.id})`);
 });
 
@@ -252,6 +259,13 @@ client.on(Events.GuildDelete, async (guild) => {
         const itemTransferHandler = client.itemTransferHandlers.get(guild.id);
         itemTransferHandler.cleanup();
         console.log(`✅ Item transfer handler cleaned up for guild: ${guild.id}`);
+    }
+    
+    // Cleanup item use handler
+    if (client.itemUseHandlers && client.itemUseHandlers.has(guild.id)) {
+        const itemUseHandler = client.itemUseHandlers.get(guild.id);
+        itemUseHandler.cleanup();
+        console.log(`✅ Item use handler cleaned up for guild: ${guild.id}`);
     }
 });
 
