@@ -52,7 +52,7 @@ class MapCacheSystem {
             // Extract all relevant data we need to cache
             const cachedData = {
                 map: dbEntry.gameData.map || null,
-                minecarts: dbEntry.gameData.minecarts || {},
+                minecart: dbEntry.gameData.minecart || { items: {}, contributors: {} },
                 breakInfo: dbEntry.gameData.breakInfo || null,
                 specialEvent: dbEntry.gameData.specialEvent || null,
                 cycleCount: dbEntry.gameData.cycleCount || 0,
@@ -359,7 +359,7 @@ class MapCacheSystem {
                 try {
                     const cachedData = {
                         map: entry.gameData.map,
-                        minecarts: entry.gameData.minecarts || {},
+                        minecart: entry.gameData.minecart || { items: {}, contributors: {} },
                         breakInfo: entry.gameData.breakInfo || null,
                         specialEvent: entry.gameData.specialEvent || null,
                         cycleCount: entry.gameData.cycleCount || 0,
@@ -405,7 +405,7 @@ class MapCacheSystem {
      */
     getMinecarts(channelId) {
         const cached = this.mapCache.get(channelId);
-        return cached ? cached.minecarts : {};
+        return cached ? cached.minecart : { items: {}, contributors: {} };
     }
     
     /**
@@ -415,17 +415,32 @@ class MapCacheSystem {
         const cached = this.mapCache.get(channelId);
         if (!cached) return false;
         
-        if (!cached.minecarts) cached.minecarts = {};
-        if (!cached.minecarts[playerId]) cached.minecarts[playerId] = {};
+        if (!cached.minecart) cached.minecart = { items: {}, contributors: {} };
+        if (!cached.minecart.items) cached.minecart.items = {};
+        if (!cached.minecart.contributors) cached.minecart.contributors = {};
         
-        const currentQty = cached.minecarts[playerId][itemId] || 0;
-        cached.minecarts[playerId][itemId] = currentQty + quantity;
+        // Update items
+        if (!cached.minecart.items[itemId]) {
+            cached.minecart.items[itemId] = { quantity: 0, contributors: {} };
+        }
+        cached.minecart.items[itemId].quantity += quantity;
+        
+        // Update item contributors
+        if (!cached.minecart.items[itemId].contributors[playerId]) {
+            cached.minecart.items[itemId].contributors[playerId] = 0;
+        }
+        cached.minecart.items[itemId].contributors[playerId] += quantity;
+        
+        // Update global contributors
+        cached.minecart.contributors[playerId] = (cached.minecart.contributors[playerId] || 0) + quantity;
         
         cached.lastUpdated = Date.now();
         
         // Queue for DB write
         this.queueWrite(channelId, {
-            [`gameData.minecarts.${playerId}.${itemId}`]: cached.minecarts[playerId][itemId]
+            [`gameData.minecart.items.${itemId}.quantity`]: cached.minecart.items[itemId].quantity,
+            [`gameData.minecart.items.${itemId}.contributors.${playerId}`]: cached.minecart.items[itemId].contributors[playerId],
+            [`gameData.minecart.contributors.${playerId}`]: cached.minecart.contributors[playerId]
         });
         
         return true;

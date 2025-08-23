@@ -342,6 +342,17 @@ async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0)
         }
         
         // Return cached data formatted like DB entry
+        // Ensure minecart exists with proper structure
+        if (!cached.minecart) {
+            cached.minecart = { items: {}, contributors: {} };
+        }
+        if (!cached.minecart.items) {
+            cached.minecart.items = {};
+        }
+        if (!cached.minecart.contributors) {
+            cached.minecart.contributors = {};
+        }
+        
         return {
             channelId: channelId,
             gameData: cached,
