@@ -1,14 +1,15 @@
 // Innkeeper Mode - High-Activity Inn Simulation
 // 
 // EVENT TIMING:
-// - Events trigger every 5-15 seconds (randomly)
-// - NPC Sales: 40% chance per trigger
-// - Random Events: 35% chance per trigger
-//   - Bar Fights: 15% of events (costs coins)
-//   - Coin Finds: 15% of events (awards 2-25 coins)
-//   - Rumors: 70% of events (atmosphere only)
-// - Profit Distribution: Every 5 minutes
-// - Message Throttle: 3 seconds minimum between messages
+// - GUARANTEED event every 20 seconds maximum
+// - NPC Sales: Priority event (70%+ chance)
+// - Random Events: 60% chance when triggered
+//   - Bar Fights: 20% of events (costs coins)
+//   - Coin Finds: 60% of events (awards coins)
+//   - Rumors: 20% of events (atmosphere only)
+// - Innkeeper Commentary: Fallback when no other events
+// - Profit Distribution: Every 25 minutes
+// - Break Period: 5 minutes after each work period
 // 
 const Money = require('../../models/currency'); // Adjust path as needed
 const PlayerInventory = require('../../models/inventory'); // your inventory schema
@@ -47,6 +48,39 @@ const RUMORS = [
     "miners claim The One Pick created the first portal to Hellungi",
     "The Miner King walks between worlds, still wielding The One Pick"
 ];
+
+// Innkeeper commentary for slow periods
+const INNKEEPER_COMMENTS = {
+    slow: [
+        "sighs and wipes down the bar for the third time",
+        "reorganizes the bottles behind the bar",
+        "checks the clock and mutters about slow days",
+        "starts polishing glasses that are already clean",
+        "flips through the ledger, counting yesterday's profits",
+        "stares out the window, hoping for customers",
+        "tastes the soup and adds more seasoning",
+        "sweeps the already-clean floor",
+        "adjusts the chairs for the fifth time",
+        "counts the coins in the till again"
+    ],
+    moderate: [
+        "nods approvingly at the steady flow of customers",
+        "efficiently serves drinks while maintaining conversation",
+        "calls out a greeting to a regular customer",
+        "signals the kitchen to prepare more food",
+        "quickly wipes down a table between customers",
+        "expertly juggles multiple orders",
+        "shares a quick joke with the patrons at the bar"
+    ],
+    busy: [
+        "rushes between tables with practiced efficiency",
+        "shouts orders to the kitchen over the din",
+        "barely has time to count the coins being handed over",
+        "wipes sweat from their brow between orders",
+        "calls for backup from the other workers",
+        "apologizes for the wait to new arrivals"
+    ]
+};
 
 const BAR_FIGHT_STARTERS = [
     { npc1: "Grimjaw", npc2: "Tethys", reason: "which world had the stronger warriors" },
@@ -194,6 +228,51 @@ async function generateAIDialogue(prompt, fallbackOptions) {
         if (fallbackOptions && fallbackOptions.length > 0) {
             return fallbackOptions[Math.floor(Math.random() * fallbackOptions.length)];
         }
+        return null;
+    }
+}
+
+// Function to generate innkeeper commentary during slow periods
+async function generateInnkeeperComment(channel, dbEntry) {
+    try {
+        // Get the shop owner's name
+        const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
+        const shopInfo = shops.find(s => s.id === serverData?.shop);
+        const innkeeperName = shopInfo?.shopkeeper?.name || "The innkeeper";
+        
+        // Determine business level
+        const recentSales = (dbEntry.gameData.sales || []).filter(s => {
+            const saleTime = new Date(s.timestamp).getTime();
+            return (Date.now() - saleTime) < 60000; // Sales in last minute
+        }).length;
+        
+        let businessLevel = 'slow';
+        let comment;
+        
+        if (recentSales >= 5) {
+            businessLevel = 'busy';
+            comment = INNKEEPER_COMMENTS.busy[Math.floor(Math.random() * INNKEEPER_COMMENTS.busy.length)];
+        } else if (recentSales >= 2) {
+            businessLevel = 'moderate';
+            comment = INNKEEPER_COMMENTS.moderate[Math.floor(Math.random() * INNKEEPER_COMMENTS.moderate.length)];
+        } else {
+            businessLevel = 'slow';
+            comment = INNKEEPER_COMMENTS.slow[Math.floor(Math.random() * INNKEEPER_COMMENTS.slow.length)];
+        }
+        
+        // Add to event log
+        const event = { 
+            type: 'innkeeperComment', 
+            comment: `${innkeeperName} ${comment}`,
+            businessLevel: businessLevel,
+            timestamp: new Date() 
+        };
+        await InnEventLog.addEvent(channel, dbEntry, event);
+        
+        return event;
+        
+    } catch (error) {
+        console.error('[InnKeeper] Error generating innkeeper comment:', error);
         return null;
     }
 }
@@ -997,6 +1076,8 @@ const MESSAGE_COOLDOWN = 3000; // 3 seconds between messages to prevent spam
 module.exports = async (channel, dbEntry, json) => {
     const now = Date.now(); // current timestamp in milliseconds
     
+    console.log(`[InnKeeper] Starting cycle for channel ${dbEntry.channelId}`);
+    
     // Check message throttle
     const lastMessage = messageThrottle.get(channel.id) || 0;
     const canSendMessage = (now - lastMessage) >= MESSAGE_COOLDOWN;
@@ -1004,185 +1085,41 @@ module.exports = async (channel, dbEntry, json) => {
     // Work day constants
     const WORK_DURATION = 25 * 60 * 1000; // 25 minutes
     const BREAK_DURATION = 5 * 60 * 1000; // 5 minutes
+    const ACTIVITY_GUARANTEE = 20 * 1000; // 20 seconds maximum between activities
 
     // Initialize gameData with sales array and gamemode identifier if it doesn't exist
     if (!dbEntry.gameData) {
+        console.log('[InnKeeper] Initializing new gameData');
         dbEntry.gameData = {
-            gamemode: 'innkeeper', // Identifier for this game mode
-            sales: [], // Array to store sales records
-            events: [], // Array to store events (bar fights, etc.)
-            lastProfitDistribution: new Date(), // Track when profits were last distributed
-            lastNPCSale: new Date(), // Track last NPC sale
-            lastEvent: new Date(), // Track last event
-            lastShopGeneration: new Date(now - 5 * 60 * 1000), // Track last shop generation (start 5 min ago)
-            workState: 'working', // 'working' or 'break'
-            workStartTime: new Date(), // When current work period started
-            breakEndTime: null // When break should end
+            gamemode: 'innkeeper',
+            sales: [],
+            events: [],
+            lastProfitDistribution: new Date(),
+            lastNPCSale: new Date(now - 10 * 1000),
+            lastEvent: new Date(now - 10 * 1000),
+            lastShopGeneration: new Date(now - 5 * 60 * 1000),
+            workState: 'working',
+            workStartTime: new Date(),
+            breakEndTime: null
         };
     } else {
-        // Check if we're switching game modes or starting fresh
-        const isModeSwitch = dbEntry.gameData.gamemode !== 'innkeeper';
-        
-        // Ensure gamemode is set
-        if (!dbEntry.gameData.gamemode || isModeSwitch) {
-            dbEntry.gameData.gamemode = 'innkeeper';
-            // Reset timing on mode switch
-            dbEntry.gameData.lastProfitDistribution = new Date();
-            dbEntry.gameData.sales = [];
-            dbEntry.gameData.events = [];
-            dbEntry.gameData.workState = 'working';
-            dbEntry.gameData.workStartTime = new Date();
-            dbEntry.gameData.breakEndTime = null;
-        }
-        
-        // Initialize work state if missing
-        if (!dbEntry.gameData.workState) {
-            dbEntry.gameData.workState = 'working';
-            dbEntry.gameData.workStartTime = new Date();
-            dbEntry.gameData.breakEndTime = null;
-        }
-        
-        // Ensure sales array exists
-        if (!dbEntry.gameData.sales) {
-            dbEntry.gameData.sales = [];
-        }
-        // Ensure events array exists
-        if (!dbEntry.gameData.events) {
-            dbEntry.gameData.events = [];
-        }
-        
-        // Ensure lastProfitDistribution exists and is valid
-        if (!dbEntry.gameData.lastProfitDistribution) {
-            dbEntry.gameData.lastProfitDistribution = new Date();
-        } else {
-            // Check if lastProfitDistribution is too old (more than 1 hour)
-            // This prevents immediate payouts when restarting after a long break
-            const lastDistTime = new Date(dbEntry.gameData.lastProfitDistribution).getTime();
-            const oneHourAgo = now - (60 * 60 * 1000);
-            
-            if (lastDistTime < oneHourAgo) {
-                // Reset to current time if it's been more than an hour
-                // This prevents immediate payout on restart
-                dbEntry.gameData.lastProfitDistribution = new Date();
-                // Clear any stale sales data
-                dbEntry.gameData.sales = [];
-                dbEntry.gameData.events = [];
-            }
-        }
-        
-        // Initialize lastNPCSale if not exists
-        if (!dbEntry.gameData.lastNPCSale) {
-            dbEntry.gameData.lastNPCSale = new Date(now - 15 * 1000); // 15 seconds ago
-        }
-        // Initialize lastEvent if not exists
-        if (!dbEntry.gameData.lastEvent) {
-            dbEntry.gameData.lastEvent = new Date(now - 15 * 1000); // 15 seconds ago
-        }
-        // Initialize lastShopGeneration if not exists
-        if (!dbEntry.gameData.lastShopGeneration) {
-            dbEntry.gameData.lastShopGeneration = new Date(now - 5 * 60 * 1000); // 5 minutes ago
-        }
+        // Ensure all required fields exist
+        if (!dbEntry.gameData.gamemode) dbEntry.gameData.gamemode = 'innkeeper';
+        if (!dbEntry.gameData.sales) dbEntry.gameData.sales = [];
+        if (!dbEntry.gameData.events) dbEntry.gameData.events = [];
+        if (!dbEntry.gameData.lastNPCSale) dbEntry.gameData.lastNPCSale = new Date(now - 10 * 1000);
+        if (!dbEntry.gameData.lastEvent) dbEntry.gameData.lastEvent = new Date(now - 10 * 1000);
+        if (!dbEntry.gameData.lastShopGeneration) dbEntry.gameData.lastShopGeneration = new Date(now - 5 * 60 * 1000);
+        if (!dbEntry.gameData.workState) dbEntry.gameData.workState = 'working';
+        if (!dbEntry.gameData.workStartTime) dbEntry.gameData.workStartTime = new Date();
     }
 
-    // Check for NPC customer sales - frequency based on power level AND number of workers
-    // Lower power = more traffic, Higher power = less traffic
-    // More workers = can handle more customers
-    const lastNPCSale = new Date(dbEntry.gameData.lastNPCSale).getTime();
-    
-    // Get server power for traffic calculation
-    const gachaInfo = gachaServers.find(g => g.id === dbEntry.typeId);
-    const channelPower = gachaInfo?.power || 1;
-    
-    // Get number of workers in voice channel
-    const voiceChannel = channel.guild.channels.cache.get(channel.id);
-    const workersInVC = voiceChannel && voiceChannel.isVoiceBased() ? 
-        Array.from(voiceChannel.members.values()).filter(m => !m.user.bot).length : 0;
-    
-    // Base cooldowns - HIGHER power = MORE traffic (prestigious establishments are busier!)
-    let minCooldown = Math.max(2, 8 - channelPower); // 7s at power 1, down to 2s at power 6+
-    let maxCooldown = Math.max(5, 15 - channelPower * 1.5); // 13.5s at power 1, down to 5s at power 7
-    
-    // Worker scaling: Each worker reduces cooldown and increases chance
-    // But with diminishing returns to encourage optimal team sizes
-    if (workersInVC > 0) {
-        // Cooldown reduction: 1 worker = 100%, 2 = 70%, 3 = 55%, 4 = 45%, etc.
-        const cooldownMultiplier = Math.max(0.3, 1 / (1 + Math.log(workersInVC) * 0.5));
-        minCooldown *= cooldownMultiplier;
-        maxCooldown *= cooldownMultiplier;
-        
-        // Example: Power 1 with 3 workers: 3s → ~1.65s min, 8s → ~4.4s max
-    }
-    
-    const npcCooldown = (minCooldown + Math.random() * (maxCooldown - minCooldown)) * 1000;
-    
-    // Base sale chance INCREASES with power (better establishments attract more customers)
-    let baseSaleChance = Math.min(0.85, 0.40 + (channelPower * 0.08)); // 48% at power 1, up to 85% at power 7
-    
-    // Worker bonus to sale chance: More workers = higher chance of attracting customers
-    // Each worker adds diminishing bonus: +15%, +10%, +7%, +5%, etc.
-    if (workersInVC > 0) {
-        let workerBonus = 0;
-        for (let i = 1; i <= workersInVC; i++) {
-            workerBonus += Math.max(0.02, 0.15 / i); // Diminishing returns per worker
-        }
-        baseSaleChance = Math.min(0.95, baseSaleChance + workerBonus); // Cap at 95%
-    }
-    
-    const saleChance = baseSaleChance;
-    
-    if (now - lastNPCSale >= npcCooldown && Math.random() < saleChance) {
-        const npcSale = await generateNPCSale(channel, dbEntry);
-        if (npcSale) {
-            dbEntry.gameData.lastNPCSale = new Date();
-            dbEntry.markModified('gameData');
-            await dbEntry.save();
-            
-            // Update the event log with NPC info (only if not throttled)
-            if (canSendMessage) {
-                await InnEventLog.updateWithNPCPurchase(channel, dbEntry, npcSale);
-                messageThrottle.set(channel.id, now);
-            }
-        }
-    }
-
-    // Check for random events (35% chance every 5-15 seconds)
-    const lastEvent = new Date(dbEntry.gameData.lastEvent).getTime();
-    const eventCooldown = (5 + Math.random() * 10) * 1000; // 5-15 seconds randomly
-    
-    if (now - lastEvent >= eventCooldown && Math.random() < 0.60) {
-        const eventType = Math.random();
-        let event = null;
-        
-        if (eventType < 0.20) {
-            // 20% chance for bar fight
-            if (canSendMessage) {
-                event = await generateBarFightEvent(channel, dbEntry);
-                if (event) messageThrottle.set(channel.id, now);
-            }
-        } else if (eventType < 0.40) {
-            // 20% chance for overhearing rumor (atmospheric, no economic impact)
-            if (canSendMessage) {
-                event = await generateRumorEvent(channel, dbEntry);
-                if (event) messageThrottle.set(channel.id, now);
-            }
-        } else if (canSendMessage) {
-            // 60% chance for finding coins (more rewards for active workers)
-            event = await generateCoinFindEvent(channel, dbEntry);
-            if (event) messageThrottle.set(channel.id, now);
-        }
-        
-        if (event) {
-            dbEntry.gameData.lastEvent = new Date();
-            dbEntry.markModified('gameData');
-            await dbEntry.save();
-        }
-    }
-
-    // Check work state and handle breaks
+    // Check work state and handle breaks/work periods
     if (dbEntry.gameData.workState === 'break') {
         // We're on break
         if (dbEntry.gameData.breakEndTime && now >= new Date(dbEntry.gameData.breakEndTime).getTime()) {
             // Break is over, start new work day
+            console.log('[InnKeeper] Break ending, resuming work');
             dbEntry.gameData.workState = 'working';
             dbEntry.gameData.workStartTime = new Date();
             dbEntry.gameData.breakEndTime = null;
@@ -1196,8 +1133,14 @@ module.exports = async (channel, dbEntry, json) => {
                 .setDescription('Break time is over! The inn is now open for business again.')
                 .setTimestamp();
             await channel.send({ embeds: [embed] });
+            
+            // Set next trigger and save
+            dbEntry.nextTrigger = new Date(now + 10000); // 10 seconds
+            dbEntry.markModified('gameData');
+            await dbEntry.save();
+            return;
         } else {
-            // Still on break, skip all processing
+            // Still on break
             const breakTimeLeft = Math.ceil((new Date(dbEntry.gameData.breakEndTime).getTime() - now) / 60000);
             console.log(`[InnKeeper] On break for ${breakTimeLeft} more minutes`);
             
@@ -1206,7 +1149,7 @@ module.exports = async (channel, dbEntry, json) => {
             dbEntry.nextTrigger = new Date(now + nextCheck);
             dbEntry.markModified('gameData');
             await dbEntry.save();
-            return; // Skip all other processing during break
+            return;
         }
     }
     
@@ -1215,8 +1158,9 @@ module.exports = async (channel, dbEntry, json) => {
     const timeSinceWorkStart = now - workStartTime;
     
     if (timeSinceWorkStart >= WORK_DURATION && dbEntry.gameData.workState === 'working') {
+        console.log('[InnKeeper] Work day complete, starting break');
         // Work day is complete, distribute profits and start break
-        if (dbEntry.gameData.sales.length > 0) {
+        if (dbEntry.gameData.sales.length > 0 || dbEntry.gameData.events.length > 0) {
             await distributeProfits(channel, dbEntry);
         }
         
@@ -1245,28 +1189,110 @@ module.exports = async (channel, dbEntry, json) => {
         return;
     }
 
-    // Set next trigger for 5-15 seconds from now
-    const nextTriggerDelay = (5 + Math.random() * 10) * 1000; // 5-15 seconds
-    dbEntry.nextTrigger = new Date(now + nextTriggerDelay);
+    // GUARANTEED ACTIVITY SYSTEM
+    // Track last activity (any event or sale)
+    const lastActivity = Math.max(
+        new Date(dbEntry.gameData.lastNPCSale).getTime(),
+        new Date(dbEntry.gameData.lastEvent).getTime()
+    );
+    const timeSinceLastActivity = now - lastActivity;
+    const forceEvent = timeSinceLastActivity >= ACTIVITY_GUARANTEE;
     
-    // Mark gameData as modified since it's a Mixed type
-    dbEntry.markModified('gameData');
-    
-    await dbEntry.save();
+    if (forceEvent) {
+        console.log(`[InnKeeper] Forcing event - ${timeSinceLastActivity}ms since last activity`);
+    }
 
-    // Check if we should generate shop (only every 5 minutes when nothing is happening)
+    // Get server power and worker count
+    const gachaInfo = gachaServers.find(g => g.id === dbEntry.typeId);
+    const channelPower = gachaInfo?.power || 1;
+    
+    const voiceChannel = channel.guild.channels.cache.get(channel.id);
+    const workersInVC = voiceChannel && voiceChannel.isVoiceBased() ? 
+        Array.from(voiceChannel.members.values()).filter(m => !m.user.bot).length : 0;
+    
+    let eventOccurred = false;
+    
+    // Priority 1: Try NPC Sale (70% chance when forced, higher base chance)
+    const lastNPCSale = new Date(dbEntry.gameData.lastNPCSale).getTime();
+    const npcCooldown = forceEvent ? 0 : 5000; // No cooldown if forcing
+    const npcSaleChance = forceEvent ? 0.85 : 0.70; // Higher chance for NPCs
+    
+    if (now - lastNPCSale >= npcCooldown && Math.random() < npcSaleChance) {
+        const npcSale = await generateNPCSale(channel, dbEntry);
+        if (npcSale) {
+            dbEntry.gameData.lastNPCSale = new Date();
+            dbEntry.markModified('gameData');
+            await dbEntry.save();
+            eventOccurred = true;
+            
+            console.log(`[InnKeeper] NPC sale: ${npcSale.buyerName} bought item for ${npcSale.price}c`);
+            
+            // Update the event log with NPC info (only if not throttled)
+            if (canSendMessage) {
+                await InnEventLog.updateWithNPCPurchase(channel, dbEntry, npcSale);
+                messageThrottle.set(channel.id, now);
+            }
+        }
+    }
+    
+    // Priority 2: Try Random Events if no NPC sale
+    if (!eventOccurred) {
+        const lastEvent = new Date(dbEntry.gameData.lastEvent).getTime();
+        const eventCooldown = forceEvent ? 0 : 5000;
+        const eventChance = forceEvent ? 0.80 : 0.60;
+        
+        if (now - lastEvent >= eventCooldown && Math.random() < eventChance) {
+            const eventType = Math.random();
+            let event = null;
+            
+            if (eventType < 0.20) {
+                // 20% chance for bar fight
+                event = await generateBarFightEvent(channel, dbEntry);
+                if (event) console.log(`[InnKeeper] Bar fight between ${event.npc1} and ${event.npc2}`);
+            } else if (eventType < 0.40) {
+                // 20% chance for rumor
+                event = await generateRumorEvent(channel, dbEntry);
+                if (event) console.log(`[InnKeeper] Rumor overheard`);
+            } else {
+                // 60% chance for coin find
+                event = await generateCoinFindEvent(channel, dbEntry);
+                if (event) console.log(`[InnKeeper] ${event.finderName} found ${event.amount} coins`);
+            }
+            
+            if (event) {
+                dbEntry.gameData.lastEvent = new Date();
+                dbEntry.markModified('gameData');
+                await dbEntry.save();
+                eventOccurred = true;
+                
+                if (canSendMessage) {
+                    messageThrottle.set(channel.id, now);
+                }
+            }
+        }
+    }
+    
+    // Priority 3: Fallback to innkeeper commentary if nothing else happened and we're forcing
+    if (!eventOccurred && forceEvent && canSendMessage) {
+        const comment = await generateInnkeeperComment(channel, dbEntry);
+        if (comment) {
+            dbEntry.gameData.lastEvent = new Date();
+            dbEntry.markModified('gameData');
+            await dbEntry.save();
+            eventOccurred = true;
+            messageThrottle.set(channel.id, now);
+            console.log(`[InnKeeper] Innkeeper comment: ${comment.businessLevel} day`);
+        }
+    }
+
+    // Check if we should generate shop (only every 5 minutes during quiet periods)
     if (channel && channel.isTextBased()) {
         const lastShopGen = new Date(dbEntry.gameData.lastShopGeneration).getTime();
         const timeSinceLastShop = now - lastShopGen;
         const SHOP_COOLDOWN = 5 * 60 * 1000; // 5 minutes
         
-        // Generate shop only if:
-        // 1. It's been at least 5 minutes since last generation
-        // 2. There haven't been recent events (check if last event was > 30 seconds ago)
         const timeSinceLastEventCheck = now - new Date(dbEntry.gameData.lastEvent).getTime();
         const timeSinceLastSaleCheck = now - new Date(dbEntry.gameData.lastNPCSale).getTime();
-        
-        // Consider "nothing happening" if no events or sales in the last 30 seconds
         const nothingHappening = timeSinceLastEventCheck > 30000 && timeSinceLastSaleCheck > 30000;
         
         if (timeSinceLastShop >= SHOP_COOLDOWN && nothingHappening) {
@@ -1276,9 +1302,29 @@ module.exports = async (channel, dbEntry, json) => {
             await dbEntry.save();
             console.log(`[InnKeeper] Generated shop for channel ${dbEntry.channelId} (quiet period)`);
         }
-        
-        // Debug: Log current sales count (optional)
-        console.log(`[InnKeeper] Channel ${dbEntry.channelId} - Sales: ${dbEntry.gameData.sales.length}, Events: ${dbEntry.gameData.events.length}`);
     }
-   
+
+    // Set next trigger - shorter if we need to guarantee activity soon
+    const timeSinceLastActivityNow = Math.max(
+        now - new Date(dbEntry.gameData.lastNPCSale).getTime(),
+        now - new Date(dbEntry.gameData.lastEvent).getTime()
+    );
+    
+    let nextTriggerDelay;
+    if (timeSinceLastActivityNow >= ACTIVITY_GUARANTEE - 5000) {
+        // If we're close to the guarantee time, check sooner
+        nextTriggerDelay = 5000; // 5 seconds
+    } else {
+        // Normal random delay
+        nextTriggerDelay = (5 + Math.random() * 10) * 1000; // 5-15 seconds
+    }
+    
+    dbEntry.nextTrigger = new Date(now + nextTriggerDelay);
+    
+    // Mark gameData as modified and save
+    dbEntry.markModified('gameData');
+    await dbEntry.save();
+    
+    // Debug logging
+    console.log(`[InnKeeper] Channel ${dbEntry.channelId} - Sales: ${dbEntry.gameData.sales.length}, Events: ${dbEntry.gameData.events.length}, Next trigger in ${Math.round(nextTriggerDelay/1000)}s`);
 };
