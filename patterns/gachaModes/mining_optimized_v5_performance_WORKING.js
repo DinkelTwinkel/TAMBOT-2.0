@@ -5,7 +5,6 @@ const getPlayerStats = require('../calculatePlayerStat');
 // Use the new layered rendering system with auto-generated images
 const generateTileMapImage = require('./mining/imageProcessing/mining-layered-render');
 const gachaVC = require('../../models/activevcs');
-const mapCacheSystem = require('./mining/cache/mapCacheSystem');
 const { 
     parseUniqueItemBonuses, 
     applyDoubleOreBonus, 
@@ -106,10 +105,6 @@ const {
     shouldShowMaintenanceReminder,
     formatMaintenanceTooltip
 } = require('./mining/maintenanceDisplay');
-
-// Import bug fixes
-const miningFixes = require('./mining_fixes/fix_mining_bugs');
-const { getMinecartSummaryFresh } = require('./mining_fixes/fix_minecart_display_simple');
 
 // Enhanced Concurrency Manager with Instance Management
 class EnhancedConcurrencyManager {
@@ -310,106 +305,31 @@ if (typeof visibilityCalculator !== 'undefined') {
 }
 
 // Enhanced error-safe database fetch with retry logic
-
-// Enhanced error-safe database fetch with cache system
 async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0) {
     try {
-        // Force refresh if we suspect stale break data
         const now = Date.now();
-        if (!forceRefresh && mapCacheSystem.isCached(channelId)) {
-            const cached = mapCacheSystem.getCachedData(channelId);
-            if (cached?.breakInfo) {
-                // Force refresh if break should have ended
-                if (cached.breakInfo.breakEndTime && now >= cached.breakInfo.breakEndTime) {
-                    console.log(`[MINING] Cached break expired, forcing refresh for ${channelId}`);
-                    forceRefresh = true;
-                    
-                    // Clear break info immediately
-                    mapCacheSystem.deleteField(channelId, 'breakInfo');
-                    await mapCacheSystem.forceFlush();
-                }
-            }
+        const cached = dbCache.get(channelId);
+        
+        if (!forceRefresh && cached && (now - cached.timestamp) < DB_CACHE_TTL) {
+            return cached.data;
         }
         
-        // Initialize cache if not already done or forcing refresh
-        if (!mapCacheSystem.isCached(channelId) || forceRefresh) {
-            await mapCacheSystem.initialize(channelId, forceRefresh);
-        }
-        
-        // Get cached data
-        const cached = mapCacheSystem.getCachedData(channelId);
-        
-        if (!cached) {
-            // Fallback to direct DB read if cache fails
-            console.error(`[MINING] Cache miss for channel ${channelId}, falling back to DB`);
-            const entry = await gachaVC.findOne({ channelId }); // Don't use lean() here
-            if (entry) {
-                // Ensure minecart structure exists in DB entry at gameData.minecart
-                if (!entry.gameData) entry.gameData = {};
-                if (!entry.gameData.minecart) {
-                    entry.gameData.minecart = { items: {}, contributors: {} };
-                }
-                if (!entry.gameData.minecart.items) {
-                    entry.gameData.minecart.items = {};
-                }
-                if (!entry.gameData.minecart.contributors) {
-                    entry.gameData.minecart.contributors = {};
-                }
-                // Mark as modified to ensure save
-                entry.markModified('gameData.minecart');
-                await entry.save(); // Save the structure immediately
-                await mapCacheSystem.initialize(channelId, true);
-                return entry;
-            }
+        const entry = await gachaVC.findOne({ channelId });
+        if (!entry) {
+            console.error(`[MINING] No database entry found for channel ${channelId}`);
             return null;
         }
         
-        // Return cached data formatted like DB entry
-        // Ensure minecart exists with proper structure at gameData.minecart
-        if (!cached.minecart) {
-            cached.minecart = { items: {}, contributors: {} };
-        }
-        if (!cached.minecart.items) {
-            cached.minecart.items = {};
-        }
-        if (!cached.minecart.contributors) {
-            cached.minecart.contributors = {};
-        }
-        
-        return {
-            channelId: channelId,
-            gameData: {
-                ...cached,
-                minecart: cached.minecart || { items: {}, contributors: {} }
-            },
-            nextShopRefresh: cached.nextShopRefresh,
-            nextTrigger: cached.nextTrigger,
-            save: async function() {
-                const updates = {};
-                for (const [key, value] of Object.entries(this.gameData)) {
-                    if (key !== 'lastUpdated' && key !== 'channelId') {
-                        // Special handling for minecart to ensure structure
-                        if (key === 'minecart') {
-                            updates[key] = {
-                                items: value.items || {},
-                                contributors: value.contributors || {}
-                            };
-                        } else {
-                            updates[key] = value;
-                        }
-                    }
-                }
-                return mapCacheSystem.updateMultiple(channelId, updates);
-            },
-            markModified: function() {}
-        };
-        
+        addToCache(dbCache, channelId, { data: entry, timestamp: now });
+        return entry;
     } catch (error) {
-        console.error(`[MINING] Error fetching cached entry for channel ${channelId}:`, error);
+        console.error(`[MINING] Error fetching DB entry for channel ${channelId}:`, error);
+        
         if (retryCount < 3) {
             await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
             return getCachedDBEntry(channelId, forceRefresh, retryCount + 1);
         }
+        
         return null;
     }
 }
@@ -569,47 +489,24 @@ function calculateNextBreakTime(dbEntry) {
     
     const isLongBreakCycle = (cycleCount % 4) === 3;
     
-    // CRITICAL: Ensure we're creating a proper future timestamp
-    const nextBreakTime = new Date(now + MINING_DURATION);
-    console.log(`[MINING] Calculated next break time: ${nextBreakTime.toISOString()} (${MINING_DURATION}ms from now)`);
-    
     if (isLongBreakCycle) {
         return {
-            nextShopRefresh: nextBreakTime,
+            nextShopRefresh: new Date(now + MINING_DURATION),
             breakDuration: LONG_BREAK_DURATION,
             isLongBreak: true
         };
     } else {
         return {
-            nextShopRefresh: nextBreakTime,
+            nextShopRefresh: new Date(now + MINING_DURATION),
             breakDuration: SHORT_BREAK_DURATION,
             isLongBreak: false
         };
     }
 }
 
-// Check if currently in break period with proper time validation
+// Check if currently in break period
 function isBreakPeriod(dbEntry) {
-    const now = Date.now();
-    const breakInfo = dbEntry?.gameData?.breakInfo;
-    
-    // If no break info, not in break
-    if (!breakInfo || !breakInfo.inBreak) return false;
-    
-    // Check if break has expired - CRITICAL FIX
-    if (breakInfo.breakEndTime) {
-        const breakEndTime = typeof breakInfo.breakEndTime === 'string' 
-            ? new Date(breakInfo.breakEndTime).getTime()
-            : breakInfo.breakEndTime;
-            
-        if (now >= breakEndTime) {
-            console.log(`[MINING] Break has expired (ended ${Math.floor((now - breakEndTime) / 1000)}s ago), should end break`);
-            return false; // Break time has passed
-        }
-    }
-    
-    // Only return true if actually in break and time hasn't expired
-    return true;
+    return dbEntry?.gameData?.breakInfo?.inBreak || false;
 }
 
 // Get a random floor tile for gathering during breaks
@@ -1145,19 +1042,7 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
             timeStatus = "MINING";
         }
 
-        // CRITICAL FIX: Get fresh minecart data from database instead of cache
-        const minecartSummary = await getMinecartSummaryFresh(channel.id);
-        
-        // Debug: Verify minecart data structure (only log occasionally)
-        if (Math.random() < 0.05) { // 5% chance to log
-            console.log(`[MINECART DEBUG] Channel ${channel.id}:`, {
-                hasGameData: !!result.gameData,
-                hasMinecart: !!result.gameData?.minecart,
-                hasItems: !!result.gameData?.minecart?.items,
-                itemCount: Object.keys(result.gameData?.minecart?.items || {}).length,
-                totalValue: minecartSummary.totalValue
-            });
-        }
+        const minecartSummary = getMinecartSummary(result);
         const timestamp = new Date().toLocaleTimeString('en-US', { 
             hour12: false, 
             hour: '2-digit', 
@@ -1278,12 +1163,6 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
         const now = Date.now();
         const members = channel.members.filter(m => !m.user.bot);
         
-        // CRITICAL FIX: Check if already in break
-        if (dbEntry.gameData?.breakInfo?.inBreak) {
-            console.log(`[MINING] Already in break for channel ${channelId}, skipping duplicate start`);
-            return;
-        }
-        
         // Kill any parallel instances before starting break
         instanceManager.forceKillChannel(channelId);
         
@@ -1319,7 +1198,7 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
                 };
             }
             
-            mapCacheSystem.updateMultiple(channel.id, { 'map.playerPositions': updatedPositions });
+            batchDB.queueUpdate(channel.id, { 'gameData.map.playerPositions': updatedPositions });
             await batchDB.flush();
             
             const updatedDbEntry = await getCachedDBEntry(channel.id, true);
@@ -1425,20 +1304,14 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
     try {
         const channelId = channel.id;
         
-        // Clear any existing locks and instances
+        // Force kill any parallel instances before ending break
         instanceManager.forceKillChannel(channelId);
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Register new instance for post-break mining
         if (!instanceManager.registerInstance(channelId)) {
             console.error(`[MINING] Cannot end break - channel ${channelId} is locked by another process`);
-            // Force clear and retry once
-            instanceManager.forceKillChannel(channelId);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            if (!instanceManager.registerInstance(channelId)) {
-                console.error(`[MINING] Failed to register instance after retry`);
-                return;
-            }
+            return;
         }
         
         if (messageQueue.isDuplicate(channelId, 'BREAK_END', 'break')) {
@@ -1508,59 +1381,25 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         const cycleCount = (dbEntry.gameData?.cycleCount || 0) + 1;
         const nextBreakInfo = calculateNextBreakTime({ gameData: { cycleCount } });
         
-        // Log the next break time for debugging
-        console.log(`[MINING] Setting next break for channel ${channelId}:`, {
-            nextBreakTime: nextBreakInfo.nextShopRefresh.toISOString(),
-            miningDuration: MINING_DURATION / 1000 / 60 + ' minutes',
-            cycleCount: cycleCount,
-            isNextLongBreak: nextBreakInfo.isLongBreak
-        });
-        
-        // CRITICAL FIX: Clear breakInfo from cache BEFORE database update
-        mapCacheSystem.deleteField(channel.id, 'breakInfo');
-        
-        // Update cache with new state
-        mapCacheSystem.updateMultiple(channel.id, {
-            'map.playerPositions': resetPositions,
-            'cycleCount': cycleCount,
-            'breakJustEnded': Date.now(),
+        batchDB.queueUpdate(channel.id, {
+            'gameData.map.playerPositions': resetPositions,
+            'gameData.cycleCount': cycleCount,
+            'gameData.breakInfo.justEnded': true,
+            'gameData.breakJustEnded': Date.now(),
             nextShopRefresh: nextBreakInfo.nextShopRefresh,
             nextTrigger: new Date(Date.now() + 1000)
         });
         
-        // Remove breakInfo from database and set next break time
-        const updateResult = await gachaVC.updateOne(
+        await gachaVC.updateOne(
             { channelId: channel.id },
-            { 
-                $unset: { 'gameData.breakInfo': 1 },
-                $set: {
-                    'gameData.cycleCount': cycleCount,
-                    'gameData.breakJustEnded': Date.now(),
-                    'gameData.map.playerPositions': resetPositions,
-                    nextShopRefresh: nextBreakInfo.nextShopRefresh,
-                    nextTrigger: new Date(Date.now() + 1000)
-                }
-            }
+            { $unset: { 'gameData.breakInfo': 1 } }
         );
         
-        // Verify the update was successful
-        if (!updateResult.acknowledged) {
-            console.error(`[MINING] Failed to update database after break end for ${channel.id}`);
-        } else {
-            console.log(`[MINING] Successfully updated database with next break time for ${channel.id}`);
-        }
+        await batchDB.flush();
         
-        // Force flush cache changes
-        await mapCacheSystem.forceFlush();
-        
-        // Clear all caches to force fresh data
-        mapCacheSystem.clearChannel(channel.id);
         visibilityCalculator.invalidate();
         dbCache.delete(channel.id);
-        efficiencyCache.clear();
-        
-        // Force re-initialize with fresh data
-        await mapCacheSystem.initialize(channel.id, true);
+        efficiencyCache.delete(channel.id);
         
         const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
         await logEvent(channel, '⛏️ Break ended! Mining resumed.', true, {
@@ -1570,31 +1409,15 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         });
         
         console.log(`[MINING] Break ended successfully for channel ${channelId}`);
-        
-        // Release instance lock to allow normal mining to proceed
-        instanceManager.killInstance(channelId);
-        
     } catch (error) {
         console.error(`[MINING] Error ending break for channel ${channel.id}:`, error);
-        
-        // Emergency cleanup
-        instanceManager.forceKillChannel(channel.id);
-        mapCacheSystem.clearChannel(channel.id);
-        
+        instanceManager.killInstance(channel.id, true);
         try {
-            // Force clear break state in database
             await gachaVC.updateOne(
                 { channelId: channel.id },
-                { 
-                    $unset: { 'gameData.breakInfo': 1 },
-                    $set: { 
-                        'gameData.breakJustEnded': Date.now(),
-                        nextTrigger: new Date(Date.now() + 1000)
-                    }
-                }
+                { $unset: { 'gameData.breakInfo': 1 } }
             );
             dbCache.delete(channel.id);
-            console.log(`[MINING] Emergency break clear completed for ${channel.id}`);
         } catch (clearError) {
             console.error(`[MINING] Failed to force clear break state:`, clearError);
         }
@@ -1605,67 +1428,6 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
 module.exports = async (channel, dbEntry, json, client) => {
     const channelId = channel.id;
     const processingStartTime = Date.now();
-    
-    // === CRITICAL HOTFIX START ===
-    try {
-        const now = Date.now();
-        
-        // Fix 1: Ensure minecart structure exists
-        if (!dbEntry.gameData) dbEntry.gameData = {};
-        if (!dbEntry.gameData.minecart) {
-            dbEntry.gameData.minecart = { items: {}, contributors: {} };
-            dbEntry.markModified('gameData.minecart');
-            await dbEntry.save();
-            console.log(`[HOTFIX] Fixed minecart structure for ${channelId}`);
-        }
-        if (!dbEntry.gameData.minecart.items) dbEntry.gameData.minecart.items = {};
-        if (!dbEntry.gameData.minecart.contributors) dbEntry.gameData.minecart.contributors = {};
-        
-        // Fix 2: Check and fix expired breaks
-        if (dbEntry.gameData?.breakInfo?.inBreak) {
-            const breakEndTime = dbEntry.gameData.breakInfo.breakEndTime;
-            if (breakEndTime && now >= breakEndTime) {
-                console.log(`[HOTFIX] Clearing expired break for ${channelId}`);
-                
-                // Clear break state from database
-                await gachaVC.updateOne(
-                    { channelId },
-                    { 
-                        $unset: { 'gameData.breakInfo': 1 },
-                        $set: { 
-                            'gameData.breakJustEnded': now,
-                            nextTrigger: new Date(now + 1000)
-                        }
-                    }
-                );
-                
-                // Clear from cache
-                mapCacheSystem.deleteField(channelId, 'breakInfo');
-                await mapCacheSystem.forceFlush();
-                
-                // Force refresh
-                dbEntry = await getCachedDBEntry(channelId, true);
-                if (!dbEntry) {
-                    console.error(`[HOTFIX] Failed to refresh after break clear`);
-                    return;
-                }
-            }
-        }
-        
-        // Fix 3: Clear stuck instances if needed
-        if (concurrencyManager.isLocked(channelId)) {
-            const lastProcessed = healthMetrics.lastProcessed.get(channelId);
-            if (lastProcessed && (now - lastProcessed) > 120000) { // 2 minutes
-                console.log(`[HOTFIX] Clearing stuck lock for ${channelId}`);
-                concurrencyManager.forceUnlock(channelId);
-                instanceManager.forceKillChannel(channelId);
-            }
-        }
-        
-    } catch (hotfixError) {
-        console.error(`[HOTFIX] Error applying hotfix for ${channelId}:`, hotfixError);
-    }
-    // === CRITICAL HOTFIX END ===
     
     // Multi-level instance checking
     if (instanceManager.hasActiveInstance(channelId)) {
@@ -1702,14 +1464,6 @@ module.exports = async (channel, dbEntry, json, client) => {
                 { channelId },
                 { $unset: { 'gameData.breakJustEnded': 1 } }
             );
-            
-            // CRITICAL: Force refresh dbEntry after break to get updated nextShopRefresh
-            dbEntry = await getCachedDBEntry(channelId, true);
-            if (!dbEntry) {
-                console.error(`[MINING] Failed to refresh entry after break end`);
-                return;
-            }
-            console.log(`[MINING] Refreshed entry after break - next break at: ${dbEntry.nextShopRefresh}`);
         }
         
         // Update health metrics
@@ -1747,48 +1501,23 @@ module.exports = async (channel, dbEntry, json, client) => {
         // Perform initial hazard roll (once per session)
         await performInitialHazardRoll(channel, dbEntry, serverPowerLevel);
         
-        // Check if we're in a break period with proper time validation
+        // Check if we're in a break period
         const inBreak = isBreakPeriod(dbEntry);
         
         if (inBreak) {
             const breakInfo = dbEntry.gameData.breakInfo;
-            const now = Date.now();
             
-            // Double-check if break should have ended
-            if (breakInfo.breakEndTime && now >= breakInfo.breakEndTime) {
-                console.log(`[MINING] Break expired, ending break for ${channelId}`);
-                
-                // End any special events first
+            if (now >= breakInfo.breakEndTime) {
                 if (dbEntry.gameData?.specialEvent) {
                     const eventEndResult = await checkAndEndSpecialEvent(channel, dbEntry);
                     if (eventEndResult) {
                         await logEvent(channel, eventEndResult, true);
                     }
                 }
-                
-                // Force refresh the DB entry to get latest state
-                const freshEntry = await getCachedDBEntry(channelId, true);
-                if (freshEntry) {
-                    await endBreak(channel, freshEntry, serverPowerLevel);
-                } else {
-                    // Emergency fallback - directly clear break from DB
-                    console.error(`[MINING] Emergency break clear for ${channelId}`);
-                    await gachaVC.updateOne(
-                        { channelId },
-                        { 
-                            $unset: { 'gameData.breakInfo': 1 },
-                            $set: { 
-                                nextTrigger: new Date(Date.now() + 1000),
-                                'gameData.breakJustEnded': Date.now()
-                            }
-                        }
-                    );
-                    mapCacheSystem.clearChannel(channelId);
-                }
+                await endBreak(channel, dbEntry, serverPowerLevel);
                 return;
             }
             
-            // Handle special events during break
             if (dbEntry.gameData?.specialEvent) {
                 const specialEvent = dbEntry.gameData.specialEvent;
                 if (now >= specialEvent.endTime) {
@@ -1804,39 +1533,11 @@ module.exports = async (channel, dbEntry, json, client) => {
                 }
             }
             
-            // Still in valid break period
-            console.log(`[MINING] Channel ${channelId} still in break (ends in ${Math.ceil((breakInfo.breakEndTime - now) / 60000)} minutes)`);
             return;
         }
 
         // Check if it's time to start a break
-        const nextBreakTime = dbEntry.nextShopRefresh ? new Date(dbEntry.nextShopRefresh).getTime() : Infinity;
-        const shouldStartBreak = now >= nextBreakTime;
-        
-        // Debug logging
-        if (Math.random() < 0.05) { // Log 5% of the time to avoid spam
-            console.log(`[MINING] Break check for ${channelId}:`, {
-                currentTime: new Date(now).toISOString(),
-                nextBreakTime: dbEntry.nextShopRefresh ? new Date(dbEntry.nextShopRefresh).toISOString() : 'not set',
-                shouldStartBreak: shouldStartBreak,
-                timeUntilBreak: nextBreakTime - now
-            });
-        }
-        
-        if (shouldStartBreak) {
-            // Safety check: Don't start a break if we just ended one
-            if (dbEntry.gameData?.breakJustEnded) {
-                const timeSinceEnd = now - dbEntry.gameData.breakJustEnded;
-                if (timeSinceEnd < 60000) { // Less than 1 minute
-                    console.log(`[MINING] Preventing immediate break restart (${timeSinceEnd}ms since last break ended)`);
-                    return;
-                }
-            }
-            
-            // Clear any stale break info before starting new break
-            mapCacheSystem.deleteField(channelId, 'breakInfo');
-            await mapCacheSystem.forceFlush();
-            
+        if (now >= dbEntry.nextShopRefresh) {
             const cycleCount = dbEntry.gameData?.cycleCount || 0;
             const isLongBreak = (cycleCount % 4) === 3;
             
@@ -2181,7 +1882,8 @@ module.exports = async (channel, dbEntry, json, client) => {
         }
 
         if (wallsBroken > 0 || treasuresFound > 0) {
-            mapCacheSystem.updateMultiple(channel.id, { 'stats.wallsBroken': (dbEntry.gameData.stats?.wallsBroken || 0) + wallsBroken,
+            batchDB.queueUpdate(channel.id, {
+                'gameData.stats.wallsBroken': (dbEntry.gameData.stats?.wallsBroken || 0) + wallsBroken,
                 'gameData.stats.treasuresFound': (dbEntry.gameData.stats?.treasuresFound || 0) + treasuresFound
             });
         }
@@ -3004,21 +2706,3 @@ module.exports.startHealthMonitoring = startHealthMonitoring;
 module.exports.getDiagnostics = getDiagnostics;
 module.exports.concurrencyManager = concurrencyManager;
 module.exports.endBreak = endBreak;
-// Graceful shutdown - save cache before exit
-process.on('SIGINT', async () => {
-    console.log('[MINING] Saving cache before shutdown...');
-    await mapCacheSystem.forceFlush();
-    process.exit(0);
-});
-
-// Cache system exports
-module.exports.mapCacheSystem = mapCacheSystem;
-module.exports.cacheCommands = {
-    forceSave: async () => {
-        await mapCacheSystem.forceFlush();
-        console.log('[CACHE] Force save completed');
-    },
-    getStats: () => mapCacheSystem.getStats(),
-    clearChannel: (channelId) => mapCacheSystem.clearChannel(channelId),
-    preloadAll: async () => await mapCacheSystem.preloadAll()
-};
