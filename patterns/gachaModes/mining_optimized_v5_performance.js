@@ -1526,6 +1526,7 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
             'map.playerPositions': resetPositions,
             'cycleCount': cycleCount,
             'breakJustEnded': Date.now(),
+            'miningResumedAt': Date.now(),  // FIX: Track when mining resumed
             nextShopRefresh: nextBreakInfo.nextShopRefresh,
             nextTrigger: new Date(Date.now() + 1000)
         });
@@ -1538,6 +1539,7 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
                 $set: {
                     'gameData.cycleCount': cycleCount,
                     'gameData.breakJustEnded': Date.now(),
+                    'gameData.miningResumedAt': Date.now(),  // FIX: Track when mining resumed
                     'gameData.map.playerPositions': resetPositions,
                     nextShopRefresh: nextBreakInfo.nextShopRefresh,
                     nextTrigger: new Date(Date.now() + 1000)
@@ -1811,9 +1813,22 @@ module.exports = async (channel, dbEntry, json, client) => {
             return;
         }
 
-        // Check if it's time to start a break
+        // Check if it's time to start a break with additional safety checks
         const nextBreakTime = dbEntry.nextShopRefresh ? new Date(dbEntry.nextShopRefresh).getTime() : Infinity;
-        const shouldStartBreak = now >= nextBreakTime;
+        
+        // FIX: Enhanced safety checks to prevent break loops
+        const miningResumedAt = dbEntry.gameData?.miningResumedAt || 0;
+        const timeSinceMiningResumed = now - miningResumedAt;
+        const minimumMiningTime = MINING_DURATION * 0.9; // At least 90% of mining duration
+        
+        const shouldStartBreak = (
+            now >= nextBreakTime &&                              // Time for break
+            !dbEntry.gameData?.breakInfo?.inBreak &&            // Not already in break
+            (!dbEntry.gameData?.breakJustEnded ||               // No recent break end
+             now - dbEntry.gameData.breakJustEnded > 60000) &&  // Or at least 1 min passed
+            (miningResumedAt === 0 ||                           // No mining resume time recorded
+             timeSinceMiningResumed >= minimumMiningTime)       // Or mined for minimum duration
+        );
         
         // Debug logging
         if (Math.random() < 0.05) { // Log 5% of the time to avoid spam
@@ -1821,16 +1836,29 @@ module.exports = async (channel, dbEntry, json, client) => {
                 currentTime: new Date(now).toISOString(),
                 nextBreakTime: dbEntry.nextShopRefresh ? new Date(dbEntry.nextShopRefresh).toISOString() : 'not set',
                 shouldStartBreak: shouldStartBreak,
-                timeUntilBreak: nextBreakTime - now
+                timeUntilBreak: nextBreakTime - now,
+                timeSinceMiningResumed: Math.floor(timeSinceMiningResumed / 60000) + ' min',
+                minimumMiningTimeReached: timeSinceMiningResumed >= minimumMiningTime
             });
         }
         
 if (shouldStartBreak) {
+            // Use the break prevention module for additional safety
             const breakCheck = canStartBreak(channelId, dbEntry);
             if (!breakCheck.canStart) {
-                console.log(`[MINING] ${breakCheck.reason}`);
+                console.log(`[MINING] Break prevented: ${breakCheck.reason}`);
                 return;
             }
+            
+            // Additional safety: Check mining duration one more time
+            if (dbEntry.gameData?.miningResumedAt) {
+                const actualMiningTime = now - dbEntry.gameData.miningResumedAt;
+                if (actualMiningTime < MINING_DURATION * 0.8) { // Less than 80% of expected time
+                    console.log(`[MINING] Preventing premature break - only mined for ${Math.floor(actualMiningTime / 60000)} minutes`);
+                    return;
+                }
+            }
+            
             // Safety check: Don't start a break if we just ended one
             if (dbEntry.gameData?.breakJustEnded) {
                 const timeSinceEnd = now - dbEntry.gameData.breakJustEnded;
