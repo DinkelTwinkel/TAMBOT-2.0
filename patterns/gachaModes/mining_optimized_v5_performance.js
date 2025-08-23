@@ -1272,10 +1272,17 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
                     return;
                 }
 
-                // Check for deeper mine conditions and add button
 
+                const updatedEmbed = new EmbedBuilder()
+                    .setTitle(titleText)
+                    .setColor(0x8B4513)
+                    .setFooter({ text: `MINECART: ${minecartSummary.summary}` })
+                    .setTimestamp();
+
+                  
+                // Check for deeper mine conditions and add button  
                 const deeperResult = await deeperMineChecker.checkAndAddDeeperMineButton(
-                    embed, 
+                    updatedEmbed, 
                     result, 
                     channel.id
                 );
@@ -1283,12 +1290,6 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
                 if (deeperResult.components && deeperResult.components.length > 0) {
                     components = deeperResult.components;
                 }
-
-                const updatedEmbed = new EmbedBuilder()
-                    .setTitle(titleText)
-                    .setColor(0x8B4513)
-                    .setFooter({ text: `MINECART: ${minecartSummary.summary}` })
-                    .setTimestamp();
 
                 if (newDescription) updatedEmbed.setDescription(newDescription);
 

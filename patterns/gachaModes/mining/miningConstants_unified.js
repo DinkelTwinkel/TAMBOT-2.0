@@ -79,6 +79,37 @@ const POWER_LEVEL_CONFIG = {
         speedBonus: 2.0,
         valueMultiplier: 3.5,
         reinforcedWallChance: 0.25  // 25% chance - maximum difficulty!
+    },
+    // Deeper mine power levels (8-10) - EXTREME difficulty and rewards
+    8: {
+        name: "Deeper Delve Mastery",
+        description: "Conquering the impossible depths",
+        oreSpawnMultiplier: 3.0,
+        rareOreBonus: 0.12,
+        treasureChance: 0.15,
+        speedBonus: 2.5,
+        valueMultiplier: 5.0,
+        reinforcedWallChance: 0.35  // 35% chance - deeper mines are tough!
+    },
+    9: {
+        name: "Core Breach Expedition",
+        description: "Breaking through reality's boundaries",
+        oreSpawnMultiplier: 3.5,
+        rareOreBonus: 0.18,
+        treasureChance: 0.20,
+        speedBonus: 3.0,
+        valueMultiplier: 7.0,
+        reinforcedWallChance: 0.45  // 45% chance - nearly half walls are reinforced
+    },
+    10: {
+        name: "Void Touched Mining",
+        description: "Where physics breaks and fortune awaits",
+        oreSpawnMultiplier: 4.0,
+        rareOreBonus: 0.25,
+        treasureChance: 0.30,
+        speedBonus: 4.0,
+        valueMultiplier: 10.0,
+        reinforcedWallChance: 0.60  // 60% chance - most walls are reinforced!
     }
 };
 
@@ -219,6 +250,19 @@ const ENCOUNTER_SPAWN_CONFIG = {
     7: { 
         spawnChance: 0.05, 
         availableTypes: Object.values(ENCOUNTER_TYPES) 
+    },
+    // Deeper mine encounter configs - much more dangerous!
+    8: { 
+        spawnChance: 0.08,  // 8% chance
+        availableTypes: Object.values(ENCOUNTER_TYPES) 
+    },
+    9: { 
+        spawnChance: 0.12,  // 12% chance
+        availableTypes: Object.values(ENCOUNTER_TYPES) 
+    },
+    10: { 
+        spawnChance: 0.20,  // 20% chance - hazards everywhere!
+        availableTypes: Object.values(ENCOUNTER_TYPES) 
     }
 };
 
@@ -230,7 +274,10 @@ const HAZARD_SPAWN_CONFIG = {
     4: { spawnChance: 0.025, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP, HAZARD_TYPES.GREEN_FOG, HAZARD_TYPES.WALL_TRAP] },
     5: { spawnChance: 0.03, availableTypes: Object.values(HAZARD_TYPES) },
     6: { spawnChance: 0.035, availableTypes: Object.values(HAZARD_TYPES) },
-    7: { spawnChance: 0.04, availableTypes: Object.values(HAZARD_TYPES) }
+    7: { spawnChance: 0.04, availableTypes: Object.values(HAZARD_TYPES) },
+    8: { spawnChance: 0.06, availableTypes: Object.values(HAZARD_TYPES) },
+    9: { spawnChance: 0.09, availableTypes: Object.values(HAZARD_TYPES) },
+    10: { spawnChance: 0.15, availableTypes: Object.values(HAZARD_TYPES) }
 };
 
 // ==========================================
@@ -848,13 +895,19 @@ const UNIFIED_ITEM_POOL = {
 };
 
 // Unified function to find any item
-function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false) {
+function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false, isDeeperMine = false) {
+    // Apply deeper mine bonus to effective power level
+    let effectivePowerLevel = powerLevel;
+    if (isDeeperMine) {
+        // Deeper mines act as if they're 2 power levels higher for item finding
+        effectivePowerLevel = Math.min(10, powerLevel + 2);
+    }
     // Step 1: Get all eligible items for this power level
     const eligibleItems = [];
     
     // Add ores
     for (const ore of UNIFIED_ITEM_POOL.ores) {
-        if (ore.minPowerLevel <= powerLevel && ore.maxPowerLevel >= powerLevel) {
+        if (ore.minPowerLevel <= effectivePowerLevel && ore.maxPowerLevel >= effectivePowerLevel) {
             eligibleItems.push({...ore});
         }
     }
@@ -862,7 +915,7 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     // Add treasures
     if (UNIFIED_ITEM_POOL.treasures) {
         for (const treasure of UNIFIED_ITEM_POOL.treasures) {
-            if (treasure.minPowerLevel <= powerLevel && treasure.maxPowerLevel >= powerLevel) {
+            if (treasure.minPowerLevel <= effectivePowerLevel && treasure.maxPowerLevel >= effectivePowerLevel) {
                 eligibleItems.push({...treasure});
             }
         }
@@ -870,14 +923,14 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     
     // Add equipment
     for (const equipment of UNIFIED_ITEM_POOL.equipment) {
-        if (equipment.minPowerLevel <= powerLevel && equipment.maxPowerLevel >= powerLevel) {
+        if (equipment.minPowerLevel <= effectivePowerLevel && equipment.maxPowerLevel >= effectivePowerLevel) {
             eligibleItems.push({...equipment});
         }
     }
     
     // Add consumables
     for (const consumable of UNIFIED_ITEM_POOL.consumables) {
-        if (consumable.minPowerLevel <= powerLevel && consumable.maxPowerLevel >= powerLevel) {
+        if (consumable.minPowerLevel <= effectivePowerLevel && consumable.maxPowerLevel >= effectivePowerLevel) {
             eligibleItems.push({...consumable});
         }
     }
@@ -906,6 +959,27 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
                     break;
                 case 'rare':
                     item.adjustedWeight *= 1.2;
+                    break;
+            }
+        }
+        
+        // Deeper mine bonus - significantly boost rare items
+        if (isDeeperMine) {
+            switch (item.tier) {
+                case 'legendary':
+                    item.adjustedWeight *= 3.0;  // 3x more likely in deeper mines
+                    break;
+                case 'epic':
+                    item.adjustedWeight *= 2.5;  // 2.5x more likely
+                    break;
+                case 'rare':
+                    item.adjustedWeight *= 2.0;  // 2x more likely
+                    break;
+                case 'uncommon':
+                    item.adjustedWeight *= 1.5;  // 1.5x more likely
+                    break;
+                case 'common':
+                    item.adjustedWeight *= 0.5;  // Less common items in deeper mines
                     break;
             }
         }
@@ -941,7 +1015,7 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
 }
 
 // Calculate quantity based on context and stats
-function calculateItemQuantity(item, context, miningPower = 0, luckStat = 0, powerLevel = 1) {
+function calculateItemQuantity(item, context, miningPower = 0, luckStat = 0, powerLevel = 1, isDeeperMine = false) {
     let quantity = 1;
     
     // Base quantity from mining power
@@ -983,11 +1057,21 @@ function calculateItemQuantity(item, context, miningPower = 0, luckStat = 0, pow
         quantity += Math.floor(Math.random() * powerBonus);
     }
     
+    // Deeper mine bonus - significantly more quantity
+    if (isDeeperMine) {
+        quantity = Math.ceil(quantity * 1.5);  // 50% more items in deeper mines
+        
+        // Extra bonus for rare items
+        if (item.tier === 'legendary' || item.tier === 'epic') {
+            quantity += Math.floor(Math.random() * 3) + 1;  // 1-3 extra for rare items
+        }
+    }
+    
     return quantity;
 }
 
 // Legacy functions for backward compatibility
-function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency) {
+function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency, isDeeperMine = false) {
     // Map tile types to contexts
     let context = 'mining_wall';
     if (tileType === TILE_TYPES.TREASURE_CHEST) {
@@ -996,8 +1080,8 @@ function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, avail
         context = 'rare_ore';
     }
     
-    const item = findItemUnified(context, powerLevel, luckStat, false);
-    const quantity = calculateItemQuantity(item, context, miningPower, luckStat, powerLevel);
+    const item = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine);
+    const quantity = calculateItemQuantity(item, context, miningPower, luckStat, powerLevel, isDeeperMine);
     
     // Apply efficiency value multiplier
     const enhancedValue = Math.floor(item.value * efficiency.valueMultiplier);
@@ -1008,13 +1092,18 @@ function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, avail
     };
 }
 
-function generateTreasure(powerLevel, efficiency) {
+function generateTreasure(powerLevel, efficiency, isDeeperMine = false) {
     // Special treasure generation using unified system
-    const treasureChance = efficiency.treasureChance || 0.01;
+    let treasureChance = efficiency.treasureChance || 0.01;
+    
+    // Deeper mines have much higher treasure chance
+    if (isDeeperMine) {
+        treasureChance = Math.min(0.5, treasureChance * 2.0);  // Double treasure chance, max 50%
+    }
     
     if (Math.random() < treasureChance) {
-        const item = findItemUnified('treasure_chest', powerLevel, 0, true);
-        const enhancedValue = Math.floor(item.value * efficiency.valueMultiplier);
+        const item = findItemUnified('treasure_chest', powerLevel, 0, true, isDeeperMine);
+        const enhancedValue = Math.floor(item.value * efficiency.valueMultiplier * (isDeeperMine ? 1.5 : 1.0));
         
         return {
             ...item,
@@ -1081,20 +1170,104 @@ const SERVER_POWER_MODIFIERS = {
         powerLevel: 7,
         specialBonus: "Abyssal depth mastery",
         itemBonuses: { "27": 3.5 }
+    },
+    // Deeper mine special modifiers
+    "theBlackDepths": {
+        powerLevel: 3,  // Base power +2 for deeper
+        specialBonus: "Midnight crystal compression",
+        itemBonuses: { "1": 4.0, "6": 2.0 },  // Super coal and diamonds
+        isDeeperMine: true
+    },
+    "goldenTopazCore": {
+        powerLevel: 4,
+        specialBonus: "Imperial topaz perfection",
+        itemBonuses: { "2": 3.5, "102": 2.5 },
+        isDeeperMine: true
+    },
+    "diamondThrone": {
+        powerLevel: 5,
+        specialBonus: "Crown jewel quality",
+        itemBonuses: { "6": 4.0 },  // Massive diamond bonus
+        isDeeperMine: true
+    },
+    "emeraldSanctum": {
+        powerLevel: 5,
+        specialBonus: "Mother crystal blessing",
+        itemBonuses: { "23": 3.5 },
+        isDeeperMine: true
+    },
+    "rubyInferno": {
+        powerLevel: 6,
+        specialBonus: "Eternal flame forging",
+        itemBonuses: { "24": 4.0 },
+        isDeeperMine: true
+    },
+    "obsidianAbyss": {
+        powerLevel: 7,
+        specialBonus: "Void-touched obsidian",
+        itemBonuses: { "25": 4.5 },
+        isDeeperMine: true
+    },
+    "mythrilHeaven": {
+        powerLevel: 8,
+        specialBonus: "Divine mythril blessing",
+        itemBonuses: { "26": 5.0 },
+        isDeeperMine: true
+    },
+    "copperThrone": {
+        powerLevel: 3,
+        specialBonus: "Royal copper enhancement",
+        itemBonuses: { "21": 3.0, "22": 2.0 },  // Copper and iron bonus
+        isDeeperMine: true
+    },
+    "ironFortress": {
+        powerLevel: 4,
+        specialBonus: "Fortress-grade iron quality",
+        itemBonuses: { "22": 3.5 },  // Enhanced iron
+        isDeeperMine: true
+    },
+    "crystalParadise": {
+        powerLevel: 6,
+        specialBonus: "Crystal convergence perfection",
+        itemBonuses: { "102": 4.0, "6": 2.5 },  // Crystal ore and diamonds
+        isDeeperMine: true
+    },
+    "ancientFossilVault": {
+        powerLevel: 4,
+        specialBonus: "Prehistoric treasure preservation",
+        itemBonuses: { "103": 3.5, "101": 2.0 },  // Fossils and ancient coins
+        isDeeperMine: true
+    },
+    "abyssalAdamantiteDepths": {
+        powerLevel: 10,
+        specialBonus: "Void-touched adamantite mastery",
+        itemBonuses: { "27": 6.0, "104": 3.0 },  // Void adamantite and abyssal relics
+        isDeeperMine: true
     }
 };
 
 // Function to calculate mining efficiency based on power level
-function calculateMiningEfficiency(serverPowerLevel, playerLevel = 1) {
-    const config = POWER_LEVEL_CONFIG[serverPowerLevel];
+function calculateMiningEfficiency(serverPowerLevel, playerLevel = 1, isDeeperMine = false) {
+    // Apply deeper mine bonus if applicable
+    let effectivePowerLevel = serverPowerLevel;
+    if (isDeeperMine) {
+        // Deeper mines get +2 to effective power level for calculations
+        effectivePowerLevel = Math.min(10, serverPowerLevel + 2);
+    }
+    
+    const config = POWER_LEVEL_CONFIG[effectivePowerLevel] || POWER_LEVEL_CONFIG[7];
     const levelBonus = Math.floor(playerLevel / 10) * 0.1;
     
+    // Apply deeper mine multipliers
+    const deeperMultiplier = isDeeperMine ? 1.5 : 1.0;
+    
     return {
-        oreSpawnChance: BASE_ORE_SPAWN_CHANCE * config.oreSpawnMultiplier * (1 + levelBonus),
-        rareOreChance: RARE_ORE_SPAWN_CHANCE + config.rareOreBonus,
-        treasureChance: config.treasureChance,
+        oreSpawnChance: BASE_ORE_SPAWN_CHANCE * config.oreSpawnMultiplier * (1 + levelBonus) * deeperMultiplier,
+        rareOreChance: (RARE_ORE_SPAWN_CHANCE + config.rareOreBonus) * deeperMultiplier,
+        treasureChance: config.treasureChance * deeperMultiplier,
         speedMultiplier: config.speedBonus,
-        valueMultiplier: config.valueMultiplier * (1 + levelBonus)
+        valueMultiplier: config.valueMultiplier * (1 + levelBonus) * (isDeeperMine ? 1.8 : 1.0),
+        reinforcedWallChance: config.reinforcedWallChance || 0.05
     };
 }
 
@@ -1166,15 +1339,43 @@ function getHazardTypeForPowerLevel(powerLevel) {
 }
 
 // Function to get hazard spawn chance for power level
-function getHazardSpawnChance(powerLevel) {
-    const config = HAZARD_SPAWN_CONFIG[powerLevel] || HAZARD_SPAWN_CONFIG[1];
-    return config.spawnChance;
+function getHazardSpawnChance(powerLevel, isDeeperMine = false) {
+    // Apply deeper mine bonus if applicable
+    let effectivePowerLevel = powerLevel;
+    if (isDeeperMine) {
+        // Deeper mines get +2 to effective power level for hazards
+        effectivePowerLevel = Math.min(10, powerLevel + 2);
+    }
+    
+    const config = HAZARD_SPAWN_CONFIG[effectivePowerLevel] || HAZARD_SPAWN_CONFIG[1];
+    let chance = config.spawnChance;
+    
+    // Additional danger for deeper mines
+    if (isDeeperMine) {
+        chance = Math.min(0.25, chance * 1.5);  // 50% more hazards, max 25%
+    }
+    
+    return chance;
 }
 
 // Function to get reinforced wall chance for power level
-function getReinforcedWallChance(powerLevel) {
-    const config = POWER_LEVEL_CONFIG[powerLevel] || POWER_LEVEL_CONFIG[1];
-    return config.reinforcedWallChance || 0.05;  // Default 5% if not specified
+function getReinforcedWallChance(powerLevel, isDeeperMine = false) {
+    // Apply deeper mine bonus if applicable
+    let effectivePowerLevel = powerLevel;
+    if (isDeeperMine) {
+        // Deeper mines get +2 to effective power level
+        effectivePowerLevel = Math.min(10, powerLevel + 2);
+    }
+    
+    const config = POWER_LEVEL_CONFIG[effectivePowerLevel] || POWER_LEVEL_CONFIG[1];
+    let chance = config.reinforcedWallChance || 0.05;  // Default 5% if not specified
+    
+    // Additional multiplier for deeper mines
+    if (isDeeperMine) {
+        chance = Math.min(0.75, chance * 1.5);  // 50% more reinforced walls, max 75%
+    }
+    
+    return chance;
 }
 
 // Function to get encounter type based on power level
@@ -1204,9 +1405,23 @@ function getEncounterTypeForPowerLevel(powerLevel) {
 }
 
 // Function to get encounter spawn chance for power level
-function getEncounterSpawnChance(powerLevel) {
-    const config = ENCOUNTER_SPAWN_CONFIG[powerLevel] || ENCOUNTER_SPAWN_CONFIG[1];
-    return config.spawnChance;
+function getEncounterSpawnChance(powerLevel, isDeeperMine = false) {
+    // Apply deeper mine bonus if applicable
+    let effectivePowerLevel = powerLevel;
+    if (isDeeperMine) {
+        // Deeper mines get +2 to effective power level for encounters
+        effectivePowerLevel = Math.min(10, powerLevel + 2);
+    }
+    
+    const config = ENCOUNTER_SPAWN_CONFIG[effectivePowerLevel] || ENCOUNTER_SPAWN_CONFIG[1];
+    let chance = config.spawnChance;
+    
+    // More encounters in deeper mines (both hazards and treasures)
+    if (isDeeperMine) {
+        chance = Math.min(0.30, chance * 1.5);  // 50% more encounters, max 30%
+    }
+    
+    return chance;
 }
 
 // Legacy miningItemPool for backward compatibility - includes all ores and treasures
@@ -1254,6 +1469,68 @@ const treasureItems = [
         }))
 ];
 
+// Helper function to check if a mine is a deeper mine
+function isDeeperMine(mineId) {
+    // IDs 101-112 are level 2 deeper mines, 113-123 are level 3, 18 is special
+    const deeperMineIds = ['101', '102', '103', '104', '105', '106', '107', '109', '110', '111', '112', '113', '114', '115', '116', '117', '118', '119', '120', '121', '122', '123', '18'];
+    return deeperMineIds.includes(String(mineId));
+}
+
+// Helper function to get deeper mine level
+function getDeeperMineLevel(mineId) {
+    const level2Ids = ['101', '102', '103', '104', '105', '106', '107', '109', '110', '111', '112'];
+    const level3Ids = ['113', '114', '115', '116', '117', '118', '119', '120', '121', '122', '123'];
+    const specialIds = ['18'];
+    
+    if (level2Ids.includes(String(mineId))) return 2;
+    if (level3Ids.includes(String(mineId))) return 3;
+    if (specialIds.includes(String(mineId))) return 3; // Special mines count as level 3
+    return 1; // Base level
+}
+
+// Get special modifiers for deeper mines
+function getDeeperMineModifiers(mineId) {
+    const level = getDeeperMineLevel(mineId);
+    
+    // Base modifiers for level 2
+    let modifiers = {
+        hazardMultiplier: 1.5,        // 50% more hazards
+        reinforcedWallMultiplier: 1.5, // 50% more reinforced walls
+        oreQuantityMultiplier: 1.5,    // 50% more ore quantity
+        rareItemMultiplier: 2.0,       // 2x chance for rare items
+        valueMultiplier: 1.8,           // 80% more value
+        treasureMultiplier: 2.0,        // 2x treasure chance
+        powerLevelBonus: 2              // Acts as 2 levels higher
+    };
+    
+    // Level 3 deeper mines get even more bonuses
+    if (level === 3) {
+        modifiers = {
+            hazardMultiplier: 2.5,          // 150% more hazards
+            reinforcedWallMultiplier: 2.0,  // 100% more reinforced walls
+            oreQuantityMultiplier: 2.5,     // 150% more ore quantity
+            rareItemMultiplier: 4.0,        // 4x chance for rare items
+            valueMultiplier: 3.5,            // 250% more value
+            treasureMultiplier: 3.0,         // 3x treasure chance
+            powerLevelBonus: 4               // Acts as 4 levels higher
+        };
+    }
+    
+    // Special cases for extreme deeper mines (Mythril, Adamantite, special)
+    const extremeMines = ['18', '107', '115', '116', '117', '118', '119', '122'];
+    if (extremeMines.includes(String(mineId))) {
+        // These are the ultimate mines - maximum difficulty and rewards
+        modifiers.hazardMultiplier = 3.0;
+        modifiers.oreQuantityMultiplier = 3.0;
+        modifiers.rareItemMultiplier = 5.0;
+        modifiers.valueMultiplier = 5.0;
+        modifiers.powerLevelBonus = 5;
+        modifiers.treasureMultiplier = 4.0;
+    }
+    
+    return modifiers;
+}
+
 module.exports = {
     // Core constants
     INITIAL_MAP_WIDTH,
@@ -1297,5 +1574,10 @@ module.exports = {
     getEncounterSpawnChance,
     getHazardTypeForPowerLevel,
     getHazardSpawnChance,
-    getReinforcedWallChance
+    getReinforcedWallChance,
+    
+    // Deeper mine helpers
+    isDeeperMine,
+    getDeeperMineLevel,
+    getDeeperMineModifiers
 };
