@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
 const Money = require('../models/currency');
+const registerBotMessage = require('../patterns/registerBotMessage');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -47,9 +48,12 @@ module.exports = {
 
     const row = new ActionRowBuilder().addComponents(eatButton, donateJairus);
 
-    await interaction.editReply({
+    const reply = await interaction.editReply({
       embeds: [embed],
       components: [row],
     });
+
+    // Register for auto-cleanup after 10 minutes
+    await registerBotMessage(interaction.guild.id, interaction.channel.id, reply.id, 10);
   }
 };

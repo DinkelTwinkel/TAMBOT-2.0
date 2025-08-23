@@ -1,5 +1,6 @@
 // boost.js - Script for applying temporary boosts/buffs
 const { EmbedBuilder } = require('discord.js');
+const registerBotMessage = require('../../patterns/registerBotMessage');
 
 /**
  * Boost script for items that provide temporary stat boosts
@@ -70,6 +71,9 @@ module.exports = async (context) => {
             channel.send({
                 content: `⏰ **${user.username}**, your boost from **${item.name}** has expired!`,
                 allowedMentions: { users: [] } // Don't ping the user
+            }).then(async (msg) => {
+                // Register for auto-cleanup
+                await registerBotMessage(guild.id, channel.id, msg.id, 5);
             }).catch(console.error);
         }, duration * 1000);
 
@@ -135,6 +139,9 @@ module.exports = async (context) => {
                 channel.send({
                     content: `⚠️ **${user.username}**, your **${item.name}** boost expires in 10 seconds!`,
                     allowedMentions: { users: [] }
+                }).then(async (msg) => {
+                    // Register for auto-cleanup
+                    await registerBotMessage(guild.id, channel.id, msg.id, 5);
                 }).catch(console.error);
             }, (duration - 10) * 1000);
         }

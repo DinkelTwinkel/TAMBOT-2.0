@@ -1,5 +1,6 @@
 // special.js - Script for special/unique item effects
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const registerBotMessage = require('../../patterns/registerBotMessage');
 
 /**
  * Special script for items with unique effects
@@ -211,12 +212,18 @@ async function handleSummonPet(context) {
     });
     
     // Schedule pet dismissal
-    setTimeout(() => {
+    setTimeout(async () => {
         client.activePets.delete(context.userId);
-        channel.send({
-            content: `${pet.emoji} **${user.username}'s ${pet.name}** has returned to its realm.`,
-            allowedMentions: { users: [] }
-        }).catch(console.error);
+        try {
+            const dismissMsg = await channel.send({
+                content: `${pet.emoji} **${user.username}'s ${pet.name}** has returned to its realm.`,
+                allowedMentions: { users: [] }
+            });
+            // Register for auto-cleanup
+            await registerBotMessage(interaction.guild.id, channel.id, dismissMsg.id, 5);
+        } catch (error) {
+            console.error(error);
+        }
     }, pet.duration * 1000);
     
     // Send success message
@@ -273,10 +280,16 @@ async function handleTransformPotion(context) {
             console.error('Failed to restore nickname:', error);
         }
         
-        await interaction.channel.send({
-            content: `✨ **${user.username}'s** transformation has worn off!`,
-            allowedMentions: { users: [] }
-        }).catch(console.error);
+        try {
+            const transformEndMsg = await interaction.channel.send({
+                content: `✨ **${user.username}'s** transformation has worn off!`,
+                allowedMentions: { users: [] }
+            });
+            // Register for auto-cleanup
+            await registerBotMessage(interaction.guild.id, interaction.channel.id, transformEndMsg.id, 5);
+        } catch (error) {
+            console.error(error);
+        }
     }, duration * 1000);
     
     // Send success message

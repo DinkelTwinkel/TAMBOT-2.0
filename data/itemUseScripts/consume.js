@@ -1,5 +1,6 @@
 // consume.js - Script for consuming items
 const { EmbedBuilder } = require('discord.js');
+const registerBotMessage = require('../../patterns/registerBotMessage');
 
 /**
  * Consume script for items that provide temporary buffs or effects
@@ -75,26 +76,46 @@ module.exports = async function consume(context) {
             if (item.value >= 1000) embedColor = 0xE74C3C; // Red for very valuable items
         }
 
-        // Send the success embed
-        await sendEmbed({
-            title: '✅ Item Consumed',
-            description: description,
-            color: embedColor,
-            thumbnail: item.image ? `https://example.com/images/${item.image}.png` : null,
-            footer: { text: `Item ID: ${item.id}` },
-            fields: [
-                {
-                    name: '💰 Value',
-                    value: item.value ? `${item.value} coins` : 'Priceless',
-                    inline: true
-                },
-                {
-                    name: '📊 Type',
-                    value: item.subtype || item.type || 'Unknown',
-                    inline: true
-                }
-            ]
+        // Send the detailed info as ephemeral (private)
+        await interaction.editReply({ 
+            embeds: [new EmbedBuilder()
+                .setTitle('✅ Item Consumed')
+                .setDescription(description)
+                .setColor(embedColor)
+                .setThumbnail(item.image ? `https://example.com/images/${item.image}.png` : null)
+                .setFooter({ text: `Item ID: ${item.id}` })
+                .addFields([
+                    {
+                        name: '💰 Value',
+                        value: item.value ? `${item.value} coins` : 'Priceless',
+                        inline: true
+                    },
+                    {
+                        name: '📊 Type',
+                        value: item.subtype || item.type || 'Unknown',
+                        inline: true
+                    }
+                ])],
+            ephemeral: true 
         });
+        
+        // Send a short public message about the consumption
+        let publicMessage = `${user} consumed **${item.name}**`;
+        if (item.abilities && item.abilities.length > 0) {
+            const mainAbility = item.abilities[0];
+            publicMessage += ` • ${mainAbility.name.charAt(0).toUpperCase() + mainAbility.name.slice(1)} +${mainAbility.powerlevel}`;
+        }
+        if (item.duration) {
+            publicMessage += ` (${item.duration}m)`;
+        }
+        publicMessage += `! ${item.type === 'consumable' && item.subtype === 'food' ? '🍖' : item.type === 'consumable' && item.subtype === 'drink' ? '🍺' : '✨'}`;
+        
+        const publicMsg = await channel.send({
+            content: publicMessage,
+            allowedMentions: { users: [] }
+        });
+        // Register for auto-cleanup
+        await registerBotMessage(channel.guild.id, channel.id, publicMsg.id, 5);
 
         // Apply actual buff effects if item has duration
         if (item.duration && item.abilities && item.abilities.length > 0) {
@@ -124,10 +145,12 @@ module.exports = async function consume(context) {
         if (item.id === '13') { // Banana Axe special case
             // The Banana Axe is both a tool and consumable
             // It's a slippery, unreliable tool that can be eaten for power!
-            await channel.send({
+            const bananaMsg = await channel.send({
                 content: `🍌 *${user.username} takes a bite out of the Banana Axe! It's surprisingly nutritious and grants temporary mining power! The axe handle dissolves into sweet banana flavor...*`,
                 ephemeral: false
             });
+            // Register for auto-cleanup (5 minute expiry)
+            await registerBotMessage(channel.guild.id, channel.id, bananaMsg.id, 5);
             
             // Apply special Banana Axe buff using its duration from itemSheet
             try {
@@ -138,10 +161,12 @@ module.exports = async function consume(context) {
                 const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
                 const miningPower = item.abilities.find(a => a.name === 'mining')?.powerlevel || 2;
                 
-                await channel.send({
+                const buffMsg = await channel.send({
                     content: `⛏️ **Banana Power Active!** Mining +${miningPower} for ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}! 🍌`,
                     ephemeral: false
                 });
+                // Register for auto-cleanup (5 minute expiry)
+                await registerBotMessage(channel.guild.id, channel.id, buffMsg.id, 5);
             } catch (buffError) {
                 console.error('[CONSUME] Failed to apply Banana Axe buff:', buffError);
             }
@@ -152,32 +177,52 @@ module.exports = async function consume(context) {
             // This is a tool that can be consumed
             description += '\n\n⚠️ *You consumed a tool! Hope it was worth it!*';
             
-            // Update the embed to reflect this unique action
-            await sendEmbed({
-                title: '🔧➡️🍴 Tool Consumed!',
-                description: description,
-                color: 0xFFD700, // Gold color for special consumption
-                thumbnail: item.image ? `https://example.com/images/${item.image}.png` : null,
-                footer: { text: `Tool sacrificed for power! • Item ID: ${item.id}` },
-                fields: [
-                    {
-                        name: '💰 Tool Value',
-                        value: item.value ? `${item.value} coins` : 'Priceless',
-                        inline: true
-                    },
-                    {
-                        name: '📊 Original Type',
-                        value: 'Tool ➡️ Consumed',
-                        inline: true
-                    },
-                    {
-                        name: '⚒️ Lost Durability',
-                        value: item.durability ? `${item.durability} uses` : 'N/A',
-                        inline: true
+            // Send private embed for tool consumption
+            await interaction.editReply({ 
+            embeds: [new EmbedBuilder()
+                .setTitle('🔧➡️🍴 Tool Consumed!')
+                .setDescription(description)
+                .setColor(0xFFD700) // Gold color for special consumption
+                .setThumbnail(item.image ? `https://example.com/images/${item.image}.png` : null)
+                .setFooter({ text: `Tool sacrificed for power! • Item ID: ${item.id}` })
+            .addFields([
+            {
+                name: '💰 Tool Value',
+                value: item.value ? `${item.value} coins` : 'Priceless',
+                    inline: true
+                },
+            {
+                name: '📊 Original Type',
+                value: 'Tool ➡️ Consumed',
+                    inline: true
+                },
+            {
+                name: '⚒️ Lost Durability',
+                value: item.durability ? `${item.durability} uses` : 'N/A',
+                    inline: true
                     }
-                ]
-            });
-            return; // Exit early since we already sent the special embed
+                    ])],
+                ephemeral: true
+                });
+                
+                // Send short public message for tool consumption
+                let toolMessage = `${user} consumed their **${item.name}** (tool)`;
+                if (item.abilities && item.abilities.length > 0) {
+                    const mainAbility = item.abilities[0];
+                    toolMessage += ` • ${mainAbility.name.charAt(0).toUpperCase() + mainAbility.name.slice(1)} +${mainAbility.powerlevel}`;
+                }
+                if (item.duration) {
+                    toolMessage += ` (${item.duration}m)`;
+                }
+                toolMessage += `! 🔧💥`;
+                
+                const toolPublicMsg = await channel.send({
+                    content: toolMessage,
+                    allowedMentions: { users: [] }
+                });
+                // Register for auto-cleanup
+                await registerBotMessage(channel.guild.id, channel.id, toolPublicMsg.id, 5);
+                return; // Exit early since we already sent the messages
         }
 
     } catch (error) {

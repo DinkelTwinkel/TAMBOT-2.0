@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const getPlayerStats = require('../patterns/calculatePlayerStat');
 const PlayerBuffs = require('../models/PlayerBuff');
 const PlayerProfile = require('../models/PlayerProfile');
+const registerBotMessage = require('../patterns/registerBotMessage');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -237,7 +238,10 @@ module.exports = {
       }
 
       // Send the embed
-      await interaction.editReply({ embeds: [embed] });
+      const reply = await interaction.editReply({ embeds: [embed] });
+      
+      // Register for auto-cleanup after 10 minutes
+      await registerBotMessage(interaction.guild.id, interaction.channel.id, reply.id, 10);
 
     } catch (error) {
       console.error('Error fetching player stats:', error);

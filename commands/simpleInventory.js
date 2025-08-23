@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const PlayerInventory = require('../models/inventory');
 const itemsheet = require('../data/itemSheet.json'); // must contain { id, name }
+const registerBotMessage = require('../patterns/registerBotMessage');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -41,6 +42,9 @@ module.exports = {
             .setColor(0xFFD700)
             .setTimestamp();
 
-        await interaction.editReply({ embeds: [embed] });
+        const reply = await interaction.editReply({ embeds: [embed] });
+        
+        // Register for auto-cleanup after 10 minutes
+        await registerBotMessage(interaction.guild.id, interaction.channel.id, reply.id, 10);
     }
 };
