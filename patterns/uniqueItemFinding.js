@@ -51,28 +51,47 @@ async function initializeUniqueItems() {
 async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activityType = 'mining', biome = null, guildId = null) {
     try {
         // First check for conditional drops (like Midas' Burden)
-        // These have special conditions but still require luck
-        if (guildId && Math.random() < 0.001) { // 0.1% chance to check conditional
-            const conditionalItems = [10]; // Midas' Burden
-            for (const itemId of conditionalItems) {
-                const result = await tryConditionalDrop(
-                    { id: playerId, user: { tag: playerTag }, displayName: playerTag },
-                    guildId,
-                    itemId
-                );
-                if (result) {
-                    const item = getUniqueItemById(itemId);
-                    return {
-                        type: 'unique',
-                        item: item,
-                        message: result.message,
-                        // Special announcement for system channel with big text
-                        systemAnnouncement: {
-                            enabled: true,
-                            bigText: true,
-                            message: `# 🌟 LEGENDARY DISCOVERY! 🌟\n## ${playerTag} has found the legendary **${item.name}**!\n### ${item.description || 'A unique and powerful item!'}\n\n*This item is one-of-a-kind and now belongs to ${playerTag}!*`
-                        }
-                    };
+        // Check more frequently for wealthy players
+        if (guildId) {
+            // Get player wealth to determine check frequency
+            const Money = require('../models/currency');
+            const playerMoney = await Money.findOne({ userId: playerId });
+            const playerWealth = playerMoney?.money || 0;
+            
+            // Use the Midas drop chance calculation directly for check frequency
+            // This makes wealthy players check for Midas Burden much more often
+            const { calculateMidasDropChance } = require('./conditionalUniqueItems');
+            const checkChance = calculateMidasDropChance(playerWealth) * 0.01; // Scale down to reasonable check rate
+            
+            if (Math.random() < checkChance) {
+                const conditionalItems = [10]; // Midas' Burden
+                for (const itemId of conditionalItems) {
+                    const result = await tryConditionalDrop(
+                        { id: playerId, user: { tag: playerTag }, displayName: playerTag },
+                        guildId,
+                        itemId
+                    );
+                    if (result) {
+                        const item = getUniqueItemById(itemId);
+                        // Include wealth info in the announcement
+                        const wealthDisplay = playerWealth >= 1000000 
+                            ? `${(playerWealth / 1000000).toFixed(1)}M` 
+                            : playerWealth >= 1000 
+                            ? `${(playerWealth / 1000).toFixed(0)}K`
+                            : `${playerWealth}`;
+                        
+                        return {
+                            type: 'unique',
+                            item: item,
+                            message: result.message,
+                            // Special announcement for system channel with big text
+                            systemAnnouncement: {
+                                enabled: true,
+                                bigText: true,
+                                message: `# 🌟 LEGENDARY DISCOVERY! 🌟\n## ${playerTag} has found the legendary **${item.name}**!\n### ${item.description || 'A unique and powerful item!'}\n### 💰 Player Wealth: ${wealthDisplay} coins\n\n*This item is one-of-a-kind and now belongs to ${playerTag}!*`
+                            }
+                        };
+                    }
                 }
             }
         }
