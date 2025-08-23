@@ -327,6 +327,8 @@ The dialogue should:
 ${options.workerPerformance ? this.getDialogueInstructions(options.workerPerformance) : ''}
 - Be natural and conversational
 - Stay in character
+- Remember this is the world of The Wandering Inn where levels, classes, and multiple species are common
+- You might reference Skills in [brackets], other characters from the inn, or recent events in Liscor/Innworld
 
 Respond with ONLY the dialogue, no quotation marks or attribution.`;
 

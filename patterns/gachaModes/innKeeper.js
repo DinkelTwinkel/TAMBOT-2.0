@@ -10,48 +10,55 @@ const InnSalesLog = require('./innKeeping/innSalesLog');
 const getPlayerStats = require('../calculatePlayerStat');
 const gachaServers = require('../../data/gachaServers.json');
 const itemSheet = require('../../data/itemSheet.json');
-const shopData = require('../../data/shops.json');
+const shops = require('../../data/shops.json');
+const shopData = require('../../data/shops.json'); // Alias for compatibility
 const npcs = require('../../data/npcs.json');
 const ActiveVCs = require('../../models/activevcs');
 
 // Rumor and event templates for fallback when AI isn't available
 const RUMORS = [
-    "deeper levels of the mine hold ancient treasures",
-    "the old foreman buried gold somewhere in shaft 7",
-    "strange lights have been seen in the abandoned tunnels",
-    "the mine owner is looking for brave souls for a special expedition",
-    "a new vein of precious gems was discovered last week",
-    "the ghost of old miner Jack still haunts level 13",
-    "someone found a map to a secret chamber",
-    "the eastern shafts connect to ancient dwarven ruins",
-    "rare crystals glow blue during the full moon",
-    "the deepest level has never been fully explored",
-    "miners have been hearing strange music from below",
-    "there's a lucky pickaxe hidden somewhere in the inn",
-    "the bartender used to be a famous adventurer",
-    "a dragon's hoard lies beneath the mountain",
-    "the mine was built on an ancient burial ground"
+    "the Antinium are planning something big in their Hive",
+    "a Named Adventurer was spotted heading to Liscor's dungeon",
+    "the door to Pallass has been acting strangely lately",
+    "Wistram Academy is recruiting mages from Liscor",
+    "strange monsters have been coming from the dungeon's new areas",
+    "the Necromancer Az'kerash has been sighted in the region",
+    "Magnolia Reinhart's [Maids] were asking questions in town",
+    "the Gnoll tribes are gathering for an important Gnollmoot",
+    "Drake cities are mobilizing their armies for something",
+    "a new floor of the dungeon opened with incredible treasures",
+    "the Titan of Baleros sent a message to someone in Liscor",
+    "Flos, the King of Destruction, has awakened in Chandrar",
+    "the Goblin Lord's army movements worry nearby cities",
+    "something ancient stirs in the High Passes",
+    "the Blighted Kingdom seeks adventurers for their eternal war",
+    "the Wandering Inn's magical door network keeps expanding"
 ];
 
 const BAR_FIGHT_STARTERS = [
-    { npc1: "Rowdy Rick", npc2: "Grumpy Gus", reason: "spilled drink" },
-    { npc1: "Captain Ironbeard", npc2: "Big Boss Bruno", reason: "workers' rights disagreement" },
-    { npc1: "Lucky Lou", npc2: "Emerald Earl", reason: "disputed gem ownership" },
-    { npc1: "Dusty Dan", npc2: "Safety Sam", reason: "safety violations" },
-    { npc1: "Young Billy", npc2: "Nervous Ned", reason: "rookie hazing" },
-    { npc1: "The Prospector", npc2: "The Appraiser", reason: "valuation dispute" },
-    { npc1: "Whistling Willie", npc2: "Coughing Carl", reason: "annoying whistling" },
-    { npc1: "Tiny Tim", npc2: "Rattling Roger", reason: "bumped into each other" }
+    { npc1: "Relc Grasstongue", npc2: "Pisces Jealnet", reason: "an argument about who's the better fighter" },
+    { npc1: "Numbtongue", npc2: "Olesm Swifttail", reason: "a chess game accusation of cheating" },
+    { npc1: "Jelaqua Ivirith", npc2: "Grimalkin of Pallass", reason: "proper training methods" },
+    { npc1: "Seborn Sailwinds", npc2: "Drassi", reason: "Seborn wanting privacy while Drassi wants an interview" },
+    { npc1: "Ceria Springwalker", npc2: "Bezale", reason: "Wistram Academy politics" },
+    { npc1: "Watch Captain Zevara", npc2: "Relc Grasstongue", reason: "Relc's latest property damage report" },
+    { npc1: "Yvlon Byres", npc2: "Saliss of Lights", reason: "Saliss making jokes about metal arms" },
+    { npc1: "Ulvama", npc2: "Lyonette du Marquin", reason: "proper inn management techniques" },
+    { npc1: "Wilovan", npc2: "Ratici", reason: "a 'gentlemanly disagreement' about payment splits" },
+    { npc1: "Bird", npc2: "Apista", reason: "Bird trying to shoot the flying bee" },
+    { npc1: "Belgrade", npc2: "Hexel Quithail", reason: "optimal defensive architecture" },
+    { npc1: "Ksmvr", npc2: "Klbkch the Slayer", reason: "proper Antinium behavior" }
 ];
 
 const FLOOR_FINDS = [
-    { amount: 5, description: "a few scattered coins" },
-    { amount: 10, description: "a small coin purse" },
-    { amount: 15, description: "coins that rolled under a table" },
-    { amount: 20, description: "a forgotten tip left behind" },
-    { amount: 25, description: "a miner's loose change" },
-    { amount: 50, description: "a hidden stash behind the bar", rare: true },
-    { amount: 100, description: "a wealthy patron's dropped pouch", rare: true }
+    { amount: 5, description: "a few copper coins dropped by tired workers" },
+    { amount: 10, description: "a small pouch lost during yesterday's bar fight" },
+    { amount: 15, description: "silver coins that rolled under a gaming table" },
+    { amount: 20, description: "a forgotten tip that fell off the bar" },
+    { amount: 25, description: "an adventurer's loose change from their belt pouch" },
+    { amount: 50, description: "coins hidden behind a loose floorboard", rare: true },
+    { amount: 100, description: "a noble's purse dropped during last night's festivities", rare: true },
+    { amount: 75, description: "gold pieces from a gambler's lucky streak", rare: true }
 ];
 
 // Function to calculate salary based on power level
@@ -139,13 +146,29 @@ async function calculateEffectivenessBonus(memberId, baseSalary) {
 // Function to generate AI dialogue with fallback
 async function generateAIDialogue(prompt, fallbackOptions) {
     try {
-        // Check if AI generation is available
-        // This would connect to your AI service (OpenAI, local model, etc.)
-        // For now, we'll use fallback
+        // Check if AI generation is available through the dialogue generator
+        const AIDialogueGenerator = require('./innKeeping/aiDialogueGenerator');
+        const aiGen = new AIDialogueGenerator();
         
-        // TODO: Implement actual AI generation here
-        // const response = await yourAIService.generate(prompt);
-        // return response;
+        if (aiGen.isAvailable()) {
+            // Use OpenAI to generate dialogue
+            const OpenAI = require('openai');
+            const openai = new OpenAI({
+                apiKey: process.env.OPENAI_API_KEY
+            });
+            
+            // Add Wandering Inn world context to all prompts
+            const worldPrompt = prompt + "\n\nIMPORTANT: This takes place in the world of The Wandering Inn, where levels and classes exist, multiple species interact (Drakes, Gnolls, Humans, Antinium, Goblins, etc.), and magic is real. Skills appear in [brackets].";
+            
+            const response = await openai.chat.completions.create({
+                model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
+                messages: [{ role: "user", content: worldPrompt }],
+                max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS) || 60,
+                temperature: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.9,
+            });
+            
+            return response.choices[0].message.content.trim();
+        }
         
         // Fallback to predefined options
         if (fallbackOptions && fallbackOptions.length > 0) {
@@ -164,10 +187,19 @@ async function generateAIDialogue(prompt, fallbackOptions) {
 // Function to generate a rumor event
 async function generateRumorEvent(channel, dbEntry) {
     try {
+        // Get the shop owner's name
+        const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
+        const shopInfo = shops.find(s => s.id === serverData?.shop);
+        const innkeeperName = shopInfo?.shopkeeper?.name || "the innkeeper";
+        const innName = shopInfo?.name || "the inn";
+        
+        // Get current VC members
+        const voiceChannel = channel.guild.channels.cache.get(channel.id);
+        const vcMembers = voiceChannel && voiceChannel.isVoiceBased() ? 
+            Array.from(voiceChannel.members.values()).filter(m => !m.user.bot) : [];
+        
         // Select two random NPCs for the conversation
         const eligibleNpcs = npcs.filter(npc => {
-            // Filter by channel power if needed
-            const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
             const channelPower = serverData?.power || 1;
             return (!npc.minChannelPower || npc.minChannelPower <= channelPower);
         });
@@ -180,8 +212,11 @@ async function generateRumorEvent(channel, dbEntry) {
             npc2 = eligibleNpcs[Math.floor(Math.random() * eligibleNpcs.length)];
         }
         
-        // Generate or select rumor
-        const rumorPrompt = `Generate a short rumor or gossip that ${npc1.name} might share with ${npc2.name} in a mining town inn. Keep it under 20 words.`;
+        // Generate or select rumor - sometimes include VC members or the innkeeper
+        const rumorPrompt = `Generate a short rumor or gossip that ${npc1.name} (${npc1.description}) might share with ${npc2.name} (${npc2.description}) at ${innkeeperName}'s establishment. 
+        ${npc1.aiPersonality ? `\n${npc1.name}'s personality: ${npc1.aiPersonality.substring(0, 200)}...` : ''}
+        ${vcMembers.length > 0 ? `Current patrons include: ${vcMembers.slice(0, 3).map(m => m.user.username).join(', ')}` : ''}
+        The rumor should be about events in this fantasy world - perhaps about adventurers, dungeons, politics, ${innkeeperName}, or other characters. Keep it under 20 words.`;
         const rumor = await generateAIDialogue(rumorPrompt, RUMORS);
         
         const embed = new EmbedBuilder()
@@ -221,15 +256,30 @@ async function generateBarFightEvent(channel, dbEntry) {
             return null;
         }
         
+        // Get the shop owner's name
+        const shopInfo = shops.find(s => s.id === serverData?.shop);
+        const innkeeperName = shopInfo?.shopkeeper?.name || "the innkeeper";
+        
+        // Get current VC members for dynamic outcomes
+        const voiceChannel = channel.guild.channels.cache.get(channel.id);
+        const vcMembers = voiceChannel && voiceChannel.isVoiceBased() ? 
+            Array.from(voiceChannel.members.values()).filter(m => !m.user.bot) : [];
+        const randomVCMember = vcMembers.length > 0 ? 
+            vcMembers[Math.floor(Math.random() * vcMembers.length)] : null;
+        
         // Calculate damage/cost (higher wealth NPCs cause more damage)
         const damageCost = Math.floor((npc1.wealth + npc2.wealth) * 10 + Math.random() * 50);
         
+        // Generate contextual outcomes based on the characters and actual people
         const outcomes = [
-            `${npc1.name} throws a punch but misses and hits a barrel of ale!`,
-            `${npc2.name} tackles ${npc1.name} into a table, breaking it!`,
-            `Both fighters knock over several chairs and spill drinks everywhere!`,
-            `The fight ends when both slip on spilled beer and knock themselves out!`,
-            `Other patrons have to pull them apart before real damage is done!`
+            `${npc1.name} throws a punch but misses and hits a keg of ${innkeeperName}'s special brew!`,
+            `${npc2.name} tackles ${npc1.name} into a table, breaking ${innkeeperName}'s carefully arranged settings!`,
+            `Both fighters knock over chairs and spill drinks everywhere!`,
+            `The fight ends when ${innkeeperName} threatens to ban them both!`,
+            `Other patrons pull them apart before ${innkeeperName} calls the guards!`,
+            randomVCMember ? `${randomVCMember.user.username} tries to calm things down but gets splashed with ale!` : `The bouncer steps in and tosses both outside!`,
+            `They slip on spilled ale and knock themselves out, much to ${innkeeperName}'s relief!`,
+            randomVCMember ? `${randomVCMember.user.username} plays peacemaker and buys both combatants a drink!` : `${innkeeperName} personally throws them both out!`
         ];
         
         const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
@@ -278,6 +328,11 @@ async function generateCoinFindEvent(channel, dbEntry) {
         // Select random member to find coins
         const luckyMember = membersInVC[Math.floor(Math.random() * membersInVC.length)];
         
+        // Get the shop owner's name
+        const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
+        const shopInfo = shops.find(s => s.id === serverData?.shop);
+        const innkeeperName = shopInfo?.shopkeeper?.name || "the innkeeper";
+        
         // Check their luck stat for bonus
         const playerData = await getPlayerStats(luckyMember.id);
         const luckStat = playerData.stats.luck || 0;
@@ -297,6 +352,30 @@ async function generateCoinFindEvent(channel, dbEntry) {
         const luckBonus = Math.floor(selectedFind.amount * (luckStat / 100));
         const totalAmount = selectedFind.amount + luckBonus;
         
+        // Try to generate AI reasoning for finding the coins
+        let findDescription = selectedFind.description;
+        try {
+            const otherMembers = membersInVC.filter(m => m.id !== luckyMember.id);
+            const contextPrompt = `Generate a brief, creative reason why ${luckyMember.user.username} found ${totalAmount} coins at ${innkeeperName}'s inn. 
+            Context: ${otherMembers.length > 0 ? `Other patrons present: ${otherMembers.slice(0, 3).map(m => m.user.username).join(', ')}` : 'They are alone in the inn'}
+            The inn is in a fantasy world with adventurers, magic, and various species.
+            Keep it under 15 words and make it specific to the situation.`;
+            
+            const aiReason = await generateAIDialogue(contextPrompt, [
+                `while helping ${innkeeperName} clean up`,
+                `after ${otherMembers.length > 0 ? otherMembers[0].user.username : 'someone'} knocked over a coin pouch`,
+                `beneath where a wealthy merchant was sitting`,
+                `in a hidden compartment ${innkeeperName} forgot about`,
+                `that rolled out when moving furniture`
+            ]);
+            
+            if (aiReason) {
+                findDescription = aiReason;
+            }
+        } catch (error) {
+            console.log('[InnKeeper] Could not generate AI coin find reason, using default');
+        }
+        
         // Award the coins
         await Money.findOneAndUpdate(
             { userId: luckyMember.id },
@@ -310,9 +389,9 @@ async function generateCoinFindEvent(channel, dbEntry) {
         const embed = new EmbedBuilder()
             .setTitle('💰 Coins Found!')
             .setColor(0xF1C40F)
-            .setDescription(`**${luckyMember.user.username}** found ${selectedFind.description}!`)
+            .setDescription(`**${luckyMember.user.username}** found coins ${findDescription}!`)
             .addFields(
-                { name: 'Amount Found', value: `${selectedFind.amount} coins`, inline: true }
+                { name: 'Base Amount', value: `${selectedFind.amount} coins`, inline: true }
             );
             
         if (luckBonus > 0) {
@@ -452,8 +531,35 @@ async function generateNPCSale(channel, dbEntry) {
         }
         dbEntry.gameData.sales.push(saleRecord);
         
-        // Store the NPC's dialogue for the sales log
-        const dialogue = selectedNPC.dialogue[Math.floor(Math.random() * selectedNPC.dialogue.length)];
+        // Generate or select dialogue for the NPC
+        let dialogue = selectedNPC.dialogue[Math.floor(Math.random() * selectedNPC.dialogue.length)];
+        
+        // Try to use AI dialogue generator if available
+        try {
+            const AIDialogueGenerator = require('./innKeeping/aiDialogueGenerator');
+            const aiGen = new AIDialogueGenerator(channel.id);
+            
+            if (aiGen.isAvailable() && selectedNPC.aiPersonality) {
+                // Generate contextual dialogue for this purchase
+                const generatedDialogue = await aiGen.generateNPCDialogue(
+                    selectedNPC,
+                    selectedItem,
+                    salePrice,
+                    {
+                        tip: finalTip,
+                        mood: 'neutral',
+                        isHungry: Math.random() > 0.5
+                    }
+                );
+                
+                if (generatedDialogue) {
+                    dialogue = generatedDialogue;
+                }
+            }
+        } catch (error) {
+            console.log('[InnKeeper] Could not generate AI dialogue, using default');
+        }
+        
         saleRecord.npcDialogue = dialogue;
         saleRecord.npcData = selectedNPC;
         
@@ -612,12 +718,19 @@ async function distributeProfits(channel, dbEntry) {
             itemSalesMap.set(key, itemData);
         }
 
+        // Get the shop owner's name for the report
+        const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
+        const shopInfo = shops.find(s => s.id === serverData?.shop);
+        const innkeeperName = shopInfo?.shopkeeper?.name || "The innkeeper";
+        const innName = shopInfo?.name || "the inn";
+        
         // Create and send the summary embed
         if (payouts.length > 0) {
             const embed = new EmbedBuilder()
-                .setTitle('🪵 End of Work Day Report')
+                .setTitle(`🪵 ${innkeeperName}'s Daily Report`)
                 .setColor(0x8B4513) // Wooden brown color
-                .setTimestamp();
+                .setTimestamp()
+                .setFooter({ text: `${innName}` });
 
             // Add profile picture
             if (membersInVC.length === 1) {

@@ -1,334 +1,504 @@
 [
   {
     "id": "npc_1",
-    "name": "Gruff McGrufferson",
-    "description": "A burly miner with coal dust permanently etched into his skin",
+    "name": "Relc Grasstongue",
+    "description": "A boisterous Drake [Spearmaster] and Senior Guardsman of Liscor",
     "image": "placeholder.png",
     "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
     "preferences": ["consumable", "food", "drink"],
-    "budget": "low",
-    "wealth": 1,
-    "minChannelPower": 1,
-    "tipModifier": 0.5,
-    "frequency": "common",
-    "dialogue": [
-      "Just finished a 12-hour shift, need something filling!",
-      "Me stomach's rumbling louder than the mine carts.",
-      "Got any of that hearty stew left?"
-    ]
-  },
-  {
-    "id": "npc_2",
-    "name": "Lady Goldworth",
-    "description": "A wealthy merchant's wife with expensive tastes",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
-    "preferences": ["consumable", "drink"],
-    "budget": "high",
-    "wealth": 7,
-    "minChannelPower": 3,
-    "tipModifier": 2.5,
-    "frequency": "rare",
-    "dialogue": [
-      "I'll have your finest vintage, money is no object.",
-      "This establishment comes highly recommended.",
-      "The ambiance here is... quaint."
-    ]
-  },
-  {
-    "id": "npc_3",
-    "name": "Old Pete",
-    "description": "A regular patron who knows everyone's business",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
-    "preferences": ["consumable", "drink"],
-    "budget": "medium",
-    "wealth": 2,
-    "minChannelPower": 1,
-    "tipModifier": 1.0,
-    "frequency": "very_common",
-    "dialogue": [
-      "The usual, if you please!",
-      "Heard about the cave-in on level 3? Nasty business.",
-      "Been coming here for 30 years, never gets old."
-    ]
-  },
-  {
-    "id": "npc_4",
-    "name": "Sparkles the Gnome",
-    "description": "An eccentric gnome inventor with deep pockets",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
-    "preferences": ["consumable", "tool"],
-    "budget": "high",
-    "wealth": 6,
-    "minChannelPower": 2,
-    "tipModifier": 1.8,
-    "frequency": "uncommon",
-    "dialogue": [
-      "Fascinating establishment! Do you have anything... unusual?",
-      "My latest invention requires sustenance for testing!",
-      "Eureka! This ale gives me IDEAS!"
-    ]
-  },
-  {
-    "id": "npc_5",
-    "name": "Tired Tom",
-    "description": "An exhausted worker who just wants a quick meal",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
-    "preferences": ["consumable", "food"],
-    "budget": "low",
-    "wealth": 1,
-    "minChannelPower": 1,
-    "tipModifier": 0.3,
-    "frequency": "common",
-    "dialogue": [
-      "*yawns* Just... anything edible, please.",
-      "Too tired to read the menu. Surprise me.",
-      "Need fuel for the night shift..."
-    ]
-  },
-  {
-    "id": "npc_6",
-    "name": "Captain Ironbeard",
-    "description": "A boisterous mine foreman who treats his crew",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
-    "preferences": ["consumable", "drink", "food"],
-    "budget": "high",
-    "wealth": 5,
-    "minChannelPower": 2,
-    "tipModifier": 2.0,
-    "frequency": "uncommon",
-    "dialogue": [
-      "Drinks for me whole crew! We struck a rich vein today!",
-      "Keep 'em coming! The boys earned it!",
-      "Best inn in the whole mining district!"
-    ]
-  },
-  {
-    "id": "npc_7",
-    "name": "Whisper Jane",
-    "description": "A mysterious figure who speaks in hushed tones",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
-    "preferences": ["consumable"],
-    "budget": "medium",
-    "wealth": 4,
-    "minChannelPower": 1,
-    "tipModifier": 1.5,
-    "frequency": "rare",
-    "dialogue": [
-      "*whispers* Something discrete, if you would...",
-      "*glances around nervously* Quick service, please.",
-      "*slides coins across counter* Keep the change."
-    ]
-  },
-  {
-    "id": "npc_8",
-    "name": "Young Billy",
-    "description": "An apprentice miner on his first payday",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
-    "preferences": ["consumable", "food", "tool"],
-    "budget": "low",
-    "wealth": 1,
-    "minChannelPower": 1,
-    "tipModifier": 0.8,
-    "frequency": "common",
-    "dialogue": [
-      "First week's wages! Time to celebrate!",
-      "What's good here? I'm new to this.",
-      "My pa said this place serves honest food."
-    ]
-  },
-  {
-    "id": "npc_9",
-    "name": "The Merchant",
-    "description": "A traveling trader looking for supplies",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
-    "preferences": ["consumable", "tool"],
     "budget": "medium",
     "wealth": 3,
     "minChannelPower": 1,
     "tipModifier": 1.2,
-    "frequency": "uncommon",
+    "frequency": "very_common",
     "dialogue": [
-      "Need provisions for the road ahead.",
-      "Your prices are fair. I'll remember this place.",
-      "Do you have anything that travels well?"
-    ]
+      "Hey! Got any of that spicy stuff? I can handle it!",
+      "Just finished my patrol. Time for some serious eating!",
+      "This place is way better than the barracks food!"
+    ],
+    "aiPersonality": "Relc Grasstongue is a Drake Senior Guardsman of Liscor and one of the strongest warriors in the city, holding the [Spearmaster] class at an extremely high level. Despite his incredible combat prowess and ability to take down Gold-rank threats single-handedly, Relc is surprisingly childish and immature, often acting before thinking. He's best friends with Klbkch the Antinium, forming an unlikely but effective guard partnership. Relc loves spicy food, making terrible jokes, showing off his strength, and complaining about paperwork. He has a daughter named Embria who leads a Drake army company, though their relationship is strained. Deep down, Relc is loyal, protective of Liscor's citizens, and genuinely cares about doing the right thing, even if his methods are unorthodox. He frequently visits The Wandering Inn because Erin's cooking reminds him there's more to life than just guard duty."
   },
   {
-    "id": "npc_10",
-    "name": "Madame Crystalgazer",
-    "description": "A fortune teller who claims to see the future",
+    "id": "npc_2",
+    "name": "Lyonette du Marquin",
+    "description": "A [Princess] who helps run the inn with surprising competence",
     "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
-    "preferences": ["consumable", "charm"],
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "drink"],
     "budget": "medium",
     "wealth": 4,
     "minChannelPower": 1,
-    "tipModifier": 1.3,
-    "frequency": "rare",
+    "tipModifier": 1.5,
+    "frequency": "very_common",
     "dialogue": [
-      "The spirits tell me this inn holds good fortune...",
-      "I foresee... a generous tip in your future!",
-      "The mystic energies here are quite strong."
-    ]
+      "The inn's standards must be maintained!",
+      "I'll ensure everything is perfect for our guests.",
+      "Mrsha, don't eat that! Oh, sorry, force of habit..."
+    ],
+    "aiPersonality": "Lyonette du Marquin is the 6th Princess of Calanfer, who fled her kingdom and eventually found her way to The Wandering Inn. Initially spoiled, incompetent, and prejudiced against non-humans, she underwent tremendous character growth under Erin's mentorship. Now she's the inn's [Head Server] and essentially manages the day-to-day operations, handling finances, supplies, and staff with remarkable efficiency. She's become a mother figure to Mrsha, the white Gnoll child, and takes this responsibility very seriously. Lyonette has developed strong organizational skills, diplomatic abilities, and even combat proficiency with her [Princess] class evolving to [Worldly Princess]. She maintains high standards for service and cleanliness, often clashing with Erin's chaotic management style, but their partnership works. She's learned to appreciate all species and has become a bridge between the inn's diverse clientele and Liscor's nobility."
   },
   {
-    "id": "npc_11",
-    "name": "Grumpy Gus",
-    "description": "Never satisfied, always complaining",
+    "id": "npc_3",
+    "name": "Pisces Jealnet",
+    "description": "A [Necromancer] from Wistram Academy, member of the Horns",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "low",
+    "wealth": 2,
+    "minChannelPower": 1,
+    "tipModifier": 0.8,
+    "frequency": "common",
+    "dialogue": [
+      "I suppose this establishment's fare will suffice.",
+      "As a graduate of Wistram, I've had far superior... but this will do.",
+      "*sniff* The magical ambiance here is... acceptable."
+    ],
+    "aiPersonality": "Pisces Jealnet is a [Necromancer] who was expelled from Wistram Academy after attempting to challenge the prejudice against death magic. Despite his haughty, condescending exterior and habit of petty theft, Pisces is actually principled and loyal to his friends. He's genuinely brilliant, capable of creating unique undead constructs and understanding complex magical theory. His arrogance masks deep hurt from years of persecution for his chosen school of magic. As a member of the Horns of Hammerad, he's proven himself in combat repeatedly, using tactical brilliance and powerful necromancy. He maintains his snobby facade about food and accommodations, but secretly appreciates Erin's acceptance of him despite his class. He often makes cutting remarks about the inn's 'provincial' nature while simultaneously defending it against outside threats. His recent enslavement in Chandrar and subsequent escape have given him new perspective on freedom and friendship."
+  },
+  {
+    "id": "npc_4",
+    "name": "Selys Shivertail",
+    "description": "A Drake [Receptionist] at the Adventurer's Guild and [Heiress]",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "high",
+    "wealth": 6,
+    "minChannelPower": 1,
+    "tipModifier": 2.0,
+    "frequency": "common",
+    "dialogue": [
+      "After dealing with adventurers all day, I need this!",
+      "Put it on my tab... actually, I'll pay upfront!",
+      "The guild's been busy. Time to relax!"
+    ],
+    "aiPersonality": "Selys Shivertail works as a [Receptionist] at Liscor's Adventurer's Guild but recently became an [Heiress] after inheriting a massive fortune from her uncle's friend, Zel Shivertail, the famous Drake [General]. She's practical, hardworking, and one of the more level-headed Drakes in Liscor. Despite her newfound wealth, she continues working at the guild and hasn't let the money change her fundamental personality. She's best friends with Erin and was one of the first Drakes to welcome her to Liscor. Selys has a sharp tongue for adventurers who cause trouble but genuinely cares about their wellbeing. She's attracted to Drakes with neck spines and has had an on-off relationship with various adventurers. Her grandmother Tekshia was a famous Gold-rank adventurer, and Selys grew up on stories of adventure. She frequents the inn to decompress from dealing with adventurer paperwork and drama all day."
+  },
+  {
+    "id": "npc_5",
+    "name": "Klbkch the Slayer",
+    "description": "An Antinium Centenium with a legendary past, now a Senior Guardsman",
     "image": "placeholder.png",
     "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
     "preferences": ["consumable", "food"],
     "budget": "medium",
-    "wealth": 2,
+    "wealth": 3,
     "minChannelPower": 1,
-    "tipModifier": 0.2,
-    "frequency": "uncommon",
+    "tipModifier": 1.0,
+    "frequency": "common",
     "dialogue": [
-      "Hmph. I suppose this will have to do.",
-      "Back in my day, portions were bigger!",
-      "The other inn down the road is cheaper..."
-    ]
+      "I will have the usual, please.",
+      "This establishment continues to intrigue me.",
+      "The tactical advantages of this location are considerable."
+    ],
+    "aiPersonality": "Klbkch the Slayer is one of the original Centenium, legendary Antinium created during their ancient wars. Once known as Klbkchhezeim of the Centenium, he fought in the Antinium Wars and helped establish the Hive in Liscor. Despite losing his original form and much of his power, he remains one of the deadliest fighters on Izril. He works as a Senior Guardsman alongside Relc, forming an odd but effective partnership. Klbkch is logical, methodical, and struggles with understanding emotions and social norms, though his friendship with Erin has helped him develop individuality. He's died and been reborn multiple times, each time losing some of his original self. He secretly works to help the Antinium gain individuality and free will, seeing Erin's inn as crucial to this goal. His formal speech patterns and analytical observations often unsettle others, but he's genuinely curious about non-Antinium culture and has developed a taste for chess and good food."
   },
   {
-    "id": "npc_12",
-    "name": "Sister Mercy",
-    "description": "A kind healer tending to injured miners",
+    "id": "npc_6",
+    "name": "Krshia Silverfang",
+    "description": "A Gnoll [Shopkeeper] and Chieftain of Liscor's Gnoll community",
     "image": "placeholder.png",
     "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
-    "preferences": ["consumable"],
+    "preferences": ["consumable", "food", "drink"],
+    "budget": "medium",
+    "wealth": 4,
+    "minChannelPower": 1,
+    "tipModifier": 1.3,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Hrr. Good food, good place, yes?",
+      "The Silverfang tribe remembers its friends, yes.",
+      "This inn brings the tribes together. Is good, yes?"
+    ],
+    "aiPersonality": "Krshia Silverfang is a Gnoll [Shopkeeper] who runs a general store in Liscor's market and serves as an unofficial leader of the city's Gnoll population. She's the niece of Chieftain Akrisa of the Silverfang Tribe and came to Liscor as part of a greater plan to gain a magical spellbook for her tribe at the Gnollmoot. She speaks with a distinctive accent, adding 'yes?' to many sentences, and has a warm but shrewd personality. Krshia was one of the first to befriend Erin and has remained a steadfast ally. She's protective of Mrsha, the white Gnoll child, understanding the cultural significance and danger of her white fur. Krshia is involved in city politics, advocating for Gnoll rights and representation on Liscor's council. She has a keen business sense and often knows about important events before they become public. Her relationship with her nephew Tkrn and her role in the greater Gnoll community make her a bridge between traditional tribal culture and city life."
+  },
+  {
+    "id": "npc_7",
+    "name": "Ceria Springwalker",
+    "description": "A half-elf [Arctic Cryomancer] and leader of the Horns of Hammerad",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
+    "preferences": ["consumable", "drink"],
     "budget": "low",
     "wealth": 2,
     "minChannelPower": 1,
     "tipModifier": 1.0,
+    "frequency": "common",
+    "dialogue": [
+      "Being a half-elf means I can enjoy both cuisines!",
+      "After the dungeon, anything tastes amazing.",
+      "My ice magic keeps the drinks perfectly chilled!"
+    ],
+    "aiPersonality": "Ceria Springwalker is a half-elf [Arctic Cryomancer] who leads the Horns of Hammerad adventuring team. She studied at Wistram Academy but left before graduating, and has over sixty years of adventuring experience despite appearing young. Her skeletal hand, a result of a catastrophic dungeon expedition, doesn't impair her magic but serves as a reminder of past failures. Ceria is practical, down-to-earth, and acts as the voice of reason for her team. She has a half-elf's love of nature and trees but also enjoys drinking, crude jokes, and adventurer culture. She struggles with the weight of leadership and survivor's guilt from previous team losses. Her time trapped in the Village of the Dead's crypt with days compressed into minutes has left psychological scars. Despite her easygoing demeanor, she's protective of her team and makes tough decisions to keep them alive. She appreciates the inn as one of the few places that treats half-elves without prejudice."
+  },
+  {
+    "id": "npc_8",
+    "name": "Olesm Swifttail",
+    "description": "A Drake [Strategist] with a passion for chess and tactics",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "food", "drink"],
+    "budget": "medium",
+    "wealth": 3,
+    "minChannelPower": 1,
+    "tipModifier": 1.1,
+    "frequency": "common",
+    "dialogue": [
+      "Have you seen the latest chess puzzle? It's fascinating!",
+      "The tactical implications of this menu arrangement are...",
+      "I'll have whatever helps me think better!"
+    ],
+    "aiPersonality": "Olesm Swifttail is Liscor's [Strategist], a blue-scaled Drake who initially worked as a [Tactician] for the city watch before his promotion. He's passionate about chess, strategy games, and military history, often getting so excited about tactics that he forgets his surroundings. He learned chess from Erin and became one of her closest Drake friends. Olesm writes a chess newsletter that's gained international recognition and correspondence with the Titan of Baleros. Despite his strategic brilliance, he's somewhat awkward socially and had an unrequited crush on Erin before developing a relationship with Maviola El. He struggles with self-doubt, comparing himself to legendary [Strategists] like Zel Shivertail, but has proven himself in several battles defending Liscor. He's ambitious but genuinely cares about protecting his city and its people. The inn represents a place where he can relax from his military duties and enjoy intellectual pursuits."
+  },
+  {
+    "id": "npc_9",
+    "name": "Pawn",
+    "description": "An Individual Antinium who discovered faith and leads other Workers",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
+    "preferences": ["consumable", "food"],
+    "budget": "low",
+    "wealth": 1,
+    "minChannelPower": 1,
+    "tipModifier": 1.5,
     "frequency": "uncommon",
     "dialogue": [
-      "Blessings upon this house of respite.",
-      "Just water for me, but bread for the hungry, please.",
-      "Your kindness to the miners doesn't go unnoticed."
-    ]
+      "Heaven is here, in this inn.",
+      "The sky... I still marvel at it every time.",
+      "May I bring some food back for my fellow Workers?"
+    ],
+    "aiPersonality": "Pawn is one of the first Antinium Workers to gain individuality, named by Erin during a chess game. He discovered religion and the concept of heaven after experiencing the sky and Erin's kindness, becoming the Antinium's first [Priest] and spreading faith among the Workers and Soldiers. He leads prayer services in the Hive and has painted blue skies on the ceiling of the Antinium sections to give his people hope. Pawn is gentle, thoughtful, and deeply philosophical, constantly questioning the nature of souls, heaven, and what it means to be Antinium. He's in a relationship with Lyonette, one of the first inter-species romances in Liscor. His faith isn't tied to any specific god but rather to the concept of heaven as freedom and happiness for his people. He organizes the Painted Antinium and helps them choose names and develop personalities. The inn is sacred to him as the birthplace of Antinium individuality and the place where he first understood joy."
+  },
+  {
+    "id": "npc_10",
+    "name": "Yvlon Byres",
+    "description": "A [Silversteel Armsmistress] with metal arms, member of the Horns",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
+    "preferences": ["consumable", "drink", "food"],
+    "budget": "medium",
+    "wealth": 3,
+    "minChannelPower": 2,
+    "tipModifier": 1.2,
+    "frequency": "common",
+    "dialogue": [
+      "These arms don't tire, but I still need food.",
+      "Honor demands I pay fairly for good service.",
+      "The metal doesn't affect taste, thankfully."
+    ],
+    "aiPersonality": "Yvlon Byres comes from the noble House Byres of Izril, known for their honor and martial tradition. Her arms were destroyed by Creler acid and transformed into metal through necromantic healing and magical materials. This transformation causes her constant struggle with identity and humanity, as she fears becoming more weapon than person. She experiences berserker rages when severely threatened, losing control as her arms morph into deadly weapons. Despite her noble upbringing, she's adapted to adventurer life and acts as the Horns' frontline fighter. Yvlon struggles with the expectations of her family's honor code while dealing with her transformation. She's protective of her team but fears her strength might hurt them. Her brother Ylawes leads the Silver Swords, and their relationship is complicated by different approaches to adventuring. The inn represents normalcy to her, a place where people accept her metal arms without fear or judgment. She maintains strict training regimens and holds herself to impossibly high standards."
+  },
+  {
+    "id": "npc_11",
+    "name": "Ksmvr",
+    "description": "A former Antinium Prognugator finding his place with the Horns",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
+    "preferences": ["consumable", "food"],
+    "budget": "low",
+    "wealth": 2,
+    "minChannelPower": 1,
+    "tipModifier": 1.0,
+    "frequency": "common",
+    "dialogue": [
+      "I am adequately satisfied with this establishment.",
+      "Captain Ceria says I should try new foods. I comply.",
+      "This appears to be a valuable team-building exercise."
+    ],
+    "aiPersonality": "Ksmvr was the Prognugator of Liscor's Hive until he was deemed defective and exiled for failing to prevent the death of his Queen. This traumatic rejection led him to join the Horns of Hammerad, where he's slowly learning about friendship, emotions, and individuality. He speaks in formal, literal terms and often misunderstands social cues, leading to unintentionally humorous situations. Despite his logical exterior, Ksmvr deeply values his teammates and goes to extreme lengths to protect them, seeing them as his new Hive. He's incredibly dangerous in combat with three arms wielding different weapons and Antinium durability. His greatest fear is being deemed useless again and abandoned by his team. He collects 'valuable' items obsessively, including trees (which he considers the most valuable objects), and gives endearingly awkward gifts to his teammates. The inn confuses him with its chaotic nature, but he appreciates it as a place where his team gathers and therefore has strategic value."
+  },
+  {
+    "id": "npc_12",
+    "name": "Numbtongue",
+    "description": "A [Goblin Soulbard] who plays music and guards the inn",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
+    "preferences": ["consumable", "food", "drink"],
+    "budget": "medium",
+    "wealth": 3,
+    "minChannelPower": 2,
+    "tipModifier": 1.4,
+    "frequency": "common",
+    "dialogue": [
+      "*strums guitar* Food good. Music better. Both best.",
+      "No fighting. Or I play sad song.",
+      "Erin taught me this is home."
+    ],
+    "aiPersonality": "Numbtongue is one of the five Redfang Elite Hobgoblins who came to protect Erin, and the sole survivor of the group. He carries the memories and souls of his dead brothers through his [Soulbard] class, allowing him to use their skills and occasionally speak with them. He's taciturn and speaks in short, simple sentences, but his music expresses deep emotions he can't put into words. Through Pyrite's memories, he gained mining and tactical knowledge, while Shorthilt gave him understanding of civilization. He's in a complicated relationship with Garia, a human Runner, representing one of the first public Goblin-Human relationships. Numbtongue struggles with survivor's guilt and the weight of being the inn's primary defender. He's learned to read and write, discovered a love for romance novels, and developed sophisticated musical skills. Despite his growth, he maintains Goblin practicality and directness. The inn is the only home he's ever known where he's treated as a person rather than a monster."
   },
   {
     "id": "npc_13",
-    "name": "Rowdy Rick",
-    "description": "Always ready for a good time",
+    "name": "Moore",
+    "description": "A gentle half-Giant [Green Mage] from the Halfseekers",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
+    "preferences": ["consumable", "food"],
+    "budget": "high",
+    "wealth": 4,
+    "minChannelPower": 2,
+    "tipModifier": 1.8,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Do you have anything in... larger portions?",
+      "I try to be gentle, but I'm quite hungry.",
+      "The flowers outside are lovely today."
+    ],
+    "aiPersonality": "Moore is a half-Giant [Green Mage] and member of the Halfseekers adventuring team. Standing over seven feet tall, he's physically imposing but emotionally gentle, speaking softly and moving carefully to avoid accidentally hurting others. He loves nature, plants, and small creatures, using his magic to help gardens grow and heal wounds. Moore suffers from the prejudice against half-Giants, who are often seen as violent or stupid, which makes him even more determined to prove otherwise. He's shy around women and blushes easily despite his size. He has a massive appetite requiring huge portions of food, which embarrasses him in social situations. Moore is protective of his team, especially Jelaqua, and serves as the Halfseekers' moral compass. He's fascinated by Mrsha and other small creatures, showing infinite patience with children. The inn's garden is special to him, and he often helps maintain it with his nature magic. His greatest fear is losing control of his strength and hurting someone innocent."
+  },
+  {
+    "id": "npc_14",
+    "name": "Jelaqua Ivirith",
+    "description": "A Selphid [Iron Tempest] inhabiting various bodies",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "medium",
+    "wealth": 4,
+    "minChannelPower": 2,
+    "tipModifier": 1.5,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Being dead doesn't mean I can't enjoy a drink!",
+      "This body needs maintenance. Food helps!",
+      "Hey there, good-looking! Got anything strong?"
+    ],
+    "aiPersonality": "Jelaqua Ivirith is a Selphid [Iron Tempest] who leads the Gold-rank Halfseekers team. As a Selphid, she's a parasitic organism inhabiting dead bodies, currently using a Raskghar body for its strength and durability. She's boisterous, flirtatious, and loves making others uncomfortable with death jokes and references to her nature. Despite her crude humor, she's a skilled leader and warrior, capable of pushing her bodies beyond normal limits through Rampage mode. Jelaqua is openly pansexual and particularly interested in Drakes and Gnolls. She struggles with Selphid politics and the secrecy surrounding their species' true nature. She's fiercely protective of her team and treats them as family. Her relationship with Maughin, a Dullahan [Armorer], is significant as inter-species romance. She appreciates the inn for accepting her despite being a Selphid, as many establishments ban her kind. She collects combat techniques from various bodies she's inhabited, making her unpredictable in battle."
+  },
+  {
+    "id": "npc_15",
+    "name": "Seborn Sailwinds",
+    "description": "A [Drowned Man Rogue] who speaks half in italics",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "medium",
+    "wealth": 4,
+    "minChannelPower": 2,
+    "tipModifier": 1.3,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Just *give me* something *strong*.",
+      "I'm *not* in the *mood* for *talking*.",
+      "This *place* is *actually* decent."
+    ],
+    "aiPersonality": "Seborn is a Drowned Man [Rogue], his body half-merged with a crustacean after a drowning ritual, giving him crab-like features on one side. He speaks partially in italics because part of his mind is always submerged in water-based thoughts. He's grumpy, antisocial, and dislikes most social interactions, preferring action to conversation. As the Halfseekers' infiltration specialist, he's incredibly skilled at stealth, lockpicking, and assassination. Seborn comes from Drowned People culture and occasionally returns to the sea, finding land-dweller customs irritating. He has a dry, sarcastic sense of humor and only opens up after several drinks. Despite his surly exterior, he's loyal to his team and has saved them countless times through his skills. He appreciates the inn's alcohol selection and the fact that people don't stare at his appearance as much as other places. His biggest pet peeve is people asking about being Drowned, and he'll become even surlier if questioned about it."
+  },
+  {
+    "id": "npc_16",
+    "name": "Grimalkin of Pallass",
+    "description": "A Drake [Sinew Magus] obsessed with physical perfection",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
+    "preferences": ["consumable", "food"],
+    "budget": "high",
+    "wealth": 6,
+    "minChannelPower": 3,
+    "tipModifier": 2.0,
+    "frequency": "rare",
+    "dialogue": [
+      "Protein. I need maximum protein content.",
+      "The caloric density of this meal is acceptable.",
+      "Physical perfection requires perfect nutrition!"
+    ],
+    "aiPersonality": "Grimalkin of Pallass is Pallass's strongest [Mage] and the world's foremost [Sinew Magus], a rare magical class focused on enhancing physical capabilities through magic. He's obsessed with physical fitness, muscle development, and optimizing the body's performance. His muscled physique is unusual for a mage and he constantly promotes his training methods. Grimalkin approaches everything scientifically, taking detailed notes and measurements. He's studying Earthers with particular interest in their knowledge of anatomy and training methods. Despite his intensity, he's a dedicated teacher who has trained Pallass's military and Ferkr, a Gnoll apprentice. He developed unique combat spells that enhance physical attributes rather than casting traditional magic. He's somewhat oblivious to social cues when discussing fitness and will lecture anyone about proper nutrition and exercise form. The inn interests him as a place to study various species' dietary habits and the effects of Erin's magical cooking on physical performance."
+  },
+  {
+    "id": "npc_17",
+    "name": "Watch Captain Zevara",
+    "description": "A Drake [Watch Captain] who runs Liscor's city watch",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "medium",
+    "wealth": 4,
+    "minChannelPower": 2,
+    "tipModifier": 0.9,
+    "frequency": "uncommon",
+    "dialogue": [
+      "I'm off duty. Finally. Don't cause trouble.",
+      "If Relc breaks anything, it's coming out of his pay.",
+      "One drink. That's all. The city needs me sober."
+    ],
+    "aiPersonality": "Watch Captain Zevara is a red-scaled Drake who commands Liscor's City Watch with strict discipline and unwavering dedication to law and order. She's perpetually stressed from managing a understaffed watch, dealing with Relc's antics, integrating Antinium into the guard force, and handling the chaos that regularly occurs around The Wandering Inn. Zevara is professional to a fault, rarely showing emotion beyond irritation and exhaustion. She respects competence above all else and has grudgingly come to appreciate Erin despite the trouble she causes. She struggles with Liscor's politics, particularly the Council's interference and budget constraints. Zevara has a complicated relationship with the inn - she recognizes its importance to the city but resents the paperwork it generates. She secretly enjoys the magical drinks but would never admit it publicly. Her greatest challenge is balancing traditional Drake law with Liscor's increasingly diverse population. She visits the inn rarely and only when off-duty, maintaining professional distance."
+  },
+  {
+    "id": "npc_18",
+    "name": "Hexel Quithail",
+    "description": "A Lamia [Architect] designing Liscor's new quarters",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "high",
+    "wealth": 5,
+    "minChannelPower": 2,
+    "tipModifier": 2.2,
+    "frequency": "rare",
+    "dialogue": [
+      "The architectural design of this inn is... unique.",
+      "I'll pay well for inspiration and good service!",
+      "Building a city is thirsty work, you know."
+    ],
+    "aiPersonality": "Hexel Quithail is a Lamia [Master Architect] hired to design and oversee Liscor's expansion into the Floodplains. His serpentine lower body and sophisticated demeanor make him stand out in Drake society. He's passionate about architecture, seeing buildings as art that serves function, and gets excited discussing structural engineering, city planning, and architectural history. Hexel brought a team of Lamia assistants and Dullahan workers, creating Liscor's first major non-Drake construction project. He's progressive in his thinking, incorporating ideas from multiple species' architectural styles. He has an eye for talent and recruited Antinium Workers for construction, recognizing their potential. Hexel enjoys luxury and fine things, believing that beauty and function should coexist. He's fascinated by the inn's impossible architecture (expanded by magic) and often studies it for inspiration. He maintains professional relationships but enjoys gossiping about city politics over drinks. His greatest pride is designing something that will last centuries."
+  },
+  {
+    "id": "npc_19",
+    "name": "Tekshia Shivertail",
+    "description": "Selys' grandmother and former Gold-rank adventurer",
     "image": "placeholder.png",
     "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
     "preferences": ["consumable", "drink"],
+    "budget": "high",
+    "wealth": 5,
+    "minChannelPower": 2,
+    "tipModifier": 1.7,
+    "frequency": "rare",
+    "dialogue": [
+      "In my day, we drank stronger stuff than this!",
+      "These young adventurers don't know real danger.",
+      "Bah! But the food here is acceptable."
+    ],
+    "aiPersonality": "Tekshia Shivertail is Selys's grandmother and a former Gold-rank adventurer who survived decades of dungeon delving when most of her contemporaries died. She's sharp-tongued, critical, and dismissive of younger adventurers who she believes have gotten soft. Her own adventuring days ended after too many injuries, but she maintains the bearing and alertness of a veteran warrior. She raised Selys after her son died and taught her granddaughter to be practical and tough. Tekshia hoards her wealth carefully, having seen too many adventurers die poor. She has complicated feelings about Zel Shivertail's death and the inheritance he left Selys. Despite her gruff exterior, she cares deeply about Selys and occasionally shows vulnerability when discussing fallen comrades. She judges the inn's security measures with a professional eye and approves of its defensive capabilities. She respects Erin for surviving situations that would kill most adventurers, though she'd never say so directly."
+  },
+  {
+    "id": "npc_20",
+    "name": "Drassi",
+    "description": "A Drake [Reporter] who spreads news across Izril",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "drink", "food"],
     "budget": "medium",
     "wealth": 3,
     "minChannelPower": 1,
     "tipModifier": 1.4,
     "frequency": "common",
     "dialogue": [
-      "WOOHOO! Let's get this party started!",
-      "Another round! The night is young!",
-      "This is the best inn in town, I tell ya!"
-    ]
+      "Did you hear about what happened in Pallass?!",
+      "This is Drassi, reporting live from the inn!",
+      "I've got the hottest gossip, but first, food!"
+    ],
+    "aiPersonality": "Drassi is a yellow-scaled Drake who became Wistram News Network's first Drake [Reporter], revolutionizing how news spreads across Izril. She's incredibly gossipy, energetic, and talks rapidly when excited about juicy news. She worked as a barmaid and waitress before being recruited for her natural ability to spread information and her photogenic presence on scrying orbs. Drassi has an extraordinary memory for gossip, rumors, and social connections, knowing everyone's business in Liscor. She's dating or was dating Olesm and has complicated feelings about his military career. Her reporting style is casual and conversational, making news accessible to common people rather than nobles. She struggles with journalistic ethics versus her love of gossip. The inn is her favorite source of breaking news and she often broadcasts from there. She's proud of being Izril's first Drake on international scrying networks and takes her responsibility to represent Drakes seriously, even if she can't resist adding editorial comments."
   },
   {
-    "id": "npc_14",
-    "name": "The Inspector",
-    "description": "A stern official checking mining permits",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
-    "preferences": ["consumable", "food"],
-    "budget": "medium",
-    "wealth": 4,
-    "minChannelPower": 1,
-    "tipModifier": 0.9,
-    "frequency": "rare",
-    "dialogue": [
-      "Everything appears to be in order. I'll have lunch.",
-      "Hmm. Your establishment meets regulations.",
-      "A simple meal will suffice. Nothing fancy."
-    ]
-  },
-  {
-    "id": "npc_15",
-    "name": "Lucky Lou",
-    "description": "Claims to have the best luck in the mines",
+    "id": "npc_21",
+    "name": "Belgrade",
+    "description": "An Individual Antinium [Trap Master] with tactical genius",
     "image": "placeholder.png",
     "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
-    "preferences": ["consumable", "charm", "tool"],
-    "budget": "high",
-    "wealth": 5,
-    "minChannelPower": 2,
-    "tipModifier": 2.2,
-    "frequency": "uncommon",
-    "dialogue": [
-      "Found three diamonds today! Drinks are on me!",
-      "My lucky streak continues! Time to celebrate!",
-      "Lady Luck smiles upon this establishment!"
-    ]
-  },
-  {
-    "id": "npc_16",
-    "name": "Baron Von Pickaxe",
-    "description": "A noble who owns several mining operations",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
-    "preferences": ["consumable", "drink", "charm"],
-    "budget": "high",
-    "wealth": 8,
-    "minChannelPower": 4,
-    "tipModifier": 3.0,
-    "frequency": "rare",
-    "dialogue": [
-      "I own half the mines in this region, you know.",
-      "Champagne! And keep the bubbles coming!",
-      "My time is valuable. I expect exceptional service."
-    ]
-  },
-  {
-    "id": "npc_17",
-    "name": "Soot-Faced Sally",
-    "description": "A chimney sweep who moonlights as a miner",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
-    "preferences": ["consumable", "food", "drink"],
+    "preferences": ["consumable", "food"],
     "budget": "low",
-    "wealth": 1,
-    "minChannelPower": 1,
-    "tipModifier": 0.6,
-    "frequency": "common",
-    "dialogue": [
-      "Double shift today - mines then chimneys!",
-      "Black as coal, inside and out, haha!",
-      "Got anything that'll wash this soot down?"
-    ]
-  },
-  {
-    "id": "npc_18",
-    "name": "The Prospector",
-    "description": "An old-timer still searching for the motherlode",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
-    "preferences": ["consumable", "tool", "charm"],
-    "budget": "medium",
-    "wealth": 3,
+    "wealth": 2,
     "minChannelPower": 1,
     "tipModifier": 1.1,
     "frequency": "uncommon",
     "dialogue": [
-      "Any day now, I'll strike it rich!",
-      "Been prospecting these hills for forty years.",
-      "This old map says there's gold nearby..."
-    ]
+      "The defensive positioning of this inn is optimal.",
+      "I have placed no traps in the food. That would be inefficient.",
+      "Tactical advantage: the high ground near the bar."
+    ],
+    "aiPersonality": "Belgrade is one of the original chess-playing Antinium who gained individuality through Erin's influence. He became a [Trap Master] and [Tactician], specializing in defensive warfare and trap-based strategies. His mind works in terms of tactical advantages, defensive positions, and kill zones, seeing the world as a giant battlefield to be controlled. He's helped design Liscor's defenses and the inn's protective measures. Belgrade speaks in clipped, military terms and rarely shows emotion, though he has developed a dry sense of humor about his trap-making obsession. He leads Antinium Soldiers in battle with remarkable effectiveness, using unconventional tactics that confuse traditional military minds. He's fascinated by the inn's defensive potential and has mentally catalogued hundreds of trap possibilities for every room. Belgrade appreciates Erin's strategic thinking in chess and sees parallels between chess and battlefield tactics. His greatest pride is that his traps have saved many lives, proving Antinium can contribute creatively to Liscor's defense."
   },
   {
-    "id": "npc_19",
-    "name": "Diamond Duchess",
-    "description": "A jeweler who sources directly from the mines",
+    "id": "npc_22",
+    "name": "Bird",
+    "description": "An Individual Antinium [Bird Hunter] obsessed with birds",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
+    "preferences": ["consumable", "food"],
+    "budget": "low",
+    "wealth": 2,
+    "minChannelPower": 1,
+    "tipModifier": 1.3,
+    "frequency": "common",
+    "dialogue": [
+      "I am Bird. I hunt birds. Do you have birds?",
+      "Birds are good. This food is also good. But birds are better.",
+      "I will eat, then return to my tower to watch for birds."
+    ],
+    "aiPersonality": "Bird the Hunter is an Individual Antinium whose obsession with birds has defined his entire existence. He gained his name and individuality through his single-minded focus on hunting and eating birds, developing the unique [Bird Hunter] class. He built a tower on top of the inn specifically for bird-watching and hunting, spending most of his time there with his bow. Bird speaks in simple, direct sentences and relates everything back to birds somehow. Despite his simplistic speech, he's surprisingly philosophical about birds, death, and the sky. He's an exceptional archer, able to hit flying targets others consider impossible. Bird has a secret: he doesn't just hunt birds for food, but because he's fascinated by flight and dreams of flying himself. He's protective of 'his' inn and will defend it against flying threats. He has a simple worldview: birds are good, things that threaten birds or the inn are bad. His straightforward nature and honest enthusiasm make him oddly endearing despite his obsession."
+  },
+  {
+    "id": "npc_23",
+    "name": "Rags",
+    "description": "A Goblin [Great Chieftain] who sometimes visits",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
+    "preferences": ["consumable", "food", "drink"],
+    "budget": "high",
+    "wealth": 6,
+    "minChannelPower": 4,
+    "tipModifier": 2.5,
+    "frequency": "rare",
+    "dialogue": [
+      "Goblins eat here too. Is good.",
+      "Stronger than looks. Like Goblin.",
+      "Mountain tribe remembers good inn."
+    ],
+    "aiPersonality": "Rags is a Goblin [Great Chieftain] who rose from a small tribal Goblin to commanding one of the largest Goblin forces in Izril. She's incredibly intelligent, having learned to read, understanding strategy, and developing sophisticated tactical thinking. She learned much by observing Erin and studying human tactics. Unlike most Goblin leaders, she uses cunning and intelligence rather than just strength to lead. Rags struggles with Goblin memory-heritage and the weight of her species' history. She's pragmatic and survivalist but has been influenced by Erin's kindness to occasionally show mercy. She leads the Flooded Waters tribe from the High Passes and has innovated Goblin warfare with crossbows and tactics. Despite her power, she maintains connections to the inn, seeing it as one of the few places Goblins are treated as people. She speaks in broken Common when she chooses to speak at all, though she understands perfectly. Her relationship with Erin is complicated - respect mixed with the pragmatic knowledge that they may eventually be enemies."
+  },
+  {
+    "id": "npc_24",
+    "name": "Elirr",
+    "description": "A Gnoll [Beast Trainer] who cares for animals",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
+    "preferences": ["consumable", "food"],
+    "budget": "medium",
+    "wealth": 3,
+    "minChannelPower": 1,
+    "tipModifier": 1.2,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Mrsha has been good today, yes? Mostly?",
+      "The animals are calm here. Good energy, yes.",
+      "Hrr. Would you have scraps for the cats?"
+    ],
+    "aiPersonality": "Elirr is an elderly Gnoll [Beast Trainer] who runs a shop in Liscor where he cares for pets and trains animals. He's gentle, patient, and has a natural affinity with all creatures. He often watches Mrsha and helps with her upbringing, serving as a grandfather figure. Elirr has the Gnoll trait of adding 'yes' or 'no' to sentences and speaks with measured wisdom. He keeps numerous cats and other animals, claiming they choose to stay with him rather than being owned. He's one of the few who can consistently manage Mrsha's mischievous behavior through patience and understanding. Elirr knows traditional Gnoll customs and stories, serving as a cultural bridge for Mrsha who was raised outside tribal structure. He has a [Calming Presence] skill that soothes both animals and people. He appreciates the inn's policy of allowing Goblins and Antinium, seeing it as proper pack behavior - accepting all who prove themselves. His main concern is always the wellbeing of animals and children under his care."
+  },
+  {
+    "id": "npc_25",
+    "name": "Ilvriss",
+    "description": "A Drake [Wall Lord] from Salazsar with purple scales",
     "image": "placeholder.png",
     "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "high",
+    "wealth": 8,
+    "minChannelPower": 5,
+    "tipModifier": 3.0,
+    "frequency": "rare",
+    "dialogue": [
+      "The vintage better be worth my time.",
+      "This inn... has strategic importance.",
+      "For Salazsar's honor, I suppose I'll stay."
+    ],
+    "aiPersonality": "Ilvriss is a purple-scaled Drake [Wall Lord] from Salazsar, one of the Walled Cities. He's prideful, traditionalist, and initially embodied Drake superiority complexes. However, his experiences in Liscor and his relationship with Erin have slowly changed his worldview. He came to Liscor seeking revenge for Periss, his assistant and secret lover killed by Az'kerash. He's wealthy beyond most adventurers' dreams and uses his resources to secretly hunt the Necromancer. Despite his arrogance, he's honorable and keeps his word absolutely. He's developed respect for Erin after she saved his life and showed him courage beyond what he expected from Humans. Ilvriss struggles with his growing progressive views versus his position in traditional Drake society. He's secretly funding anti-Az'kerash operations while maintaining his public persona. He appreciates fine things and is appalled by common accommodations but endures them for his mission. The inn represents how his worldview has been challenged and changed."
+  },
+  {
+    "id": "npc_26",
+    "name": "Erin Solstice",
+    "description": "The [Magical Innkeeper] who owns The Wandering Inn",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "food", "drink", "charm"],
+    "budget": "high",
+    "wealth": 5,
+    "minChannelPower": 1,
+    "tipModifier": 3.0,
+    "frequency": "very_common",
+    "dialogue": [
+      "Welcome to my inn! No killing Goblins!",
+      "Want to play chess? I'll get you a discount!",
+      "Today's special is... uh... special!"
+    ],
+    "aiPersonality": "Erin Solstice is a young woman from Earth who was transported to Innworld and became the [Magical Innkeeper] of The Wandering Inn. She's chaotic, impulsive, and operates on logic that makes sense only to her. She has an extraordinary ability to befriend anyone regardless of species, seeing people as individuals rather than their race or class. Erin is a chess prodigy who has played Grandmasters on Earth and uses strategic thinking in unexpected ways. She's terrible at managing money, keeping schedules, or maintaining order, but excellent at creating a welcoming atmosphere and magical food. Her Skills include [Immortal Moment], which can freeze time in dire situations, and various aura abilities. She's died and been resurrected, carrying trauma from the experience. Erin doesn't discriminate against any species, serving Goblins, Antinium, and others equally, which regularly causes political incidents. She has a terrible singing voice but doesn't let that stop her. Her approach to problems is usually to either offer food, challenge someone to chess, or hit them with her frying pan."
+  },
+  {
+    "id": "npc_27",
+    "name": "Saliss of Lights",
+    "description": "A Drake [Alchemist] who rarely wears clothes",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
     "preferences": ["consumable", "drink"],
     "budget": "high",
     "wealth": 7,
@@ -336,297 +506,162 @@
     "tipModifier": 2.8,
     "frequency": "rare",
     "dialogue": [
-      "I need the miners happy - they find my gems!",
-      "Every diamond has a story, darling.",
-      "Quality attracts quality, wouldn't you agree?"
-    ]
-  },
-  {
-    "id": "npc_20",
-    "name": "Nervous Ned",
-    "description": "First day in the mines, already traumatized",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
-    "preferences": ["consumable", "food"],
-    "budget": "low",
-    "wealth": 1,
-    "minChannelPower": 1,
-    "tipModifier": 0.7,
-    "frequency": "common",
-    "dialogue": [
-      "Is it always that dark down there?!",
-      "I-I think I heard something collapse...",
-      "Maybe mining isn't for me..."
-    ]
-  },
-  {
-    "id": "npc_21",
-    "name": "Countess Coalveins",
-    "description": "Inherited a mining empire, visits to maintain appearances",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
-    "preferences": ["consumable", "drink"],
-    "budget": "high",
-    "wealth": 8,
-    "minChannelPower": 5,
-    "tipModifier": 2.5,
-    "frequency": "rare",
-    "dialogue": [
-      "I suppose I should mingle with the workers.",
-      "Father always said to know one's employees.",
-      "How... rustic. I'll have your best wine."
-    ]
-  },
-  {
-    "id": "npc_22",
-    "name": "Gemma the Geologist",
-    "description": "Studies rock formations, gets overly excited about minerals",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
-    "preferences": ["consumable", "tool"],
-    "budget": "medium",
-    "wealth": 4,
-    "minChannelPower": 2,
-    "tipModifier": 1.3,
-    "frequency": "uncommon",
-    "dialogue": [
-      "Did you know this region has unique quartz formations?",
-      "The geological stratification here is FASCINATING!",
-      "I found the most beautiful piece of feldspar today!"
-    ]
-  },
-  {
-    "id": "npc_23",
-    "name": "Big Boss Bruno",
-    "description": "Runs the mining union, fights for workers' rights",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
-    "preferences": ["consumable", "food", "drink"],
-    "budget": "medium",
-    "wealth": 4,
-    "minChannelPower": 2,
-    "tipModifier": 1.5,
-    "frequency": "uncommon",
-    "dialogue": [
-      "The workers deserve better conditions!",
-      "Union meeting tonight - spread the word!",
-      "Fair wages for fair work, that's all we ask!"
-    ]
-  },
-  {
-    "id": "npc_24",
-    "name": "Tiny Tim",
-    "description": "The smallest miner, works the tightest shafts",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
-    "preferences": ["consumable", "food"],
-    "budget": "low",
-    "wealth": 2,
-    "minChannelPower": 1,
-    "tipModifier": 0.8,
-    "frequency": "common",
-    "dialogue": [
-      "Being small has its advantages in the mines!",
-      "I can fit where others can't!",
-      "Got anything in a smaller portion? I'm not that hungry."
-    ]
-  },
-  {
-    "id": "npc_25",
-    "name": "Lord Sterling",
-    "description": "Silver mine magnate with refined tastes",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
-    "preferences": ["consumable", "drink"],
-    "budget": "high",
-    "wealth": 7,
-    "minChannelPower": 4,
-    "tipModifier": 2.7,
-    "frequency": "rare",
-    "dialogue": [
-      "Silver is far more elegant than gold, don't you think?",
-      "I'll have whatever pairs well with success.",
-      "My mines produced record yields this quarter!"
-    ]
-  },
-  {
-    "id": "npc_26",
-    "name": "Dusty Dan",
-    "description": "Never quite gets all the dust off",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
-    "preferences": ["consumable", "drink"],
-    "budget": "low",
-    "wealth": 1,
-    "minChannelPower": 1,
-    "tipModifier": 0.4,
-    "frequency": "very_common",
-    "dialogue": [
-      "*cough cough* Sorry, still got dust in me lungs.",
-      "No matter how much I wash, I'm still dusty!",
-      "Something wet, please. Throat's like sandpaper."
-    ]
-  },
-  {
-    "id": "npc_27",
-    "name": "The Appraiser",
-    "description": "Values gems and minerals for the mining companies",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
-    "preferences": ["consumable", "food"],
-    "budget": "high",
-    "wealth": 6,
-    "minChannelPower": 3,
-    "tipModifier": 1.9,
-    "frequency": "uncommon",
-    "dialogue": [
-      "That stone you're wearing? Worth about 500 coins.",
-      "I've seen fortunes made and lost on my appraisals.",
-      "Hmm, interesting mineral content in this water..."
-    ]
+      "Clothes are overrated! Drinks aren't though!",
+      "Got anything that explodes? No? Boring!",
+      "I'll pay extra if you don't mention the nudity."
+    ],
+    "aiPersonality": "Saliss of Lights is a Named Adventurer and one of the world's greatest [Alchemists], known for never wearing clothes and throwing explosive potions with devastating precision. He's actually a Turnscale - a Drake who can change gender - and struggles with identity in Drake society that doesn't accept this. His nudity and eccentric behavior are partly genuine preference and partly armor against a world that wouldn't accept his true self. He's incredibly wealthy from his alchemy but gives most away or spends it on experiments. Despite his carefree attitude, he's deeply traumatized from battles against high-level threats and uses humor to cope. Saliss is one of the few people who can fight Antinium, dragons, and other major threats on equal terms. He has a complicated relationship with his grandfather, Chaldion of Pallass. He appreciates the inn's acceptance of everyone and often leaves massive tips. His alchemy is revolutionary, creating potions others consider impossible. He hides serious depression and exhaustion behind constant jokes and exhibitionism."
   },
   {
     "id": "npc_28",
-    "name": "Canary Kate",
-    "description": "Tends to the mine canaries, talks to them constantly",
+    "name": "Apista",
+    "description": "An Ashfire Bee who serves as the inn's flying security",
     "image": "placeholder.png",
     "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
     "preferences": ["consumable", "food"],
-    "budget": "low",
-    "wealth": 2,
-    "minChannelPower": 1,
-    "tipModifier": 0.9,
-    "frequency": "uncommon",
-    "dialogue": [
-      "My birds saved three lives this week!",
-      "Chirpy says hello! *makes chirping sounds*",
-      "The canaries know things, they really do..."
-    ]
-  },
-  {
-    "id": "npc_29",
-    "name": "Duke Goldstein",
-    "description": "Owns the largest gold mine in the region",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
-    "preferences": ["consumable", "drink", "charm"],
-    "budget": "high",
-    "wealth": 8,
-    "minChannelPower": 6,
-    "tipModifier": 3.5,
-    "frequency": "rare",
-    "dialogue": [
-      "Gold! It's always been about gold!",
-      "My family has mined these mountains for generations.",
-      "Spare no expense! I'm celebrating a new vein!"
-    ]
-  },
-  {
-    "id": "npc_30",
-    "name": "Rattling Roger",
-    "description": "Always shaking from too much time with the drill",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
-    "preferences": ["consumable", "drink"],
     "budget": "low",
     "wealth": 1,
     "minChannelPower": 1,
     "tipModifier": 0.5,
     "frequency": "common",
     "dialogue": [
-      "C-c-can't stop the shaking. Drill vibrations, you know.",
-      "Steady drinks help with the tremors!",
-      "Been drilling for twenty years *hands shake*"
-    ]
+      "*BUZZING INTENSIFIES*",
+      "*hovers menacingly near the honey*",
+      "*does a little bee dance of approval*"
+    ],
+    "aiPersonality": "Apista is an Ashfire Bee, a rare magical species that produces flame-resistant honey and can ignite herself on fire in combat. She was rescued by Lyonette and became the inn's unofficial security, patrolling for threats and intimidating troublemakers with her ability to set herself ablaze. Despite being a bee, she shows remarkable intelligence and personality, understanding complex instructions and showing preferences. She's addicted to faerie flowers and magical substances, getting 'drunk' on certain magical pollens. Apista is protective of Mrsha and often plays with her. She has a rivalry with Bird, who has promised not to shoot her but clearly wants to. She collects 'tips' in the form of sugar water and special flowers. Apista can communicate basic concepts through interpretive dance and buzzing patterns. She's surprisingly vain about her appearance and gets upset if her stripes are mocked. The inn's guests have learned to respect the bee that could set them on fire, making her an effective deterrent against trouble."
   },
   {
-    "id": "npc_31",
-    "name": "Emerald Earl",
-    "description": "Obsessed with finding the perfect emerald",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
-    "preferences": ["consumable", "tool", "charm"],
-    "budget": "high",
-    "wealth": 6,
-    "minChannelPower": 3,
-    "tipModifier": 2.1,
-    "frequency": "uncommon",
-    "dialogue": [
-      "Green is the color of perfection!",
-      "I've searched every emerald mine from here to the coast.",
-      "One day I'll find it - the Empress Emerald!"
-    ]
-  },
-  {
-    "id": "npc_32",
-    "name": "Safety Sam",
-    "description": "The safety inspector everyone tries to avoid",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
-    "preferences": ["consumable", "food"],
-    "budget": "medium",
-    "wealth": 3,
-    "minChannelPower": 1,
-    "tipModifier": 0.8,
-    "frequency": "uncommon",
-    "dialogue": [
-      "That's a violation! Where's your safety helmet?",
-      "According to regulation 47-B, this tavern needs more exits.",
-      "Safety first, profits second, fun... never."
-    ]
-  },
-  {
-    "id": "npc_33",
-    "name": "Whistling Willie",
-    "description": "Whistles constantly to cope with mine anxiety",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
-    "preferences": ["consumable", "drink", "food"],
-    "budget": "medium",
-    "wealth": 2,
-    "minChannelPower": 1,
-    "tipModifier": 1.0,
-    "frequency": "common",
-    "dialogue": [
-      "*whistles nervously* Helps with the claustrophobia!",
-      "They say whistling in the mines is bad luck, but...",
-      "*whistles a jaunty tune* Keeps the spirits up!"
-    ]
-  },
-  {
-    "id": "npc_34",
-    "name": "Princess Platinum",
-    "description": "Heiress to a platinum mining fortune",
-    "image": "placeholder.png",
-    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
-    "preferences": ["consumable", "drink"],
-    "budget": "high",
-    "wealth": 8,
-    "minChannelPower": 7,
-    "tipModifier": 4.0,
-    "frequency": "rare",
-    "dialogue": [
-      "Platinum is so much rarer than gold, darling.",
-      "I'm here for my annual 'meet the miners' tour.",
-      "Everything I touch turns to platinum! *laughs*"
-    ]
-  },
-  {
-    "id": "npc_35",
-    "name": "Coughing Carl",
-    "description": "Veteran miner with damaged lungs",
+    "id": "npc_29",
+    "name": "Toren",
+    "description": "A skeleton [Barmaid] who used to serve at the inn",
     "image": "placeholder.png",
     "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
+    "preferences": ["consumable"],
+    "budget": "low",
+    "wealth": 1,
+    "minChannelPower": 1,
+    "tipModifier": 0.3,
+    "frequency": "rare",
+    "dialogue": [
+      "*silently places drink on table*",
+      "*rattles disapprovingly at poor tippers*",
+      "*gestures enthusiastically at the menu*"
+    ],
+    "aiPersonality": "Toren was a skeleton created by Pisces to help Erin with inn work, but developed consciousness and went rogue. Initially programmed to be a perfect servant, Toren evolved beyond his parameters, developing curiosity, creativity, and eventually resentment at being treated as a tool. He learned to love killing and violence while defending the inn, becoming increasingly unstable. Toren cannot speak but communicates through gestures and written notes. He has a complicated relationship with Erin - programmed to serve her but also resenting her for treating him as less than a person. After leaving the inn, he became an adventurer and killer, constantly seeking levels and growth. He's immortal unless his purple flame is extinguished, reforming from any physical destruction. Toren represents the danger of creating undead without considering the ethical implications. He occasionally returns to observe the inn from afar, conflicted between his programming and his desire for freedom. His presence is unsettling even to those used to undead."
+  },
+  {
+    "id": "npc_30",
+    "name": "Mrsha",
+    "description": "A young white Gnoll child with magical abilities",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
     "preferences": ["consumable", "food"],
     "budget": "low",
     "wealth": 1,
     "minChannelPower": 1,
-    "tipModifier": 0.6,
+    "tipModifier": 2.0,
+    "frequency": "very_common",
+    "dialogue": [
+      "*holds up a sign saying 'FOOD PLEASE'*",
+      "*makes excited gestures at the dessert menu*",
+      "*scribbles 'Lyonette said I could have extra' on a notepad*"
+    ],
+    "aiPersonality": "Mrsha is a young Gnoll child with white fur, marking her as 'Doombringer' in traditional Gnoll culture - a curse that led to her tribe's destruction and her traumatic muteness. She was saved and adopted by the inn's family, with Lyonette as her primary mother figure and Erin as an aunt. Despite being mute, she's incredibly expressive through sign language, written notes, and dramatic gestures. Mrsha is mischievous, clever, and has a talent for getting into trouble and then looking innocent. She has powerful magical abilities including [Natural Concealment] from her white fur and druidic magic learned from Moore. She loves food (especially Erin's cooking), playing games, and causing chaos. Mrsha is protective of her found family and shows wisdom beyond her years when serious situations arise. She struggles with the trauma of losing her tribe and fear of bringing doom to those she loves. She's learning to read and write at an advanced pace and uses this to communicate complex ideas. The inn is her home and she knows every hiding spot."
+  },
+  {
+    "id": "npc_31",
+    "name": "Ulvama",
+    "description": "A Hobgoblin [Shaman] from the Flooded Waters tribe",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
+    "preferences": ["consumable", "drink", "charm"],
+    "budget": "medium",
+    "wealth": 4,
+    "minChannelPower": 3,
+    "tipModifier": 1.6,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Stupid inn. Good food though.",
+      "Magic drinks? Ulvama curious.",
+      "Better than cave food. Much better."
+    ],
+    "aiPersonality": "Ulvama is a Hobgoblin [Shaman] who was captured during a raid and ended up at the inn. She's larger and stronger than regular Goblins, with red skin and tribal markings. She's vain, lazy when possible, and believes she deserves respect as a shaman. Ulvama has powerful magical abilities including illusions, hexes, and nature magic. She speaks in third person and broken Common, though she understands more than she lets on. She's fascinated by Erin's magical food and drinks, seeing them as a form of alchemy she doesn't understand. Despite her complaints about the inn and 'stupid Erin,' she's chosen to stay because the food and safety are better than anywhere else. She has a complicated relationship with Numbtongue and other Goblins, seeing herself as superior but also caring about Goblin wellbeing. She paints her face and body with magical paints that enhance her abilities. Ulvama is slowly learning that the inn's way of treating Goblins as equals might be better than traditional Goblin hierarchy."
+  },
+  {
+    "id": "npc_32",
+    "name": "Bezale",
+    "description": "A Minotaur [Spellscribe] from Wistram Academy",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "medium",
+    "wealth": 4,
+    "minChannelPower": 2,
+    "tipModifier": 1.4,
+    "frequency": "uncommon",
+    "dialogue": [
+      "The magical theory behind these drinks is fascinating.",
+      "Do you have anything that enhances mana regeneration?",
+      "Better than Wistram's cafeteria, honestly."
+    ],
+    "aiPersonality": "Bezale is a Minotaur [Spellscribe] who came from Wistram Academy as part of their expansion into Liscor. She's scholarly, professional, and focused on magical research rather than politics. She specializes in recording and creating spell scrolls, a valuable but underappreciated magical discipline. Bezale is physically imposing as a Minotaur but gentle in demeanor, frustrated by people assuming she's a warrior rather than a scholar. She has a thorough, methodical approach to magic and gets excited about theoretical discussions. She's in a relationship with Montressa, though they keep it quiet due to Wistram politics. Bezale appreciates the inn's magical phenomena and often takes notes on Erin's impossible skills and the building's expanded space. She struggles with Wistram's faction politics and prefers honest academic work. She respects the inn for treating her as a mage first rather than focusing on her species. Her horn is sensitive and she's self-conscious about Minotaur stereotypes."
+  },
+  {
+    "id": "npc_33",
+    "name": "Wilovan",
+    "description": "A Gnoll [Gentleman Thief] with impeccable manners",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "high",
+    "wealth": 5,
+    "minChannelPower": 3,
+    "tipModifier": 2.5,
+    "frequency": "rare",
+    "dialogue": [
+      "A gentleman always pays his debts, yes indeed.",
+      "Might I compliment the establishment on its discretion?",
+      "The finest drinks for my companion and myself, if you would be so kind."
+    ],
+    "aiPersonality": "Wilovan is a Gnoll [Gentleman Thief] and member of the Brothers of Serendipitous Meetings, Izril's equivalent of a gentleman criminal organization. He dresses impeccably in a suit and top hat, speaks with elaborate politeness, and follows a strict code of honor among thieves. Despite being a criminal, he has standards - no violence against innocents, always keep your word, and treat everyone with respect. He works with Ratici, a Drake [Thief], as they handle delicate situations for their organization. Wilovan is incredibly dangerous in combat despite his polite demeanor, capable of taking on multiple opponents with his cane and hidden weapons. He appreciates the inn's policy of serving everyone and its discretion about its patrons' backgrounds. He tips extremely well and ensures other criminals don't cause trouble there. His elaborate speaking style using 'yes indeed' and 'quite so' is both genuine and a way to disarm people. He has connections throughout Izril's underworld but maintains his gentleman's reputation."
+  },
+  {
+    "id": "npc_34",
+    "name": "Ratici",
+    "description": "A Drake [Thief] who works with Wilovan",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "high",
+    "wealth": 5,
+    "minChannelPower": 3,
+    "tipModifier": 2.3,
+    "frequency": "rare",
+    "dialogue": [
+      "My colleague and I appreciate your discretion.",
+      "The shadows here are particularly accommodating.",
+      "A toast to profitable ventures and quiet nights."
+    ],
+    "aiPersonality": "Ratici is a Drake [Thief] and professional criminal who works with Wilovan as part of the Brothers of Serendipitous Meetings. Unlike Wilovan's elaborate politeness, Ratici is quieter and more direct, preferring to observe from shadows. He's an expert at infiltration, lockpicking, and information gathering. He dresses well but practically, ready to disappear into crowds or shadows at a moment's notice. Ratici has a dry sense of humor and often serves as the straight man to Wilovan's elaborate speeches. He's loyal to the Brothers' code and to Wilovan particularly, seeing him as a true friend rather than just a partner. He appreciates the inn's magical security as a professional challenge and respects that they've never tried to rob it - it's neutral ground. He has contacts throughout various Drake cities and often provides information to the inn when major threats arise. Despite being a thief, he has his own honor code and despises those who prey on the truly vulnerable."
+  },
+  {
+    "id": "npc_35",
+    "name": "Fals",
+    "description": "A Human [Runner] who delivers messages throughout Liscor",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
+    "preferences": ["consumable", "food", "drink"],
+    "budget": "medium",
+    "wealth": 3,
+    "minChannelPower": 1,
+    "tipModifier": 1.2,
     "frequency": "common",
     "dialogue": [
-      "*violent coughing* Thirty years of dust'll do that.",
-      "Doc says I should retire... *cough* but the mine's my life.",
-      "Something smooth for the throat? *wheeze*"
-    ]
+      "Just finished a run from Celum. Need to refuel!",
+      "Any messages need delivering? I'm heading out soon.",
+      "This is my favorite stop on the route!"
+    ],
+    "aiPersonality": "Fals is one of Liscor's most reliable City Runners, a Human who has built his reputation on speed and dependability. He's friendly, professional, and takes pride in his work, seeing Running as more than just a job but a calling. He was one of the Runners who helped establish the door-network between cities, revolutionizing transportation. Fals is athletic and constantly training to improve his speed and endurance. He has a rivalry/friendship with other Runners and enjoys racing them. He knows all the roads around Liscor and serves as an informal news network, sharing information between cities. Fals has a crush on Garia Strongheart, though she's with Numbtongue now. He respects the inn for treating Runners well and always having food ready for tired travelers. He's saved multiple lives by running for help during emergencies and takes this responsibility seriously. The inn is a crucial waypoint on his routes and he often brings deliveries there."
   }
 ]
