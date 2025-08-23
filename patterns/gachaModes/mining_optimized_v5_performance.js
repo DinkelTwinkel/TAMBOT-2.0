@@ -334,9 +334,9 @@ async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0)
         if (!cached) {
             // Fallback to direct DB read if cache fails
             console.error(`[MINING] Cache miss for channel ${channelId}, falling back to DB`);
-            const entry = await gachaVC.findOne({ channelId }).lean();
+            const entry = await gachaVC.findOne({ channelId }); // Don't use lean() here
             if (entry) {
-                // Ensure minecart structure exists in DB entry
+                // Ensure minecart structure exists in DB entry at gameData.minecart
                 if (!entry.gameData) entry.gameData = {};
                 if (!entry.gameData.minecart) {
                     entry.gameData.minecart = { items: {}, contributors: {} };
@@ -347,6 +347,9 @@ async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0)
                 if (!entry.gameData.minecart.contributors) {
                     entry.gameData.minecart.contributors = {};
                 }
+                // Mark as modified to ensure save
+                entry.markModified('gameData.minecart');
+                await entry.save(); // Save the structure immediately
                 await mapCacheSystem.initialize(channelId, true);
                 return entry;
             }
@@ -354,7 +357,7 @@ async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0)
         }
         
         // Return cached data formatted like DB entry
-        // Ensure minecart exists with proper structure
+        // Ensure minecart exists with proper structure at gameData.minecart
         if (!cached.minecart) {
             cached.minecart = { items: {}, contributors: {} };
         }
@@ -367,14 +370,25 @@ async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0)
         
         return {
             channelId: channelId,
-            gameData: cached,
+            gameData: {
+                ...cached,
+                minecart: cached.minecart || { items: {}, contributors: {} }
+            },
             nextShopRefresh: cached.nextShopRefresh,
             nextTrigger: cached.nextTrigger,
             save: async function() {
                 const updates = {};
                 for (const [key, value] of Object.entries(this.gameData)) {
                     if (key !== 'lastUpdated' && key !== 'channelId') {
-                        updates[key] = value;
+                        // Special handling for minecart to ensure structure
+                        if (key === 'minecart') {
+                            updates[key] = {
+                                items: value.items || {},
+                                contributors: value.contributors || {}
+                            };
+                        } else {
+                            updates[key] = value;
+                        }
                     }
                 }
                 return mapCacheSystem.updateMultiple(channelId, updates);
@@ -1114,6 +1128,17 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
         }
 
         const minecartSummary = getMinecartSummary(result);
+        
+        // Debug: Verify minecart data structure (only log occasionally)
+        if (Math.random() < 0.05) { // 5% chance to log
+            console.log(`[MINECART DEBUG] Channel ${channel.id}:`, {
+                hasGameData: !!result.gameData,
+                hasMinecart: !!result.gameData?.minecart,
+                hasItems: !!result.gameData?.minecart?.items,
+                itemCount: Object.keys(result.gameData?.minecart?.items || {}).length,
+                totalValue: minecartSummary.totalValue
+            });
+        }
         const timestamp = new Date().toLocaleTimeString('en-US', { 
             hour12: false, 
             hour: '2-digit', 
