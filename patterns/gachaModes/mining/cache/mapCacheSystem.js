@@ -40,8 +40,8 @@ class MapCacheSystem {
             
             console.log(`[MAP_CACHE] Initializing cache for channel ${channelId}...`);
             
-            // Fetch from DB once
-            const dbEntry = await gachaVC.findOne({ channelId });
+            // Fetch from DB once using lean() for plain JavaScript object
+            const dbEntry = await gachaVC.findOne({ channelId }).lean();
             
             if (!dbEntry || !dbEntry.gameData) {
                 console.log(`[MAP_CACHE] No game data found for channel ${channelId}`);
@@ -350,7 +350,7 @@ class MapCacheSystem {
             const activeChannels = await gachaVC.find({
                 'gameData.gamemode': 'mining',
                 'gameData.map': { $exists: true }
-            }).select('channelId gameData nextShopRefresh nextTrigger');
+            }).select('channelId gameData nextShopRefresh nextTrigger').lean();
             
             console.log(`[MAP_CACHE] Found ${activeChannels.length} active mining channels`);
             

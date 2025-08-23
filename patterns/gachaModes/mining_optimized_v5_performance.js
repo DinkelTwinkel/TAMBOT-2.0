@@ -334,11 +334,23 @@ async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0)
         if (!cached) {
             // Fallback to direct DB read if cache fails
             console.error(`[MINING] Cache miss for channel ${channelId}, falling back to DB`);
-            const entry = await gachaVC.findOne({ channelId });
+            const entry = await gachaVC.findOne({ channelId }).lean();
             if (entry) {
+                // Ensure minecart structure exists in DB entry
+                if (!entry.gameData) entry.gameData = {};
+                if (!entry.gameData.minecart) {
+                    entry.gameData.minecart = { items: {}, contributors: {} };
+                }
+                if (!entry.gameData.minecart.items) {
+                    entry.gameData.minecart.items = {};
+                }
+                if (!entry.gameData.minecart.contributors) {
+                    entry.gameData.minecart.contributors = {};
+                }
                 await mapCacheSystem.initialize(channelId, true);
+                return entry;
             }
-            return entry;
+            return null;
         }
         
         // Return cached data formatted like DB entry
