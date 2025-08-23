@@ -377,8 +377,8 @@ const UNIQUE_ITEMS = [
         glowColor: "#2F4F4F", // Dark Slate Gray
         particleEffect: "shadow_trail",
         
-        maintenanceType: "movement_activity",
-        maintenanceCost: 500, // Need to move 500 tiles per day
+        maintenanceType: "coins",
+        maintenanceCost: 10000, // Need to move 500 tiles per day
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
         maintenanceDescription: "These boots must keep moving or they lose their shadow essence. Walk 500 tiles in mining to maintain their power.",
