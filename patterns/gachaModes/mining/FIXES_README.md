@@ -2,6 +2,15 @@
 
 ## Issues Fixed
 
+### 3. Multiple Pickaxe Breaking Issue (NEW)
+**Problem**: Players losing 20+ pickaxes in a single break event.
+**Cause**: `handlePickaxeDurability` being called multiple times for the same mining action (main mining, area damage, chain mining, special effects).
+**Solution**:
+- Created `durabilityManager.js` for centralized durability tracking
+- Added `pickaxe_hotfix.js` as immediate fix with 2-second cooldown
+- Prevents duplicate durability checks within same tick
+- Area damage no longer triggers additional durability loss
+
 ### 1. Tent Display Issue
 **Problem**: Players were still being rendered as tents after short breaks ended.
 **Cause**: The `isTent` flag in player positions wasn't being properly cleared when breaks ended.
@@ -32,6 +41,28 @@
    - Ensures field exists for all channels
 
 ## New Files Created
+
+5. **durabilityManager.js**
+   - Centralized durability management system
+   - Tick-based duplicate prevention (1 second ticks)
+   - `handleDurability()` - Safe wrapper with duplicate prevention
+   - `forceReset()` - Reset tracking for new mining cycle
+
+6. **pickaxe_hotfix.js**
+   - Emergency hotfix with 2-second cooldown
+   - Drop-in replacement for `improvedDurabilityHandling`
+   - Prevents rapid duplicate pickaxe breaks
+   - Temporary solution while implementing full fix
+
+7. **FIX_PICKAXE_BREAKING.patch**
+   - Detailed instructions for applying the full fix
+   - Code examples and replacement patterns
+   - Integration guide for durabilityManager
+
+8. **PICKAXE_FIX_README.md**
+   - Complete documentation of the pickaxe issue
+   - Multiple solution options (hotfix vs full fix)
+   - Testing procedures
 
 1. **fix_tent_display.js**
    - `clearTentFlags()` - Removes all tent flags from positions
@@ -100,6 +131,15 @@ The system now logs detailed information about cycles:
 - `[CYCLE FIX]` - Shows when cycle issues are fixed
 
 ## Common Issues & Solutions
+
+### Issue: Players losing multiple pickaxes at once
+**Solution**: 
+- Quick: Change import to use `pickaxe_hotfix.js`
+- Proper: Implement `durabilityManager.js` as per patch file
+
+### Issue: "Lost 20 pickaxes" complaints
+**Check**: Look for multiple `[DURABILITY]` logs in quick succession
+**Solution**: Apply hotfix immediately, then implement full fix
 
 ### Issue: Long breaks keep repeating
 **Solution**: Run `node debug_and_fix_cycles.js --fix`

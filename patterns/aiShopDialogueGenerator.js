@@ -148,10 +148,10 @@ ${available === 0 ? "They don't have any to sell!" : `They only have ${available
 Generate a VERY SHORT response that:
 - Points out they don't have the item (or enough of it)
 - Reflects your personality
-- MAXIMUM 50 CHARACTERS
+- MAXIMUM 60 CHARACTERS
 - Is about the item, NOT money
 
-Respond with ONLY the dialogue, no quotes, UNDER 50 CHARACTERS.`;
+Respond with ONLY the dialogue, no quotes, UNDER 60 CHARACTERS.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
@@ -401,8 +401,8 @@ You can EITHER:
 3. Make a sound/gesture (start with ~ for sounds like ~sighs or ~hums otherworldly tune)
 4. Combine both if needed (like: *looks up from ledger* "Another worldwalker arrives.")
 
-CRITICAL: Maximum 50 characters!
-Respond with ONLY the dialogue or action, UNDER 50 CHARACTERS.`;
+CRITICAL: Maximum 60 characters!
+Respond with ONLY the dialogue or action, UNDER 60 CHARACTERS.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",

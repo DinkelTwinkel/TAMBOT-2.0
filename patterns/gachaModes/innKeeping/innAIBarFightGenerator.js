@@ -1,7 +1,9 @@
 // innKeeping/innAIBarFightGenerator.js
-// AI-powered dynamic bar fight generation system
+// AI-powered dynamic bar fight generation system with inn-specific context
 
 const OpenAI = require('openai');
+const gachaServers = require('../../../data/gachaServers.json');
+const shops = require('../../../data/shops.json');
 
 class AIBarFightGenerator {
     constructor() {
@@ -23,39 +25,159 @@ class AIBarFightGenerator {
         // Cache for recent AI-generated fights to avoid repetition
         this.recentFights = new Map();
         this.cacheTimeout = 30 * 60 * 1000; // 30 minutes
+    }
+    
+    /**
+     * Get inn context from typeId
+     */
+    getInnContext(typeId) {
+        // Find the server data
+        const serverData = gachaServers.find(s => String(s.id) === String(typeId));
+        if (!serverData) {
+            console.log(`[AIBarFight] No server data found for typeId: ${typeId}`);
+            return this.getDefaultContext();
+        }
         
-        // World context for the AI
-        this.worldContext = {
-            setting: "The Wandering Inn in HELLUNGI, a void dimension where beings from many worlds are trapped",
-            atmosphere: "A pocket of normalcy in an endless, memory-consuming void",
-            themes: [
-                "Existential dread masked by routine",
-                "Lost memories and fading identities",
-                "Different species forced to coexist",
-                "The search for The One Pick - a legendary artifact that might provide escape",
-                "Alcohol as a coping mechanism for cosmic horror"
-            ],
-            commonTensions: [
-                "Disputes over dwindling resources",
-                "Conflicting memories of home worlds",
-                "Philosophical differences about their situation",
-                "Accusations of hoarding information about escape",
-                "Cultural misunderstandings between species",
-                "Arguments about The One Pick's existence",
-                "Territorial disputes in ever-changing tunnels",
-                "Disagreements about survival strategies"
+        // Find the shop data
+        const shopData = shops.find(s => s.id === serverData.shop);
+        if (!shopData) {
+            console.log(`[AIBarFight] No shop data found for shopId: ${serverData.shop}`);
+            return this.getDefaultContext();
+        }
+        
+        // Build specific context based on the inn
+        const context = {
+            innName: serverData.name,
+            innDescription: serverData.description,
+            innPower: serverData.power,
+            shopName: shopData.name,
+            innkeeper: shopData.shopkeeper,
+            idleDialogue: shopData.idleDialogue,
+            atmosphere: this.determineAtmosphere(serverData, shopData),
+            establishmentType: this.getEstablishmentType(serverData.power),
+            specificTensions: this.getSpecificTensions(serverData.id)
+        };
+        
+        console.log(`[AIBarFight] Using context for: ${context.innName}`);
+        return context;
+    }
+    
+    /**
+     * Get default context for fallback
+     */
+    getDefaultContext() {
+        return {
+            innName: "The Wandering Inn",
+            innDescription: "A mysterious tavern existing between dimensions",
+            innPower: 1,
+            shopName: "The Wandering Inn",
+            innkeeper: {
+                name: "The Innkeeper",
+                bio: "A mysterious figure who maintains order",
+                personality: "Enigmatic and watchful"
+            },
+            atmosphere: "A pocket of normalcy in an endless void",
+            establishmentType: "mysterious tavern",
+            specificTensions: [
+                "disputes over resources",
+                "conflicting memories",
+                "philosophical differences"
             ]
         };
     }
     
     /**
-     * Generate a contextual fight reason using AI
+     * Determine atmosphere based on inn type
      */
-    async generateAIFightReason(npc1, npc2, channelPower) {
+    determineAtmosphere(serverData, shopData) {
+        const innId = parseInt(serverData.id);
+        
+        switch(innId) {
+            case 13: // Miner's Inn
+                return "A rowdy underground tavern thick with coal dust and the smell of hearty stew. Pickaxes hang on the walls, and miners swap stories of dangerous depths and lost companions.";
+            
+            case 14: // Hunter's Lodge
+                return "A rustic lodge adorned with mounted trophies and pelts. The scent of roasting venison fills the air while rangers trade tracking tips by the crackling fireplace.";
+            
+            case 15: // Noble's Rest
+                return "An opulent establishment with crystal chandeliers and silk-draped rooms. The wealthy dine on exotic delicacies while discrete staff attend to every whim.";
+            
+            default:
+                return serverData.description || "A mysterious establishment between worlds";
+        }
+    }
+    
+    /**
+     * Get inn-specific tensions
+     */
+    getSpecificTensions(innId) {
+        const id = parseInt(innId);
+        
+        switch(id) {
+            case 13: // Miner's Inn
+                return [
+                    "disputed mining claims",
+                    "who found the richest vein",
+                    "stolen mining equipment",
+                    "cave-in blame assignment",
+                    "The One Pick rumors",
+                    "who's the better digger",
+                    "hoarding ore samples",
+                    "breaking mining superstitions",
+                    "shift assignment disputes",
+                    "safety regulation arguments"
+                ];
+            
+            case 14: // Hunter's Lodge
+                return [
+                    "disputed hunting grounds",
+                    "who bagged the bigger trophy",
+                    "stolen tracking techniques",
+                    "poaching accusations",
+                    "best hunting stories",
+                    "ranger territory disputes",
+                    "animal cruelty debates",
+                    "wilderness survival methods",
+                    "trap placement conflicts",
+                    "guide fee disagreements"
+                ];
+            
+            case 15: // Noble's Rest
+                return [
+                    "family honor insults",
+                    "political allegiances",
+                    "inheritance disputes",
+                    "social status comparisons",
+                    "business deal betrayals",
+                    "romantic rivalries",
+                    "fashion critiques",
+                    "ancestral claims",
+                    "etiquette violations",
+                    "diplomatic incidents"
+                ];
+            
+            default:
+                return [
+                    "general disagreements",
+                    "resource disputes",
+                    "philosophical differences",
+                    "territorial conflicts",
+                    "old grudges"
+                ];
+        }
+    }
+    
+    /**
+     * Generate a contextual fight reason using AI with inn context
+     */
+    async generateAIFightReason(npc1, npc2, channelPower, typeId) {
         if (!this.aiEnabled) return null;
         
+        // Get inn-specific context
+        const innContext = this.getInnContext(typeId);
+        
         // Check cache first
-        const cacheKey = `${npc1.name}-${npc2.name}`;
+        const cacheKey = `${npc1.name}-${npc2.name}-${typeId}`;
         const cached = this.recentFights.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
             console.log('[AIBarFight] Using cached fight reason');
@@ -63,38 +185,38 @@ class AIBarFightGenerator {
         }
         
         try {
-            // Build character context
-            const establishmentType = this.getEstablishmentType(channelPower);
+            // Select a random tension appropriate to this inn
+            const randomTension = innContext.specificTensions[
+                Math.floor(Math.random() * innContext.specificTensions.length)
+            ];
             
-            const prompt = `You are generating a bar fight scenario for an inn in HELLUNGI, a void dimension where beings from different worlds are trapped. The inn is a ${establishmentType} establishment.
+            const prompt = `You are generating a bar fight scenario for ${innContext.innName}.
 
-SETTING: ${this.worldContext.setting}
-ATMOSPHERE: ${this.worldContext.atmosphere}
+SETTING: ${innContext.atmosphere}
+INNKEEPER: ${innContext.innkeeper.name} - ${innContext.innkeeper.personality}
+ESTABLISHMENT TYPE: ${innContext.establishmentType}
 
 CHARACTER 1 - ${npc1.name}:
 ${npc1.aiPersonality || npc1.description}
 Wealth Level: ${npc1.wealth}/10
-Personality traits: ${this.getPersonalityTraits(npc1)}
 
 CHARACTER 2 - ${npc2.name}:
 ${npc2.aiPersonality || npc2.description}
 Wealth Level: ${npc2.wealth}/10
-Personality traits: ${this.getPersonalityTraits(npc2)}
 
-TASK: Generate a VERY SHORT reason why these two characters would fight. 
+COMMON TENSIONS HERE: ${randomTension}
+
+TASK: Generate a VERY SHORT reason why these two would fight in this specific establishment.
 
 RULES:
 1. MAXIMUM 50 CHARACTERS (very important!)
-2. Be specific and fitting to their personalities
-3. Be darkly humorous about being trapped
-4. No quotes, just the reason
+2. Make it specific to ${innContext.innName}'s atmosphere
+3. Consider the establishment's theme
+4. Be darkly humorous if appropriate
+5. No quotes, just the reason
 
-Examples (all under 50 chars):
-- "whose world had better gravity"
-- "hiding portal coordinates"
-- "who saw The One Pick last night"
-- "hope vs despair philosophy"
-- "stolen rations accusation"
+Examples for this location:
+${this.getLocationExamples(typeId)}
 
 Return ONLY the reason, UNDER 50 CHARACTERS.`;
 
@@ -103,7 +225,7 @@ Return ONLY the reason, UNDER 50 CHARACTERS.`;
                 messages: [
                     {
                         role: "system",
-                        content: "You are a creative writer for a dark comedy game set in an interdimensional inn. Generate brief, specific conflict reasons that are both amusing and fitting for the existential horror setting."
+                        content: `You are a creative writer for ${innContext.innName}. Generate brief, specific conflict reasons that fit the establishment's unique atmosphere and clientele.`
                     },
                     {
                         role: "user",
@@ -130,29 +252,70 @@ Return ONLY the reason, UNDER 50 CHARACTERS.`;
             });
             
             // Also cache the reverse pairing
-            this.recentFights.set(`${npc2.name}-${npc1.name}`, {
+            this.recentFights.set(`${npc2.name}-${npc1.name}-${typeId}`, {
                 reason: reason,
                 timestamp: Date.now()
             });
             
-            console.log(`[AIBarFight] Generated reason: "${reason}"`);
+            console.log(`[AIBarFight] Generated reason for ${innContext.innName}: "${reason}"`);
             return reason;
             
         } catch (error) {
             console.error('[AIBarFight] AI generation failed:', error.message);
-            return null;
+            return this.getInnSpecificFallback(typeId, npc1, npc2);
         }
     }
     
     /**
-     * Generate fight outcome description with AI
+     * Get location-specific examples
      */
-    async generateAIFightOutcome(npc1, npc2, reason, mitigation, cost) {
-        if (!this.aiEnabled) return null;
+    getLocationExamples(typeId) {
+        const id = parseInt(typeId);
+        
+        switch(id) {
+            case 13: // Miner's Inn
+                return `- "who struck gold first"
+- "stolen pickaxe accusation"
+- "cave-in cowardice claims"
+- "ore sample theft"
+- "shift jumping allegations"`;
+            
+            case 14: // Hunter's Lodge
+                return `- "poaching on my territory"
+- "that trophy is fake"
+- "stole my tracking method"
+- "scared away the prey"
+- "guide fee dispute"`;
+            
+            case 15: // Noble's Rest
+                return `- "insulted family crest"
+- "inferior bloodline comment"
+- "business betrayal revealed"
+- "improper table manners"
+- "stolen romantic interest"`;
+            
+            default:
+                return `- "general disagreement"
+- "resource dispute"
+- "old grudge resurfacing"
+- "territorial conflict"
+- "philosophical difference"`;
+        }
+    }
+    
+    /**
+     * Generate fight outcome description with AI and inn context
+     */
+    async generateAIFightOutcome(npc1, npc2, reason, mitigation, cost, typeId) {
+        if (!this.aiEnabled) return this.getInnSpecificFallbackOutcome(typeId, mitigation);
+        
+        const innContext = this.getInnContext(typeId);
         
         try {
-            let prompt = `Generate a brief, darkly humorous description of a bar fight outcome in an interdimensional inn.
+            let prompt = `Generate a brief description of a bar fight outcome in ${innContext.innName}.
 
+SETTING: ${innContext.atmosphere}
+INNKEEPER: ${innContext.innkeeper.name} watches ${innContext.innkeeper.personality}
 FIGHTERS: ${npc1} vs ${npc2}
 REASON: ${reason}
 DAMAGE COST: ${cost} coins worth of property damage
@@ -163,25 +326,28 @@ DAMAGE COST: ${cost} coins worth of property damage
                 prompt += `INTERVENTION: ${mitigation.responder} tried to stop the fight with ${mitigation.mitigationType} success.
 ${mitigation.flavorText}
 
-Include how ${mitigation.responder}'s intervention affected the outcome.
+Include how ${mitigation.responder}'s intervention affected the outcome and how ${innContext.innkeeper.name} reacted.
+`;
+            } else {
+                prompt += `Include ${innContext.innkeeper.name}'s reaction to the damage.
 `;
             }
 
             prompt += `
 Write a 2-3 sentence description that:
-1. Describes what got broken/damaged.
-2. References the inn and surrounding patrons.
-3. Has Dark humor about their situation.
-4. If someone intervened, shows how that changed things.
+1. Describes damage specific to ${innContext.innName} (mining equipment, trophies, fine china, etc.)
+2. Shows the innkeeper's reaction fitting their personality
+3. Captures the establishment's unique atmosphere
+4. If someone intervened, shows how that changed things
 
-Keep it concise (under 200 chars) but complete the story.`;
+Keep it concise (under 200 chars) but atmospheric.`;
 
             const completion = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-4",
                 messages: [
                     {
                         role: "system",
-                        content: "You are a narrator for a darkly comical inn where reality is broken. They are in the middle of a dark void. Describe bar fight outcomes with humor. But keep it concise"
+                        content: `You are a narrator for ${innContext.innName}. Describe bar fight outcomes that fit the establishment's unique character and the innkeeper's personality.`
                     },
                     {
                         role: "user",
@@ -189,16 +355,15 @@ Keep it concise (under 200 chars) but complete the story.`;
                     }
                 ],
                 temperature: 0.8,
-                max_tokens: 120  // Increased for complete descriptions
+                max_tokens: 120
             });
             
             const outcome = completion.choices[0].message.content.trim();
-            // Allow longer outcomes but still truncate if needed
             return this.truncateText(outcome, this.MAX_OUTCOME_LENGTH);
             
         } catch (error) {
             console.error('[AIBarFight] Failed to generate outcome:', error.message);
-            return null;
+            return this.getInnSpecificFallbackOutcome(typeId, mitigation);
         }
     }
     
@@ -206,10 +371,10 @@ Keep it concise (under 200 chars) but complete the story.`;
      * Get establishment type based on power level
      */
     getEstablishmentType(power) {
-        if (power >= 6) return "luxury establishment for wealthy interdimensional travelers";
-        if (power >= 4) return "upscale tavern serving noble refugees from collapsed dimensions";
-        if (power >= 2) return "modest inn for middle-class survivors";
-        return "humble tavern for desperate souls";
+        if (power >= 6) return "legendary establishment of mythical renown";
+        if (power >= 4) return "upscale tavern for distinguished clientele";
+        if (power >= 2) return "respectable inn for honest folk";
+        return "humble tavern for working class patrons";
     }
     
     /**
@@ -273,26 +438,64 @@ Keep it concise (under 200 chars) but complete the story.`;
     }
     
     /**
-     * Get fallback reasons based on NPC combinations
+     * Get inn-specific fallback reasons
      */
-    getFallbackReason(npc1, npc2) {
-        const fallbackReasons = [
-            "whose world was better",  // 22 chars
-            "the last bottle of ale",  // 23 chars
-            "hiding The One Pick",     // 20 chars
-            "stealing rations",        // 16 chars
-            "hope vs despair",         // 15 chars
-            "who's been here longest", // 23 chars
-            "conflicting escape plans",// 24 chars
-            "are we dead or alive",    // 20 chars
-            "whose memories are real", // 23 chars
-            "the warmest spot",        // 16 chars
-            "portal navigation",       // 17 chars
-            "hoarding supplies",       // 17 chars
-            "gambling debts",          // 14 chars
-            "seeing the outside",      // 18 chars
-            "does time still exist"   // 21 chars
-        ];
+    getInnSpecificFallback(typeId, npc1, npc2) {
+        const id = parseInt(typeId);
+        let fallbackReasons;
+        
+        switch(id) {
+            case 13: // Miner's Inn
+                fallbackReasons = [
+                    "claim jumping accusations",
+                    "who found the vein first",
+                    "stolen pickaxe claims",
+                    "cave-in cowardice",
+                    "shift schedule dispute",
+                    "ore quality argument",
+                    "safety violation blame",
+                    "tool theft suspicion"
+                ];
+                break;
+                
+            case 14: // Hunter's Lodge
+                fallbackReasons = [
+                    "hunting ground dispute",
+                    "fake trophy accusation",
+                    "poaching allegations",
+                    "scared the game away",
+                    "tracking secret theft",
+                    "guide payment conflict",
+                    "trap tampering claims",
+                    "best hunter debate"
+                ];
+                break;
+                
+            case 15: // Noble's Rest
+                fallbackReasons = [
+                    "family honor insult",
+                    "bloodline superiority",
+                    "etiquette violation",
+                    "business betrayal",
+                    "romantic rivalry",
+                    "political allegiance",
+                    "fashion criticism",
+                    "social rank dispute"
+                ];
+                break;
+                
+            default:
+                fallbackReasons = [
+                    "whose world was better",
+                    "the last bottle of ale",
+                    "hiding escape plans",
+                    "stealing rations",
+                    "hope vs despair",
+                    "who's been here longest",
+                    "conflicting memories",
+                    "survival philosophy"
+                ];
+        }
         
         // Use NPC names as seed for consistent randomness
         const seed = (npc1.name.length * npc2.name.length) % fallbackReasons.length;
@@ -300,30 +503,72 @@ Keep it concise (under 200 chars) but complete the story.`;
     }
     
     /**
-     * Get fallback fight outcomes when AI is unavailable
+     * Get inn-specific fallback outcomes
      */
-    getFallbackOutcome(hasIntervention = false) {
-        const outcomes = [
-            "Tables shattered into void particles. The innkeeper sighs at the cleanup.",
-            "Chairs flew through rifts. They'll return tomorrow, maybe different colors.",
-            "The mirror cracked, showing home worlds. Everyone paused, remembering.",
-            "Bottles exploded in rainbow mist. The void-touched alcohol sparkled oddly.",
-            "Windows broke, revealing endless nothing. They quickly boarded them up.",
-            "The floor cracked, exposing void beneath. Everyone stepped back nervously."
-        ];
+    getInnSpecificFallbackOutcome(typeId, mitigation) {
+        const id = parseInt(typeId);
+        const hasIntervention = mitigation && mitigation.mitigationType !== 'failed';
+        let outcomes;
         
-        const interventionOutcomes = [
-            "The fight ended when void whispers spoke true names. Both froze in dread.",
-            "A rift opened between them. They decided survival mattered more than pride.",
-            "The innkeeper's anchor activated. Both fighters reconsidered mid-punch.",
-            "Someone mentioned The One Pick. Everyone stopped to debate its existence.",
-            "The creature rumbled below. The fight seemed pointless after that."
-        ];
-        
-        if (hasIntervention) {
-            return interventionOutcomes[Math.floor(Math.random() * interventionOutcomes.length)];
+        switch(id) {
+            case 13: // Miner's Inn
+                outcomes = hasIntervention ? [
+                    "Big Martha cracked skulls with her ladle. 'Not in my inn!' she bellowed.",
+                    "Mining helmets flew. Martha's bear hug ended it. Both gasped for air.",
+                    "Pickaxes clattered down. The intervention worked. Martha charged for damages.",
+                    "Ore samples scattered. Quick thinking prevented worse. Martha wasn't amused."
+                ] : [
+                    "Mining equipment crashed down. Big Martha's stew pot overturned. She was NOT happy.",
+                    "Pickaxes embedded in walls. Coal dust everywhere. Martha presented the bill.",
+                    "The miners' table collapsed into the cellar. Martha's cursing echoed through tunnels.",
+                    "Lanterns shattered, darkness fell. Martha lit emergency torches, tallying damages."
+                ];
+                break;
+                
+            case 14: // Hunter's Lodge
+                outcomes = hasIntervention ? [
+                    "Selis drew her crossbow. The fight ended instantly. 'Outside. Now.'",
+                    "Quick reflexes saved the trophy wall. Selis nodded approval, once.",
+                    "The intervention worked. Selis's [Hunter's Eye] had already calculated damages.",
+                    "Mounted heads stayed intact. Selis's one-armed grip separated them efficiently."
+                ] : [
+                    "Trophy heads crashed down. Selis's remaining hand reached for her crossbow.",
+                    "The elk mount impaled the wall. Selis's silence was deadlier than shouting.",
+                    "Pelts torn, tables overturned. Selis mentally added each coin to their tabs.",
+                    "The fireplace screen toppled. Selis calmly extinguished embers, planning revenge."
+                ];
+                break;
+                
+            case 15: // Noble's Rest
+                outcomes = hasIntervention ? [
+                    "Lord Percival's [Noble's Presence] froze them mid-swing. 'Gentlemen, please.'",
+                    "Crystal intact, dignity saved. Percival's skill prevented scandal. Barely.",
+                    "The intervention preserved decorum. Percival added a 'discretion fee.'",
+                    "Fine china survived. Percival's diplomatic smile never wavered. The bill doubled."
+                ] : [
+                    "Crystal chandelier crashed spectacularly. Lord Percival's smile tightened dangerously.",
+                    "Silk curtains torn, wine spilled on imported rugs. Percival calculated interest.",
+                    "The antique mirror shattered. Seven years bad luck, plus Percival's invoice.",
+                    "Gold-leaf decorations crumbled. Percival's [Noble's Grace] couldn't hide his fury."
+                ];
+                break;
+                
+            default:
+                outcomes = hasIntervention ? [
+                    "The fight ended when someone shouted a warning. Damage was minimal.",
+                    "Quick intervention saved most furniture. The innkeeper sighed with relief.",
+                    "They were separated before real damage. Lucky timing for everyone's wallets.",
+                    "The peacemaker's efforts worked. Only minor repairs needed this time."
+                ] : [
+                    "Tables splintered, chairs flew. The innkeeper started a running tally.",
+                    "Windows shattered, bottles exploded. Cleaning this would take hours.",
+                    "The bar mirror cracked down the middle. Seven years of bar tabs.",
+                    "Everything that could break, did. The innkeeper considered retirement."
+                ];
         }
-        return outcomes[Math.floor(Math.random() * outcomes.length)];
+        
+        const index = Math.floor(Math.random() * outcomes.length);
+        return outcomes[index];
     }
 }
 

@@ -8,6 +8,7 @@ const itemSheet = require('../../../data/itemSheet.json');
 const npcs = require('../../../data/npcs.json');
 const path = require('path');
 const fs = require('fs');
+const { generateShop } = require('../../generateShop');
 
 class InnDisplayManager {
     constructor() {
@@ -56,19 +57,13 @@ class InnDisplayManager {
      * Show activity display with sales and events
      */
     async showActivityDisplay(channel, sales, events, dbEntry) {
-        const embed = new EmbedBuilder()
+        const embeds = [];
+        const mainEmbed = new EmbedBuilder()
             .setTitle('🏨 Inn Activity')
             .setColor(this.config.COLORS.INN_BROWN)
             .setTimestamp();
 
-        // Get latest highlight
-        const latestHighlight = await this.getLatestHighlight(sales, events);
-        if (latestHighlight) {
-            embed.setAuthor({ name: latestHighlight.title });
-            embed.setDescription(latestHighlight.description);
-        }
-
-        // Build activity feed
+        // Build activity feed for the description (has higher character limit)
         const activityFeed = this.buildActivityFeed(sales, events);
         if (activityFeed.length > 0) {
             const feedText = activityFeed
@@ -76,24 +71,77 @@ class InnDisplayManager {
                 .map(a => a.text)
                 .join('\n');
             
-            embed.addFields({
-                name: '📜 Recent Activity',
-                value: `\`\`\`\n${feedText}\`\`\``,
+            const logDescription = `**📜 Recent Activity Log**\n\`\`\`\n${feedText}\`\`\``;
+            
+            // Check if log exceeds Discord's limit (4096 characters)
+            if (logDescription.length > 4096) {
+                // Split into main embed and overflow embeds
+                const maxDescLength = 4000; // Leave some buffer
+                let currentPos = 0;
+                let embedIndex = 0;
+                
+                while (currentPos < logDescription.length) {
+                    let endPos = Math.min(currentPos + maxDescLength, logDescription.length);
+                    let descPart = logDescription.substring(currentPos, endPos);
+                    
+                    // Add continuation indicators
+                    if (currentPos > 0) {
+                        descPart = '\`\`\`...\n' + descPart.substring(3); // Replace opening backticks with continuation
+                    }
+                    if (endPos < logDescription.length) {
+                        // Ensure we close the code block and add continuation note
+                        if (!descPart.endsWith('\`\`\`')) {
+                            descPart = descPart + '\n...\`\`\`\n*(continued in next message)*';
+                        }
+                    }
+                    
+                    const embed = new EmbedBuilder()
+                        .setTitle(embedIndex === 0 ? '🏨 Inn Activity' : `🏨 Inn Activity (Part ${embedIndex + 1})`)
+                        .setColor(this.config.COLORS.INN_BROWN)
+                        .setDescription(descPart);
+                    
+                    if (embedIndex === 0) {
+                        embed.setTimestamp();
+                    }
+                    
+                    embeds.push(embed);
+                    currentPos = endPos;
+                    embedIndex++;
+                }
+            } else {
+                mainEmbed.setDescription(logDescription);
+                embeds.push(mainEmbed);
+            }
+        } else {
+            mainEmbed.setDescription('*No recent activity to display*');
+            embeds.push(mainEmbed);
+        }
+
+        // Get latest highlight and add as a field (has lower character limit)
+        const latestHighlight = await this.getLatestHighlight(sales, events);
+        if (latestHighlight) {
+            // Combine title and description for the field
+            let highlightText = latestHighlight.description;
+            
+            // Truncate if needed to fit in field limit (1024 characters)
+            if (highlightText.length > 1020) {
+                highlightText = highlightText.substring(0, 1017) + '...';
+            }
+            
+            // Add to the last embed in the array
+            embeds[embeds.length - 1].addFields({
+                name: latestHighlight.title,
+                value: highlightText,
                 inline: false
             });
         }
 
-        // Add statistics
+        // Calculate statistics for footer
         const stats = this.calculateStatistics(sales, events);
-        embed.addFields({
-            name: '📊 Current Session',
-            value: this.formatStatistics(stats),
-            inline: false
-        });
-
-        // Set footer
-        embed.setFooter({ 
-            text: `${sales.length} sales | ${events.length} events | Next distribution: ${this.getTimeUntilDistribution(dbEntry)}` 
+        
+        // Set footer with revenue info on the last embed
+        embeds[embeds.length - 1].setFooter({ 
+            text: `${sales.length} sales | ${events.length} events | Revenue: ${stats.revenue}c (excl tips) | Next: ${this.getTimeUntilDistribution(dbEntry)}` 
         });
 
         // Handle NPC thumbnails
@@ -111,7 +159,7 @@ class InnDisplayManager {
             }
         }
 
-        return await this.postOrUpdate(channel, { embeds: [embed], files });
+        return await this.postOrUpdate(channel, { embeds, files });
     }
 
     /**
@@ -168,7 +216,7 @@ class InnDisplayManager {
         switch (event.type) {
             case 'barfight':
                 let fightDescription = `${event.npc1} and ${event.npc2} got into a fight over ${event.reason}!\n`;
-                
+                fightDescription += '```' +`${event.outcome || 'They were separated by other patrons.'}` + '```';;
                 // Add mitigation information if present
                 if (event.mitigation) {
                     const mit = event.mitigation;
@@ -192,33 +240,56 @@ class InnDisplayManager {
                     fightDescription += `**Damage Cost:** ${event.cost} coins\n`;
                 }
                 
-                fightDescription += '```' +`${event.outcome || 'They were separated by other patrons.'}` + '```';
+                //fightDescription += 
                 
                 return {
-                    title: '⚔️ Bar Fight!',
+                    title: '👊 Bar Fight!',
                     description: fightDescription 
                 };
                 
             case 'rumor':
                 return {
-                    title: '🗣️ Overheard Rumor',
+                    title: '🐍 Overheard Rumor',
                     description: `${event.npc1} leans over to ${event.npc2}...\n` +
                                 `\`\`\`\n${event.rumor}\n\`\`\``
                 };
                 
             case 'coinFind':
                 return {
-                    title: '🪙 Lucky Find!',
+                    title: '🍀 Lucky Find!',
                     description: `${event.finderName} found **${event.amount} coins** on the floor!\n` +
-                                `*${event.description || 'A fortunate discovery!'}*`
+                                '```' + `${event.description || 'A fortunate discovery!'}` + '```'
                 };
                 
             case 'innkeeperComment':
-                return {
-                    title: '💭 Innkeeper Observation',
-                    description: '```' + `${event.comment}*\n` +
-                                `Business level: ${event.businessLevel}` + '```'
-                };
+            return {
+            title: '💭 Innkeeper Observation',
+            description: '```' + `${event.comment}*\n` +
+            `Business level: ${event.businessLevel}` + '```'
+            };
+                    
+                case 'friendship':
+                    let friendshipDesc = `${event.npc1} and ${event.npc2} have discovered a shared interest!\n\n`;
+                    
+                    if (event.bondingTopic) {
+                        friendshipDesc += `**What they're bonding over:**\n${event.bondingTopic}\n\n`;
+                    }
+                    
+                    if (event.purchases && event.purchases.length > 0) {
+                        friendshipDesc += `**Celebratory Purchases:**\n`;
+                        for (const purchase of event.purchases) {
+                            const item = itemSheet.find(i => String(i.id) === String(purchase.itemId));
+                            const itemName = item?.name || 'mysterious item';
+                            friendshipDesc += `• ${purchase.buyerName} bought ${itemName} for ${purchase.price}c\n`;
+                        }
+                        const totalRevenue = event.purchases.reduce((sum, p) => sum + p.price, 0);
+                        friendshipDesc += `\n💰 **Total Revenue: ${totalRevenue}c**`;
+                    }
+                    
+                    return {
+                        title: '🤝 New Friendship Formed!',
+                        description: friendshipDesc
+                    };
                 
             default:
                 return null;
@@ -226,51 +297,113 @@ class InnDisplayManager {
     }
 
     /**
-     * Build chronological activity feed
+     * Build chronological activity feed with full details
      */
     buildActivityFeed(sales, events) {
         const activities = [];
         
-        // Add sales
+        // Add sales with dialogue
         for (const sale of sales) {
             const item = itemSheet.find(i => String(i.id) === String(sale.itemId));
             const itemName = item?.name || `Item #${sale.itemId}`;
             const buyer = sale.isNPC ? sale.buyerName : (sale.buyerName || 'Customer');
             const tipText = sale.tip > 0 ? ` (+${sale.tip}c tip)` : '';
             
+            let saleText = `💰 ${buyer} bought ${itemName} for ${sale.price}c${tipText}`;
+            
+            // Add dialogue if available
+            if (sale.npcDialogue) {
+                const shortDialogue = sale.npcDialogue.length > 30 
+                    ? sale.npcDialogue.substring(0, 27) + '...' 
+                    : sale.npcDialogue;
+                saleText += `\n   "${shortDialogue}"`;
+            }
+            
             activities.push({
                 timestamp: new Date(sale.timestamp).getTime(),
-                text: `💰 ${buyer} bought ${itemName} for ${sale.price}c${tipText}`,
+                text: saleText,
                 type: 'sale'
             });
         }
         
-        // Add events
+        // Add events with full details
         for (const event of events) {
             let text = '';
             
             switch (event.type) {
                 case 'barfight':
+                    // Include reason for the fight
+                    const fightReason = event.reason ? 
+                        (event.reason.length > 25 ? event.reason.substring(0, 22) + '...' : event.reason) : 
+                        'unknown reasons';
+                    
+                    text = `⚔️ FIGHT! ${event.npc1} vs ${event.npc2} over ${fightReason}`;
+                    
                     if (event.mitigation) {
-                        if (event.mitigation.mitigationType === 'complete_negation') {
-                            text = `⚔️ Bar fight stopped! ${event.mitigation.responder} prevented all damage`;
-                        } else if (event.mitigation.reductionPercent > 0) {
-                            text = `⚔️ Bar fight! ${event.npc1} vs ${event.npc2} (-${event.cost}c, saved ${event.mitigation.reductionPercent}%)`;
+                        const mit = event.mitigation;
+                        if (mit.mitigationType === 'complete_negation') {
+                            text += `\n   🛡️ ${mit.responder} stopped it! Saved ${mit.originalCost}c`;
+                        } else if (mit.reductionPercent > 0) {
+                            const saved = mit.originalCost - event.cost;
+                            text += `\n   🛡️ ${mit.responder} intervened! Damage: ${event.cost}c (saved ${saved}c)`;
                         } else {
-                            text = `⚔️ Bar fight! ${event.npc1} vs ${event.npc2} (-${event.cost}c)`;
+                            text += `\n   ⚠️ ${mit.responder} tried to help. Damage: ${event.cost}c`;
                         }
                     } else {
-                        text = `⚔️ Bar fight! ${event.npc1} vs ${event.npc2} (-${event.cost}c)`;
+                        text += `\n   Damage: ${event.cost}c`;
+                    }
+                    
+                    // Add outcome if available
+                    if (event.outcome) {
+                        const shortOutcome = event.outcome.length > 35 
+                            ? event.outcome.substring(0, 32) + '...' 
+                            : event.outcome;
+                        text += `\n   ${shortOutcome}`;
                     }
                     break;
+                    
                 case 'rumor':
-                    text = `🗣️ ${event.npc1} shares rumors with ${event.npc2}`;
+                    text = `🗣️ ${event.npc1} whispers to ${event.npc2}`;
+                    if (event.rumor) {
+                        const shortRumor = event.rumor.length > 40 
+                            ? event.rumor.substring(0, 37) + '...' 
+                            : event.rumor;
+                        text += `\n   "${shortRumor}"`;
+                    }
                     break;
+                    
                 case 'coinFind':
                     text = `🪙 ${event.finderName} found ${event.amount} coins!`;
+                    if (event.description) {
+                        const shortDesc = event.description.length > 35 
+                            ? event.description.substring(0, 32) + '...' 
+                            : event.description;
+                        text += `\n   ${shortDesc}`;
+                    }
                     break;
+                    
                 case 'innkeeperComment':
-                    text = `💭 Innkeeper: ${event.businessLevel} business`;
+                    text = `💭 Innkeeper observes: ${event.businessLevel} business`;
+                    if (event.comment) {
+                        const shortComment = event.comment.length > 40 
+                            ? event.comment.substring(0, 37) + '...' 
+                            : event.comment;
+                        text += `\n   "${shortComment}"`;
+                    }
+                    break;
+                    
+                case 'friendship':
+                    text = `🤝 ${event.npc1} & ${event.npc2} became friends!`;
+                    if (event.bondingTopic) {
+                        const shortTopic = event.bondingTopic.length > 40 
+                            ? event.bondingTopic.substring(0, 37) + '...' 
+                            : event.bondingTopic;
+                        text += `\n   Bonding over: ${shortTopic}`;
+                    }
+                    if (event.purchases && event.purchases.length > 0) {
+                        const totalSpent = event.purchases.reduce((sum, p) => sum + p.price, 0);
+                        text += `\n   They celebrated with purchases! (+${totalSpent}c)`;
+                    }
                     break;
             }
             
@@ -384,6 +517,14 @@ class InnDisplayManager {
             
             // Clean up old messages
             await this.cleanupOldMessages(channel);
+            
+            // Generate shop for fresh embeds
+            try {
+                await generateShop(channel);
+                console.log('[InnDisplay] Generated shop for fresh inn display');
+            } catch (error) {
+                console.error('[InnDisplay] Error generating shop:', error);
+            }
             
             return newMessage;
             
@@ -526,6 +667,14 @@ class InnDisplayManager {
         
         // Clear the display cache
         this.messageCache.delete(channel.id);
+        
+        // Generate shop after profit report
+        try {
+            await generateShop(channel);
+            console.log('[InnDisplay] Generated shop after profit report');
+        } catch (error) {
+            console.error('[InnDisplay] Error generating shop after profit report:', error);
+        }
     }
 }
 

@@ -115,6 +115,13 @@ class InnEventManager {
                 if (npcSale) return npcSale;
             }
             
+            // Try friendship event (15% base chance, higher when forcing)
+            const friendshipChance = forceEvent ? 0.25 : 0.15;
+            if (Math.random() < friendshipChance) {
+                const friendship = await this.generateFriendshipAtomic(channel, dbEntry);
+                if (friendship) return friendship;
+            }
+            
             // Try other random events (rumors, coin finds)
             const eventChance = forceEvent ? 
                 this.config.EVENTS.RANDOM_EVENT.FORCED_CHANCE : 
@@ -407,9 +414,9 @@ class InnEventManager {
                 npc1 = shuffled[0];
                 npc2 = shuffled[1];
                 
-                // Generate AI reason
+                // Generate AI reason with inn context
                 fightReason = await this.aiBarFightGenerator.generateAIFightReason(
-                    npc1, npc2, channelPower
+                    npc1, npc2, channelPower, dbEntry.typeId
                 );
                 
                 if (fightReason) {
@@ -434,12 +441,12 @@ class InnEventManager {
                 });
                 
                 if (validFights.length === 0) {
-                    // Last resort: pick random NPCs and use fallback reason
+                    // Last resort: pick random NPCs and use inn-specific fallback reason
                     const shuffled = [...eligibleNpcs].sort(() => Math.random() - 0.5);
                     npc1 = shuffled[0];
                     npc2 = shuffled[1];
-                    fightReason = this.aiBarFightGenerator.getFallbackReason(npc1, npc2);
-                    console.log(`[InnEvents] Using fallback fight: ${npc1.name} vs ${npc2.name} - "${fightReason}"`);
+                    fightReason = this.aiBarFightGenerator.getInnSpecificFallback(dbEntry.typeId, npc1, npc2);
+                    console.log(`[InnEvents] Using inn-specific fallback fight: ${npc1.name} vs ${npc2.name} - "${fightReason}"`);
                 } else {
                     const fight = validFights[Math.floor(Math.random() * validFights.length)];
                     npc1 = npcs.find(n => n.name === fight.npc1);
@@ -489,20 +496,21 @@ class InnEventManager {
             
             console.log(`[InnEvents] Bar fight damage: Base ${baseDamage}c × ${powerMultiplier}x (power ${channelPower}) = ${scaledDamage}c → Final: ${finalCost}c`);
             
-            // Generate outcome with AI or fallback
+            // Generate outcome with AI or fallback (with inn context)
             let outcome;
             if (useAI && this.aiBarFightGenerator.aiEnabled) {
                 outcome = await this.aiBarFightGenerator.generateAIFightOutcome(
-                    npc1.name, npc2.name, fightReason, mitigationData, finalCost
+                    npc1.name, npc2.name, fightReason, mitigationData, finalCost, dbEntry.typeId
                 );
             }
             
-            // Use new fallback outcomes if AI fails
+            // Use new fallback outcomes if AI fails (with inn context)
             if (!outcome) {
-                outcome = this.aiBarFightGenerator.getFallbackOutcome(
-                    mitigationData && mitigationData.mitigationType !== 'failed'
+                outcome = this.aiBarFightGenerator.getInnSpecificFallbackOutcome(
+                    dbEntry.typeId,
+                    mitigationData && mitigationData.mitigationType !== 'failed' ? mitigationData : null
                 );
-                console.log('[InnEvents] Using fallback fight outcome');
+                console.log('[InnEvents] Using inn-specific fallback fight outcome');
             }
             
             // Last resort fallback
@@ -873,6 +881,169 @@ class InnEventManager {
             
         } catch (error) {
             console.error('[InnEvents] Error generating innkeeper comment:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Generate friendship event where two NPCs bond and both buy items
+     */
+    async generateFriendshipAtomic(channel, dbEntry) {
+        try {
+            const channelId = dbEntry.channelId;
+            
+            // Check for recent friendship event
+            if (this.isRecentDuplicate(channelId, 'friendship')) {
+                console.log('[InnEvents] Recent friendship occurred, skipping');
+                return null;
+            }
+            
+            // Get shop and server info
+            const gachaInfo = gachaServers.find(g => g.id === String(dbEntry.typeId));
+            if (!gachaInfo) return null;
+            
+            const shopInfo = shops.find(s => s.id === gachaInfo.shop);
+            if (!shopInfo) return null;
+            
+            const channelPower = gachaInfo.power || 1;
+            
+            // Get eligible NPCs
+            const eligibleNpcs = npcs.filter(npc => 
+                !npc.minChannelPower || npc.minChannelPower <= channelPower
+            );
+            
+            if (eligibleNpcs.length < 2) return null;
+            
+            // Select two random NPCs
+            const shuffled = [...eligibleNpcs].sort(() => Math.random() - 0.5);
+            const npc1 = shuffled[0];
+            const npc2 = shuffled[1];
+            
+            // Generate what they're bonding over using AI
+            let bondingTopic = null;
+            if (this.aiManager.isAvailable()) {
+                try {
+                    const prompt = `Generate a brief description of what ${npc1.name} (${npc1.description}) 
+                    and ${npc2.name} (${npc2.description}) are bonding over at the inn.
+                    Consider their personalities and backgrounds.
+                    Keep it under 30 words and make it interesting or humorous.
+                    Examples: shared love of rare books, both survived dragon attacks, discovered they're distant cousins, arguing about the best fishing spots.
+                    Do not include quotation marks.`;
+                    
+                    bondingTopic = await this.aiManager.generateWithAI(prompt);
+                } catch (error) {
+                    console.error('[InnEvents] Failed to generate bonding topic:', error);
+                }
+            }
+            
+            // Fallback bonding topics if AI fails
+            if (!bondingTopic) {
+                const fallbackTopics = [
+                    'their shared hatred of morning people',
+                    'both having embarrassing nicknames from childhood',
+                    'their mutual love of terrible puns',
+                    'discovering they both collect unusual rocks',
+                    'arguing about the proper way to brew tea',
+                    'their shared fear of geese',
+                    'both being terrible at dancing',
+                    'discovering they use the same secret fishing spot',
+                    'their mutual distrust of fancy food',
+                    'both having the same recurring dream about cheese'
+                ];
+                bondingTopic = fallbackTopics[Math.floor(Math.random() * fallbackTopics.length)];
+            }
+            
+            // Get consumable items for purchase
+            const availableItems = [...shopInfo.staticItems];
+            const consumableItems = availableItems
+                .map(id => itemSheet.find(item => String(item.id) === String(id)))
+                .filter(item => item && (
+                    item.type === 'consumable' || 
+                    item.subtype === 'food' || 
+                    item.subtype === 'drink'
+                ));
+            
+            if (consumableItems.length === 0) return null;
+            
+            // Generate purchases for both NPCs
+            const purchases = [];
+            const eventId = this.generateEventId(channelId, 'friendship');
+            
+            for (const npc of [npc1, npc2]) {
+                // Select item for this NPC
+                const selectedItem = this.selectItemForNPC(npc, consumableItems);
+                if (!selectedItem) continue;
+                
+                // Calculate price (friendship discount - 10-20% off)
+                const basePrice = selectedItem.value;
+                const discount = 0.8 + Math.random() * 0.1; // 10-20% discount
+                const salePrice = Math.floor(basePrice * discount);
+                
+                // Calculate tip (friends are generous)
+                const baseTip = salePrice * 0.15; // 15% base tip for friendship celebration
+                const tip = Math.floor(baseTip * npc.tipModifier * 1.5); // 50% bonus for celebration
+                
+                // Calculate profit
+                const costBasis = Math.floor(basePrice * this.config.ECONOMY.COST_BASIS_MULTIPLIER);
+                const profit = salePrice - costBasis;
+                
+                // Generate dialogue
+                let dialogue = null;
+                if (this.aiManager.isAvailable()) {
+                    try {
+                        const dialoguePrompt = `Generate a short celebratory purchase comment from ${npc.name} 
+                        who just made a friend and is buying ${selectedItem.name} to celebrate.
+                        Keep it under 15 words and enthusiastic.
+                        Do not include quotation marks.`;
+                        dialogue = await this.aiManager.generateWithAI(dialoguePrompt);
+                    } catch (err) {
+                        // Use fallback
+                    }
+                }
+                
+                if (!dialogue) {
+                    const celebrationPhrases = [
+                        "To new friendships!",
+                        "This calls for a celebration!",
+                        "Let's toast to that!",
+                        "My treat, friend!",
+                        "Nothing like a good meal with friends!"
+                    ];
+                    dialogue = celebrationPhrases[Math.floor(Math.random() * celebrationPhrases.length)];
+                }
+                
+                purchases.push({
+                    itemId: selectedItem.id,
+                    profit,
+                    buyer: npc.id,
+                    buyerName: npc.name,
+                    price: salePrice,
+                    tip,
+                    timestamp: new Date(),
+                    isNPC: true,
+                    npcData: npc,
+                    npcDialogue: dialogue,
+                    friendshipPurchase: true
+                });
+            }
+            
+            if (purchases.length === 0) return null;
+            
+            console.log(`[InnEvents] Friendship formed: ${npc1.name} & ${npc2.name} bonding over "${bondingTopic}"`);
+            console.log(`[InnEvents] Friendship purchases: ${purchases.length} items bought`);
+            
+            return {
+                type: 'friendship',
+                eventId: eventId,
+                npc1: npc1.name,
+                npc2: npc2.name,
+                bondingTopic,
+                purchases,
+                timestamp: new Date()
+            };
+            
+        } catch (error) {
+            console.error('[InnEvents] Error generating friendship event:', error);
             return null;
         }
     }

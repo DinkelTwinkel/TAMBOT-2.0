@@ -1,0 +1,143 @@
+// PATCH FILE: Fix for duplicate pickaxe breaking issue
+// Apply these changes to mining_optimized_v5_performance.js
+
+// ============================================
+// STEP 1: Add this import at the top of the file with other imports
+// ============================================
+const durabilityManager = require('./mining/durabilityManager');
+
+// ============================================
+// STEP 2: Replace ALL calls to handlePickaxeDurability with durabilityManager.handleDurability
+// ============================================
+
+// BEFORE (example from your code):
+/*
+const durabilityResult = await handlePickaxeDurability(
+    member,
+    playerData,
+    transaction,
+    eventLogs,
+    targetX,
+    targetY
+);
+*/
+
+// AFTER (use this pattern for ALL durability checks):
+/*
+const durabilityResult = await durabilityManager.handleDurability(
+    member.id,
+    member.displayName,
+    playerData.equippedPickaxe, // Make sure to pass the actual pickaxe object
+    calculateDurabilityLoss(tileHardness), // Calculate the durability loss
+    'mining' // Action type: 'mining', 'area_damage', 'chain_mining', etc.
+);
+
+// Check if it was skipped due to duplicate
+if (durabilityResult.skipped) {
+    console.log(`[MINING] Prevented duplicate pickaxe break for ${member.displayName}`);
+    // Continue with the action but don't process durability again
+}
+*/
+
+// ============================================
+// STEP 3: Example of how to handle different action types
+// ============================================
+
+// For normal mining:
+const miningDurability = await durabilityManager.handleDurability(
+    member.id,
+    member.displayName,
+    pickaxe,
+    durabilityLoss,
+    'mining'  // Main mining action
+);
+
+// For area damage (should NOT trigger additional durability):
+// Simply don't call durability manager for area damage effects
+// Area damage is part of the same mining action
+
+// For chain mining (if it's a separate action):
+const chainDurability = await durabilityManager.handleDurability(
+    member.id,
+    member.displayName,
+    pickaxe,
+    durabilityLoss,
+    'chain_mining'  // Different action type
+);
+
+// ============================================
+// STEP 4: Add reset at the start of each mining cycle
+// ============================================
+
+// At the beginning of the main mining event processing, add:
+// This ensures each mining cycle starts fresh
+durabilityManager.forceReset();
+
+// ============================================
+// STEP 5: Remove duplicate durability checks
+// ============================================
+
+// REMOVE any additional durability checks for:
+// - Area damage effects (it's part of the same mining action)
+// - Explosion effects from the same action
+// - Any other effects that are triggered by the initial mining action
+
+// Only keep durability checks for truly separate actions like:
+// - Chain mining (if it's a separate action initiated by the player)
+// - New mining actions in different locations
+
+// ============================================
+// EXAMPLE: Complete replacement for a section
+// ============================================
+
+// REPLACE sections like this:
+/*
+// Check for area damage (like from explosive pickaxe)
+if (uniqueBonuses.areaDamage && uniqueBonuses.areaDamage > 0) {
+    const areaDamageResult = applyAreaDamage(...);
+    
+    if (areaDamageResult.tilesCleared > 0) {
+        wallsBroken += areaDamageResult.tilesCleared;
+        mapChanged = true;
+        eventLogs.push(`💥 Area damage cleared ${areaDamageResult.tilesCleared} additional walls!`);
+        
+        // REMOVE THIS DUPLICATE DURABILITY CHECK
+        const areaDurabilityResult = await handlePickaxeDurability(...);
+        
+        if (areaDurabilityResult.pickaxeBroken) {
+            eventLogs.push(`⚠️ Extra wear from area damage: ${areaDurabilityResult.message}`);
+        }
+    }
+}
+*/
+
+// WITH this (no duplicate durability check):
+/*
+// Check for area damage (like from explosive pickaxe)
+if (uniqueBonuses.areaDamage && uniqueBonuses.areaDamage > 0) {
+    const areaDamageResult = applyAreaDamage(...);
+    
+    if (areaDamageResult.tilesCleared > 0) {
+        wallsBroken += areaDamageResult.tilesCleared;
+        mapChanged = true;
+        eventLogs.push(`💥 Area damage cleared ${areaDamageResult.tilesCleared} additional walls!`);
+        // NO ADDITIONAL DURABILITY CHECK HERE - area damage is part of the same mining action
+    }
+}
+*/
+
+// ============================================
+// DEBUGGING
+// ============================================
+
+// To debug and see what's happening, you can add:
+console.log('[DURABILITY DEBUG]', durabilityManager.getDebugInfo());
+
+// ============================================
+// NOTES
+// ============================================
+// 1. The durability manager uses a tick-based system (1 second by default)
+// 2. Within each tick, a player can only have durability processed once per action type
+// 3. This prevents the bug where 20+ pickaxes break at once
+// 4. Different action types can still process durability separately if needed
+// 5. The manager automatically resets after each tick duration

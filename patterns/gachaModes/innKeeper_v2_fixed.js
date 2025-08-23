@@ -657,6 +657,32 @@ class InnKeeperController {
                     if (updated) {
                         console.log(`[InnKeeperV2] NPC sale recorded: ${event.saleData.buyerName} bought item for ${event.saleData.price}c`);
                     }
+                } else if (event.type === 'friendship') {
+                    // Handle friendship event - add both the event AND the purchases
+                    const updateData = {
+                        $push: { 'gameData.events': event },
+                        $set: { 'gameData.lastActivity': new Date() },
+                        $inc: { 'gameData.eventSequence': 1 }
+                    };
+                    
+                    // Add the purchases from the friendship event to sales
+                    if (event.purchases && event.purchases.length > 0) {
+                        updateData.$push['gameData.sales'] = { $each: event.purchases };
+                    }
+                    
+                    const updated = await ActiveVCs.findOneAndUpdate(
+                        {
+                            channelId: channelId,
+                            'gameData.events.eventId': { $ne: eventId }
+                        },
+                        updateData
+                    );
+                    
+                    if (updated) {
+                        const totalRevenue = event.purchases ? 
+                            event.purchases.reduce((sum, p) => sum + p.price + p.tip, 0) : 0;
+                        console.log(`[InnKeeperV2] Friendship event: ${event.npc1} & ${event.npc2} bonded and spent ${totalRevenue}c`);
+                    }
                 } else {
                     // Add other events atomically with duplicate check
                     const updated = await ActiveVCs.findOneAndUpdate(
