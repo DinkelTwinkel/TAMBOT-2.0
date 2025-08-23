@@ -2,6 +2,7 @@
   {
     "id": 1,
     "name": "⛏️ Coal Mine Trading Desk",
+    "description": "A dusty trading post at the entrance of the coal mines, dealing in basic mining equipment and raw coal",
     "shopkeeper": {
       "name": "Grimsby Coalhand",
       "bio": "A grizzled veteran miner turned merchant, face permanently stained with coal dust. Lost three fingers to a cave-in but never his business sense.",
@@ -32,6 +33,7 @@
   {
     "id": 2,
     "name": "🟨 Topaz Mine Trading Desk",
+    "description": "An upscale gemstone trading desk specializing in golden topaz and mid-tier mining equipment",
     "shopkeeper": {
       "name": "Aurelius Goldgleam",
       "bio": "Former jeweler to nobility, now running the topaz trade after a scandal involving counterfeit gems forced him underground.",
@@ -62,6 +64,7 @@
   {
     "id": 3,
     "name": "💎 Diamond Mine Trading Shop",
+    "description": "An exclusive diamond exchange for the wealthy, offering the finest gems and luxury mining tools",
     "shopkeeper": {
       "name": "Lady Crystalline Devere",
       "bio": "Mysterious aristocrat who controls the diamond trade with silk gloves and an iron will. Rumors say she murdered her husband for his mine claims.",
@@ -92,6 +95,7 @@
   {
     "id": 4,
     "name": "🍃 Emerald Cavern Bazaar",
+    "description": "A mystical underground bazaar where emeralds are sold alongside nature-infused mining equipment",
     "shopkeeper": {
       "name": "Verdania Mosswhisper",
       "bio": "Half-elf druid who discovered the emerald caverns while following underground root systems. Claims the stones speak to her.",
@@ -122,6 +126,7 @@
   {
     "id": 5,
     "name": "🌋 Ruby Depths Emporium",
+    "description": "A forge-adjacent shop near lava tubes, specializing in fire rubies and heat-resistant equipment",
     "shopkeeper": {
       "name": "Ignis Burnbrand",
       "bio": "Dwarf forge-master who mines rubies from active lava tubes. His beard is singed at the edges and his eyes glow with reflected fire.",
@@ -152,6 +157,7 @@
   {
     "id": 6,
     "name": "🗡️ Obsidian Forge Marketplace",
+    "description": "A volcanic marketplace dealing in razor-sharp obsidian blades and volcanic glass mining tools",
     "shopkeeper": {
       "name": "Shadowblade Vex",
       "bio": "Former assassin who retired to volcanic mining after a job went wrong. Still wears all black and speaks in whispers.",
@@ -182,6 +188,7 @@
   {
     "id": 7,
     "name": "🌌 Mythril Sanctum Treasury",
+    "description": "A sacred vault where blessed mythril and divine artifacts are traded with religious reverence",
     "shopkeeper": {
       "name": "High Keeper Celestius",
       "bio": "Ancient monk who guards the mythril deposits as a sacred duty. Claims to be over 200 years old, blessed by the metal's properties.",
@@ -212,6 +219,7 @@
   {
     "id": 8,
     "name": "🌑 Adamantite Abyss Vault",
+    "description": "The deepest trading vault where reality-bending adamantite is sold to those brave enough to descend",
     "shopkeeper": {
       "name": "The Voidkeeper",
       "bio": "No one knows their real name or face. They emerged from the deepest shafts years ago, changed. Now they speak only in echoes.",
@@ -242,6 +250,7 @@
   {
     "id": 9,
     "name": "🔨 Copper Quarry Exchange",
+    "description": "An honest working-class exchange dealing in practical copper goods and everyday mining supplies",
     "shopkeeper": {
       "name": "Chuck 'Copper' McGillian",
       "bio": "Blue-collar family man who inherited the quarry from his father. Has six kids and a mortgage, just trying to make an honest living.",
@@ -272,6 +281,7 @@
   {
     "id": 10,
     "name": "⚔️ Iron Stronghold Armory",
+    "description": "A military-run armory specializing in iron equipment and battle-tested mining gear",
     "shopkeeper": {
       "name": "General Magnus Ironforge",
       "bio": "Retired military commander who turned his tactical mind to iron trading. Still runs his shop like a military operation.",
@@ -302,6 +312,7 @@
   {
     "id": 11,
     "name": "🔮 Crystal Grotto Emporium",
+    "description": "A mystical crystal shop where magical gems and prophecy stones are sold with theatrical flair",
     "shopkeeper": {
       "name": "Prisma the Seer",
       "bio": "Fortune teller who discovered she could hear prophecies in crystal vibrations. May actually be psychic, or just very observant.",
@@ -332,6 +343,7 @@
   {
     "id": 12,
     "name": "🦴 Fossil Excavation Museum",
+    "description": "Part museum, part shop, where ancient fossils and archaeological tools are sold to collectors",
     "shopkeeper": {
       "name": "Professor Ptolemy Dustborn",
       "bio": "Eccentric archaeologist who got lost in the mines twenty years ago and decided to stay. Has written seventeen unpublished papers.",
@@ -362,6 +374,7 @@
   {
     "id": 13,
     "name": "🍺 Miner's Inn Tavern 🎶",
+    "description": "A rowdy underground tavern where miners gather for hearty meals, strong drinks, and tall tales",
     "shopkeeper": {
       "name": "Big Martha Brewstone",
       "bio": "Former mine forewoman who opened the tavern after saving a year's wages. Known for her bone-crushing hugs and secret stew recipe.",
@@ -394,6 +407,7 @@
   {
     "id": 14,
     "name": "🏹 Hunter's Lodge Tavern 🦌",
+    "description": "A rustic lodge serving fresh game meat and trail rations to hunters, rangers, and wilderness adventurers",
     "shopkeeper": {
       "name": "Selis 'Hawkeye' Greywind",
       "bio": "Former [Ranger Captain] who retired after losing her left arm to a Wyvern. Opened the lodge with her savings and now manages it with the same precision she once tracked prey. Still deadly with a crossbow despite the handicap.",
@@ -426,6 +440,7 @@
   {
     "id": 15,
     "name": "👑 Noble's Rest Establishment 🎇",
+    "description": "An elegant high-class establishment offering exquisite cuisine and luxury accommodations to nobility and the wealthy elite",
     "shopkeeper": {
       "name": "Lord Percival Ashworth III",
       "bio": "Third son of House Ashworth, he was disinherited for 'conduct unbecoming' (he fell in love with a commoner). Now runs the finest establishment in the district with his [Innkeeper Lord] class, serving nobility while secretly funding orphanages with the profits.",

@@ -15,7 +15,7 @@ const PlayerInventory = require('../../models/inventory'); // your inventory sch
 const generateShop = require('../generateShop');
 const { EmbedBuilder } = require('discord.js');
 const InnKeeperSales = require('./innKeeping/innKeeperSales');
-const InnSalesLog = require('./innKeeping/innSalesLog');
+const InnEventLog = require('./innKeeping/innEventLog');
 const getPlayerStats = require('../calculatePlayerStat');
 const gachaServers = require('../../data/gachaServers.json');
 const itemSheet = require('../../data/itemSheet.json');
@@ -23,52 +23,56 @@ const shops = require('../../data/shops.json');
 const shopData = require('../../data/shops.json'); // Alias for compatibility
 const npcs = require('../../data/npcs.json');
 const ActiveVCs = require('../../models/activevcs');
+const UniqueItem = require('../../models/uniqueItems');
+const { UNIQUE_ITEMS } = require('../../data/uniqueItemsSheet');
 
 // Rumor and event templates for fallback when AI isn't available
 const RUMORS = [
-    "the Antinium are planning something big in their Hive",
-    "a Named Adventurer was spotted heading to Liscor's dungeon",
-    "the door to Pallass has been acting strangely lately",
-    "Wistram Academy is recruiting mages from Liscor",
-    "strange monsters have been coming from the dungeon's new areas",
-    "the Necromancer Az'kerash has been sighted in the region",
-    "Magnolia Reinhart's [Maids] were asking questions in town",
-    "the Gnoll tribes are gathering for an important Gnollmoot",
-    "Drake cities are mobilizing their armies for something",
-    "a new floor of the dungeon opened with incredible treasures",
-    "the Titan of Baleros sent a message to someone in Liscor",
-    "Flos, the King of Destruction, has awakened in Chandrar",
-    "the Goblin Lord's army movements worry nearby cities",
-    "something ancient stirs in the High Passes",
-    "the Blighted Kingdom seeks adventurers for their eternal war",
-    "the Wandering Inn's magical door network keeps expanding"
+    "a new portal opened near the eastern ridge, spewing strange creatures",
+    "travelers from a world of eternal ice arrived yesterday",
+    "the portal storms are getting worse this season",
+    "someone found ancient ruins between the portal nexuses",
+    "interdimensional merchants are selling impossible artifacts",
+    "a warrior from a clockwork world seeks companions",
+    "the reality tears near the old mine are expanding",
+    "refugees from a dying world arrived through the northern portal",
+    "strange energies are destabilizing the portal network",
+    "a new faction of worldwalkers has formed in the wastes",
+    "the Portal Authority is demanding higher taxes",
+    "creatures of living shadow emerged from portal seven",
+    "a technomancer from the steel realm is offering services",
+    "the dimensional barriers are weakening",
+    "prophets speak of a great convergence approaching",
+    "The One Pick was glimpsed between dimensions last night",
+    "miners claim The One Pick created the first portal to Hellungi",
+    "The Miner King walks between worlds, still wielding The One Pick"
 ];
 
 const BAR_FIGHT_STARTERS = [
-    { npc1: "Relc Grasstongue", npc2: "Pisces Jealnet", reason: "an argument about who's the better fighter" },
-    { npc1: "Numbtongue", npc2: "Olesm Swifttail", reason: "a chess game accusation of cheating" },
-    { npc1: "Jelaqua Ivirith", npc2: "Grimalkin of Pallass", reason: "proper training methods" },
-    { npc1: "Seborn Sailwinds", npc2: "Drassi", reason: "Seborn wanting privacy while Drassi wants an interview" },
-    { npc1: "Ceria Springwalker", npc2: "Bezale", reason: "Wistram Academy politics" },
-    { npc1: "Watch Captain Zevara", npc2: "Relc Grasstongue", reason: "Relc's latest property damage report" },
-    { npc1: "Yvlon Byres", npc2: "Saliss of Lights", reason: "Saliss making jokes about metal arms" },
-    { npc1: "Ulvama", npc2: "Lyonette du Marquin", reason: "proper inn management techniques" },
-    { npc1: "Wilovan", npc2: "Ratici", reason: "a 'gentlemanly disagreement' about payment splits" },
-    { npc1: "Bird", npc2: "Apista", reason: "Bird trying to shoot the flying bee" },
-    { npc1: "Belgrade", npc2: "Hexel Quithail", reason: "optimal defensive architecture" },
-    { npc1: "Ksmvr", npc2: "Klbkch the Slayer", reason: "proper Antinium behavior" }
+    { npc1: "Grimjaw", npc2: "Tethys", reason: "which world had the stronger warriors" },
+    { npc1: "Shadowbane", npc2: "Chrome", reason: "a dispute over portal territory rights" },
+    { npc1: "Frost-Eye", npc2: "Ember", reason: "conflicting dimensional theories" },
+    { npc1: "The Collector", npc2: "Voidwhisper", reason: "ownership of a mysterious artifact" },
+    { npc1: "Steelclaw", npc2: "Mirage", reason: "accusations of interdimensional smuggling" },
+    { npc1: "Portalkeeper Zax", npc2: "Grimjaw", reason: "unpaid portal passage fees" },
+    { npc1: "Nexus", npc2: "Shard", reason: "conflicting claims about their home worlds" },
+    { npc1: "Whisper", npc2: "Ironhide", reason: "a misunderstanding about currency exchange rates" },
+    { npc1: "Vex", npc2: "Quantum", reason: "a rigged dice game using probability manipulation" },
+    { npc1: "Driftwood", npc2: "Stasis", reason: "who arrived in Hellungi first" },
+    { npc1: "Glitch", npc2: "Prism", reason: "incompatible technologies causing interference" },
+    { npc1: "Echo", npc2: "Null", reason: "philosophical differences about the nature of Hellungi" }
 ];
 
-// Reduced amounts due to higher frequency of events
+// Lower amounts since coin finds are now 60% of events (was 20%)
 const FLOOR_FINDS = [
+    { amount: 1, description: "a single copper coin under a chair" },
     { amount: 2, description: "a few copper coins dropped by tired workers" },
-    { amount: 3, description: "a small pouch lost during yesterday's bar fight" },
-    { amount: 5, description: "silver coins that rolled under a gaming table" },
-    { amount: 7, description: "a forgotten tip that fell off the bar" },
-    { amount: 10, description: "an adventurer's loose change from their belt pouch" },
-    { amount: 15, description: "coins hidden behind a loose floorboard", rare: true },
-    { amount: 25, description: "a noble's purse dropped during last night's festivities", rare: true },
-    { amount: 20, description: "gold pieces from a gambler's lucky streak", rare: true }
+    { amount: 3, description: "some coins that rolled under the bar" },
+    { amount: 4, description: "a forgotten tip that fell off a table" },
+    { amount: 5, description: "silver coins from a spilled pouch" },
+    { amount: 7, description: "coins hidden in a crack in the floor", rare: true },
+    { amount: 10, description: "a small purse dropped during the rush", rare: true },
+    { amount: 15, description: "gold pieces from a gambler's lucky streak", rare: true }
 ];
 
 // Function to calculate salary based on power level
@@ -194,7 +198,7 @@ async function generateAIDialogue(prompt, fallbackOptions) {
     }
 }
 
-// Function to generate a rumor event
+// Function to generate a rumor event with smart context
 async function generateRumorEvent(channel, dbEntry) {
     try {
         // Get the shop owner's name
@@ -222,23 +226,34 @@ async function generateRumorEvent(channel, dbEntry) {
             npc2 = eligibleNpcs[Math.floor(Math.random() * eligibleNpcs.length)];
         }
         
-        // Generate or select rumor - sometimes include VC members or the innkeeper
-        const rumorPrompt = `Generate a short rumor or gossip that ${npc1.name} (${npc1.description}) might share with ${npc2.name} (${npc2.description}) at ${innkeeperName}'s establishment. 
-        ${npc1.aiPersonality ? `\n${npc1.name}'s personality: ${npc1.aiPersonality.substring(0, 200)}...` : ''}
-        ${vcMembers.length > 0 ? `Current patrons include: ${vcMembers.slice(0, 3).map(m => m.user.username).join(', ')}` : ''}
-        The rumor should be about events in this fantasy world - perhaps about adventurers, dungeons, politics, ${innkeeperName}, or other characters. Keep it under 20 words.`;
-        const rumor = await generateAIDialogue(rumorPrompt, RUMORS);
+        // Get smart server context for rumors
+        const serverContext = await InnEventLog.getServerContext(channel.guild, channel.id);
         
-        const embed = new EmbedBuilder()
-            .setTitle('🗣️ Overheard Conversation')
-            .setColor(0x9B59B6)
-            .setDescription(`*You overhear ${npc1.name} whispering to ${npc2.name}:*\n\n"Have you heard? They say **${rumor}**..."`)
-            .setFooter({ text: 'Rumors spread quickly in the inn...' })
-            .setTimestamp();
-            
-        await channel.send({ embeds: [embed] });
+        // Generate smart rumor based on server context
+        let rumor;
+        const useSmartRumor = Math.random() < 0.7; // 70% chance for smart rumor
         
-        return { type: 'rumor', npc1: npc1.name, npc2: npc2.name, rumor };
+        if (useSmartRumor && (serverContext.richestPlayers.length > 0 || 
+                              serverContext.legendaryOwners.length > 0 || 
+                              serverContext.activeEstablishments.length > 0)) {
+            rumor = InnEventLog.generateSmartRumor(serverContext, shopInfo);
+        } else {
+            // Generate or select generic rumor
+            const rumorPrompt = `Generate a short rumor or gossip that ${npc1.name} (${npc1.description}) might share with ${npc2.name} (${npc2.description}) at ${innkeeperName}'s establishment in Hellungi. 
+            ${npc1.aiPersonality ? `\n${npc1.name}'s personality: ${npc1.aiPersonality.substring(0, 200)}...` : ''}
+            ${vcMembers.length > 0 ? `Current patrons include: ${vcMembers.slice(0, 3).map(m => m.user.username).join(', ')}` : ''}
+            Context: Hellungi is a mysterious nexus where portals connect different worlds. The legendary One Pick is said to have carved the first portals.
+            The rumor should be about portals, dimensional travelers, The One Pick, The Miner King, strange artifacts, or interdimensional politics. Keep it under 20 words.`;
+            rumor = await generateAIDialogue(rumorPrompt, RUMORS);
+        }
+        
+        // Rumor now only appears in event log, no separate embed message
+        
+        // Add to event log
+        const event = { type: 'rumor', npc1: npc1.name, npc2: npc2.name, rumor, timestamp: new Date() };
+        await InnEventLog.addEvent(channel, dbEntry, event);
+        
+        return event;
         
     } catch (error) {
         console.error('[InnKeeper] Error generating rumor event:', error);
@@ -294,28 +309,26 @@ async function generateBarFightEvent(channel, dbEntry) {
         
         const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
         
-        const embed = new EmbedBuilder()
-            .setTitle('⚔️ Bar Fight!')
-            .setColor(0xE74C3C)
-            .setDescription(`**${npc1.name}** and **${npc2.name}** start fighting over ${fight.reason}!\n\n${outcome}`)
-            .addFields(
-                { name: 'Damage Cost', value: `${damageCost} coins`, inline: true },
-                { name: 'Cause', value: fight.reason, inline: true }
-            )
-            .setFooter({ text: 'The cost will be deducted from today\'s profits!' })
-            .setTimestamp();
-            
-        await channel.send({ embeds: [embed] });
+        // Bar fight now only appears in event log, no separate embed message
         
-        // Deduct from profits
-        if (!dbEntry.gameData.events) dbEntry.gameData.events = [];
-        dbEntry.gameData.events.push({
-            type: 'barfight',
-            cost: damageCost,
+        // Add to event log
+        const event = { 
+            type: 'barfight', 
+            cost: damageCost, 
+            npc1: npc1.name, 
+            npc2: npc2.name,
+            reason: fight.reason,
+            outcome: outcome,
             timestamp: new Date()
-        });
+        };
         
-        return { type: 'barfight', cost: damageCost, npc1: npc1.name, npc2: npc2.name };
+        // Also track for profit calculation
+        if (!dbEntry.gameData.events) dbEntry.gameData.events = [];
+        dbEntry.gameData.events.push(event);
+        
+        await InnEventLog.addEvent(channel, dbEntry, event);
+        
+        return event;
         
     } catch (error) {
         console.error('[InnKeeper] Error generating bar fight event:', error);
@@ -358,8 +371,8 @@ async function generateCoinFindEvent(channel, dbEntry) {
             selectedFind = commonFinds[Math.floor(Math.random() * commonFinds.length)];
         }
         
-        // Apply luck bonus to amount (reduced multiplier)
-        const luckBonus = Math.floor(selectedFind.amount * (luckStat / 200)); // Halved bonus
+        // Apply luck bonus to amount (further reduced since coins are found more often)
+        const luckBonus = Math.floor(selectedFind.amount * (luckStat / 300)); // Reduced bonus for balance
         const totalAmount = selectedFind.amount + luckBonus;
         
         // Try to generate AI reasoning for finding the coins
@@ -396,25 +409,19 @@ async function generateCoinFindEvent(channel, dbEntry) {
             { upsert: true, new: true }
         );
         
-        const embed = new EmbedBuilder()
-            .setTitle('💰 Coins Found!')
-            .setColor(0xF1C40F)
-            .setDescription(`**${luckyMember.user.username}** found coins ${findDescription}!`)
-            .addFields(
-                { name: 'Base Amount', value: `${selectedFind.amount} coins`, inline: true }
-            );
-            
-        if (luckBonus > 0) {
-            embed.addFields({ name: 'Luck Bonus', value: `+${luckBonus} coins`, inline: true });
-        }
+        // Coin find now only appears in event log, no separate embed message
         
-        embed.addFields({ name: 'Total', value: `**${totalAmount} coins**`, inline: true })
-            .setFooter({ text: `Luck Stat: ${luckStat}` })
-            .setTimestamp();
-            
-        await channel.send({ embeds: [embed] });
+        // Add to event log
+        const event = { 
+            type: 'coinFind', 
+            amount: totalAmount, 
+            finder: luckyMember.id,
+            finderName: luckyMember.user.username,
+            timestamp: new Date()
+        };
+        await InnEventLog.addEvent(channel, dbEntry, event);
         
-        return { type: 'coinFind', amount: totalAmount, finder: luckyMember.id };
+        return event;
         
     } catch (error) {
         console.error('[InnKeeper] Error generating coin find event:', error);
@@ -597,15 +604,16 @@ async function generateNPCSale(channel, dbEntry) {
             if (aiGen.isAvailable() && selectedNPC.aiPersonality) {
                 // Generate contextual dialogue for this purchase
                 const generatedDialogue = await aiGen.generateNPCDialogue(
-                    selectedNPC,
-                    selectedItem,
-                    salePrice,
-                    {
-                        tip: finalTip,
-                        mood: 'neutral',
-                        isHungry: Math.random() > 0.5
+                selectedNPC,
+                selectedItem,
+                salePrice,
+                {
+                tip: finalTip,
+                mood: 'neutral',
+                isHungry: Math.random() > 0.5,
+                    worldContext: 'Hellungi - a dimensional crossroads'
                     }
-                );
+                            );
                 
                 if (generatedDialogue) {
                     dialogue = generatedDialogue;
@@ -971,8 +979,8 @@ async function distributeProfits(channel, dbEntry) {
             await channel.send({ embeds: [embed] });
         }
         
-        // Clear the sales log and events after distribution
-        await InnSalesLog.clearSalesLog(channel);
+        // Clear the event log and events after distribution
+        await InnEventLog.clearEventLog(channel);
         dbEntry.gameData.events = [];
         
         console.log(`[InnKeeper] Distributed ${grandTotal} coins among ${payouts.length} workers`);
@@ -992,6 +1000,10 @@ module.exports = async (channel, dbEntry, json) => {
     // Check message throttle
     const lastMessage = messageThrottle.get(channel.id) || 0;
     const canSendMessage = (now - lastMessage) >= MESSAGE_COOLDOWN;
+    
+    // Work day constants
+    const WORK_DURATION = 25 * 60 * 1000; // 25 minutes
+    const BREAK_DURATION = 5 * 60 * 1000; // 5 minutes
 
     // Initialize gameData with sales array and gamemode identifier if it doesn't exist
     if (!dbEntry.gameData) {
@@ -1001,13 +1013,34 @@ module.exports = async (channel, dbEntry, json) => {
             events: [], // Array to store events (bar fights, etc.)
             lastProfitDistribution: new Date(), // Track when profits were last distributed
             lastNPCSale: new Date(), // Track last NPC sale
-            lastEvent: new Date() // Track last event
+            lastEvent: new Date(), // Track last event
+            workState: 'working', // 'working' or 'break'
+            workStartTime: new Date(), // When current work period started
+            breakEndTime: null // When break should end
         };
     } else {
+        // Check if we're switching game modes or starting fresh
+        const isModeSwitch = dbEntry.gameData.gamemode !== 'innkeeper';
+        
         // Ensure gamemode is set
-        if (!dbEntry.gameData.gamemode) {
+        if (!dbEntry.gameData.gamemode || isModeSwitch) {
             dbEntry.gameData.gamemode = 'innkeeper';
+            // Reset timing on mode switch
+            dbEntry.gameData.lastProfitDistribution = new Date();
+            dbEntry.gameData.sales = [];
+            dbEntry.gameData.events = [];
+            dbEntry.gameData.workState = 'working';
+            dbEntry.gameData.workStartTime = new Date();
+            dbEntry.gameData.breakEndTime = null;
         }
+        
+        // Initialize work state if missing
+        if (!dbEntry.gameData.workState) {
+            dbEntry.gameData.workState = 'working';
+            dbEntry.gameData.workStartTime = new Date();
+            dbEntry.gameData.breakEndTime = null;
+        }
+        
         // Ensure sales array exists
         if (!dbEntry.gameData.sales) {
             dbEntry.gameData.sales = [];
@@ -1016,10 +1049,26 @@ module.exports = async (channel, dbEntry, json) => {
         if (!dbEntry.gameData.events) {
             dbEntry.gameData.events = [];
         }
-        // Ensure lastProfitDistribution exists
+        
+        // Ensure lastProfitDistribution exists and is valid
         if (!dbEntry.gameData.lastProfitDistribution) {
             dbEntry.gameData.lastProfitDistribution = new Date();
+        } else {
+            // Check if lastProfitDistribution is too old (more than 1 hour)
+            // This prevents immediate payouts when restarting after a long break
+            const lastDistTime = new Date(dbEntry.gameData.lastProfitDistribution).getTime();
+            const oneHourAgo = now - (60 * 60 * 1000);
+            
+            if (lastDistTime < oneHourAgo) {
+                // Reset to current time if it's been more than an hour
+                // This prevents immediate payout on restart
+                dbEntry.gameData.lastProfitDistribution = new Date();
+                // Clear any stale sales data
+                dbEntry.gameData.sales = [];
+                dbEntry.gameData.events = [];
+            }
         }
+        
         // Initialize lastNPCSale if not exists
         if (!dbEntry.gameData.lastNPCSale) {
             dbEntry.gameData.lastNPCSale = new Date(now - 15 * 1000); // 15 seconds ago
@@ -1044,9 +1093,9 @@ module.exports = async (channel, dbEntry, json) => {
     const workersInVC = voiceChannel && voiceChannel.isVoiceBased() ? 
         Array.from(voiceChannel.members.values()).filter(m => !m.user.bot).length : 0;
     
-    // Base cooldowns scale with power
-    let minCooldown = 3 + (channelPower - 1) * 1.5; // 3s at power 1, up to 12s at power 7
-    let maxCooldown = 8 + (channelPower - 1) * 3.5; // 8s at power 1, up to 29s at power 7
+    // Base cooldowns - HIGHER power = MORE traffic (prestigious establishments are busier!)
+    let minCooldown = Math.max(2, 8 - channelPower); // 7s at power 1, down to 2s at power 6+
+    let maxCooldown = Math.max(5, 15 - channelPower * 1.5); // 13.5s at power 1, down to 5s at power 7
     
     // Worker scaling: Each worker reduces cooldown and increases chance
     // But with diminishing returns to encourage optimal team sizes
@@ -1061,8 +1110,8 @@ module.exports = async (channel, dbEntry, json) => {
     
     const npcCooldown = (minCooldown + Math.random() * (maxCooldown - minCooldown)) * 1000;
     
-    // Base sale chance decreases with power
-    let baseSaleChance = Math.max(0.25, 0.60 - ((channelPower - 1) * 0.058));
+    // Base sale chance INCREASES with power (better establishments attract more customers)
+    let baseSaleChance = Math.min(0.85, 0.40 + (channelPower * 0.08)); // 48% at power 1, up to 85% at power 7
     
     // Worker bonus to sale chance: More workers = higher chance of attracting customers
     // Each worker adds diminishing bonus: +15%, +10%, +7%, +5%, etc.
@@ -1083,9 +1132,9 @@ module.exports = async (channel, dbEntry, json) => {
             dbEntry.markModified('gameData');
             await dbEntry.save();
             
-            // Update the sales log with NPC info (only if not throttled)
+            // Update the event log with NPC info (only if not throttled)
             if (canSendMessage) {
-                await InnSalesLog.updateWithNPCPurchase(channel, dbEntry, npcSale);
+                await InnEventLog.updateWithNPCPurchase(channel, dbEntry, npcSale);
                 messageThrottle.set(channel.id, now);
             }
         }
@@ -1095,25 +1144,25 @@ module.exports = async (channel, dbEntry, json) => {
     const lastEvent = new Date(dbEntry.gameData.lastEvent).getTime();
     const eventCooldown = (5 + Math.random() * 10) * 1000; // 5-15 seconds randomly
     
-    if (now - lastEvent >= eventCooldown && Math.random() < 0.35) {
+    if (now - lastEvent >= eventCooldown && Math.random() < 0.60) {
         const eventType = Math.random();
         let event = null;
         
-        if (eventType < 0.15) {
-            // 15% chance for bar fight (reduced frequency to prevent too much chaos)
+        if (eventType < 0.20) {
+            // 20% chance for bar fight
             if (canSendMessage) {
                 event = await generateBarFightEvent(channel, dbEntry);
                 if (event) messageThrottle.set(channel.id, now);
             }
-        } else if (eventType < 0.30) {
-            // 15% chance for finding coins (reduced to prevent inflation)
+        } else if (eventType < 0.40) {
+            // 20% chance for overhearing rumor (atmospheric, no economic impact)
             if (canSendMessage) {
-                event = await generateCoinFindEvent(channel, dbEntry);
+                event = await generateRumorEvent(channel, dbEntry);
                 if (event) messageThrottle.set(channel.id, now);
             }
         } else if (canSendMessage) {
-            // 70% chance for overhearing rumor (atmospheric, no economic impact)
-            event = await generateRumorEvent(channel, dbEntry);
+            // 60% chance for finding coins (more rewards for active workers)
+            event = await generateCoinFindEvent(channel, dbEntry);
             if (event) messageThrottle.set(channel.id, now);
         }
         
@@ -1124,20 +1173,71 @@ module.exports = async (channel, dbEntry, json) => {
         }
     }
 
-    // Check if 5 minutes have passed since last profit distribution (more frequent due to rapid events)
-    const lastDistribution = new Date(dbEntry.gameData.lastProfitDistribution).getTime();
-    const fiveMinutesInMs = 5 * 60 * 1000; // 5 minutes
+    // Check work state and handle breaks
+    if (dbEntry.gameData.workState === 'break') {
+        // We're on break
+        if (dbEntry.gameData.breakEndTime && now >= new Date(dbEntry.gameData.breakEndTime).getTime()) {
+            // Break is over, start new work day
+            dbEntry.gameData.workState = 'working';
+            dbEntry.gameData.workStartTime = new Date();
+            dbEntry.gameData.breakEndTime = null;
+            dbEntry.gameData.sales = [];
+            dbEntry.gameData.events = [];
+            
+            // Send work resuming message
+            const embed = new EmbedBuilder()
+                .setTitle('🔔 The Inn Reopens!')
+                .setColor(0x2ECC71)
+                .setDescription('Break time is over! The inn is now open for business again.')
+                .setTimestamp();
+            await channel.send({ embeds: [embed] });
+        } else {
+            // Still on break, skip all processing
+            const breakTimeLeft = Math.ceil((new Date(dbEntry.gameData.breakEndTime).getTime() - now) / 60000);
+            console.log(`[InnKeeper] On break for ${breakTimeLeft} more minutes`);
+            
+            // Set next trigger for end of break or 30 seconds, whichever is sooner
+            const nextCheck = Math.min(30000, new Date(dbEntry.gameData.breakEndTime).getTime() - now);
+            dbEntry.nextTrigger = new Date(now + nextCheck);
+            dbEntry.markModified('gameData');
+            await dbEntry.save();
+            return; // Skip all other processing during break
+        }
+    }
     
-    if (now - lastDistribution >= fiveMinutesInMs && dbEntry.gameData.sales.length > 0) {
-        // Time to distribute profits!
-        await distributeProfits(channel, dbEntry);
+    // Check if work day is complete (25 minutes)
+    const workStartTime = new Date(dbEntry.gameData.workStartTime).getTime();
+    const timeSinceWorkStart = now - workStartTime;
+    
+    if (timeSinceWorkStart >= WORK_DURATION && dbEntry.gameData.workState === 'working') {
+        // Work day is complete, distribute profits and start break
+        if (dbEntry.gameData.sales.length > 0) {
+            await distributeProfits(channel, dbEntry);
+        }
         
-        // Update last distribution time
-        dbEntry.gameData.lastProfitDistribution = new Date();
-        
-        // Clear sales data and events after distribution
+        // Start break
+        dbEntry.gameData.workState = 'break';
+        dbEntry.gameData.breakEndTime = new Date(now + BREAK_DURATION);
         dbEntry.gameData.sales = [];
         dbEntry.gameData.events = [];
+        
+        // Send break message
+        const embed = new EmbedBuilder()
+            .setTitle('☕ Break Time!')
+            .setColor(0xF39C12)
+            .setDescription('The inn is closing for a 5-minute break. Workers deserve some rest!')
+            .addFields(
+                { name: 'Break Duration', value: '5 minutes', inline: true },
+                { name: 'Reopening At', value: `<t:${Math.floor((now + BREAK_DURATION) / 1000)}:R>`, inline: true }
+            )
+            .setTimestamp();
+        await channel.send({ embeds: [embed] });
+        
+        // Set next trigger for end of break
+        dbEntry.nextTrigger = new Date(now + BREAK_DURATION);
+        dbEntry.markModified('gameData');
+        await dbEntry.save();
+        return;
     }
 
     // Set next trigger for 5-15 seconds from now

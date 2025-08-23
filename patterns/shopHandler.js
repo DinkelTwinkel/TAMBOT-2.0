@@ -387,13 +387,6 @@ class ShopHandler {
             ephemeral: true  // Always private
         });
         
-        // Send public announcement for non-inn sales
-        if (!innResult.isInn) {
-            await interaction.channel.send({
-                content: `✨ ${interaction.user} used **${item.name}** for **${currentBuyPrice}c**`
-            });
-        }
-        
         await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice, interaction.member, 1, playerContext); // quantity = 1 for consumables
     }
 
@@ -564,15 +557,6 @@ class ShopHandler {
                 content: responseMessage
             });
             
-            // Send public announcement for non-inn sales
-            if (!innResult.isInn) {
-                const publicMessage = quantity === 1 
-                    ? `🛒 ${interaction.user} bought **${item.name}** for **${totalCost}c**`
-                    : `🛒 ${interaction.user} bought **${quantity}x ${item.name}** for **${totalCost}c**`;
-                
-                await interaction.channel.send({ content: publicMessage });
-            }
-            
             await this.updateShopDescription(interaction.message, shopInfo?.successBuy, shopInfo, 'purchase', item, currentBuyPrice * quantity, interaction.member, quantity, playerContext);
         } catch (error) {
             console.error('[SHOP] Error processing purchase:', error);
@@ -641,18 +625,6 @@ class ShopHandler {
             await interaction.editReply({ 
                 content: `${interaction.member}💰 Sold ${quantity} x ${item.name} for ${totalSell} coins! (${currentSellPrice}c${priceIndicator} each) | Balance: ${userCurrency.money + totalSell}c`
             });
-            
-            // Check if it's an inn channel
-            const isInn = await InnPurchaseHandler.isInnChannel(interaction.channel.id);
-            
-            // Send public announcement for non-inn sales
-            if (!isInn) {
-                const publicMessage = quantity === 1
-                    ? `💰 ${interaction.user} sold **${item.name}** for **${totalSell}c**`
-                    : `💰 ${interaction.user} sold **${quantity}x ${item.name}** for **${totalSell}c**`;
-                
-                await interaction.channel.send({ content: publicMessage });
-            }
             
             await this.updateShopDescription(interaction.message, shopInfo?.successSell, shopInfo, 'sell', item, currentSellPrice * quantity, interaction.member, quantity, playerContext);
         } catch (error) {

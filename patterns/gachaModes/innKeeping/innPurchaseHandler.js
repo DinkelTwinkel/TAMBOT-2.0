@@ -1,6 +1,6 @@
 // Inn Purchase Handler - Handles inn-specific purchase logic including tips
 const InnKeeperSales = require('./innKeeperSales');
-const InnSalesLog = require('./innSalesLog');
+const InnEventLog = require('./innEventLog');
 const getPlayerStats = require('../../calculatePlayerStat');
 const ActiveVCs = require('../../../models/activevcs');
 
@@ -121,10 +121,10 @@ class InnPurchaseHandler {
             
             console.log(`[InnPurchase] Recorded sale - Item: ${itemId}, Revenue: ${salePrice}, Cost: ${costBasis}, Profit: ${profit} (${(profit/salePrice*100).toFixed(1)}% margin), Tip: ${tipData.amount} (${tipData.percentage}%), Buyer: ${buyerName} (${buyer.id})`);
             
-            // Update the sales log with the latest purchase
+            // Update the event log with the latest purchase
             const dbEntry = await ActiveVCs.findOne({ channelId: channel.id });
             if (dbEntry) {
-                await InnSalesLog.updateWithLatestPurchase(channel, dbEntry, itemId, buyer);
+                await InnEventLog.postOrUpdateEventLog(channel, dbEntry);
             }
             
             return {

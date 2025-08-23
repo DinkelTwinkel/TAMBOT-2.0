@@ -11,74 +11,80 @@ class AIShopDialogueGenerator {
             apiKey: process.env.OPENAI_API_KEY
         });
         
-        // Mining world details
+        // Hellungi world details - a dimensional nexus
         this.worldContext = {
-            location: "The Great Mining Complex",
+            location: "Hellungi - The Dimensional Crossroads",
             currentTime: this.getTimeOfDay(),
             currentWeather: this.getRandomWeather(),
-            miningDistrict: "Lower Depths Trading Quarter",
+            district: "Portal District Trading Quarter",
             
-            // The One Pick lore
+            // The One Pick lore (legendary artifact found in Hellungi's depths)
             theOnePickLore: {
-                description: "A mythical pickaxe said to be wielded by the legendary Miner King",
-                powers: "Could supposedly crack through any material, even reality itself",
-                location: "Lost to time, hidden in depths no living soul has reached",
-                believers: ["desperate miners", "drunk storytellers", "ancient texts", "crystal seers"],
-                skeptics: ["practical merchants", "veteran miners", "scholars", "the wealthy"]
+                description: "A mythical pickaxe said to crack through dimensions themselves",
+                powers: "Could supposedly mine through reality, opening portals or sealing rifts",
+                location: "Lost between dimensions in Hellungi's deepest mining shafts",
+                believers: ["desperate miners", "portal scholars", "dimension walkers", "void prophets"],
+                skeptics: ["Portal Authority", "practical merchants", "scientists", "the wealthy"]
             },
             
             recentEvents: [
-                "A new vein of silver was discovered in shaft 7",
-                "The mining guild announced new safety regulations",
-                "Strange tremors have been felt in the lower levels",
-                "Gem prices are fluctuating wildly this season",
-                "A miner claims to have seen ancient markings in a forgotten tunnel"
+                "A new portal opened near the eastern market, bringing silicon-based lifeforms",
+                "The Portal Authority raised transit taxes again",
+                "Reality storms have been intensifying near the old mining district",
+                "Interdimensional currency exchange rates are fluctuating wildly",
+                "A traveler claims to have found a stable route to a paradise dimension",
+                "The void between portals has been expanding mysteriously",
+                "Refugees from a collapsing universe seek asylum in Hellungi",
+                "Strange energy readings detected from Portal Seven",
+                "A merchant from the Clockwork Realm offers impossible technologies"
             ]
         };
         
         // Shop keeper opinions on The One Pick (5% chance to mention)
-// Note: THE ONE PICK is the ultimate mythic item that may not even exist
+        // Note: THE ONE PICK is the ultimate artifact that can mine through dimensions
         this.onePickOpinions = {
             believer: [
-                "I'd stake my entire shop on The One Pick being real... seen too much to doubt.",
-                "The One Pick exists, mark my words. The stones themselves whisper of it.",
-                "My grandfather's grandfather swore he glimpsed The Miner King... I believe him."
+                "I'd stake my entire shop on The One Pick being real... it created these portals.",
+                "The One Pick exists, mark my words. It mined the first rift to Hellungi.",
+                "A traveler from the Mirror Realm swore they saw The Miner King wielding it."
             ],
             skeptic: [
-                "The One Pick? Bah! Just tales to keep apprentices dreaming instead of working.",
-                "If The One Pick existed, someone would've found it by now. It's just marketing.",
-                "Fairy tales and fool's gold, that's all The One Pick ever was or will be."
+                "The One Pick? Bah! Just tales to keep refugees hoping they can mine home.",
+                "If The One Pick existed, the Portal Authority would have seized it by now.",
+                "Dimensional fairy tales, that's all The One Pick ever was or will be."
             ],
             mysterious: [
-                "The One Pick... some truths are better left buried in the deep.",
-                "Those who seek The One Pick rarely return to tell what they found...",
-                "The One Pick chooses its wielder, not the other way around."
+                "The One Pick... it mines between existence, neither here nor there.",
+                "Those who seek The One Pick often vanish between dimensions...",
+                "The One Pick doesn't exist in one place... it exists in all places."
             ],
             reverent: [
-                "The One Pick is sacred... to speak of it casually invites misfortune.",
-                "If The Miner King's tool exists, it's beyond our mortal understanding.",
-                "The One Pick isn't just a tool... it's a key to something greater."
+                "The One Pick is sacred... it carved Hellungi from the void itself.",
+                "If The Miner King's tool exists, it transcends dimensional understanding.",
+                "The One Pick isn't just a tool... it's the key to all realities."
             ]
         };
     }
 
     getTimeOfDay() {
         const hour = new Date().getHours();
-        if (hour < 6) return "deep night shift";
-        if (hour < 12) return "morning shift";
-        if (hour < 17) return "afternoon shift";
-        if (hour < 21) return "evening shift";
-        return "night shift";
+        if (hour < 6) return "void-touched hours";
+        if (hour < 12) return "portal surge morning";
+        if (hour < 17) return "dimensional noon";
+        if (hour < 21) return "rift-fall evening";
+        return "nexus midnight";
     }
 
     getRandomWeather() {
         const weather = [
-            "dusty from recent drilling",
-            "damp from underground springs",
-            "unusually warm from volcanic activity",
-            "cold and echoing",
-            "thick with mineral fog",
-            "charged with static from crystal formations"
+            "shimmering with portal energies",
+            "heavy with dimensional static",
+            "unstable from reality fluctuations",
+            "thick with void mist",
+            "crackling with interdimensional storms",
+            "eerily calm between portal surges",
+            "vibrating with otherworldly frequencies",
+            "rippling with spatial distortions"
         ];
         return weather[Math.floor(Math.random() * weather.length)];
     }
@@ -98,10 +104,12 @@ class AIShopDialogueGenerator {
                 throw new Error('Shop missing shopkeeper data');
             }
 
-            const prompt = `You are ${shopkeeper.name}, shopkeeper of ${shop.name}.
+            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in Hellungi.
             
+Your establishment: ${shop.description || this.getShopSpecialty(shop)}
 Background: ${shopkeeper.bio}
 Personality: ${shopkeeper.personality}
+Context: Hellungi is a dimensional crossroads where beings from different worlds meet and trade.
 
 A customer is trying to sell ${quantity} x ${item ? item.name : 'an item'} but they only have ${available}.
 ${available === 0 ? "They don't have any to sell!" : `They only have ${available}.`}
@@ -111,6 +119,7 @@ Generate a brief response (1 sentence) that:
 - Reflects your personality
 - Stays in character
 - Is about them not having the item, NOT about money
+- Might reference their home dimension or portal travel
 
 Respond with ONLY the dialogue, no quotation marks.`;
 
@@ -129,6 +138,70 @@ Respond with ONLY the dialogue, no quotation marks.`;
             }
             return shop.failureOther?.[0] || `You only have ${available} of those.`;
         }
+    }
+
+    /**
+     * Determine if this is a mining-related shop
+     */
+    isMiningShop(shop) {
+        const miningKeywords = ['mine', 'mining', 'coal', 'topaz', 'diamond', 'emerald', 'ruby', 'obsidian', 
+                                'mythril', 'adamantite', 'copper', 'iron', 'crystal', 'fossil', 'ore', 
+                                'quarry', 'excavation', 'gems', 'vault', 'abyss', 'depths', 'cavern'];
+        const desc = (shop.description || shop.name).toLowerCase();
+        return miningKeywords.some(keyword => desc.includes(keyword));
+    }
+
+    /**
+     * Get appropriate world context based on shop type
+     */
+    getWorldContext(shop) {
+        const isMining = this.isMiningShop(shop);
+        
+        if (!isMining) {
+            // Tavern/Inn context in Hellungi
+            return {
+                location: shop.description || "A bustling interdimensional establishment",
+                currentTime: this.getTimeOfDay(),
+                currentWeather: this.getTavernWeather(),
+                atmosphere: "The sounds of otherworldly languages and dimensional static fill the air",
+                
+                recentEvents: [
+                    "Worldwalkers from the Crystal Dimension just arrived",
+                    "The Portal Authority increased transit fees again",
+                    "Refugees from a dying world seek shelter here",
+                    "A dimensional scholar claims to have mapped new routes",
+                    "The convergence festival approaches when all portals align",
+                    "Strange beings from the Void Realm were spotted nearby",
+                    "Interdimensional merchants offer impossible wares"
+                ]
+            };
+        }
+        
+        // Mining context in Hellungi (still has portals)
+        return {
+            ...this.worldContext,
+            recentEvents: [
+                "Portal instability has revealed new ore deposits",
+                "Miners from the Iron World share advanced techniques",
+                "Reality rifts in the mines lead to gem-rich dimensions",
+                "The Portal Authority claims mining rights on new rifts",
+                "Crystallized portal energy sells for high prices",
+                "Void creatures infest the lower tunnels",
+                "An ancient portal was uncovered in shaft seven"
+            ]
+        };
+    }
+
+    getTavernWeather() {
+        const weather = [
+            "cozy despite the dimensional static",
+            "lively with interdimensional patrons",
+            "quiet between portal arrivals",
+            "packed with worldwalkers",
+            "smoky from exotic otherworldly cuisines",
+            "warm with the glow of portal energies"
+        ];
+        return weather[Math.floor(Math.random() * weather.length)];
     }
 
     /**
@@ -170,20 +243,21 @@ Respond with ONLY the dialogue, no quotation marks.`;
             const mentionPrices = Math.random() < 0.3 && options.shopContext;
             const mentionRotationalItem = Math.random() < 0.25 && options.shopContext?.rotationalItems?.length > 0;
             
-            const recentEvent = this.worldContext.recentEvents[
-                Math.floor(Math.random() * this.worldContext.recentEvents.length)
+            const worldContext = this.getWorldContext(shop);
+            const recentEvent = worldContext.recentEvents[
+                Math.floor(Math.random() * worldContext.recentEvents.length)
             ];
 
-            let prompt = `You are ${shopkeeper.name}, shopkeeper of ${shop.name}.
+            let prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in Hellungi.
             
+Your establishment: ${shop.description || this.getShopSpecialty(shop)}
 Background: ${shopkeeper.bio}
 Personality: ${shopkeeper.personality}
-Setting: ${this.worldContext.location}, during ${this.worldContext.currentTime}
-Current conditions: ${this.worldContext.currentWeather}
+Setting: Hellungi - ${worldContext.location}, during ${worldContext.currentTime}
+Current conditions: ${worldContext.currentWeather}
 Recent event: ${recentEvent}
-
-Shop specialty: ${this.getShopSpecialty(shop)}
-${options.playerClass ? `Customer type: ${options.playerClass}` : 'Waiting for customers'}
+World Context: Hellungi is a dimensional nexus where portals connect countless worlds. Beings from different realities meet and trade here.
+${options.playerClass ? `Customer type: ${options.playerClass}` : 'Waiting for interdimensional customers'}
 ${options.mood ? `Your current mood: ${options.mood}` : ''}
 `;
 
@@ -215,6 +289,7 @@ ${options.mood ? `Your current mood: ${options.mood}` : ''}
                 }
             }
 
+            // Mention The One Pick occasionally (relevant in Hellungi's mining districts)
             if (mentionTheOnePick) {
                 const stance = this.getOnePickStance(shopkeeper);
                 const opinion = this.onePickOpinions[stance][
@@ -249,17 +324,18 @@ Make it feel organic to your personality and current conversation.`;
             
             prompt += `\nGenerate a single line of idle shop dialogue or action that:
 - Reflects your personality and background
-- Might reference your wares, the weather, recent events, or mining life
+- Might reference your wares, the weather, recent events, portals, dimensional travel, or other worlds
 ${dialogueInstructions.length > 0 ? '- Should ' + dialogueInstructions.join(' OR ') : ''}
-- Sounds natural for someone standing in their shop
+- Sounds natural for someone standing in their interdimensional shop
 ${mentionTheOnePick ? '- Naturally incorporates your opinion about The One Pick' : ''}
 - Stays completely in character
+- Remember you're in Hellungi, a dimensional crossroads
 
 You can EITHER:
-1. Say something (just write the dialogue with quotes like "Another slow day in the mines.")
-2. Perform an action (start with * for actions like *yawns* or *scratches beard*)
-3. Make a sound/gesture (start with ~ for sounds like ~sighs or ~hums)
-4. Combine both if needed (like: *looks up from ledger* "Another slow day in the mines.")
+1. Say something (just write the dialogue with quotes like "Another quiet day between portals.")
+2. Perform an action (start with * for actions like *yawns* or *adjusts dimensional stabilizer*)
+3. Make a sound/gesture (start with ~ for sounds like ~sighs or ~hums otherworldly tune)
+4. Combine both if needed (like: *looks up from ledger* "Another worldwalker arrives.")
 
 Respond with ONLY the dialogue or action, no quotation marks or attribution.`;
 
@@ -277,7 +353,7 @@ Respond with ONLY the dialogue or action, no quotation marks or attribution.`;
             if (shop.idleDialogue && shop.idleDialogue.length > 0) {
                 return shop.idleDialogue[Math.floor(Math.random() * shop.idleDialogue.length)];
             }
-            return "Welcome to my shop!";
+            return "Welcome to my shop, traveler!";
         }
     }
 
@@ -346,23 +422,25 @@ Respond with ONLY the dialogue or action, no quotation marks or attribution.`;
                 
                 // Stats and power
                 if (playerContext.totalStatPower > 100) {
-                    customerProfile += '\n💪 Very powerful miner with exceptional stats.';
+                    customerProfile += '\n💪 Very powerful worldwalker with exceptional stats.';
                 } else if (playerContext.hasHighStats) {
-                    customerProfile += '\n💪 Experienced miner with good equipment.';
+                    customerProfile += '\n💪 Experienced dimensional traveler with good equipment.';
                 }
                 
                 if (playerContext.stats.luck > 50 && !playerContext.hasMidasBurden) {
                     customerProfile += '\n🍀 Extremely lucky individual!';
                 }
                 if (playerContext.stats.mining > 50) {
-                    customerProfile += '\n⛏️ Master miner!';
+                    customerProfile += '\n⛏️ Master miner from the ore dimensions!';
                 }
             }
             
-            const prompt = `You are ${shopkeeper.name}, shopkeeper of ${shop.name}.
+            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in Hellungi.
             
+Your establishment: ${shop.description || this.getShopSpecialty(shop)}
 Background: ${shopkeeper.bio}
 Personality: ${shopkeeper.personality}
+Context: This is Hellungi, a dimensional crossroads where beings from different worlds meet and trade.
 ${customerProfile}
 
 A customer just purchased: ${quantity}x ${item.name} for ${price} coins total (${pricePerItem} each)
@@ -385,30 +463,9 @@ ${playerContext?.hasMultipleLegendaries ? '- Express amazement at their legendar
 ${playerContext?.isRichest ? '- Acknowledge their wealth status or VIP treatment' : ''}
 ${playerContext?.customerType === 'vip' ? '- Show appreciation for their loyalty' : ''}
 ${playerContext?.wealthTier === 'poor' && quantity > 1 ? '- Maybe comment on them spending beyond their means' : ''}
-- Might comment on the bulk deal, their legendary status, or total price
+- Might reference their home dimension or portal travel
 - Sounds natural and conversational - use their name sparingly, not every time
-- Shows appropriate reaction to legendary owners (awe, respect, jealousy, or suspicion based on your personality)
-
-Examples of reacting to quantity:
-- Bulk: "That's quite the haul!" or "Buying in bulk, smart move!" or "${quantity} of them? You're cleaning me out!"
-- Single: "Just the one?" or "A fine choice!"
-- Moderate: "${quantity} should last you a while!" or "Good stock for your adventures!"
-
-Examples of using customer names naturally:
-- VIP: "Welcome back, DragonSlayer! Your usual bulk order?"
-- Legendary: "Lord Thunder, with Earthshaker in hand, buying more supplies?"
-- Wealthy: "Ah, GoldKing returns! My finest wares await!"
-- Poor: "Careful with your coins, young Miner..."
-- First time: "Haven't seen you before... what brings you to my shop?"
-
-Examples of reacting to legendary status:
-- Awe: "By the stones! Is that really Blue Breeze? An honor to serve you, WindMaster!"
-- Respect: "Lord Titan, wielder of Earthshaker, my shop is honored!"
-- Greed: "With Greed's Embrace on your chest, GoldHeart, surely you can afford everything!"
-- Suspicion: "How did you acquire the Whisper of the Void, stranger? That was lost centuries ago!"
-- Fear: "Y-yes, Your Majesty! The Crown speaks, I obey!"
-- Midas: "So YOU'RE the one, RichKing! Midas chose you as the wealthiest!"
-- Multiple: "THREE legendaries, MythKeeper? You're more museum than miner!"
+- Remember you're in Hellungi, where interdimensional trade is common
 
 Respond with ONLY the dialogue with quotation marks`;
 
@@ -440,17 +497,21 @@ Respond with ONLY the dialogue with quotation marks`;
                 throw new Error('Shop missing shopkeeper data');
             }
 
-            const prompt = `You are ${shopkeeper.name}, shopkeeper of ${shop.name}.
+            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in Hellungi.
             
+Your establishment: ${shop.description || this.getShopSpecialty(shop)}
 Background: ${shopkeeper.bio}
 Personality: ${shopkeeper.personality}
 
 A customer cannot afford ${item ? item.name : 'an item'}${shortBy > 0 ? `, they're ${shortBy} coins short` : ''}.
 
+Context: This is Hellungi, where interdimensional currency is accepted.
+
 Generate a brief rejection dialogue (1 sentence) that:
 - Reflects your personality (${shopkeeper.personality.includes('friendly') ? 'be sympathetic' : shopkeeper.personality.includes('ruthless') ? 'be harsh' : 'be firm but fair'})
 - Tells them they need more money
 - Stays in character
+- Might reference interdimensional currency or their home world's money
 
 Respond with ONLY the dialogue, with quotation marks.`;
 
@@ -518,17 +579,19 @@ Respond with ONLY the dialogue, with quotation marks.`;
                 }
                 
                 if (playerContext.stats.mining > 50) {
-                    customerProfile += '\n⛏️ Master miner - probably has quality goods.';
+                    customerProfile += '\n⛏️ Master miner - probably has quality goods from other dimensions.';
                 }
                 if (playerContext.customerType === 'vip') {
                     customerProfile += '\n⭐ Your best customer is selling back to you.';
                 }
             }
             
-            const prompt = `You are ${shopkeeper.name}, shopkeeper of ${shop.name}.
+            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in Hellungi.
             
+Your establishment: ${shop.description || this.getShopSpecialty(shop)}
 Background: ${shopkeeper.bio}
 Personality: ${shopkeeper.personality}
+Context: This is Hellungi, where goods from countless dimensions are traded.
 ${customerProfile}
 
 A customer just sold you: ${quantity}x ${item.name} for ${price} coins total (${pricePerItem} each)
@@ -550,28 +613,9 @@ ${playerContext?.hasMidasBurden && playerContext?.midasBlessing === 0 ? '- Maybe
 ${playerContext?.isRichest ? '- Wonder why the richest player needs to sell items' : ''}
 ${playerContext?.wealthTier === 'poor' ? '- Might show sympathy or take advantage based on personality' : ''}
 ${playerContext?.customerType === 'vip' ? '- Acknowledge their loyalty even when buying from them' : ''}
-- Might comment on why a legendary hero is selling, their financial situation, or the irony
+- Might comment on which dimension these goods came from
 - Use their name sparingly for natural conversation
-- Shows your business sense and reaction to legendary owners selling items
-
-Examples of reacting to quantity:
-- Bulk sale: "${quantity} of them? Business must be good!" or "I'll take all ${quantity} off your hands!"
-- Single: "Just the one? I'll take it." or "I can work with that."
-
-Examples of using seller names naturally:
-- Legendary: "ShadowLord, why would you need to sell with all those legendaries?"
-- Poor: "Times tough, MinerBob? I'll give you a fair price."
-- VIP: "Even my best customer needs coin sometimes, eh GemQueen?"
-- Suspicious: "Interesting goods you're selling, DarkMiner..."
-
-Examples of reacting to legendary owners selling:
-- Suspicious: "Why would the bearer of Blue Breeze need my coins, StormCaller?"
-- Opportunistic: "Ore mined by Earthshaker? I'll sell it for triple, thank you IronFist!"
-- Sympathetic: "Even with Phoenix Feather, times are tough FireBird? Fair price, friend."
-- Awestruck: "The legendary ShadowWalker is selling to ME?"
-- Mocking: "The mighty CrownBearer reduced to peddling scraps?"
-- Midas Cursed: "Ah GoldenOne, Midas' curse strikes again! Bad luck today?"
-- Multiple legendaries: "LegendKeeper, with all those legendaries, why sell common ore?"
+- Remember you're in Hellungi, a dimensional trading hub
 
 Respond with ONLY the dialogue, with quotation marks.`;
 
@@ -590,9 +634,15 @@ Respond with ONLY the dialogue, with quotation marks.`;
     }
 
     /**
-     * Get shop specialty based on items
+     * Get shop specialty based on description or name
      */
     getShopSpecialty(shop) {
+        // Use the description field if available
+        if (shop.description) {
+            return shop.description;
+        }
+        
+        // Fallback to inferring from name
         if (shop.name.includes('Coal')) return "basic mining supplies and coal";
         if (shop.name.includes('Topaz')) return "golden topaz gems and jewelry";
         if (shop.name.includes('Diamond')) return "precious diamonds and luxury items";
@@ -605,8 +655,10 @@ Respond with ONLY the dialogue, with quotation marks.`;
         if (shop.name.includes('Iron')) return "strong iron equipment";
         if (shop.name.includes('Crystal')) return "magical crystals and prophecies";
         if (shop.name.includes('Fossil')) return "ancient fossils and history";
-        if (shop.name.includes('Inn')) return "food, drink, and warm beds";
-        return "various mining goods";
+        if (shop.name.includes('Inn') || shop.name.includes('Tavern')) return "food, drink, and warm beds";
+        if (shop.name.includes('Hunter') || shop.name.includes('Lodge')) return "hearty meals, trail rations, and hunting supplies";
+        if (shop.name.includes('Noble') || shop.name.includes('Rest')) return "exquisite cuisine and luxury accommodations";
+        return "various goods and supplies";
     }
 
     /**
