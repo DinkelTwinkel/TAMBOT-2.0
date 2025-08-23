@@ -310,12 +310,25 @@ if (typeof visibilityCalculator !== 'undefined') {
 // Enhanced error-safe database fetch with cache system
 async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0) {
     try {
-        // Initialize cache if not already done
+        // Force refresh if we suspect stale break data
+        const now = Date.now();
+        if (!forceRefresh && mapCacheSystem.isCached(channelId)) {
+            const cached = mapCacheSystem.getCachedData(channelId);
+            if (cached?.breakInfo) {
+                // Force refresh if break should have ended
+                if (cached.breakInfo.breakEndTime && now >= cached.breakInfo.breakEndTime) {
+                    console.log(`[MINING] Cached break expired, forcing refresh for ${channelId}`);
+                    forceRefresh = true;
+                }
+            }
+        }
+        
+        // Initialize cache if not already done or forcing refresh
         if (!mapCacheSystem.isCached(channelId) || forceRefresh) {
             await mapCacheSystem.initialize(channelId, forceRefresh);
         }
         
-        // Get cached data (instant, from memory)
+        // Get cached data
         const cached = mapCacheSystem.getCachedData(channelId);
         
         if (!cached) {
@@ -526,9 +539,22 @@ function calculateNextBreakTime(dbEntry) {
     }
 }
 
-// Check if currently in break period
+// Check if currently in break period with proper time validation
 function isBreakPeriod(dbEntry) {
-    return dbEntry?.gameData?.breakInfo?.inBreak || false;
+    const now = Date.now();
+    const breakInfo = dbEntry?.gameData?.breakInfo;
+    
+    // If no break info, not in break
+    if (!breakInfo) return false;
+    
+    // Check if break has expired
+    if (breakInfo.breakEndTime && now >= breakInfo.breakEndTime) {
+        console.log(`[MINING] Break has expired, should end break`);
+        return false; // Break time has passed, should end it
+    }
+    
+    // Only return true if actually in break and time hasn't expired
+    return breakInfo.inBreak === true;
 }
 
 // Get a random floor tile for gathering during breaks
@@ -1326,14 +1352,20 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
     try {
         const channelId = channel.id;
         
-        // Force kill any parallel instances before ending break
+        // Clear any existing locks and instances
         instanceManager.forceKillChannel(channelId);
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Register new instance for post-break mining
         if (!instanceManager.registerInstance(channelId)) {
             console.error(`[MINING] Cannot end break - channel ${channelId} is locked by another process`);
-            return;
+            // Force clear and retry once
+            instanceManager.forceKillChannel(channelId);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            if (!instanceManager.registerInstance(channelId)) {
+                console.error(`[MINING] Failed to register instance after retry`);
+                return;
+            }
         }
         
         if (messageQueue.isDuplicate(channelId, 'BREAK_END', 'break')) {
@@ -1403,24 +1435,44 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         const cycleCount = (dbEntry.gameData?.cycleCount || 0) + 1;
         const nextBreakInfo = calculateNextBreakTime({ gameData: { cycleCount } });
         
-        mapCacheSystem.updateMultiple(channel.id, { 'map.playerPositions': resetPositions,
-            'gameData.cycleCount': cycleCount,
-            'gameData.breakInfo.justEnded': true,
-            'gameData.breakJustEnded': Date.now(),
+        // CRITICAL FIX: Clear breakInfo from cache BEFORE database update
+        mapCacheSystem.deleteField(channel.id, 'breakInfo');
+        
+        // Update cache with new state
+        mapCacheSystem.updateMultiple(channel.id, {
+            'map.playerPositions': resetPositions,
+            'cycleCount': cycleCount,
+            'breakJustEnded': Date.now(),
             nextShopRefresh: nextBreakInfo.nextShopRefresh,
             nextTrigger: new Date(Date.now() + 1000)
         });
         
+        // Remove breakInfo from database
         await gachaVC.updateOne(
             { channelId: channel.id },
-            { $unset: { 'gameData.breakInfo': 1 } }
+            { 
+                $unset: { 'gameData.breakInfo': 1 },
+                $set: {
+                    'gameData.cycleCount': cycleCount,
+                    'gameData.breakJustEnded': Date.now(),
+                    'gameData.map.playerPositions': resetPositions,
+                    nextShopRefresh: nextBreakInfo.nextShopRefresh,
+                    nextTrigger: new Date(Date.now() + 1000)
+                }
+            }
         );
         
-        await batchDB.flush();
+        // Force flush cache changes
+        await mapCacheSystem.forceFlush();
         
+        // Clear all caches to force fresh data
+        mapCacheSystem.clearChannel(channel.id);
         visibilityCalculator.invalidate();
         dbCache.delete(channel.id);
-        efficiencyCache.delete(channel.id);
+        efficiencyCache.clear();
+        
+        // Force re-initialize with fresh data
+        await mapCacheSystem.initialize(channel.id, true);
         
         const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
         await logEvent(channel, '⛏️ Break ended! Mining resumed.', true, {
@@ -1430,15 +1482,31 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         });
         
         console.log(`[MINING] Break ended successfully for channel ${channelId}`);
+        
+        // Release instance lock to allow normal mining to proceed
+        instanceManager.killInstance(channelId);
+        
     } catch (error) {
         console.error(`[MINING] Error ending break for channel ${channel.id}:`, error);
-        instanceManager.killInstance(channel.id, true);
+        
+        // Emergency cleanup
+        instanceManager.forceKillChannel(channel.id);
+        mapCacheSystem.clearChannel(channel.id);
+        
         try {
+            // Force clear break state in database
             await gachaVC.updateOne(
                 { channelId: channel.id },
-                { $unset: { 'gameData.breakInfo': 1 } }
+                { 
+                    $unset: { 'gameData.breakInfo': 1 },
+                    $set: { 
+                        'gameData.breakJustEnded': Date.now(),
+                        nextTrigger: new Date(Date.now() + 1000)
+                    }
+                }
             );
             dbCache.delete(channel.id);
+            console.log(`[MINING] Emergency break clear completed for ${channel.id}`);
         } catch (clearError) {
             console.error(`[MINING] Failed to force clear break state:`, clearError);
         }
@@ -1522,23 +1590,48 @@ module.exports = async (channel, dbEntry, json, client) => {
         // Perform initial hazard roll (once per session)
         await performInitialHazardRoll(channel, dbEntry, serverPowerLevel);
         
-        // Check if we're in a break period
+        // Check if we're in a break period with proper time validation
         const inBreak = isBreakPeriod(dbEntry);
         
         if (inBreak) {
             const breakInfo = dbEntry.gameData.breakInfo;
+            const now = Date.now();
             
-            if (now >= breakInfo.breakEndTime) {
+            // Double-check if break should have ended
+            if (breakInfo.breakEndTime && now >= breakInfo.breakEndTime) {
+                console.log(`[MINING] Break expired, ending break for ${channelId}`);
+                
+                // End any special events first
                 if (dbEntry.gameData?.specialEvent) {
                     const eventEndResult = await checkAndEndSpecialEvent(channel, dbEntry);
                     if (eventEndResult) {
                         await logEvent(channel, eventEndResult, true);
                     }
                 }
-                await endBreak(channel, dbEntry, serverPowerLevel);
+                
+                // Force refresh the DB entry to get latest state
+                const freshEntry = await getCachedDBEntry(channelId, true);
+                if (freshEntry) {
+                    await endBreak(channel, freshEntry, serverPowerLevel);
+                } else {
+                    // Emergency fallback - directly clear break from DB
+                    console.error(`[MINING] Emergency break clear for ${channelId}`);
+                    await gachaVC.updateOne(
+                        { channelId },
+                        { 
+                            $unset: { 'gameData.breakInfo': 1 },
+                            $set: { 
+                                nextTrigger: new Date(Date.now() + 1000),
+                                'gameData.breakJustEnded': Date.now()
+                            }
+                        }
+                    );
+                    mapCacheSystem.clearChannel(channelId);
+                }
                 return;
             }
             
+            // Handle special events during break
             if (dbEntry.gameData?.specialEvent) {
                 const specialEvent = dbEntry.gameData.specialEvent;
                 if (now >= specialEvent.endTime) {
@@ -1554,11 +1647,17 @@ module.exports = async (channel, dbEntry, json, client) => {
                 }
             }
             
+            // Still in valid break period
+            console.log(`[MINING] Channel ${channelId} still in break (ends in ${Math.ceil((breakInfo.breakEndTime - now) / 60000)} minutes)`);
             return;
         }
 
         // Check if it's time to start a break
         if (now >= dbEntry.nextShopRefresh) {
+            // Clear any stale break info before starting new break
+            mapCacheSystem.deleteField(channelId, 'breakInfo');
+            await mapCacheSystem.forceFlush();
+            
             const cycleCount = dbEntry.gameData?.cycleCount || 0;
             const isLongBreak = (cycleCount % 4) === 3;
             
