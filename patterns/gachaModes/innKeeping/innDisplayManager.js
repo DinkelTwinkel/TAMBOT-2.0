@@ -8,7 +8,7 @@ const itemSheet = require('../../../data/itemSheet.json');
 const npcs = require('../../../data/npcs.json');
 const path = require('path');
 const fs = require('fs');
-const { generateShop } = require('../../generateShop');
+const generateShop = require('../../generateShop');
 
 class InnDisplayManager {
     constructor() {

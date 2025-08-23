@@ -5,6 +5,7 @@ const getPlayerStats = require('../calculatePlayerStat');
 const { canStartBreak, emergencyBreakReset } = require('./mining/mining_break_hotfix');
 // Import improved durability handling for pickaxe breaking
 const { handlePickaxeDurability } = require('./mining/improvedDurabilityHandling');
+const deeperMineChecker = require('../mining/deeperMineChecker');
 // Use the new layered rendering system with auto-generated images
 const generateTileMapImage = require('./mining/imageProcessing/mining-layered-render');
 const gachaVC = require('../../models/activevcs');
@@ -383,6 +384,7 @@ async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0)
         
         return {
             channelId: channelId,
+            typeId: cached.typeId || null,  // Add typeId to cached return
             gameData: {
                 ...cached,
                 minecart: cached.minecart || { items: {}, contributors: {} }
@@ -391,6 +393,13 @@ async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0)
             nextTrigger: cached.nextTrigger,
             save: async function() {
                 const updates = {};
+                // Save typeId if it exists
+                if (this.typeId) {
+                    await gachaVC.updateOne(
+                        { channelId: channelId },
+                        { $set: { typeId: this.typeId } }
+                    );
+                }
                 for (const [key, value] of Object.entries(this.gameData)) {
                     if (key !== 'lastUpdated' && key !== 'channelId') {
                         // Special handling for minecart to ensure structure
@@ -1180,6 +1189,9 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
             }
         }
 
+            // Initialize components array for later use
+            let components = [];
+
         let attachment = null;
         if (shouldGenerateImage) {
             try {
@@ -1238,11 +1250,38 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
 
                     if (logEntry) newEmbed.setDescription('```\n' + logEntry + '\n```');
 
+                    // Check for deeper mine conditions and add button
+                    if (forceNew && !result.gameData?.breakInfo?.inBreak) {
+                        console.log('im doing DEEPER CHECK NOW');
+                        const deeperResult = await deeperMineChecker.checkAndAddDeeperMineButton(
+                            newEmbed, 
+                            result, 
+                            channel.id
+                        );
+                        
+                        if (deeperResult.components && deeperResult.components.length > 0) {
+                            components = deeperResult.components;
+                        }
+                    }
+
                     await channel.send({ 
                         embeds: [newEmbed], 
-                        files: attachment ? [attachment] : [] 
+                        files: attachment ? [attachment] : [],
+                        components: components
                     });
                     return;
+                }
+
+                // Check for deeper mine conditions and add button
+
+                const deeperResult = await deeperMineChecker.checkAndAddDeeperMineButton(
+                    embed, 
+                    result, 
+                    channel.id
+                );
+                
+                if (deeperResult.components && deeperResult.components.length > 0) {
+                    components = deeperResult.components;
                 }
 
                 const updatedEmbed = new EmbedBuilder()
@@ -1255,14 +1294,36 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
 
                 await eventLogMessage.edit({ 
                     embeds: [updatedEmbed], 
-                    files: attachment ? [attachment] : [] 
+                    files: attachment ? [attachment] : [],
+                    components: components
                 });
                 return;
             }
+            
+
+            if (powerLevelInfo && forceNew) {
+                let description = logEntry ? `\`\`\`\n${logEntry}\n\`\`\`` : '';
+                if (description) {
+                    embed.setDescription(description);
+                }
+            } else if (logEntry) {
+                embed.setDescription('```\n' + logEntry + '\n```');
+            }
+
+                const deeperResult = await deeperMineChecker.checkAndAddDeeperMineButton(
+                    embed, 
+                    result, 
+                    channel.id
+                );
+                
+                if (deeperResult.components && deeperResult.components.length > 0) {
+                    components = deeperResult.components;
+                }
 
             await channel.send({ 
                 embeds: [embed], 
-                files: attachment ? [attachment] : [] 
+                files: attachment ? [attachment] : [],
+                components: components
             });
         }
 
@@ -1775,6 +1836,19 @@ module.exports = async (channel, dbEntry, json, client) => {
                 dbEntry.markModified('gameData');
                 await dbEntry.save();
             }
+        }
+        
+        // CRITICAL FIX: Set typeId from json if not already set
+        if (json && json.id && dbEntry.typeId !== json.id) {
+            console.log(`[MINING] Setting typeId to ${json.id} for channel ${channel.id}`);
+            dbEntry.typeId = json.id;
+            dbEntry.markModified('typeId');
+            await dbEntry.save();
+        } else if (!dbEntry.typeId && json && json.id) {
+            console.log(`[MINING] Initial typeId set to ${json.id} for channel ${channel.id}`);
+            dbEntry.typeId = json.id;
+            dbEntry.markModified('typeId');
+            await dbEntry.save();
         }
 
         if (!channel?.isVoiceBased()) {

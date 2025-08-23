@@ -6,6 +6,7 @@ const GuildConfig = require('../models/GuildConfig');
 const UniqueItem = require('../models/uniqueItems');
 const { getUniqueItemById } = require('../data/uniqueItemsSheet');
 const { checkConditionalOwnership } = require('./conditionalUniqueItems');
+const DigDeeperListener = require('../patterns/digDeeperListener');
 
 // Load gacha server data
 const gachaServersPath = path.join(__dirname, '../data/gachaServers.json');
@@ -198,6 +199,10 @@ module.exports = async (guild) => {
         try {
             await initializeUniqueItems();
             console.log('[UNIQUE ITEMS] System initialized successfully');
+
+            // Add this:
+            const digDeeperListener = new DigDeeperListener(guild.client);
+            console.log('[DIG_DEEPER] Listener initialized');
             
             // Check for any items that need immediate maintenance (crash recovery)
             const now = new Date();

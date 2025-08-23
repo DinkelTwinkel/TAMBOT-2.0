@@ -214,12 +214,58 @@ class MapCacheSystem {
     queueWrite(channelId, updates) {
         const pending = this.pendingWrites.get(channelId) || {};
         
-        // Merge updates
+        // Merge updates while checking for path conflicts
         for (const [key, value] of Object.entries(updates)) {
+            // Check if this update conflicts with existing pending updates
+            const conflictingKeys = [];
+            
+            for (const existingKey of Object.keys(pending)) {
+                // Skip delete markers
+                if (existingKey.startsWith('__delete_')) continue;
+                
+                // Check if one path is a parent of the other
+                if (this.isPathConflict(key, existingKey)) {
+                    conflictingKeys.push(existingKey);
+                }
+            }
+            
+            // Remove conflicting keys (prefer the more specific update)
+            for (const conflictKey of conflictingKeys) {
+                // If the new key is more specific (longer), remove the broader one
+                // If the existing key is more specific, skip adding the new one
+                if (key.length > conflictKey.length) {
+                    delete pending[conflictKey];
+                } else if (key.length < conflictKey.length) {
+                    // Don't add this update, the existing one is more specific
+                    continue;
+                }
+            }
+            
             pending[key] = value;
         }
         
         this.pendingWrites.set(channelId, pending);
+    }
+    
+    /**
+     * Check if two paths conflict (one is parent of the other)
+     */
+    isPathConflict(path1, path2) {
+        // Check if path1 is a parent of path2 or vice versa
+        const parts1 = path1.split('.');
+        const parts2 = path2.split('.');
+        
+        const minLength = Math.min(parts1.length, parts2.length);
+        
+        // Check if the shorter path is a prefix of the longer one
+        for (let i = 0; i < minLength; i++) {
+            if (parts1[i] !== parts2[i]) {
+                return false;
+            }
+        }
+        
+        // If we got here, one is a parent of the other
+        return parts1.length !== parts2.length;
     }
     
     /**
@@ -234,18 +280,53 @@ class MapCacheSystem {
         // Process all writes in parallel without blocking
         const promises = writes.map(async ([channelId, updates]) => {
             try {
-                await gachaVC.updateOne(
-                    { channelId },
-                    { $set: updates },
-                    { upsert: false }
-                );
-                this.stats.writes++;
+                // Final conflict check before writing
+                const cleanedUpdates = this.cleanConflictingPaths(updates);
+                
+                // Separate regular updates from deletes
+                const setUpdates = {};
+                const unsetUpdates = {};
+                
+                for (const [key, value] of Object.entries(cleanedUpdates)) {
+                    if (key.startsWith('__delete_')) {
+                        const fieldPath = key.replace('__delete_', '');
+                        unsetUpdates[fieldPath] = "";
+                    } else {
+                        setUpdates[key] = value;
+                    }
+                }
+                
+                // Build the update operation
+                const updateOp = {};
+                if (Object.keys(setUpdates).length > 0) {
+                    updateOp.$set = setUpdates;
+                }
+                if (Object.keys(unsetUpdates).length > 0) {
+                    updateOp.$unset = unsetUpdates;
+                }
+                
+                if (Object.keys(updateOp).length > 0) {
+                    await gachaVC.updateOne(
+                        { channelId },
+                        updateOp,
+                        { upsert: false }
+                    );
+                    this.stats.writes++;
+                }
             } catch (error) {
                 console.error(`[MAP_CACHE] Failed to write to DB for ${channelId}:`, error);
                 this.stats.errors++;
                 
-                // Re-queue failed writes
-                this.queueWrite(channelId, updates);
+                // Log the specific updates that failed for debugging
+                if (error.code === 40) {
+                    console.error('[MAP_CACHE] Conflict error with updates:', Object.keys(updates));
+                }
+                
+                // Don't re-queue on conflict errors as they'll keep failing
+                if (error.code !== 40) {
+                    // Re-queue failed writes for non-conflict errors
+                    this.queueWrite(channelId, updates);
+                }
             }
         });
         
@@ -253,6 +334,36 @@ class MapCacheSystem {
         Promise.all(promises).catch(err => {
             console.error('[MAP_CACHE] Batch write error:', err);
         });
+    }
+    
+    /**
+     * Clean conflicting paths from an update object
+     */
+    cleanConflictingPaths(updates) {
+        const cleaned = {};
+        const paths = Object.keys(updates);
+        
+        for (const path of paths) {
+            let hasConflict = false;
+            
+            for (const otherPath of paths) {
+                if (path !== otherPath && !path.startsWith('__delete_') && !otherPath.startsWith('__delete_')) {
+                    if (this.isPathConflict(path, otherPath)) {
+                        // Keep the more specific path
+                        if (path.length < otherPath.length) {
+                            hasConflict = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (!hasConflict) {
+                cleaned[path] = updates[path];
+            }
+        }
+        
+        return cleaned;
     }
     
     /**
