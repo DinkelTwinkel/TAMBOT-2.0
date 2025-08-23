@@ -3,6 +3,7 @@
 
 const InnConfig = require('./innConfig');
 const InnAIManager = require('./innAIManager');
+const AIBarFightGenerator = require('./innAIBarFightGenerator');
 const Money = require('../../../models/currency');
 const ActiveVCs = require('../../../models/activevcs');
 const getPlayerStats = require('../../calculatePlayerStat');
@@ -15,6 +16,7 @@ class InnEventManager {
     constructor() {
         this.config = InnConfig;
         this.aiManager = new InnAIManager();
+        this.aiBarFightGenerator = new AIBarFightGenerator();
         this.eventGenerationLocks = new Map();
         this.recentEvents = new Map(); // Prevent duplicate events
     }
@@ -368,7 +370,7 @@ class InnEventManager {
     }
 
     /**
-     * Generate bar fight event with atomic operations
+     * Generate bar fight event with atomic operations and AI enhancement
      */
     async generateBarFightAtomic(channel, dbEntry) {
         try {
@@ -380,22 +382,75 @@ class InnEventManager {
                 return null;
             }
             
-            const fights = this.config.BAR_FIGHTS;
-            const fight = fights[Math.floor(Math.random() * fights.length)];
-            
-            // Verify NPCs exist and meet power requirements
-            const npc1 = npcs.find(n => n.name === fight.npc1);
-            const npc2 = npcs.find(n => n.name === fight.npc2);
-            
-            if (!npc1 || !npc2) return null;
-            
             const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
             const channelPower = serverData?.power || 1;
             
-            if ((npc1.minChannelPower && npc1.minChannelPower > channelPower) ||
-                (npc2.minChannelPower && npc2.minChannelPower > channelPower)) {
+            // Get eligible NPCs based on channel power
+            const eligibleNpcs = npcs.filter(npc => 
+                !npc.minChannelPower || npc.minChannelPower <= channelPower
+            );
+            
+            if (eligibleNpcs.length < 2) {
+                console.log('[InnEvents] Not enough eligible NPCs for bar fight');
                 return null;
             }
+            
+            let npc1, npc2, fightReason;
+            let useAI = true;
+            
+            // Try AI generation first (70% chance if AI is available)
+            if (this.aiBarFightGenerator.aiEnabled && Math.random() < 0.7) {
+                console.log('[InnEvents] Attempting AI-generated bar fight...');
+                
+                // Select two random NPCs
+                const shuffled = [...eligibleNpcs].sort(() => Math.random() - 0.5);
+                npc1 = shuffled[0];
+                npc2 = shuffled[1];
+                
+                // Generate AI reason
+                fightReason = await this.aiBarFightGenerator.generateAIFightReason(
+                    npc1, npc2, channelPower
+                );
+                
+                if (fightReason) {
+                    console.log(`[InnEvents] AI generated fight: ${npc1.name} vs ${npc2.name} - "${fightReason}"`);
+                } else {
+                    console.log('[InnEvents] AI generation failed, falling back to hardcoded fights');
+                    useAI = false;
+                }
+            } else {
+                useAI = false;
+            }
+            
+            // Fall back to hardcoded fights if AI fails or is disabled
+            if (!useAI) {
+                const fights = this.config.BAR_FIGHTS;
+                const validFights = fights.filter(fight => {
+                    const fighter1 = npcs.find(n => n.name === fight.npc1);
+                    const fighter2 = npcs.find(n => n.name === fight.npc2);
+                    return fighter1 && fighter2 && 
+                           (!fighter1.minChannelPower || fighter1.minChannelPower <= channelPower) &&
+                           (!fighter2.minChannelPower || fighter2.minChannelPower <= channelPower);
+                });
+                
+                if (validFights.length === 0) {
+                    // Last resort: pick random NPCs and use fallback reason
+                    const shuffled = [...eligibleNpcs].sort(() => Math.random() - 0.5);
+                    npc1 = shuffled[0];
+                    npc2 = shuffled[1];
+                    fightReason = this.aiBarFightGenerator.getFallbackReason(npc1, npc2);
+                    console.log(`[InnEvents] Using fallback fight: ${npc1.name} vs ${npc2.name} - "${fightReason}"`);
+                } else {
+                    const fight = validFights[Math.floor(Math.random() * validFights.length)];
+                    npc1 = npcs.find(n => n.name === fight.npc1);
+                    npc2 = npcs.find(n => n.name === fight.npc2);
+                    fightReason = fight.reason;
+                    console.log(`[InnEvents] Using hardcoded fight: ${npc1.name} vs ${npc2.name} - "${fightReason}"`);
+                }
+            }
+            
+            if (!npc1 || !npc2) return null;
+
             
             // Generate unique event ID
             const eventId = this.generateEventId(channelId, 'barFight');
@@ -434,13 +489,23 @@ class InnEventManager {
             
             console.log(`[InnEvents] Bar fight damage: Base ${baseDamage}c × ${powerMultiplier}x (power ${channelPower}) = ${scaledDamage}c → Final: ${finalCost}c`);
             
-            // Generate outcome with mitigation context
-            const outcome = await this.aiManager.generateEventDialogue('barFight', {
-                npc1: npc1.name,
-                npc2: npc2.name,
-                reason: fight.reason,
-                mitigation: mitigationData
-            });
+            // Generate outcome with AI or fallback
+            let outcome;
+            if (useAI && this.aiBarFightGenerator.aiEnabled) {
+                outcome = await this.aiBarFightGenerator.generateAIFightOutcome(
+                    npc1.name, npc2.name, fightReason, mitigationData, finalCost
+                );
+            }
+            
+            // Fallback to standard AI manager if needed
+            if (!outcome) {
+                outcome = await this.aiManager.generateEventDialogue('barFight', {
+                    npc1: npc1.name,
+                    npc2: npc2.name,
+                    reason: fightReason,
+                    mitigation: mitigationData
+                });
+            }
             
             return {
                 type: 'barfight',
@@ -449,7 +514,7 @@ class InnEventManager {
                 originalCost: scaledDamage,
                 npc1: npc1.name,
                 npc2: npc2.name,
-                reason: fight.reason,
+                reason: fightReason,
                 outcome,
                 mitigation: mitigationData,
                 timestamp: new Date()

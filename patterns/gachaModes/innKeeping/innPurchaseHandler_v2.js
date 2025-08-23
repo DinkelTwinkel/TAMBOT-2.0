@@ -500,6 +500,185 @@ class InnPurchaseHandler {
             }
         }
     }
+
+    // ===== BACKWARD COMPATIBILITY METHODS =====
+    // These methods are for compatibility with shopHandler.js
+
+    /**
+     * Calculate cost basis for an item (5% of base value for ~95% profit margin)
+     * @param {number} baseValue - Base value of the item
+     * @param {number} quantity - Quantity being sold (default 1)
+     * @returns {number} - Total cost basis
+     */
+    calculateCostBasis(baseValue, quantity = 1) {
+        return Math.floor(baseValue * 0.05 * quantity);
+    }
+
+    /**
+     * Check if a channel is an inn channel
+     * @param {string} channelId - The channel ID to check
+     * @returns {Promise<boolean>} - True if inn channel
+     */
+    async isInnChannel(channelId) {
+        try {
+            const vcEntry = await ActiveVCs.findOne({ channelId }).lean();
+            if (!vcEntry || !vcEntry.gameData) return false;
+            return vcEntry.gameData.gamemode === 'innkeeper';
+        } catch (error) {
+            console.error('[InnPurchase] Error checking inn channel:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Calculate tip based on buyer's luck stat
+     * @param {string} buyerId - The Discord ID of the buyer
+     * @param {number} salePrice - The base sale price
+     * @returns {Promise<Object>} - Tip data with amount and percentage
+     */
+    async calculateTip(buyerId, salePrice) {
+        try {
+            // Import here to avoid circular dependency
+            const getPlayerStats = require('../../calculatePlayerStat');
+            const playerData = await getPlayerStats(buyerId);
+            const luckStat = playerData.stats.luck || 0;
+            
+            // Base tip range is 10-100% but can go higher with luck
+            const randomFactor = Math.random();
+            const luckBonus = Math.pow(luckStat / 50, 1.5); // Exponential scaling
+            
+            // Calculate final tip percentage (10% minimum, uncapped maximum)
+            let tipPercentage = 10 + (randomFactor * 90 * (1 + luckBonus));
+            
+            // Very lucky players can get massive tips
+            if (luckStat > 100 && Math.random() < 0.1) {
+                tipPercentage *= (1 + luckStat / 100);
+            }
+            
+            const tipAmount = Math.floor(salePrice * (tipPercentage / 100));
+            
+            return {
+                amount: tipAmount,
+                percentage: Math.round(tipPercentage),
+                luckStat: luckStat
+            };
+        } catch (error) {
+            console.error('[InnPurchase] Error calculating tip:', error);
+            // Default 10% tip if error
+            return {
+                amount: Math.floor(salePrice * 0.1),
+                percentage: 10,
+                luckStat: 0
+            };
+        }
+    }
+
+    /**
+     * Process and record an inn sale with tip calculation
+     * @param {Object} saleData - Object containing sale information
+     * @param {Object} saleData.channel - Discord channel object
+     * @param {string} saleData.itemId - Item ID being sold
+     * @param {number} saleData.salePrice - Total sale price
+     * @param {number} saleData.costBasis - Cost basis for profit calculation
+     * @param {Object} saleData.buyer - Discord user object of the buyer
+     * @returns {Promise<Object>} - Tip data and success status
+     */
+    async processInnSale(saleData) {
+        try {
+            const { channel, itemId, salePrice, costBasis, buyer } = saleData;
+            
+            // First check if this is actually an inn channel
+            const isInn = await this.isInnChannel(channel.id);
+            if (!isInn) {
+                return { 
+                    success: false, 
+                    isInn: false,
+                    message: 'Not an inn channel' 
+                };
+            }
+            
+            // Calculate tip based on buyer's luck stat
+            const tipData = await this.calculateTip(buyer.id, salePrice);
+            
+            // Calculate profit (revenue minus cost basis)
+            const profit = salePrice - costBasis;
+            const buyerName = buyer.username || buyer.tag || 'Unknown';
+            
+            // Record sale in the database
+            const purchaseId = this.generatePurchaseId(buyer.id, itemId, Date.now());
+            const saleRecorded = await ActiveVCs.findOneAndUpdate(
+                { channelId: channel.id },
+                {
+                    $push: { 
+                        'gameData.sales': {
+                            purchaseId: purchaseId,
+                            itemId: itemId,
+                            buyer: buyer.id,
+                            buyerName: buyerName,
+                            price: salePrice,
+                            profit: profit,
+                            tip: tipData.amount,
+                            timestamp: new Date()
+                        }
+                    },
+                    $set: { 'gameData.lastActivity': new Date() },
+                    $inc: { 'gameData.totalUserPurchases': 1 }
+                }
+            );
+            
+            if (!saleRecorded) {
+                console.error('[InnPurchase] Failed to record sale');
+                return { 
+                    success: false, 
+                    isInn: true,
+                    message: 'Failed to record sale' 
+                };
+            }
+            
+            console.log(`[InnPurchase] Recorded sale - Item: ${itemId}, Revenue: ${salePrice}, Cost: ${costBasis}, Profit: ${profit} (${(profit/salePrice*100).toFixed(1)}% margin), Tip: ${tipData.amount} (${tipData.percentage}%), Buyer: ${buyerName} (${buyer.id})`);
+            
+            return {
+                success: true,
+                isInn: true,
+                tipData: tipData,
+                profit: profit,
+                totalRevenue: salePrice + tipData.amount
+            };
+        } catch (error) {
+            console.error('[InnPurchase] Error processing inn sale:', error);
+            return { 
+                success: false, 
+                error: error.message 
+            };
+        }
+    }
+
+    /**
+     * Format a tip message for display
+     * @param {Object} tipData - Tip data from calculateTip
+     * @returns {string} - Formatted message string
+     */
+    formatTipMessage(tipData) {
+        if (!tipData || tipData.amount <= 0) return '';
+        
+        // Add flavor text based on tip percentage
+        let flavorText = '';
+        if (tipData.percentage >= 200) {
+            flavorText = '🤑 LEGENDARY tip!';
+        } else if (tipData.percentage >= 100) {
+            flavorText = '💎 Extremely generous!';
+        } else if (tipData.percentage >= 75) {
+            flavorText = '✨ Very generous!';
+        } else if (tipData.percentage >= 50) {
+            flavorText = '😊 Generous!';
+        } else if (tipData.percentage >= 25) {
+            flavorText = '👍 Nice!';
+        } else {
+            flavorText = '';
+        }
+        
+        return `💝 **Tip Added:** ${tipData.amount} coins (${tipData.percentage}%) ${flavorText}`.trim();
+    }
 }
 
 module.exports = InnPurchaseHandler;

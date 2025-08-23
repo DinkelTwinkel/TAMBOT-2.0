@@ -217,7 +217,10 @@ class InnKeeperController {
 
             // Check work/break state with atomic operations
             const workState = await this.checkWorkStateAtomic(channel, channelId, now);
-            if (workState.shouldReturn) return;
+            if (workState.shouldReturn) {
+                console.log(`[InnKeeperV2] Returning early from cycle - workState.shouldReturn is true`);
+                return;
+            }
 
             // Generate activity if needed
             if (this.shouldGenerateActivity(dbEntry, now)) {
@@ -344,9 +347,17 @@ class InnKeeperController {
         
         // Check if work period is complete
         if (this.isWorkPeriodComplete(gameData, now)) {
+            console.log('[InnKeeperV2] Work period complete, starting break...');
             const started = await this.startBreakAtomic(channel, channelId, stateVersion, now);
             return { shouldReturn: started };
         }
+        
+        // Log work progress
+        const workStartTime = new Date(gameData.workStartTime).getTime();
+        const timeSinceWorkStart = now - workStartTime;
+        const workMinutesElapsed = Math.round(timeSinceWorkStart / 60000);
+        const workMinutesRemaining = Math.max(0, 25 - workMinutesElapsed);
+        console.log(`[InnKeeperV2] Working: ${workMinutesElapsed} minutes elapsed, ${workMinutesRemaining} minutes until break`);
         
         return { shouldReturn: false };
     }
@@ -367,12 +378,12 @@ class InnKeeperController {
         try {
             const newWorkPeriodId = `work-${channelId}-${now}`;
             
-            // Atomic state transition with version check
+            // Atomic state transition - relaxed version check
             const updated = await ActiveVCs.findOneAndUpdate(
                 { 
                     channelId: channelId,
-                    'gameData.workState': 'break',
-                    'gameData.stateVersion': currentVersion
+                    'gameData.workState': 'break'
+                    // Removed strict version check to prevent stuck states
                 },
                 { 
                     $set: { 
@@ -458,8 +469,14 @@ class InnKeeperController {
     isWorkPeriodComplete(gameData, now) {
         const workStartTime = new Date(gameData.workStartTime).getTime();
         const timeSinceWorkStart = now - workStartTime;
-        return timeSinceWorkStart >= this.config.TIMING.WORK_DURATION && 
+        const shouldBreak = timeSinceWorkStart >= this.config.TIMING.WORK_DURATION && 
                gameData.workState === 'working';
+        
+        if (shouldBreak) {
+            console.log(`[InnKeeperV2] Work period complete: ${Math.round(timeSinceWorkStart / 60000)} minutes worked`);
+        }
+        
+        return shouldBreak;
     }
 
     /**
@@ -474,8 +491,9 @@ class InnKeeperController {
                 { 
                     channelId: channelId,
                     'gameData.workState': 'working',
-                    'gameData.stateVersion': currentVersion,
-                    'gameData.profitsDistributed': false // Only if not already distributed
+                    // Remove strict version check that might be blocking transitions
+                    // 'gameData.stateVersion': currentVersion,
+                    'gameData.profitsDistributed': { $ne: true } // Only if not already distributed
                 },
                 { 
                     $set: { 
@@ -489,13 +507,26 @@ class InnKeeperController {
             
             if (!transitioned) {
                 console.log('[InnKeeperV2] Failed to start break - state already changed or profits already distributed');
-                return false;
+                // Try without version check as fallback
+                const fallback = await ActiveVCs.findOneAndUpdate(
+                    { 
+                        channelId: channelId,
+                        'gameData.workState': 'working'
+                    },
+                    { 
+                        $set: { 
+                            'gameData.workState': 'transitioning_to_break',
+                            'gameData.profitsDistributed': true
+                        }
+                    },
+                    { new: true }
+                );
+                if (!fallback) return false;
             }
             
-            // Now distribute profits (data is locked in transitioning state)
-            if (transitioned.gameData.sales.length > 0 || transitioned.gameData.events.length > 0) {
-                await this.distributeProfitsAtomic(channel, channelId);
-            }
+            // Always try to distribute profits, even if no sales/events (base salary)
+            console.log('[InnKeeperV2] Distributing profits before break...');
+            await this.distributeProfitsAtomic(channel, channelId);
             
             // Finally, complete transition to break
             const breakTime = now + this.config.TIMING.BREAK_DURATION;
@@ -596,7 +627,10 @@ class InnKeeperController {
         try {
             // Get current data
             const current = await ActiveVCs.findOne({ channelId: channelId });
-            if (!current) return;
+            if (!current || current.gameData.workState !== 'working') {
+                console.log('[InnKeeperV2] Skipping activity generation - not working');
+                return;
+            }
             
             const event = await this.eventManager.generateEvent(channel, current);
             
@@ -761,15 +795,11 @@ class InnKeeperController {
             // Generate distribution ID for idempotency
             const distributionId = `dist-${channelId}-${Date.now()}-${Math.random()}`;
             
-            // Get and lock data for distribution
+            // Get and lock data for distribution - always distribute (for base salary)
             const lockedData = await ActiveVCs.findOneAndUpdate(
                 {
                     channelId: channelId,
-                    'gameData.lastDistributionId': { $ne: distributionId },
-                    $or: [
-                        { 'gameData.sales.0': { $exists: true } },
-                        { 'gameData.events.0': { $exists: true } }
-                    ]
+                    'gameData.lastDistributionId': { $ne: distributionId }
                 },
                 {
                     $set: {
@@ -783,9 +813,11 @@ class InnKeeperController {
             );
             
             if (!lockedData) {
-                console.log('[InnKeeperV2] No data to distribute or already distributed');
+                console.log('[InnKeeperV2] Already distributed or channel not found');
                 return;
             }
+            
+            console.log(`[InnKeeperV2] Starting profit distribution with ${lockedData.gameData.sales?.length || 0} sales and ${lockedData.gameData.events?.length || 0} events`);
 
             // Get server data
             const serverData = gachaServers.find(s => s.id === String(lockedData.typeId));
@@ -970,12 +1002,18 @@ class InnKeeperController {
             const timeSinceWorkStart = now - workStartTime;
             const timeUntilBreak = this.config.TIMING.WORK_DURATION - timeSinceWorkStart;
             
+            console.log(`[InnKeeperV2] Time until break: ${Math.round(timeUntilBreak / 60000)} minutes`);
+            
             if (timeUntilBreak <= 60000) {
                 // Less than 1 minute until break, check frequently
-                nextTriggerDelay = 10000;
+                nextTriggerDelay = 5000; // Check every 5 seconds
+                console.log('[InnKeeperV2] Less than 1 minute until break, checking frequently');
+            } else if (timeUntilBreak <= 120000) {
+                // Less than 2 minutes until break
+                nextTriggerDelay = 10000; // Check every 10 seconds
             } else if (timeUntilBreak <= 300000) {
                 // Less than 5 minutes until break
-                nextTriggerDelay = 30000;
+                nextTriggerDelay = 20000; // Check every 20 seconds
             } else {
                 // Normal activity cycle
                 const timeSinceLastActivity = now - new Date(current.gameData.lastActivity || 0).getTime();
