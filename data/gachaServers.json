@@ -275,11 +275,11 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "These cursed mines materialized after a hellish creature's insatiable hunger consumed too much broken memories, dreams and wanderers. The walls pulsate with digestive acids, and precious ores are embedded in crystallized bile. Miners report hearing eternal chewing sounds echoing from the deepest shafts, where the demon's stomach still digests reality itself.",
-        "power": 8,
+        "power": 10,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
-            "spawnChance": 0.05,
-            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "spawnChance": 0.5,
+            "allowedTypes": ["green_fog", "wall_trap"],
             "modifiers": {
                 "bombRadius": 5,
                 "greenFogDamage": 4,
@@ -298,11 +298,11 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "Discovered when a drunk patron stumbled upon a rusty key beneath the tavern floorboards, this mine exists between dimensions. The key unlocks passages to ancient dwarven vaults frozen in time. Rust-covered mechanisms and clockwork guardians protect treasures that predate recorded history. Every surface is covered in a patina of ages, and time flows differently in each chamber.",
-        "power": 9,
+        "power": 10,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
-            "spawnChance": 0.045,
-            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "spawnChance": 0.5,
+            "allowedTypes": ["bomb_trap", "wall_trap"],
             "modifiers": {
                 "bombRadius": 4,
                 "greenFogDamage": 3,
@@ -325,8 +325,8 @@
         "power": 10,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
-            "spawnChance": 0.06,
-            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "spawnChance": 0.5,
+            "allowedTypes": ["portal_trap"],
             "modifiers": {
                 "bombRadius": 6,
                 "greenFogDamage": 5,
