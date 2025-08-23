@@ -1289,6 +1289,18 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
             return;
         }
         
+        // DOUBLE-CHECK: Prevent repeated long breaks even if called incorrectly
+        if (isLongBreak && dbEntry.gameData?.lastLongBreakStarted) {
+            const timeSinceLastLong = now - dbEntry.gameData.lastLongBreakStarted;
+            const minTimeBetween = (MINING_DURATION * 3) + (SHORT_BREAK_DURATION * 3);
+            
+            if (timeSinceLastLong < minTimeBetween) {
+                console.error(`[CRITICAL] Attempted to start long break too soon! Only ${Math.floor(timeSinceLastLong / 60000)} minutes since last one`);
+                console.log(`[CRITICAL] Converting to short break for safety`);
+                isLongBreak = false; // Force convert to short break
+            }
+        }
+        
         // Kill any parallel instances before starting break
         instanceManager.forceKillChannel(channelId);
         
@@ -1513,13 +1525,13 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
             }
         }
         
-        // CRITICAL: Properly increment and track cycle count
-        const previousCycle = dbEntry.gameData?.cycleCount || 0;
-        const cycleCount = previousCycle + 1;
+        // NOTE: Cycle count was already incremented when the break started
+        // We just need to get the current cycle count for calculating next break
+        const cycleCount = dbEntry.gameData?.cycleCount || 1;
         
         // Verify cycle count pattern
         const cycleVerification = verifyCycleCount(channelId, cycleCount);
-        console.log(`[CYCLE TRACKING] Channel ${channelId}: Incrementing cycle ${previousCycle} -> ${cycleCount}`);
+        console.log(`[CYCLE TRACKING] Channel ${channelId}: Current cycle ${cycleCount}`);
         console.log(`[CYCLE TRACKING] Pattern check: ${cycleVerification.pattern}`);
         console.log(`[CYCLE TRACKING] Next break will be: ${cycleVerification.isLongBreakNext ? 'LONG' : 'SHORT'}`);
         
@@ -1536,10 +1548,9 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         // CRITICAL FIX: Clear breakInfo from cache BEFORE database update
         mapCacheSystem.deleteField(channel.id, 'breakInfo');
         
-        // Update cache with new state
+        // Update cache with new state (cycle count already incremented at break start)
         mapCacheSystem.updateMultiple(channel.id, {
             'map.playerPositions': resetPositions,
-            'cycleCount': cycleCount,
             'breakJustEnded': Date.now(),
             'miningResumedAt': Date.now(),  // FIX: Track when mining resumed
             nextShopRefresh: nextBreakInfo.nextShopRefresh,
@@ -1552,7 +1563,6 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
             { 
                 $unset: { 'gameData.breakInfo': 1 },
                 $set: {
-                    'gameData.cycleCount': cycleCount,
                     'gameData.breakJustEnded': Date.now(),
                     'gameData.miningResumedAt': Date.now(),  // FIX: Track when mining resumed
                     'gameData.map.playerPositions': resetPositions,
@@ -1907,24 +1917,96 @@ if (shouldStartBreak) {
             mapCacheSystem.deleteField(channelId, 'breakInfo');
             await mapCacheSystem.forceFlush();
             
-            // CRITICAL: Verify cycle count before determining break type
-            const cycleCount = dbEntry.gameData?.cycleCount || 0;
+            // CRITICAL: Get current cycle count
+            let currentCycleCount = dbEntry.gameData?.cycleCount || 0;
             
             // Initialize cycleCount if missing
             if (dbEntry.gameData?.cycleCount === undefined || dbEntry.gameData?.cycleCount === null) {
                 console.log(`[CYCLE FIX] Initializing missing cycleCount to 0 for channel ${channelId}`);
-                await gachaVC.updateOne(
-                    { channelId },
-                    { $set: { 'gameData.cycleCount': 0 } }
-                );
-                dbEntry.gameData.cycleCount = 0;
+                currentCycleCount = 0;
             }
             
-            const cycleVerification = verifyCycleCount(channelId, cycleCount);
-            const isLongBreak = (cycleCount % 4) === 3;
+            // CRITICAL FIX: Increment cycle count BEFORE determining break type
+            const nextCycleCount = currentCycleCount + 1;
             
-            console.log(`[BREAK START] Channel ${channelId}: Starting break at cycle ${cycleCount}`);
+            // Determine if this will be a long break BASED ON THE NEW CYCLE COUNT
+            let isLongBreak = ((nextCycleCount - 1) % 4) === 3; // -1 because we check the cycle we're entering
+            
+            // SAFETY CHECK: Prevent repeated long breaks
+            if (isLongBreak && dbEntry.gameData?.lastLongBreakStarted) {
+                const timeSinceLastLongBreak = now - dbEntry.gameData.lastLongBreakStarted;
+                const minTimeBetweenLongBreaks = (MINING_DURATION * 3) + (SHORT_BREAK_DURATION * 3); // At least 3 full cycles
+                
+                if (timeSinceLastLongBreak < minTimeBetweenLongBreaks) {
+                    console.log(`[SAFETY] Preventing repeated long break - only ${Math.floor(timeSinceLastLongBreak / 60000)} minutes since last long break`);
+                    console.log(`[SAFETY] Forcing short break instead`);
+                    // Force a short break instead
+                    isLongBreak = false;
+                }
+            }
+            
+            console.log(`[BREAK START] Channel ${channelId}: Incrementing cycle ${currentCycleCount} -> ${nextCycleCount}`);
             console.log(`[BREAK START] Break type: ${isLongBreak ? 'LONG BREAK' : 'SHORT BREAK'}`);
+            
+            // CRITICAL: Save the incremented cycle count to DB IMMEDIATELY
+            try {
+                const updateData = { 
+                    'gameData.cycleCount': nextCycleCount,
+                    'gameData.lastBreakStarted': now
+                };
+                
+                // Track last long break specifically to prevent repeats
+                if (isLongBreak) {
+                    updateData['gameData.lastLongBreakStarted'] = now;
+                    updateData['gameData.lastLongBreakCycle'] = nextCycleCount;
+                }
+                
+                const updateResult = await gachaVC.updateOne(
+                    { channelId },
+                    { $set: updateData }
+                );
+                
+                if (!updateResult.acknowledged) {
+                    console.error(`[CRITICAL] Failed to save cycle count before break!`);
+                    return; // Don't start break if we can't save the cycle count
+                }
+                
+                console.log(`[CYCLE SAVED] Successfully saved cycle ${nextCycleCount} to database`);
+                
+                // Log the break pattern for debugging
+                const breakPattern = [];
+                for (let i = Math.max(1, nextCycleCount - 7); i <= nextCycleCount + 4; i++) {
+                    const wouldBeLong = ((i - 1) % 4) === 3;
+                    if (i === nextCycleCount) {
+                        breakPattern.push(`[${i}:${wouldBeLong ? 'LONG' : 'SHORT'}]<--NOW`);
+                    } else {
+                        breakPattern.push(`${i}:${wouldBeLong ? 'L' : 'S'}`);
+                    }
+                }
+                console.log(`[CYCLE PATTERN] ${breakPattern.join(' ')}`);
+                
+                if (isLongBreak) {
+                    console.log(`[LONG BREAK] Starting long break at cycle ${nextCycleCount}`);
+                    console.log(`[LONG BREAK] This prevents another long break for ~${Math.floor(((MINING_DURATION * 3) + (SHORT_BREAK_DURATION * 3)) / 60000)} minutes`);
+                }
+                
+                // Update cache as well
+                mapCacheSystem.updateMultiple(channelId, {
+                    'cycleCount': nextCycleCount,
+                    'lastBreakStarted': now,
+                    'lastBreakType': isLongBreak ? 'LONG' : 'SHORT'
+                });
+                await mapCacheSystem.forceFlush();
+                
+                // Update the local dbEntry to reflect the new cycle count
+                dbEntry.gameData.cycleCount = nextCycleCount;
+                
+            } catch (saveError) {
+                console.error(`[CRITICAL] Error saving cycle count:`, saveError);
+                return; // Don't proceed with break if save failed
+            }
+            
+            const cycleVerification = verifyCycleCount(channelId, nextCycleCount);
             console.log(`[BREAK START] Cycle pattern: ${cycleVerification.pattern}`);
             
             let selectedEvent = null;
