@@ -374,6 +374,16 @@ class InnEventManager {
             const playerData = await getPlayerStats(luckyMember.id);
             const luckStat = playerData.stats.luck || 0;
             
+            // Get establishment power level
+            const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
+            const channelPower = serverData?.power || 1;
+            const powerMultiplier = this.config.COIN_FINDS.POWER_MULTIPLIERS[channelPower] || 1.0;
+            
+            // Get shop info for context
+            const shopInfo = shops.find(s => s.id === serverData?.shop);
+            const innName = shopInfo?.name || "the inn";
+            const innkeeperName = shopInfo?.shopkeeper?.name || "the innkeeper";
+            
             // Select coin amount
             let selectedFind;
             if (luckStat > this.config.COIN_FINDS.RARE_THRESHOLD && 
@@ -385,9 +395,12 @@ class InnEventManager {
                 selectedFind = commonFinds[Math.floor(Math.random() * commonFinds.length)];
             }
             
-            // Apply luck bonus
-            const luckBonus = Math.floor(selectedFind.amount * (luckStat / this.config.COIN_FINDS.LUCK_DIVISOR));
-            const totalAmount = selectedFind.amount + luckBonus;
+            // Apply power multiplier FIRST
+            const baseAmount = Math.floor(selectedFind.amount * powerMultiplier);
+            
+            // Then apply luck bonus on top
+            const luckBonus = Math.floor(baseAmount * (luckStat / this.config.COIN_FINDS.LUCK_DIVISOR));
+            const totalAmount = baseAmount + luckBonus;
             
             // Award coins
             await Money.findOneAndUpdate(
@@ -399,18 +412,72 @@ class InnEventManager {
                 { upsert: true, new: true }
             );
             
-            // Generate description
-            const description = await this.aiManager.generateEventDialogue('coinFind', {
-                finder: luckyMember.user.username,
-                amount: totalAmount
-            });
+            // Generate enhanced AI description with context
+            let description;
+            try {
+                // Build context for AI generation
+                const coinContext = {
+                    finder: luckyMember.user.username,
+                    amount: totalAmount,
+                    innName: innName,
+                    innkeeperName: innkeeperName,
+                    establishment: channelPower >= 4 ? 'luxury' : channelPower >= 2 ? 'modest' : 'humble',
+                    luckStat: luckStat,
+                    powerLevel: channelPower
+                };
+                
+                // Generate location-appropriate descriptions
+                if (channelPower >= 4) {
+                    // Noble establishments
+                    coinContext.locations = ['beneath a velvet cushion', 'in the chandelier', 'behind the wine rack', 
+                                            'under the marble floor tile', 'in the coat check room'];
+                } else if (channelPower >= 2) {
+                    // Mid-tier establishments
+                    coinContext.locations = ['under the barstool', 'in the fireplace ash', 'behind the beer kegs',
+                                            'in a booth cushion', 'near the dartboard'];
+                } else {
+                    // Basic establishments
+                    coinContext.locations = ['under a table', 'in the sawdust', 'behind the bar',
+                                            'in a floor crack', 'near the door'];
+                }
+                
+                description = await this.aiManager.generateEventDialogue('coinFind', coinContext);
+            } catch (err) {
+                console.log('[InnEvents] AI generation failed for coin find, using default');
+            }
+            
+            // Enhanced fallback descriptions based on power level
+            if (!description) {
+                if (channelPower >= 4) {
+                    const nobleFallbacks = [
+                        `found ${totalAmount} coins in a silk purse left by a noble`,
+                        `discovered ${totalAmount} coins that fell from a lord's pocket`,
+                        `spotted ${totalAmount} coins gleaming beneath the crystal decanter`
+                    ];
+                    description = nobleFallbacks[Math.floor(Math.random() * nobleFallbacks.length)];
+                } else if (channelPower >= 2) {
+                    const midFallbacks = [
+                        `found ${totalAmount} coins dropped by a merchant`,
+                        `discovered ${totalAmount} coins hidden in the cushions`,
+                        `noticed ${totalAmount} coins that rolled behind the fireplace`
+                    ];
+                    description = midFallbacks[Math.floor(Math.random() * midFallbacks.length)];
+                } else {
+                    description = selectedFind.description;
+                }
+            }
+            
+            // Log the find for debugging
+            console.log(`[InnEvents] Coin find at ${innName} (Power ${channelPower}): ${luckyMember.user.username} found ${totalAmount} coins (base: ${baseAmount}, luck bonus: ${luckBonus})`);
             
             return {
                 type: 'coinFind',
                 amount: totalAmount,
                 finder: luckyMember.id,
                 finderName: luckyMember.user.username,
-                description: description || selectedFind.description,
+                description: description,
+                powerLevel: channelPower,
+                luckBonus: luckBonus,
                 timestamp: new Date()
             };
             

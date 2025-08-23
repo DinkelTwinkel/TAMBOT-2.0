@@ -189,8 +189,29 @@ class InnAIManager {
                 break;
                 
             case 'coinFind':
-                prompt = `Describe how ${eventContext.finder} found ${eventContext.amount} coins 
-                in the inn. Keep it brief and specific, under 15 words.`;
+                // Enhanced coin find dialogue with establishment context
+                if (eventContext.powerLevel >= 4) {
+                    // Noble establishment
+                    prompt = `${eventContext.finder} finds ${eventContext.amount} coins in the luxury establishment "${eventContext.innName}". 
+                    Describe where exactly they found it - maybe ${eventContext.locations ? eventContext.locations[0] : 'in an elegant location'}.
+                    Keep it under 20 words, make it sound appropriate for a high-class venue.`;
+                } else if (eventContext.powerLevel >= 2) {
+                    // Mid-tier establishment
+                    prompt = `${eventContext.finder} discovers ${eventContext.amount} coins at ${eventContext.innName}. 
+                    Describe the lucky find - perhaps ${eventContext.locations ? eventContext.locations[0] : 'in a common area'}.
+                    Keep it under 20 words, casual tone.`;
+                } else {
+                    // Basic establishment
+                    prompt = `${eventContext.finder} spots ${eventContext.amount} coins on the floor of the humble inn. 
+                    Simple description of where - maybe ${eventContext.locations ? eventContext.locations[0] : 'under something'}.
+                    Keep it under 15 words, working-class tone.`;
+                }
+                
+                // Add luck context if very lucky
+                if (eventContext.luckStat > 100) {
+                    prompt += ` Their exceptional luck (${eventContext.luckStat}) makes this find seem almost magical.`;
+                }
+                
                 fallbacks = this.fallbackDialogue.events.coinFind;
                 break;
                 

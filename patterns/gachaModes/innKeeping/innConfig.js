@@ -161,9 +161,18 @@ module.exports = {
             { amount: 10, description: "a small purse dropped during the rush" },
             { amount: 15, description: "gold pieces from a gambler's lucky streak" }
         ],
+        POWER_MULTIPLIERS: {               // Multiply base amounts by power level
+            1: 1.0,   // Miner's Inn: 1-15 coins
+            2: 1.5,   // Hunter's Lodge: 1-22 coins
+            3: 2.0,   // Power 3: 2-30 coins
+            4: 3.0,   // Noble's Rest: 3-45 coins
+            5: 4.0,   // Power 5: 4-60 coins
+            6: 5.0,   // Power 6: 5-75 coins
+            7: 6.0    // Power 7: 6-90 coins
+        },
         RARE_THRESHOLD: 50,                    // Luck needed for rare finds
         RARE_CHANCE: 0.3,                      // 30% chance with high luck
-        LUCK_DIVISOR: 300                      // Luck bonus calculation
+        LUCK_DIVISOR: 200                      // Luck bonus calculation (improved from 300)
     },
 
     // Bar Fight Configuration
