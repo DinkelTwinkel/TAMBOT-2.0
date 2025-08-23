@@ -591,7 +591,7 @@ async function distributeProfits(channel, dbEntry) {
         }
 
         // Get server data for salary calculation
-        const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
+        let serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
         const serverPower = serverData?.power || 1;
         const baseSalary = calculateBaseSalary(serverPower);
 
@@ -719,7 +719,7 @@ async function distributeProfits(channel, dbEntry) {
         }
 
         // Get the shop owner's name for the report
-        const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
+        serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
         const shopInfo = shops.find(s => s.id === serverData?.shop);
         const innkeeperName = shopInfo?.shopkeeper?.name || "The innkeeper";
         const innName = shopInfo?.name || "the inn";
