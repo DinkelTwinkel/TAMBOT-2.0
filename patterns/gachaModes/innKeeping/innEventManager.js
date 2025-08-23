@@ -76,7 +76,34 @@ class InnEventManager {
             const timeSinceLastActivity = now - lastActivity;
             const forceEvent = timeSinceLastActivity >= this.config.TIMING.ACTIVITY_GUARANTEE;
             
-            // Try NPC sale first (highest priority)
+            // Check for costly events FIRST (20% overall chance)
+            const costlyEventChance = forceEvent ? 
+                this.config.EVENTS.COSTLY_EVENT.FORCED_CHANCE : 
+                this.config.EVENTS.COSTLY_EVENT.BASE_CHANCE;
+            
+            const costlyRoll = Math.random();
+            console.log(`[InnEvents] Event roll - Costly Events: ${(costlyRoll * 100).toFixed(1)}% rolled vs ${(costlyEventChance * 100).toFixed(0)}% chance (50% base)`);
+                
+            if (costlyRoll < costlyEventChance) {
+                const costlyType = this.selectCostlyEventType();
+                
+                switch (costlyType) {
+                    case 'barFight':
+                        const barFight = await this.generateBarFightAtomic(channel, dbEntry);
+                        if (barFight) {
+                            console.log('[InnEvents] Generated costly event: Bar Fight');
+                            return barFight;
+                        }
+                        break;
+                    // Future costly events can be added here
+                    case 'theft':
+                    case 'accident':
+                        // To be implemented
+                        break;
+                }
+            }
+            
+            // Try NPC sale (now second priority)
             const npcSaleChance = forceEvent ? 
                 this.config.EVENTS.NPC_SALE.FORCED_CHANCE : 
                 this.config.EVENTS.NPC_SALE.BASE_CHANCE;
@@ -86,7 +113,7 @@ class InnEventManager {
                 if (npcSale) return npcSale;
             }
             
-            // Try random events
+            // Try other random events (rumors, coin finds)
             const eventChance = forceEvent ? 
                 this.config.EVENTS.RANDOM_EVENT.FORCED_CHANCE : 
                 this.config.EVENTS.RANDOM_EVENT.BASE_CHANCE;
@@ -95,8 +122,6 @@ class InnEventManager {
                 const eventType = this.selectEventType();
                 
                 switch (eventType) {
-                    case 'barFight':
-                        return await this.generateBarFightAtomic(channel, dbEntry);
                     case 'rumor':
                         return await this.generateRumorAtomic(channel, dbEntry);
                     case 'coinFind':
@@ -118,14 +143,25 @@ class InnEventManager {
     }
 
     /**
-     * Select event type based on distribution
+     * Select costly event type based on distribution
+     */
+    selectCostlyEventType() {
+        const rand = Math.random();
+        const dist = this.config.EVENTS.COSTLY_EVENT.DISTRIBUTION;
+        
+        if (rand < dist.BAR_FIGHT) return 'barFight';
+        if (rand < dist.BAR_FIGHT + dist.THEFT) return 'theft';
+        return 'accident';
+    }
+    
+    /**
+     * Select event type based on distribution (non-costly events)
      */
     selectEventType() {
         const rand = Math.random();
         const dist = this.config.EVENTS.RANDOM_EVENT.DISTRIBUTION;
         
-        if (rand < dist.BAR_FIGHT) return 'barFight';
-        if (rand < dist.BAR_FIGHT + dist.RUMOR) return 'rumor';
+        if (rand < dist.RUMOR) return 'rumor';
         return 'coinFind';
     }
 
@@ -364,32 +400,164 @@ class InnEventManager {
             // Generate unique event ID
             const eventId = this.generateEventId(channelId, 'barFight');
             
-            // Calculate damage cost with some randomness
-            const baseDamage = (npc1.wealth + npc2.wealth) * 2;
-            const randomDamage = Math.floor(Math.random() * 10);
-            const damageCost = Math.floor(baseDamage + randomDamage);
+            // Calculate base damage using new scaling system
+            const baseDamage = (npc1.wealth + npc2.wealth) * 10;  // Base damage from NPC wealth
+            const powerMultiplier = this.config.EVENTS.COSTLY_EVENT.COST_SCALING.BASE_MULTIPLIER[channelPower] || 1;
+            const varianceMultiplier = this.config.EVENTS.COSTLY_EVENT.COST_SCALING.VARIANCE_MULTIPLIER[channelPower] || 0.2;
             
-            // Generate outcome
+            // Apply power scaling and variance
+            const variance = 1 + (Math.random() - 0.5) * 2 * varianceMultiplier;
+            const scaledDamage = Math.floor(baseDamage * powerMultiplier * variance);
+            
+            // Get workers in VC for mitigation attempt
+            const voiceChannel = channel.guild.channels.cache.get(channel.id);
+            let finalCost = scaledDamage;
+            let mitigationData = null;
+            
+            if (voiceChannel && voiceChannel.isVoiceBased()) {
+                const membersInVC = Array.from(voiceChannel.members.values())
+                    .filter(member => !member.user.bot);
+                    
+                if (membersInVC.length > 0) {
+                    // Select random worker to attempt mitigation
+                    const responder = membersInVC[Math.floor(Math.random() * membersInVC.length)];
+                    
+                    // Calculate mitigation based on stats
+                    mitigationData = await this.calculateMitigation(responder, channelPower, scaledDamage);
+                    finalCost = mitigationData.finalCost;
+                    
+                    console.log(`[InnEvents] ${responder.user.username} attempts to stop the fight!`);
+                    console.log(`[InnEvents] Stats: Speed ${mitigationData.stats.speed}, Sight ${mitigationData.stats.sight}, Luck ${mitigationData.stats.luck}`);
+                    console.log(`[InnEvents] Mitigation: ${mitigationData.reductionPercent}% reduction (${scaledDamage}c → ${finalCost}c)`);
+                }
+            }
+            
+            console.log(`[InnEvents] Bar fight damage: Base ${baseDamage}c × ${powerMultiplier}x (power ${channelPower}) = ${scaledDamage}c → Final: ${finalCost}c`);
+            
+            // Generate outcome with mitigation context
             const outcome = await this.aiManager.generateEventDialogue('barFight', {
                 npc1: npc1.name,
                 npc2: npc2.name,
-                reason: fight.reason
+                reason: fight.reason,
+                mitigation: mitigationData
             });
             
             return {
                 type: 'barfight',
                 eventId: eventId,
-                cost: damageCost,
+                cost: finalCost,
+                originalCost: scaledDamage,
                 npc1: npc1.name,
                 npc2: npc2.name,
                 reason: fight.reason,
                 outcome,
+                mitigation: mitigationData,
                 timestamp: new Date()
             };
             
         } catch (error) {
             console.error('[InnEvents] Error generating bar fight:', error);
             return null;
+        }
+    }
+
+    /**
+     * Calculate mitigation for costly events based on player stats
+     */
+    async calculateMitigation(member, channelPower, originalCost) {
+        try {
+            // Get player stats
+            const playerData = await getPlayerStats(member.id);
+            const stats = playerData.stats || {};
+            
+            const speedStat = stats.speed || 0;
+            const sightStat = stats.sight || 0;
+            const luckStat = stats.luck || 0;
+            
+            // Get mitigation config
+            const mitConfig = this.config.EVENTS.COSTLY_EVENT.MITIGATION;
+            const weights = mitConfig.STAT_WEIGHTS;
+            const threshold = mitConfig.NEGATION_THRESHOLDS[channelPower] || 10;
+            
+            // Calculate weighted stat total
+            const weightedTotal = (speedStat * weights.SPEED) + 
+                                 (sightStat * weights.SIGHT) + 
+                                 (luckStat * weights.LUCK);
+            
+            // Calculate reduction percentage
+            let reductionPercent = Math.min(mitConfig.MAX_REDUCTION, weightedTotal / threshold);
+            reductionPercent = Math.max(mitConfig.MIN_REDUCTION, reductionPercent);
+            
+            // Determine mitigation type
+            let mitigationType;
+            if (reductionPercent >= 0.95) {
+                mitigationType = 'complete_negation';
+            } else if (reductionPercent >= 0.75) {
+                mitigationType = 'major_reduction';
+            } else if (reductionPercent >= 0.50) {
+                mitigationType = 'moderate_reduction';
+            } else if (reductionPercent >= 0.25) {
+                mitigationType = 'minor_reduction';
+            } else if (reductionPercent > 0) {
+                mitigationType = 'minimal_reduction';
+            } else {
+                mitigationType = 'failed';
+            }
+            
+            // Calculate final cost
+            const reduction = Math.floor(originalCost * reductionPercent);
+            const finalCost = originalCost - reduction;
+            
+            // Generate flavor text based on mitigation success
+            let flavorText = '';
+            if (mitigationType === 'complete_negation') {
+                flavorText = `${member.user.username} swiftly intervenes and completely prevents any damage!`;
+            } else if (mitigationType === 'major_reduction') {
+                flavorText = `${member.user.username} quickly steps in and prevents most of the damage!`;
+            } else if (mitigationType === 'moderate_reduction') {
+                flavorText = `${member.user.username} manages to minimize some of the damage.`;
+            } else if (mitigationType === 'minor_reduction') {
+                flavorText = `${member.user.username} tries to help but only slightly reduces the damage.`;
+            } else if (mitigationType === 'minimal_reduction') {
+                flavorText = `${member.user.username} attempts to intervene but barely makes a difference.`;
+            } else {
+                flavorText = `${member.user.username} tries to stop the fight but fails completely.`;
+            }
+            
+            return {
+                responder: member.user.username,
+                responderId: member.id,
+                stats: {
+                    speed: speedStat,
+                    sight: sightStat,
+                    luck: luckStat,
+                    weighted: Math.floor(weightedTotal),
+                    threshold: threshold
+                },
+                mitigationType,
+                reductionPercent: Math.floor(reductionPercent * 100),
+                reduction,
+                originalCost,
+                finalCost,
+                flavorText,
+                powerLevel: channelPower
+            };
+            
+        } catch (error) {
+            console.error('[InnEvents] Error calculating mitigation:', error);
+            // Return no mitigation on error
+            return {
+                responder: member.user.username,
+                responderId: member.id,
+                stats: { speed: 0, sight: 0, luck: 0, weighted: 0, threshold: 10 },
+                mitigationType: 'failed',
+                reductionPercent: 0,
+                reduction: 0,
+                originalCost,
+                finalCost: originalCost,
+                flavorText: `${member.user.username} couldn't respond in time.`,
+                powerLevel: channelPower
+            };
         }
     }
 
@@ -504,29 +672,20 @@ class InnEventManager {
             // Generate unique event ID
             const eventId = this.generateEventId(channelId, 'coinFind');
             
-            // Award coins atomically with idempotency check
+            // Award coins atomically
             const awarded = await Money.findOneAndUpdate(
                 { 
-                    userId: luckyMember.id,
-                    'coinFinds.eventId': { $ne: eventId }
+                    userId: luckyMember.id
                 },
                 { 
                     $inc: { money: totalAmount },
-                    $set: { usertag: luckyMember.user.tag },
-                    $push: {
-                        coinFinds: {
-                            eventId: eventId,
-                            amount: totalAmount,
-                            timestamp: new Date(),
-                            location: innName
-                        }
-                    }
+                    $set: { usertag: luckyMember.user.tag }
                 },
                 { upsert: true, new: true }
             );
             
             if (!awarded) {
-                console.log('[InnEvents] Coin find already processed, skipping');
+                console.log('[InnEvents] Failed to award coins');
                 return null;
             }
             

@@ -167,11 +167,36 @@ class InnDisplayManager {
     generateEventHighlight(event) {
         switch (event.type) {
             case 'barfight':
+                let fightDescription = `${event.npc1} and ${event.npc2} got into a fight over ${event.reason}!\n`;
+                
+                // Add mitigation information if present
+                if (event.mitigation) {
+                    const mit = event.mitigation;
+                    if (mit.mitigationType === 'complete_negation') {
+                        fightDescription += `\n🛡️ **${mit.responder} completely stopped the fight!**\n`;
+                        fightDescription += `**Damage Prevented:** ${mit.originalCost} coins\n`;
+                    } else if (mit.reductionPercent > 0) {
+                        fightDescription += `\n🛡️ **${mit.responder} reduced the damage!**\n`;
+                        fightDescription += `**Original Damage:** ${mit.originalCost} coins\n`;
+                        fightDescription += `**Reduced to:** ${event.cost} coins (${mit.reductionPercent}% saved)\n`;
+                    } else {
+                        fightDescription += `\n⚠️ **${mit.responder} tried to intervene but failed!**\n`;
+                        fightDescription += `**Damage Cost:** ${event.cost} coins\n`;
+                    }
+                    
+                    // Show stats used
+                    if (mit.stats.weighted > 0) {
+                        fightDescription += `*Stats: Speed ${mit.stats.speed} | Sight ${mit.stats.sight} | Luck ${mit.stats.luck}*\n`;
+                    }
+                } else {
+                    fightDescription += `**Damage Cost:** ${event.cost} coins\n`;
+                }
+                
+                fightDescription += `*${event.outcome || 'They were separated by other patrons.'}*`;
+                
                 return {
                     title: '⚔️ Bar Fight!',
-                    description: `${event.npc1} and ${event.npc2} got into a fight over ${event.reason}!\n` +
-                                `**Damage Cost:** ${event.cost} coins\n` +
-                                `*${event.outcome || 'They were separated by other patrons.'}*`
+                    description: fightDescription
                 };
                 
             case 'rumor':
@@ -226,7 +251,17 @@ class InnDisplayManager {
             
             switch (event.type) {
                 case 'barfight':
-                    text = `⚔️ Bar fight! ${event.npc1} vs ${event.npc2} (-${event.cost}c)`;
+                    if (event.mitigation) {
+                        if (event.mitigation.mitigationType === 'complete_negation') {
+                            text = `⚔️ Bar fight stopped! ${event.mitigation.responder} prevented all damage`;
+                        } else if (event.mitigation.reductionPercent > 0) {
+                            text = `⚔️ Bar fight! ${event.npc1} vs ${event.npc2} (-${event.cost}c, saved ${event.mitigation.reductionPercent}%)`;
+                        } else {
+                            text = `⚔️ Bar fight! ${event.npc1} vs ${event.npc2} (-${event.cost}c)`;
+                        }
+                    } else {
+                        text = `⚔️ Bar fight! ${event.npc1} vs ${event.npc2} (-${event.cost}c)`;
+                    }
                     break;
                 case 'rumor':
                     text = `🗣️ ${event.npc1} shares rumors with ${event.npc2}`;

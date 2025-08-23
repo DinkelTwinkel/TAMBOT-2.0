@@ -35,19 +35,68 @@ module.exports = {
 
     // Event Probabilities
     EVENTS: {
+        COSTLY_EVENT: {
+            BASE_CHANCE: 0.50,                // 50% chance for costly events (bar fights, etc.)
+            FORCED_CHANCE: 0.55,              // 55% when forcing event
+            DISTRIBUTION: {
+                BAR_FIGHT: 0.70,              // 70% of costly events are bar fights
+                THEFT: 0.15,                  // 15% theft (future feature)
+                ACCIDENT: 0.15                // 15% accidents (future feature)
+            },
+            // Cost scaling by establishment power
+            COST_SCALING: {
+                BASE_MULTIPLIER: {             // Base cost multiplier by power
+                    1: 1.0,    // Miner's Inn: 1x base cost
+                    2: 2.5,    // Hunter's Lodge: 2.5x base cost
+                    3: 5.0,    // Power 3: 5x base cost
+                    4: 10.0,   // Noble's Rest: 10x base cost
+                    5: 20.0,   // Power 5: 20x base cost
+                    6: 35.0,   // Power 6: 35x base cost
+                    7: 50.0    // Power 7: 50x base cost
+                },
+                VARIANCE_MULTIPLIER: {         // How much randomness in cost
+                    1: 0.2,    // ±20% variance
+                    2: 0.25,   // ±25% variance
+                    3: 0.3,    // ±30% variance
+                    4: 0.35,   // ±35% variance
+                    5: 0.4,    // ±40% variance
+                    6: 0.45,   // ±45% variance
+                    7: 0.5     // ±50% variance
+                }
+            },
+            // Player mitigation thresholds
+            MITIGATION: {
+                STAT_WEIGHTS: {                // How each stat contributes
+                    SPEED: 0.4,                // 40% weight
+                    SIGHT: 0.4,                // 40% weight
+                    LUCK: 0.2                  // 20% weight
+                },
+                NEGATION_THRESHOLDS: {         // Total stats needed to fully negate
+                    1: 5,      // Miner's Inn: 5 total stats
+                    2: 8,      // Hunter's Lodge: 8 total stats
+                    3: 12,     // Power 3: 12 total stats
+                    4: 18,     // Noble's Rest: 18 total stats
+                    5: 25,     // Power 5: 25 total stats
+                    6: 35,     // Power 6: 35 total stats
+                    7: 50      // Power 7: 50 total stats
+                },
+                REDUCTION_FORMULA: 'stats / threshold', // Reduction percentage
+                MAX_REDUCTION: 0.95,          // Maximum 95% reduction
+                MIN_REDUCTION: 0.0             // Minimum 0% reduction
+            }
+        },
         NPC_SALE: {
-            BASE_CHANCE: 0.70,                // 70% base chance
-            FORCED_CHANCE: 0.85,              // 85% when forcing event
+            BASE_CHANCE: 0.50,                // 50% base chance (reduced from 70%)
+            FORCED_CHANCE: 0.65,              // 65% when forcing event (reduced from 85%)
             COOLDOWN: 5000                    // 5 second cooldown
         },
         RANDOM_EVENT: {
-            BASE_CHANCE: 0.60,                // 60% base chance
-            FORCED_CHANCE: 0.80,              // 80% when forcing
+            BASE_CHANCE: 0.30,                // 30% base chance (reduced from 60%)
+            FORCED_CHANCE: 0.40,              // 40% when forcing (reduced from 80%)
             COOLDOWN: 5000,                   // 5 second cooldown
             DISTRIBUTION: {
-                BAR_FIGHT: 0.20,              // 20% of random events
-                RUMOR: 0.20,                  // 20% of random events
-                COIN_FIND: 0.60               // 60% of random events
+                RUMOR: 0.30,                  // 30% of random events (increased)
+                COIN_FIND: 0.70               // 70% of random events (increased)
             }
         },
         INNKEEPER_COMMENT: {
@@ -200,16 +249,27 @@ module.exports = {
 
     // Bar Fight Configuration
     BAR_FIGHTS: [
+        // Low-power inn fights (works everywhere)
         { npc1: "Grimjaw", npc2: "Tethys", reason: "which world had the stronger warriors" },
+        { npc1: "Ember", npc2: "Frost-Eye", reason: "whose elemental magic is superior" },
+        { npc1: "Driftwood", npc2: "Shard", reason: "who has the worst luck with portals" },
+        { npc1: "Whisper", npc2: "Echo", reason: "who was talking too loudly" },
+        { npc1: "Null", npc2: "Vex", reason: "a spilled drink that may have been intentional" },
+        { npc1: "Stasis", npc2: "Glitch", reason: "whose turn it was to buy the next round" },
+        
+        // Mid-power inn fights
         { npc1: "Shadowbane", npc2: "Chrome", reason: "a dispute over portal territory rights" },
-        { npc1: "Frost-Eye", npc2: "Ember", reason: "conflicting dimensional theories" },
         { npc1: "The Collector", npc2: "Voidwhisper", reason: "ownership of a mysterious artifact" },
         { npc1: "Steelclaw", npc2: "Mirage", reason: "accusations of interdimensional smuggling" },
         { npc1: "Portalkeeper Zax", npc2: "Grimjaw", reason: "unpaid portal passage fees" },
         { npc1: "Nexus", npc2: "Shard", reason: "conflicting claims about their home worlds" },
         { npc1: "Whisper", npc2: "Ironhide", reason: "a misunderstanding about currency exchange rates" },
+        
+        // High-power inn fights
         { npc1: "Vex", npc2: "Quantum", reason: "a rigged dice game using probability manipulation" },
-        { npc1: "Driftwood", npc2: "Stasis", reason: "who arrived in Hellungi first" },
+        { npc1: "Prism", npc2: "Nexus", reason: "whose interdimensional theories are correct" },
+        { npc1: "Chrome", npc2: "Steelclaw", reason: "a business deal gone wrong" },
+        { npc1: "Quantum", npc2: "The Collector", reason: "a rare artifact's true value" },
         { npc1: "Glitch", npc2: "Prism", reason: "incompatible technologies causing interference" },
         { npc1: "Echo", npc2: "Null", reason: "philosophical differences about the nature of Hellungi" }
     ],
