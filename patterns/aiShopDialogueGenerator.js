@@ -15,7 +15,7 @@ class AIShopDialogueGenerator {
         });
         
         // Maximum dialogue length
-        this.MAX_DIALOGUE_LENGTH = 50;
+        this.MAX_DIALOGUE_LENGTH = 200;
         
         // HELLUNGI world details - the dimensional abyss
         this.worldContext = {
@@ -148,15 +148,15 @@ ${available === 0 ? "They don't have any to sell!" : `They only have ${available
 Generate a VERY SHORT response that:
 - Points out they don't have the item (or enough of it)
 - Reflects your personality
-- MAXIMUM 60 CHARACTERS
+- MAXIMUM 200 CHARACTERS (1-2 sentences)
 - Is about the item, NOT money
 
-Respond with ONLY the dialogue, no quotes, UNDER 60 CHARACTERS.`;
+Respond with ONLY the dialogue, no quotes, UNDER 200 CHARACTERS.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
-                max_tokens: 20,
+                max_tokens: 60,
                 temperature: 0.8,
             });
 
@@ -401,13 +401,13 @@ You can EITHER:
 3. Make a sound/gesture (start with ~ for sounds like ~sighs or ~hums otherworldly tune)
 4. Combine both if needed (like: *looks up from ledger* "Another worldwalker arrives.")
 
-CRITICAL: Maximum 60 characters!
-Respond with ONLY the dialogue or action, UNDER 60 CHARACTERS.`;
+CRITICAL: Maximum 200 characters! (1-2 natural sentences)
+Respond with ONLY the dialogue or action, UNDER 200 CHARACTERS.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
-                max_tokens: 25,
+                max_tokens: 80,
                 temperature: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.9,
             });
 
@@ -522,7 +522,7 @@ ${isModerateQuantity ? 'A moderate quantity purchase.' : ''}
 Generate VERY SHORT success dialogue:
 - React to quantity (${quantity} items)
 - Stay in character
-- MAXIMUM 50 CHARACTERS
+- MAXIMUM 150 CHARACTERS (1-2 sentences)
 ${buyer?.displayName ? `- You MAY address the customer by name ("${buyer.displayName}") when it feels natural` : ''}
 ${playerContext?.hasLegendary ? '- BE IN AWE of their legendary item(s) - they might help escape HELLUNGI!' : ''}
 ${playerContext?.hasMidasBurden ? '- Reference their cursed/blessed Midas item if appropriate' : ''}
@@ -534,12 +534,12 @@ ${playerContext?.wealthTier === 'poor' && quantity > 1 ? '- Maybe sympathize wit
 - Sounds natural and conversational - use their name sparingly
 - Remember you're both trapped in HELLUNGI, trying to survive
 
-Respond with ONLY the dialogue, UNDER 50 CHARACTERS`;
+Respond with ONLY the dialogue, UNDER 150 CHARACTERS`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
-                max_tokens: 20,
+                max_tokens: 60,
                 temperature: 0.85,
             });
 
@@ -576,17 +576,17 @@ A customer cannot afford ${item ? item.name : 'an item'}${shortBy > 0 ? `, they'
 
 Context: You're both trapped in HELLUNGI, surviving in this dimensional abyss.
 
-Generate VERY SHORT rejection:
+Generate SHORT rejection:
 - Need more money message
 - Stay in character
-- MAXIMUM 50 CHARACTERS
+- MAXIMUM 150 CHARACTERS (1-2 sentences)
 
-Respond with ONLY the dialogue, UNDER 50 CHARACTERS.`;
+Respond with ONLY the dialogue, UNDER 150 CHARACTERS.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
-                max_tokens: 20,
+                max_tokens: 60,
                 temperature: 0.8,
             });
 
@@ -673,10 +673,10 @@ ${isBulkSale ? 'This is a BULK SALE - they are offloading a lot of items!' : ''}
 ${isSingleItem ? 'Just a single item.' : ''}
 ${isModerateQuantity ? 'A moderate quantity.' : ''}
 
-Generate VERY SHORT sell acceptance:
+Generate SHORT sell acceptance:
 - React to quantity (${quantity} items)
 - Stay in character
-- MAXIMUM 50 CHARACTERS
+- MAXIMUM 150 CHARACTERS (1-2 sentences)
 ${seller?.displayName ? `- You MAY address the seller by name ("${seller.displayName}") when it feels natural` : ''}
 ${playerContext?.hasLegendary ? '- REACT to a legendary hero selling items - show awe, suspicion, or opportunism' : ''}
 ${playerContext?.hasMultipleLegendaries ? '- Express shock that someone with multiple legendaries needs to sell' : ''}
@@ -689,12 +689,12 @@ ${playerContext?.customerType === 'vip' ? '- Acknowledge their loyalty even when
 - Use their name sparingly for natural conversation
 - Remember you're both trapped here, trying to survive
 
-Respond with ONLY the dialogue, UNDER 50 CHARACTERS.`;
+Respond with ONLY the dialogue, UNDER 150 CHARACTERS.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
-                max_tokens: 20,
+                max_tokens: 60,
                 temperature: 0.85,
             });
 

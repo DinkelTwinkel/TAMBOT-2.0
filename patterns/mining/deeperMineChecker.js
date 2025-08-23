@@ -114,7 +114,7 @@ function countRareOres(minecart) {
         return 0;
     }
     
-    const { miningItemPool } = require('./miningConstants_unified');
+    const { miningItemPool } = require('../gachaModes/mining/miningConstants_unified');
     
     let rareCount = 0;
     let itemsChecked = 0;
@@ -150,7 +150,7 @@ function countFossils(minecart) {
         return 0;
     }
     
-    const { miningItemPool } = require('./miningConstants_unified');
+    const { miningItemPool } = require('../gachaModes/mining/miningConstants_unified');
     
     let fossilCount = 0;
     let itemsChecked = 0;
