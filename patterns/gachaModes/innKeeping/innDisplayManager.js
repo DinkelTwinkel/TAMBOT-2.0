@@ -104,7 +104,7 @@ class InnDisplayManager {
             try {
                 if (fs.existsSync(imagePath)) {
                     files.push(new AttachmentBuilder(imagePath, { name: latestNPCSale.npcData.image }));
-                    embed.setThumbnail(`attachment://${latestNPCSale.npcData.image}`);
+                    //embed.setThumbnail(`attachment://${latestNPCSale.npcData.image}`);
                 }
             } catch (err) {
                 console.log('[InnDisplay] NPC image not found:', latestNPCSale.npcData.image);
@@ -157,7 +157,7 @@ class InnDisplayManager {
         
         return {
             title,
-            description: `\`\`\`\n${dialogue}\n\`\`\`\n${purchaseInfo}${tipInfo}`
+            description: `\`\`\`\n"${dialogue}"\n\`\`\`\n${purchaseInfo}${tipInfo}`
         };
     }
 
@@ -196,7 +196,7 @@ class InnDisplayManager {
                 
                 return {
                     title: '⚔️ Bar Fight!',
-                    description: fightDescription
+                    description: '```' + fightDescription + '```'
                 };
                 
             case 'rumor':

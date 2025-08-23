@@ -16,6 +16,9 @@ class AIBarFightGenerator {
             console.log('[AIBarFight] OpenAI API key not found, using fallback system');
         }
         
+        // Maximum dialogue length
+        this.MAX_DIALOGUE_LENGTH = 50;
+        
         // Cache for recent AI-generated fights to avoid repetition
         this.recentFights = new Map();
         this.cacheTimeout = 30 * 60 * 1000; // 30 minutes
@@ -77,21 +80,22 @@ ${npc2.aiPersonality || npc2.description}
 Wealth Level: ${npc2.wealth}/10
 Personality traits: ${this.getPersonalityTraits(npc2)}
 
-TASK: Generate a single, specific reason why these two characters would start fighting in the inn. The reason should:
-1. Be based on their personalities and backgrounds
-2. Feel natural given the setting (trapped in a void dimension)
-3. Be concise (10-20 words)
-4. Be somewhat absurd or darkly humorous given the existential situation
-5. Reference specific details from their descriptions when possible
+TASK: Generate a VERY SHORT reason why these two characters would fight. 
 
-Examples of good reasons:
-- "whose home dimension had better gravity"
-- "accusations of hiding portal coordinates"
-- "a misunderstanding about the proper way to forget"
-- "who saw The One Pick in a dream last night"
-- "whether hope or despair is more rational"
+RULES:
+1. MAXIMUM 50 CHARACTERS (very important!)
+2. Be specific and fitting to their personalities
+3. Be darkly humorous about being trapped
+4. No quotes, just the reason
 
-Return ONLY the fight reason, no additional text or explanation.`;
+Examples (all under 50 chars):
+- "whose world had better gravity"
+- "hiding portal coordinates"
+- "who saw The One Pick last night"
+- "hope vs despair philosophy"
+- "stolen rations accusation"
+
+Return ONLY the reason, UNDER 50 CHARACTERS.`;
 
             const completion = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
@@ -111,9 +115,12 @@ Return ONLY the fight reason, no additional text or explanation.`;
                 frequency_penalty: 0.3
             });
             
-            const reason = completion.choices[0].message.content.trim()
+            let reason = completion.choices[0].message.content.trim()
                 .replace(/^["']|["']$/g, '') // Remove quotes if present
                 .toLowerCase(); // Normalize to lowercase
+            
+            // Ensure reason is under 50 characters
+            reason = this.truncateDialogue(reason);
             
             // Cache the result
             this.recentFights.set(cacheKey, {
@@ -173,7 +180,7 @@ Keep it concise and atmospheric.`;
                 messages: [
                     {
                         role: "system",
-                        content: "You are a narrator for a darkly comic interdimensional inn where reality is broken. Describe bar fight outcomes with existential humor."
+                        content: "You are a narrator for a darkly comical inn where reality is broken. They are in the middle of a dark void. Describe bar fight outcomes with humor. But keep it concise"
                     },
                     {
                         role: "user",
@@ -181,7 +188,7 @@ Keep it concise and atmospheric.`;
                     }
                 ],
                 temperature: 0.8,
-                max_tokens: 80
+                max_tokens: 30
             });
             
             return completion.choices[0].message.content.trim();
@@ -241,30 +248,39 @@ Keep it concise and atmospheric.`;
     }
     
     /**
+     * Truncate dialogue to maximum length
+     */
+    truncateDialogue(text) {
+        if (!text) return '';
+        if (text.length <= this.MAX_DIALOGUE_LENGTH) return text;
+        return text.substring(0, this.MAX_DIALOGUE_LENGTH - 3) + '...';
+    }
+    
+    /**
      * Get fallback reasons based on NPC combinations
      */
     getFallbackReason(npc1, npc2) {
         const fallbackReasons = [
-            "arguing about whose world was better before the void",
-            "disagreement over the last bottle of real alcohol",
-            "conflicting theories about The One Pick's location",
-            "accusations of stealing rations",
-            "philosophical differences about accepting their fate",
-            "dispute over who's been here longest",
-            "conflicting escape plans",
-            "disagreement about whether they're dead or alive",
-            "arguing about whose memories are real",
-            "fighting over the warmest spot in the inn",
-            "disagreement about portal navigation techniques",
-            "accusations of hoarding void-resistant supplies",
-            "dispute over gambling debts that may not exist",
-            "conflicting claims about seeing the outside",
-            "argument about whether time still has meaning"
+            "whose world was better",  // 22 chars
+            "the last bottle of ale",  // 23 chars
+            "hiding The One Pick",     // 20 chars
+            "stealing rations",        // 16 chars
+            "hope vs despair",         // 15 chars
+            "who's been here longest", // 23 chars
+            "conflicting escape plans",// 24 chars
+            "are we dead or alive",    // 20 chars
+            "whose memories are real", // 23 chars
+            "the warmest spot",        // 16 chars
+            "portal navigation",       // 17 chars
+            "hoarding supplies",       // 17 chars
+            "gambling debts",          // 14 chars
+            "seeing the outside",      // 18 chars
+            "does time still exist"   // 21 chars
         ];
         
         // Use NPC names as seed for consistent randomness
         const seed = (npc1.name.length * npc2.name.length) % fallbackReasons.length;
-        return fallbackReasons[seed];
+        return this.truncateDialogue(fallbackReasons[seed]);
     }
 }
 

@@ -14,6 +14,9 @@ class AIShopDialogueGenerator {
             apiKey: process.env.OPENAI_API_KEY
         });
         
+        // Maximum dialogue length
+        this.MAX_DIALOGUE_LENGTH = 50;
+        
         // HELLUNGI world details - the dimensional abyss
         this.worldContext = {
             location: "HELLUNGI - The Dimensional Abyss",
@@ -142,23 +145,23 @@ Context: HELLUNGI is a dimensional abyss where lost souls from different worlds 
 A customer is trying to sell ${quantity} x ${item ? item.name : 'an item'} but they only have ${available}.
 ${available === 0 ? "They don't have any to sell!" : `They only have ${available}.`}
 
-Generate a brief response (1 sentence) that:
+Generate a VERY SHORT response that:
 - Points out they don't have the item (or enough of it)
-- Reflects your personality and situation (trapped in HELLUNGI)
-- Stays in character
-- Is about them not having the item, NOT about money
-- Might reference being lost here, the void, or your confusion
+- Reflects your personality
+- MAXIMUM 50 CHARACTERS
+- Is about the item, NOT money
 
-Respond with ONLY the dialogue, no quotation marks.`;
+Respond with ONLY the dialogue, no quotes, UNDER 50 CHARACTERS.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
-                max_tokens: 40,
+                max_tokens: 20,
                 temperature: 0.8,
             });
 
-            return response.choices[0].message.content.trim();
+            const dialogue = response.choices[0].message.content.trim();
+            return this.truncateDialogue(dialogue);
         } catch (error) {
             console.error('[AIShopDialogue] Error generating no item dialogue:', error.message);
             if (available === 0) {
@@ -398,16 +401,18 @@ You can EITHER:
 3. Make a sound/gesture (start with ~ for sounds like ~sighs or ~hums otherworldly tune)
 4. Combine both if needed (like: *looks up from ledger* "Another worldwalker arrives.")
 
-Respond with ONLY the dialogue or action, no quotation marks or attribution.`;
+CRITICAL: Maximum 50 characters!
+Respond with ONLY the dialogue or action, UNDER 50 CHARACTERS.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
-                max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS) || 80,
+                max_tokens: 25,
                 temperature: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.9,
             });
 
-            return response.choices[0].message.content.trim();
+            const dialogue = response.choices[0].message.content.trim();
+            return this.truncateDialogue(dialogue);
         } catch (error) {
             console.error('[AIShopDialogue] Error generating idle dialogue:', error.message);
             // Fallback to existing dialogue
@@ -514,9 +519,10 @@ ${isBulkPurchase ? 'This is a BULK PURCHASE - react accordingly!' : ''}
 ${isSmallPurchase ? 'Just a single item.' : ''}
 ${isModerateQuantity ? 'A moderate quantity purchase.' : ''}
 
-Generate a brief success dialogue (1 sentence) that:
-- Reflects your personality as someone trapped in HELLUNGI
-- MUST react to the quantity (${quantity} items) - mention if it's a lot, bulk order, etc.
+Generate VERY SHORT success dialogue:
+- React to quantity (${quantity} items)
+- Stay in character
+- MAXIMUM 50 CHARACTERS
 ${buyer?.displayName ? `- You MAY address the customer by name ("${buyer.displayName}") when it feels natural` : ''}
 ${playerContext?.hasLegendary ? '- BE IN AWE of their legendary item(s) - they might help escape HELLUNGI!' : ''}
 ${playerContext?.hasMidasBurden ? '- Reference their cursed/blessed Midas item if appropriate' : ''}
@@ -528,19 +534,21 @@ ${playerContext?.wealthTier === 'poor' && quantity > 1 ? '- Maybe sympathize wit
 - Sounds natural and conversational - use their name sparingly
 - Remember you're both trapped in HELLUNGI, trying to survive
 
-Respond with ONLY the dialogue with quotation marks`;
+Respond with ONLY the dialogue, UNDER 50 CHARACTERS`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
-                max_tokens: 50,
+                max_tokens: 20,
                 temperature: 0.85,
             });
 
-            return response.choices[0].message.content.trim();
+            const dialogue = response.choices[0].message.content.trim();
+            return this.truncateDialogue(dialogue);
         } catch (error) {
             console.error('[AIShopDialogue] Error generating purchase dialogue:', error.message);
-            return shop.successBuy?.[0] || "A pleasure doing business!";
+            const fallback = shop.successBuy?.[0] || "A pleasure doing business!";
+            return this.truncateDialogue(fallback);
         }
     }
 
@@ -568,25 +576,26 @@ A customer cannot afford ${item ? item.name : 'an item'}${shortBy > 0 ? `, they'
 
 Context: You're both trapped in HELLUNGI, surviving in this dimensional abyss.
 
-Generate a brief rejection dialogue (1 sentence) that:
-- Reflects your personality (${shopkeeper.personality.includes('friendly') ? 'be sympathetic about their struggle here' : shopkeeper.personality.includes('ruthless') ? 'be harsh despite shared predicament' : 'be firm but understanding'})
-- Tells them they need more money
-- Stays in character as someone also trapped here
-- Might reference the difficulty of surviving in HELLUNGI or shared suffering
+Generate VERY SHORT rejection:
+- Need more money message
+- Stay in character
+- MAXIMUM 50 CHARACTERS
 
-Respond with ONLY the dialogue, with quotation marks.`;
+Respond with ONLY the dialogue, UNDER 50 CHARACTERS.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
-                max_tokens: 40,
+                max_tokens: 20,
                 temperature: 0.8,
             });
 
-            return response.choices[0].message.content.trim();
+            const dialogue = response.choices[0].message.content.trim();
+            return this.truncateDialogue(dialogue);
         } catch (error) {
             console.error('[AIShopDialogue] Error generating poor dialogue:', error.message);
-            return shop.failureTooPoor?.[0] || "You need more coins!";
+            const fallback = shop.failureTooPoor?.[0] || "You need more coins!";
+            return this.truncateDialogue(fallback);
         }
     }
 
@@ -664,9 +673,10 @@ ${isBulkSale ? 'This is a BULK SALE - they are offloading a lot of items!' : ''}
 ${isSingleItem ? 'Just a single item.' : ''}
 ${isModerateQuantity ? 'A moderate quantity.' : ''}
 
-Generate a brief dialogue (1 sentence) for accepting this sale that:
-- Reflects your personality
-- MUST react to the quantity (${quantity} items) being sold
+Generate VERY SHORT sell acceptance:
+- React to quantity (${quantity} items)
+- Stay in character
+- MAXIMUM 50 CHARACTERS
 ${seller?.displayName ? `- You MAY address the seller by name ("${seller.displayName}") when it feels natural` : ''}
 ${playerContext?.hasLegendary ? '- REACT to a legendary hero selling items - show awe, suspicion, or opportunism' : ''}
 ${playerContext?.hasMultipleLegendaries ? '- Express shock that someone with multiple legendaries needs to sell' : ''}
@@ -679,19 +689,21 @@ ${playerContext?.customerType === 'vip' ? '- Acknowledge their loyalty even when
 - Use their name sparingly for natural conversation
 - Remember you're both trapped here, trying to survive
 
-Respond with ONLY the dialogue, with quotation marks.`;
+Respond with ONLY the dialogue, UNDER 50 CHARACTERS.`;
 
             const response = await this.openai.chat.completions.create({
                 model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
                 messages: [{ role: "user", content: prompt }],
-                max_tokens: 40,
+                max_tokens: 20,
                 temperature: 0.85,
             });
 
-            return response.choices[0].message.content.trim();
+            const dialogue = response.choices[0].message.content.trim();
+            return this.truncateDialogue(dialogue);
         } catch (error) {
             console.error('[AIShopDialogue] Error generating sell dialogue:', error.message);
-            return shop.successSell?.[0] || "I'll take that off your hands.";
+            const fallback = shop.successSell?.[0] || "I'll take that off your hands.";
+            return this.truncateDialogue(fallback);
         }
     }
 
@@ -739,6 +751,17 @@ Respond with ONLY the dialogue, with quotation marks.`;
         return price < baseValue * 0.4;
     }
 
+    /**
+     * Truncate dialogue to maximum length
+     */
+    truncateDialogue(text) {
+        if (!text) return '';
+        // Remove quotes first if present
+        text = text.replace(/^["']|["']$/g, '').trim();
+        if (text.length <= this.MAX_DIALOGUE_LENGTH) return text;
+        return text.substring(0, this.MAX_DIALOGUE_LENGTH - 3) + '...';
+    }
+    
     /**
      * Check if AI is available and configured
      * @returns {boolean} Whether AI dialogue generation is available

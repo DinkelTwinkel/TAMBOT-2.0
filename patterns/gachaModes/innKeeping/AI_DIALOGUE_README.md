@@ -43,6 +43,7 @@ node testAIDialogue.js
   - Current mood
   - Time of day and weather
   - Recent events in the game world
+- **All dialogue limited to 50 characters maximum for clean display**
 
 ### 👤 Player Dialogue
 - Generates natural customer comments based on:
@@ -109,8 +110,9 @@ Edit `aiDialogueGenerator.js` constructor to customize:
 ### API Settings
 In `.env` file:
 - `OPENAI_MODEL`: Use "gpt-4" for better quality (higher cost)
-- `OPENAI_MAX_TOKENS`: Adjust dialogue length (default: 60)
+- `OPENAI_MAX_TOKENS`: Limited to ensure 50 char max (default: 20-30)
 - `OPENAI_TEMPERATURE`: 0-1, higher = more creative (default: 0.9)
+- **Dialogue Length**: Hard-coded to 50 characters maximum
 
 ## Cost Management
 
@@ -145,13 +147,18 @@ In `.env` file:
 ## Example Output
 
 **Gruff McGrufferson** (tired miner, low budget):
-> "Blast this rain! At least the stew's hot enough to warm these old bones after that cave-in on level 3."
+> "Blast this rain! Need hot stew now."
 
 **Lady Goldworth** (wealthy, high budget):
-> "The evening fog adds such... character to this establishment. Your finest vintage, if you would."
+> "Your finest vintage, please."
 
 **Player "DragonSlayer99"**:
-> "After battling goblins all day, this ale is exactly what I needed!"
+> "Perfect ale after goblin battles!"
+
+**Bar Fight Reasons**:
+> "whose world had better gravity"
+> "hiding portal coordinates" 
+> "stolen rations accusation"
 
 ## Future Enhancements
 
