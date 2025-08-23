@@ -521,7 +521,7 @@ ${buyer?.displayName ? `- You MAY address the customer by name ("${buyer.display
 ${playerContext?.hasLegendary ? '- BE IN AWE of their legendary item(s) - they might help escape HELLUNGI!' : ''}
 ${playerContext?.hasMidasBurden ? '- Reference their cursed/blessed Midas item if appropriate' : ''}
 ${playerContext?.hasMultipleLegendaries ? '- Express hope that their legendaries might be the key to escape' : ''}
-${playerContext?.isRichest ? '- Acknowledge their wealth (but we're all still trapped here)' : ''}
+${playerContext?.isRichest ? '- Acknowledge their wealth (but we\'re all still trapped here)' : ''}
 ${playerContext?.customerType === 'vip' ? '- Show appreciation for their loyalty in these dark times' : ''}
 ${playerContext?.wealthTier === 'poor' && quantity > 1 ? '- Maybe sympathize with their struggle to survive here' : ''}
 - Might reference being lost souls together, the expanding void, or hope for escape
