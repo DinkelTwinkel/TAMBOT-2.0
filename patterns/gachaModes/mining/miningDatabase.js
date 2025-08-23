@@ -443,7 +443,8 @@ function initializeGameData(dbEntry, channelId) {
                 totalOreFound: 0,
                 wallsBroken: 0,
                 treasuresFound: 0
-            }
+            },
+            cycleCount: 0  // CRITICAL: Initialize cycle count for break pattern
         };
         dbEntry.markModified('gameData');
     } else {
@@ -472,6 +473,13 @@ function initializeGameData(dbEntry, channelId) {
                 wallsBroken: 0,
                 treasuresFound: 0
             };
+            modified = true;
+        }
+        
+        // CRITICAL FIX: Ensure cycleCount exists for break cycle tracking
+        if (dbEntry.gameData.cycleCount === undefined || dbEntry.gameData.cycleCount === null) {
+            console.log(`[INIT] Adding missing cycleCount for channel ${channelId}`);
+            dbEntry.gameData.cycleCount = 0;
             modified = true;
         }
         

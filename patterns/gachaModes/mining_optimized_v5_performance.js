@@ -111,6 +111,8 @@ const {
 // Import bug fixes
 const miningFixes = require('./mining_fixes/fix_mining_bugs');
 const { getMinecartSummaryFresh } = require('./mining_fixes/fix_minecart_display_simple');
+const { clearTentFlags, verifyAndFixPlayerPositions } = require('./mining/fix_tent_display');
+const { verifyCycleCount, initializeCycleCount } = require('./mining/fix_long_break_cycle');
 
 // Enhanced Concurrency Manager with Instance Management
 class EnhancedConcurrencyManager {
@@ -1490,24 +1492,35 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
                 }
             }
         } else {
+            // Short break: clear tent flags from current positions
             const currentPositions = mapData.playerPositions || {};
+            
+            // CRITICAL FIX: Use clearTentFlags to ensure all tent flags are removed
+            resetPositions = clearTentFlags(currentPositions);
+            
+            // Ensure all players are accounted for
             for (const member of members.values()) {
-                const currentPos = currentPositions[member.id];
-                resetPositions[member.id] = currentPos ? {
-                    x: currentPos.x,
-                    y: currentPos.y,
-                    isTent: false,
-                    hidden: false
-                } : {
-                    x: mapData.entranceX,
-                    y: mapData.entranceY,
-                    isTent: false,
-                    hidden: false
-                };
+                if (!resetPositions[member.id]) {
+                    resetPositions[member.id] = {
+                        x: mapData.entranceX,
+                        y: mapData.entranceY,
+                        isTent: false,
+                        hidden: false
+                    };
+                }
             }
         }
         
-        const cycleCount = (dbEntry.gameData?.cycleCount || 0) + 1;
+        // CRITICAL: Properly increment and track cycle count
+        const previousCycle = dbEntry.gameData?.cycleCount || 0;
+        const cycleCount = previousCycle + 1;
+        
+        // Verify cycle count pattern
+        const cycleVerification = verifyCycleCount(channelId, cycleCount);
+        console.log(`[CYCLE TRACKING] Channel ${channelId}: Incrementing cycle ${previousCycle} -> ${cycleCount}`);
+        console.log(`[CYCLE TRACKING] Pattern check: ${cycleVerification.pattern}`);
+        console.log(`[CYCLE TRACKING] Next break will be: ${cycleVerification.isLongBreakNext ? 'LONG' : 'SHORT'}`);
+        
         const nextBreakInfo = calculateNextBreakTime({ gameData: { cycleCount } });
         
         // Log the next break time for debugging
@@ -1566,6 +1579,9 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         // Force re-initialize with fresh data
         await mapCacheSystem.initialize(channel.id, true);
         
+        // Double-check that tent flags are cleared
+        await verifyAndFixPlayerPositions(channel.id, mapCacheSystem, gachaVC);
+        
         const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
         await logEvent(channel, '⛏️ Break ended! Mining resumed.', true, {
             level: powerLevel,
@@ -1586,19 +1602,27 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         mapCacheSystem.clearChannel(channel.id);
         
         try {
-            // Force clear break state in database
+            // Get current positions and clear tent flags
+            const dbResult = await gachaVC.findOne({ channelId: channel.id });
+            let cleanedPositions = {};
+            if (dbResult?.gameData?.map?.playerPositions) {
+                cleanedPositions = clearTentFlags(dbResult.gameData.map.playerPositions);
+            }
+            
+            // Force clear break state and tent flags in database
             await gachaVC.updateOne(
                 { channelId: channel.id },
                 { 
                     $unset: { 'gameData.breakInfo': 1 },
                     $set: { 
                         'gameData.breakJustEnded': Date.now(),
+                        'gameData.map.playerPositions': cleanedPositions,
                         nextTrigger: new Date(Date.now() + 1000)
                     }
                 }
             );
             dbCache.delete(channel.id);
-            console.log(`[MINING] Emergency break clear completed for ${channel.id}`);
+            console.log(`[MINING] Emergency break clear with tent fix completed for ${channel.id}`);
         } catch (clearError) {
             console.error(`[MINING] Failed to force clear break state:`, clearError);
         }
@@ -1670,6 +1694,15 @@ module.exports = async (channel, dbEntry, json, client) => {
         console.error(`[HOTFIX] Error applying hotfix for ${channelId}:`, hotfixError);
     }
     // === CRITICAL HOTFIX END ===
+    
+    // Fix any stale tent flags if not in break
+    if (!isBreakPeriod(dbEntry)) {
+        const fixed = await verifyAndFixPlayerPositions(channelId, mapCacheSystem, gachaVC);
+        if (fixed) {
+            console.log(`[MINING] Fixed stale tent flags for channel ${channelId}`);
+            dbEntry = await getCachedDBEntry(channelId, true);
+        }
+    }
     
     // Multi-level instance checking
     if (instanceManager.hasActiveInstance(channelId)) {
@@ -1872,8 +1905,25 @@ if (shouldStartBreak) {
             mapCacheSystem.deleteField(channelId, 'breakInfo');
             await mapCacheSystem.forceFlush();
             
+            // CRITICAL: Verify cycle count before determining break type
             const cycleCount = dbEntry.gameData?.cycleCount || 0;
+            
+            // Initialize cycleCount if missing
+            if (dbEntry.gameData?.cycleCount === undefined || dbEntry.gameData?.cycleCount === null) {
+                console.log(`[CYCLE FIX] Initializing missing cycleCount to 0 for channel ${channelId}`);
+                await gachaVC.updateOne(
+                    { channelId },
+                    { $set: { 'gameData.cycleCount': 0 } }
+                );
+                dbEntry.gameData.cycleCount = 0;
+            }
+            
+            const cycleVerification = verifyCycleCount(channelId, cycleCount);
             const isLongBreak = (cycleCount % 4) === 3;
+            
+            console.log(`[BREAK START] Channel ${channelId}: Starting break at cycle ${cycleCount}`);
+            console.log(`[BREAK START] Break type: ${isLongBreak ? 'LONG BREAK' : 'SHORT BREAK'}`);
+            console.log(`[BREAK START] Cycle pattern: ${cycleVerification.pattern}`);
             
             let selectedEvent = null;
             
