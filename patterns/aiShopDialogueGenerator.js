@@ -3,6 +3,9 @@
 
 const OpenAI = require('openai');
 require('dotenv').config();
+const GachaVC = require('../models/activevcs');
+const gachaServers = require('../data/gachaServers.json');
+const { UNIQUE_ITEMS } = require('../data/uniqueItemsSheet');
 
 class AIShopDialogueGenerator {
     constructor() {
@@ -11,82 +14,107 @@ class AIShopDialogueGenerator {
             apiKey: process.env.OPENAI_API_KEY
         });
         
-        // Hellungi world details - a dimensional nexus
+        // HELLUNGI world details - the dimensional abyss
         this.worldContext = {
-            location: "Hellungi - The Dimensional Crossroads",
+            location: "HELLUNGI - The Dimensional Abyss",
             currentTime: this.getTimeOfDay(),
             currentWeather: this.getRandomWeather(),
-            district: "Portal District Trading Quarter",
+            district: "The expanding void where mines emerge",
             
-            // The One Pick lore (legendary artifact found in Hellungi's depths)
+            // The One Pick lore (legendary artifact that may be the way out)
             theOnePickLore: {
-                description: "A mythical pickaxe said to crack through dimensions themselves",
-                powers: "Could supposedly mine through reality, opening portals or sealing rifts",
-                location: "Lost between dimensions in Hellungi's deepest mining shafts",
-                believers: ["desperate miners", "portal scholars", "dimension walkers", "void prophets"],
-                skeptics: ["Portal Authority", "practical merchants", "scientists", "the wealthy"]
+                description: "A pickaxe of impossible perfection, once wielded by the Miner King",
+                powers: "Can mine through reality itself, possibly the key to escaping HELLUNGI",
+                location: "Lost somewhere in HELLUNGI's infinite depths",
+                believers: ["desperate miners", "lost souls seeking escape", "cult worshippers", "ancient scholars"],
+                skeptics: ["pragmatists", "those who've given up hope", "merchants profiting from the status quo"]
             },
             
             recentEvents: [
-                "A new portal opened near the eastern market, bringing silicon-based lifeforms",
-                "The Portal Authority raised transit taxes again",
-                "Reality storms have been intensifying near the old mining district",
-                "Interdimensional currency exchange rates are fluctuating wildly",
-                "A traveler claims to have found a stable route to a paradise dimension",
-                "The void between portals has been expanding mysteriously",
-                "Refugees from a collapsing universe seek asylum in Hellungi",
-                "Strange energy readings detected from Portal Seven",
-                "A merchant from the Clockwork Realm offers impossible technologies"
-            ]
+                "The space expanded again - three new mines appeared overnight",
+                "More lost souls arrived today, confused about how they got here",
+                "The vast creature's rumblings shook the entire abyss last night",
+                "Ancient texts about The One Pick were discovered in the ruins",
+                "The center void consumed a merchant's entire memory yesterday",
+                "A cult formed claiming The One Pick is a deity, not a tool",
+                "Miners report the walls whisper about legendary artifacts",
+                "Someone claims they saw the Miner King's shadow in the depths",
+                "The gacha machine glowed ominously and spawned new tunnels"
+            ],
+            activeVCs: [] // Will store active voice channels
         };
         
-        // Shop keeper opinions on The One Pick (5% chance to mention)
-        // Note: THE ONE PICK is the ultimate artifact that can mine through dimensions
+        // Shop keeper opinions on The One Pick (10% chance to mention)
+        // THE ONE PICK is the legendary artifact that may free everyone from HELLUNGI
         this.onePickOpinions = {
             believer: [
-                "I'd stake my entire shop on The One Pick being real... it created these portals.",
-                "The One Pick exists, mark my words. It mined the first rift to Hellungi.",
-                "A traveler from the Mirror Realm swore they saw The Miner King wielding it."
+                "The One Pick is real... it's our only way out of this cursed place.",
+                "I'd give everything I own to hold The One Pick just once - to escape HELLUNGI.",
+                "The Miner King used it to enter this dimension... we can use it to leave."
             ],
             skeptic: [
-                "The One Pick? Bah! Just tales to keep refugees hoping they can mine home.",
-                "If The One Pick existed, the Portal Authority would have seized it by now.",
-                "Dimensional fairy tales, that's all The One Pick ever was or will be."
+                "The One Pick? Just false hope for those who can't accept we're trapped forever.",
+                "If The One Pick existed, someone would have escaped by now.",
+                "We're stuck here, friend. No magical pickaxe will change that."
             ],
             mysterious: [
-                "The One Pick... it mines between existence, neither here nor there.",
-                "Those who seek The One Pick often vanish between dimensions...",
-                "The One Pick doesn't exist in one place... it exists in all places."
+                "The One Pick exists in the space between here and nowhere...",
+                "Those who seek The One Pick often lose themselves to the void...",
+                "Perhaps we're not meant to find it... perhaps it must find us."
             ],
             reverent: [
-                "The One Pick is sacred... it carved Hellungi from the void itself.",
-                "If The Miner King's tool exists, it transcends dimensional understanding.",
-                "The One Pick isn't just a tool... it's the key to all realities."
+                "The One Pick is divine... it will choose its bearer when the time comes.",
+                "We should worship The One Pick, not seek it. It is beyond us.",
+                "The Miner King still guards it, waiting for one worthy of escape."
             ]
         };
     }
 
     getTimeOfDay() {
         const hour = new Date().getHours();
-        if (hour < 6) return "void-touched hours";
-        if (hour < 12) return "portal surge morning";
-        if (hour < 17) return "dimensional noon";
-        if (hour < 21) return "rift-fall evening";
-        return "nexus midnight";
+        if (hour < 6) return "the void hours";
+        if (hour < 12) return "morning expansion";
+        if (hour < 17) return "eternal noon";
+        if (hour < 21) return "the fading light";
+        return "abyssal midnight";
     }
 
     getRandomWeather() {
         const weather = [
-            "shimmering with portal energies",
-            "heavy with dimensional static",
-            "unstable from reality fluctuations",
-            "thick with void mist",
-            "crackling with interdimensional storms",
-            "eerily calm between portal surges",
-            "vibrating with otherworldly frequencies",
-            "rippling with spatial distortions"
+            "thick with void mist that steals warmth",
+            "echoing with the vast creature's rumblings",
+            "expanding - new spaces forming from nothing",
+            "heavy with forgotten memories",
+            "crackling with gacha energy",
+            "eerily silent as if the void is listening",
+            "pulsing with ominous vibrations",
+            "consuming - the center void grows hungry"
         ];
         return weather[Math.floor(Math.random() * weather.length)];
+    }
+
+    /**
+     * Load active voice channels for awareness
+     * @param {string} guildId - Discord guild ID
+     */
+    async loadActiveVCs(guildId) {
+        try {
+            const activeVCs = await GachaVC.find({ guildId }).lean();
+            const activeLocations = activeVCs.map(vc => {
+                const gachaServer = gachaServers.find(g => g.id === vc.typeId);
+                return gachaServer ? {
+                    name: gachaServer.name,
+                    type: gachaServer.type,
+                    rarity: gachaServer.rarity
+                } : null;
+            }).filter(Boolean);
+            
+            this.worldContext.activeVCs = activeLocations;
+            console.log(`[AIShopDialogue] Loaded ${activeLocations.length} active locations`);
+        } catch (error) {
+            console.error('[AIShopDialogue] Error loading active VCs:', error);
+            this.worldContext.activeVCs = [];
+        }
     }
 
     /**
@@ -104,22 +132,22 @@ class AIShopDialogueGenerator {
                 throw new Error('Shop missing shopkeeper data');
             }
 
-            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in Hellungi.
+            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in HELLUNGI.
             
 Your establishment: ${shop.description || this.getShopSpecialty(shop)}
-Background: ${shopkeeper.bio}
+Background: ${shopkeeper.bio} (You're from another world, trapped here like everyone else)
 Personality: ${shopkeeper.personality}
-Context: Hellungi is a dimensional crossroads where beings from different worlds meet and trade.
+Context: HELLUNGI is a dimensional abyss where lost souls from different worlds are trapped.
 
 A customer is trying to sell ${quantity} x ${item ? item.name : 'an item'} but they only have ${available}.
 ${available === 0 ? "They don't have any to sell!" : `They only have ${available}.`}
 
 Generate a brief response (1 sentence) that:
 - Points out they don't have the item (or enough of it)
-- Reflects your personality
+- Reflects your personality and situation (trapped in HELLUNGI)
 - Stays in character
 - Is about them not having the item, NOT about money
-- Might reference their home dimension or portal travel
+- Might reference being lost here, the void, or your confusion
 
 Respond with ONLY the dialogue, no quotation marks.`;
 
@@ -237,27 +265,53 @@ Respond with ONLY the dialogue, no quotation marks.`;
             if (!shopkeeper) {
                 throw new Error('Shop missing shopkeeper data');
             }
+            
+            // Load active VCs if guildId provided
+            if (options.guildId) {
+                await this.loadActiveVCs(options.guildId);
+            }
 
             // Decide what to mention in dialogue
-            const mentionTheOnePick = Math.random() < 0.05;
+            const mentionTheOnePick = Math.random() < 0.10; // 10% chance
+            const mentionOtherArtifacts = Math.random() < 0.05; // 5% chance for other legendary items
             const mentionPrices = Math.random() < 0.3 && options.shopContext;
             const mentionRotationalItem = Math.random() < 0.25 && options.shopContext?.rotationalItems?.length > 0;
+            const mentionActiveLocations = Math.random() < 0.15 && this.worldContext.activeVCs.length > 0;
             
             const worldContext = this.getWorldContext(shop);
             const recentEvent = worldContext.recentEvents[
                 Math.floor(Math.random() * worldContext.recentEvents.length)
             ];
 
-            let prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in Hellungi.
+            // Add context about other active locations
+            let activeLocationContext = '';
+            if (this.worldContext.activeVCs.length > 0) {
+                const locations = this.worldContext.activeVCs.map(loc => loc.name).join(', ');
+                activeLocationContext = `\nActive locations in HELLUNGI: ${locations}`;
+            }
+            
+            // Mention other legendary artifacts occasionally
+            let artifactContext = '';
+            if (mentionOtherArtifacts) {
+                const artifacts = ['Blue Breeze', "Midas' Burden", 'Earthshaker', 'Whisper of the Void', 'Shadow Legion Amulet'];
+                const artifact = artifacts[Math.floor(Math.random() * artifacts.length)];
+                artifactContext = `\nYou've heard rumors about ${artifact} being found recently.`;
+            }
+
+            let prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in HELLUNGI.
             
 Your establishment: ${shop.description || this.getShopSpecialty(shop)}
-Background: ${shopkeeper.bio}
+Background: ${shopkeeper.bio} (You're from another world, trapped here like everyone)
 Personality: ${shopkeeper.personality}
-Setting: Hellungi - ${worldContext.location}, during ${worldContext.currentTime}
+Setting: HELLUNGI - ${worldContext.location}, during ${worldContext.currentTime}
 Current conditions: ${worldContext.currentWeather}
 Recent event: ${recentEvent}
-World Context: Hellungi is a dimensional nexus where portals connect countless worlds. Beings from different realities meet and trade here.
-${options.playerClass ? `Customer type: ${options.playerClass}` : 'Waiting for interdimensional customers'}
+${activeLocationContext}
+${artifactContext}
+
+World Context: HELLUNGI is a dimensional abyss with no sky or ground. Everyone here is trapped, having arrived from other worlds without knowing how. The space expands, mines appear from nothing, and a vast creature rumbles below. The center void consumes memories. Most don't even know this place is called HELLUNGI.
+
+${options.playerClass ? `Customer type: Someone who was a ${options.playerClass} in their world` : 'Waiting for other lost souls'}
 ${options.mood ? `Your current mood: ${options.mood}` : ''}
 `;
 
@@ -289,15 +343,21 @@ ${options.mood ? `Your current mood: ${options.mood}` : ''}
                 }
             }
 
-            // Mention The One Pick occasionally (relevant in Hellungi's mining districts)
+            // Mention The One Pick occasionally
             if (mentionTheOnePick) {
                 const stance = this.getOnePickStance(shopkeeper);
                 const opinion = this.onePickOpinions[stance][
                     Math.floor(Math.random() * this.onePickOpinions[stance].length)
                 ];
                 
-                prompt += `\nIMPORTANT: You must naturally work in this opinion about The One Pick (${this.worldContext.theOnePickLore.description}): "${opinion}"
+                prompt += `\nIMPORTANT: You must naturally work in this opinion about The One Pick (the legendary pickaxe that may be the key to escaping HELLUNGI): "${opinion}"
 Make it feel organic to your personality and current conversation.`;
+            }
+            
+            // Mention active locations occasionally
+            if (mentionActiveLocations && this.worldContext.activeVCs.length > 0) {
+                const randomLoc = this.worldContext.activeVCs[Math.floor(Math.random() * this.worldContext.activeVCs.length)];
+                prompt += `\nMention that ${randomLoc.name} has been active lately, or that lost souls have been appearing there.`;
             }
 
             // Add specific dialogue instructions based on context
@@ -323,13 +383,14 @@ Make it feel organic to your personality and current conversation.`;
             }
             
             prompt += `\nGenerate a single line of idle shop dialogue or action that:
-- Reflects your personality and background
-- Might reference your wares, the weather, recent events, portals, dimensional travel, or other worlds
+- Reflects your personality and that you're trapped here from another world
+- Might reference your confusion about how you got here, the expanding void, the creature's rumblings, or memories being consumed
+- Could express fear, hope, resignation, or determination about your situation
 ${dialogueInstructions.length > 0 ? '- Should ' + dialogueInstructions.join(' OR ') : ''}
-- Sounds natural for someone standing in their interdimensional shop
+- Sounds natural for someone trapped in HELLUNGI running a shop
 ${mentionTheOnePick ? '- Naturally incorporates your opinion about The One Pick' : ''}
 - Stays completely in character
-- Remember you're in Hellungi, a dimensional crossroads
+- Remember you're trapped in HELLUNGI, a dimension with no escape (yet)
 
 You can EITHER:
 1. Say something (just write the dialogue with quotes like "Another quiet day between portals.")
@@ -435,12 +496,12 @@ Respond with ONLY the dialogue or action, no quotation marks or attribution.`;
                 }
             }
             
-            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in Hellungi.
+            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in HELLUNGI.
             
 Your establishment: ${shop.description || this.getShopSpecialty(shop)}
-Background: ${shopkeeper.bio}
+Background: ${shopkeeper.bio} (You're trapped here from another world)
 Personality: ${shopkeeper.personality}
-Context: This is Hellungi, a dimensional crossroads where beings from different worlds meet and trade.
+Context: HELLUNGI is a dimensional abyss where everyone is trapped. No sky, no ground, only endless void.
 ${customerProfile}
 
 A customer just purchased: ${quantity}x ${item.name} for ${price} coins total (${pricePerItem} each)
@@ -454,18 +515,18 @@ ${isSmallPurchase ? 'Just a single item.' : ''}
 ${isModerateQuantity ? 'A moderate quantity purchase.' : ''}
 
 Generate a brief success dialogue (1 sentence) that:
-- Reflects your personality
+- Reflects your personality as someone trapped in HELLUNGI
 - MUST react to the quantity (${quantity} items) - mention if it's a lot, bulk order, etc.
 ${buyer?.displayName ? `- You MAY address the customer by name ("${buyer.displayName}") when it feels natural` : ''}
-${playerContext?.hasLegendary ? '- BE IN AWE of their legendary item(s) - show respect, fear, or greed based on personality' : ''}
+${playerContext?.hasLegendary ? '- BE IN AWE of their legendary item(s) - they might help escape HELLUNGI!' : ''}
 ${playerContext?.hasMidasBurden ? '- Reference their cursed/blessed Midas item if appropriate' : ''}
-${playerContext?.hasMultipleLegendaries ? '- Express amazement at their legendary collection' : ''}
-${playerContext?.isRichest ? '- Acknowledge their wealth status or VIP treatment' : ''}
-${playerContext?.customerType === 'vip' ? '- Show appreciation for their loyalty' : ''}
-${playerContext?.wealthTier === 'poor' && quantity > 1 ? '- Maybe comment on them spending beyond their means' : ''}
-- Might reference their home dimension or portal travel
-- Sounds natural and conversational - use their name sparingly, not every time
-- Remember you're in Hellungi, where interdimensional trade is common
+${playerContext?.hasMultipleLegendaries ? '- Express hope that their legendaries might be the key to escape' : ''}
+${playerContext?.isRichest ? '- Acknowledge their wealth (but we're all still trapped here)' : ''}
+${playerContext?.customerType === 'vip' ? '- Show appreciation for their loyalty in these dark times' : ''}
+${playerContext?.wealthTier === 'poor' && quantity > 1 ? '- Maybe sympathize with their struggle to survive here' : ''}
+- Might reference being lost souls together, the expanding void, or hope for escape
+- Sounds natural and conversational - use their name sparingly
+- Remember you're both trapped in HELLUNGI, trying to survive
 
 Respond with ONLY the dialogue with quotation marks`;
 
@@ -497,21 +558,21 @@ Respond with ONLY the dialogue with quotation marks`;
                 throw new Error('Shop missing shopkeeper data');
             }
 
-            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in Hellungi.
+            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in HELLUNGI.
             
 Your establishment: ${shop.description || this.getShopSpecialty(shop)}
-Background: ${shopkeeper.bio}
+Background: ${shopkeeper.bio} (You're trapped here from another world)
 Personality: ${shopkeeper.personality}
 
 A customer cannot afford ${item ? item.name : 'an item'}${shortBy > 0 ? `, they're ${shortBy} coins short` : ''}.
 
-Context: This is Hellungi, where interdimensional currency is accepted.
+Context: You're both trapped in HELLUNGI, surviving in this dimensional abyss.
 
 Generate a brief rejection dialogue (1 sentence) that:
-- Reflects your personality (${shopkeeper.personality.includes('friendly') ? 'be sympathetic' : shopkeeper.personality.includes('ruthless') ? 'be harsh' : 'be firm but fair'})
+- Reflects your personality (${shopkeeper.personality.includes('friendly') ? 'be sympathetic about their struggle here' : shopkeeper.personality.includes('ruthless') ? 'be harsh despite shared predicament' : 'be firm but understanding'})
 - Tells them they need more money
-- Stays in character
-- Might reference interdimensional currency or their home world's money
+- Stays in character as someone also trapped here
+- Might reference the difficulty of surviving in HELLUNGI or shared suffering
 
 Respond with ONLY the dialogue, with quotation marks.`;
 
@@ -586,12 +647,12 @@ Respond with ONLY the dialogue, with quotation marks.`;
                 }
             }
             
-            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in Hellungi.
+            const prompt = `You are ${shopkeeper.name}, proprietor of ${shop.name} in HELLUNGI.
             
 Your establishment: ${shop.description || this.getShopSpecialty(shop)}
-Background: ${shopkeeper.bio}
+Background: ${shopkeeper.bio} (You're trapped here from another world)
 Personality: ${shopkeeper.personality}
-Context: This is Hellungi, where goods from countless dimensions are traded.
+Context: HELLUNGI is a dimensional void where lost souls trade to survive.
 ${customerProfile}
 
 A customer just sold you: ${quantity}x ${item.name} for ${price} coins total (${pricePerItem} each)
@@ -613,9 +674,10 @@ ${playerContext?.hasMidasBurden && playerContext?.midasBlessing === 0 ? '- Maybe
 ${playerContext?.isRichest ? '- Wonder why the richest player needs to sell items' : ''}
 ${playerContext?.wealthTier === 'poor' ? '- Might show sympathy or take advantage based on personality' : ''}
 ${playerContext?.customerType === 'vip' ? '- Acknowledge their loyalty even when buying from them' : ''}
-- Might comment on which dimension these goods came from
+- Might wonder where they found these items in the expanding void
+- Could reference the struggle of surviving in HELLUNGI
 - Use their name sparingly for natural conversation
-- Remember you're in Hellungi, a dimensional trading hub
+- Remember you're both trapped here, trying to survive
 
 Respond with ONLY the dialogue, with quotation marks.`;
 

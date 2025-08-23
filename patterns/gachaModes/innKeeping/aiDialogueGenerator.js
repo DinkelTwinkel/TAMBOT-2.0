@@ -7,6 +7,7 @@ const GachaVC = require('../../../models/activevcs');
 const gachaServers = require('../../../data/gachaServers.json');
 const shops = require('../../../data/shops.json');
 const itemSheet = require('../../../data/itemSheet.json');
+const { UNIQUE_ITEMS } = require('../../../data/uniqueItemsSheet');
 
 class AIDialogueGenerator {
     constructor(channelId = null) {
@@ -18,18 +19,26 @@ class AIDialogueGenerator {
         // Default inn details (fallback if no channel provided)
         this.innDetails = {
             name: "Miner's Inn",
-            location: "Mining District, Lower Quarter",
-            atmosphere: "Cozy but worn, frequented by miners and travelers",
-            specialties: ["Hearty Miner's Stew", "Dwarven Ale", "Rock Bread"],
+            location: "HELLUNGI - The Dimensional Abyss, Mining District",
+            atmosphere: "A makeshift tavern carved from the void itself, where lost souls from countless worlds gather",
+            specialties: ["Hearty Miner's Stew", "Dimensional Ale", "Rock Bread"],
             currentTime: this.getTimeOfDay(),
             currentWeather: this.getRandomWeather(),
             innkeeper: null,
             recentEvents: [
-                "A rich vein of silver was discovered in the eastern tunnels",
-                "The mine elevator broke down yesterday, causing delays",
-                "New safety regulations were announced by the Mining Guild",
-                "Strange glowing crystals were found in the deep shafts"
-            ]
+                "The space expanded again last night - new tunnels appeared from nothing",
+                "A miner swears they heard the rumbling of the vast creature below",
+                "Ancient engravings about The One Pick were found in shaft seven",
+                "More lost souls arrived today, confused about how they got here",
+                "The center void consumed three miners' memories yesterday"
+            ],
+            worldContext: {
+                name: "HELLUNGI",
+                description: "A dimension with an ominous gacha machine, no sky, no ground - only endless abyss",
+                theOnePickLore: "The legendary pickaxe that may be the way out of this place",
+                npcAwareness: "Most don't know this place is called HELLUNGI - only the intellectuals",
+                activeVCs: [] // Will be populated with active voice channels
+            }
         };
         
         // Store channel ID for later use
@@ -47,12 +56,20 @@ class AIDialogueGenerator {
      */
     async loadInnDetails(channelId) {
         try {
-            // Find the active VC to get the typeId
+            // Load ALL active VCs on the server to be aware of other locations
             const activeVC = await GachaVC.findOne({ channelId }).lean();
             if (!activeVC) {
                 console.log('[AIDialogue] No active VC found for channel, using defaults');
                 return;
             }
+            
+            // Get all active VCs in this guild
+            const allActiveVCs = await GachaVC.find({ guildId: activeVC.guildId }).lean();
+            const activeLocations = allActiveVCs.map(vc => {
+                const gachaServer = gachaServers.find(g => g.id === vc.typeId);
+                return gachaServer ? gachaServer.name : 'Unknown Location';
+            });
+            this.innDetails.worldContext.activeVCs = activeLocations;
             
             // Find the gacha server configuration
             const gachaServer = gachaServers.find(g => g.id === activeVC.typeId);
@@ -213,25 +230,29 @@ class AIDialogueGenerator {
         else if (mineName.toLowerCase().includes('crystal')) resourceType = "crystals";
         else if (mineName.toLowerCase().includes('fossil')) resourceType = "fossils";
         
-        // Generic events
+        // HELLUNGI-specific events
         events.push(
-            `A new vein of ${resourceType} was discovered in the ${mineName}`,
-            `Mining accident in ${mineName} - all miners accounted for`,
-            `Record haul of ${resourceType} yesterday in the lower shafts`,
-            `The ${mineName} foreman announced overtime bonuses this week`
+            `The ${mineName} expanded overnight - new tunnels appeared from the void`,
+            `A miner from another world just appeared in ${mineName}, confused and lost`,
+            `Strange engravings about The One Pick were discovered in ${mineName}`,
+            `The void consumed part of ${mineName} - several shafts just vanished`,
+            `Miners report hearing the vast creature's rumbling from ${mineName} depths`
         );
         
-        // Rarity-specific events
+        // Rarity-specific events with HELLUNGI lore
         if (gachaServer.rarity === 'legendary') {
-            events.push(`Whispers of The One Pick echo from ${mineName} depths`);
+            events.push(`Whispers say The One Pick was last seen in ${mineName} depths`);
+            events.push(`A scholar claims ${mineName} holds the key to escaping HELLUNGI`);
         } else if (gachaServer.rarity === 'epic') {
-            events.push(`Ancient runes discovered in ${mineName} chamber`);
+            events.push(`Ancient texts about the Miner King found in ${mineName}`);
+            events.push(`${mineName} miners debate if The One Pick truly exists`);
         } else if (gachaServer.rarity === 'rare') {
-            events.push(`New safety protocols for ${mineName} workers`);
+            events.push(`New arrivals from other worlds assigned to ${mineName}`);
+            events.push(`The ${mineName} cult worships The One Pick as a deity`);
         } else if (gachaServer.rarity === 'uncommon') {
-            events.push(`${mineName} quotas increased by the guild`);
+            events.push(`${mineName} miners form a search party for legendary artifacts`);
         } else {
-            events.push(`Hiring new apprentices for ${mineName}`);
+            events.push(`New lost souls wander into ${mineName}, asking 'where am I?'`);
         }
         
         // Hazard-specific events
@@ -255,15 +276,23 @@ class AIDialogueGenerator {
 
     getTimeOfDay() {
         const hour = new Date().getHours();
-        if (hour < 6) return "late night";
-        if (hour < 12) return "morning";
-        if (hour < 17) return "afternoon";
-        if (hour < 21) return "evening";
-        return "night";
+        if (hour < 6) return "the void hours";
+        if (hour < 12) return "morning cycle";
+        if (hour < 17) return "eternal noon";
+        if (hour < 21) return "dusk shift";
+        return "the dark cycle";
     }
 
     getRandomWeather() {
-        const weather = ["foggy", "rainy", "clear", "dusty from the mines", "cold and damp", "unusually warm"];
+        const weather = [
+            "thick with void mist", 
+            "echoing with distant rumblings", 
+            "eerily still", 
+            "dusty from the expanding mines", 
+            "cold - the abyss is stealing warmth", 
+            "shimmering with gacha energy",
+            "heavy with forgotten memories"
+        ];
         return weather[Math.floor(Math.random() * weather.length)];
     }
 
@@ -298,14 +327,33 @@ class AIDialogueGenerator {
                 innkeeperContext = `The innkeeper is ${this.innDetails.innkeeper.name}, ${this.innDetails.innkeeper.bio}`;
             }
 
-            const prompt = `You are ${npc.name}, ${npc.description}.
+            // Determine if NPC mentions The One Pick or artifacts (5% chance)
+            const mentionsArtifact = Math.random() < 0.05;
+            const artifactContext = mentionsArtifact ? `\nYou've heard rumors about The One Pick - ${Math.random() < 0.5 ? 'you believe it exists and could free us from HELLUNGI' : 'you think it\'s just a myth to give false hope'}` : '';
             
-Setting: You're at ${this.innDetails.name} in the ${this.innDetails.location}. 
+            // Check if other locations are active
+            const otherLocations = this.innDetails.worldContext.activeVCs.filter(loc => !loc.includes(this.innDetails.name));
+            const locationAwareness = otherLocations.length > 0 ? `\nYou know these other locations are active: ${otherLocations.join(', ')}` : '';
+
+            const prompt = `You are ${npc.name}, ${npc.description}. You're from another world and don't know how you got to HELLUNGI.
+            
+Setting: You're at ${this.innDetails.name} in HELLUNGI - a dimension with no sky, no ground, only endless abyss. 
 ${innkeeperContext}
-It's ${this.innDetails.currentTime} and the weather is ${this.innDetails.currentWeather}.
+It's ${this.innDetails.currentTime} and the conditions are ${this.innDetails.currentWeather}.
 The inn's atmosphere: ${this.innDetails.atmosphere}
 They're known for: ${this.innDetails.specialties.join(', ')}
 Recent local news: ${recentEvent}
+${artifactContext}
+${locationAwareness}
+
+IMPORTANT CONTEXT:
+- You're trapped in HELLUNGI like everyone else
+- You don't know how you got here - one day you just... were here
+- Some believe The One Pick (legendary artifact) is the way out
+- The space is expanding, mines appear from nothing
+- Sometimes you hear rumblings of a vast creature
+- The center void consumes words and memories
+- Most don't know this place is called HELLUNGI (only intellectuals do)
 
 Your personality traits:
 - Budget level: ${npc.budget}
@@ -322,13 +370,14 @@ ${options.mood ? `Your current mood: ${options.mood}` : ''}
 
 Generate a single line of dialogue (1-2 sentences max) that this character would say while making this purchase. 
 The dialogue should:
-- Reflect your personality and background
-- Possibly reference the item, price, weather, time of day, the inn's specialties, or recent events
+- Reflect your personality and background from another world
+- Possibly reference the item, price, conditions, time, specialties, or recent events
+- Maybe express fear, hope, confusion about being trapped in HELLUNGI
+- Might mention The One Pick, other legendary artifacts, or the expanding void
 ${options.workerPerformance ? this.getDialogueInstructions(options.workerPerformance) : ''}
 - Be natural and conversational
-- Stay in character
-- Remember this is the world of The Wandering Inn where levels, classes, and multiple species are common
-- You might reference Skills in [brackets], other characters from the inn, or recent events in Liscor/Innworld
+- Stay in character as someone trapped in this dimension
+- Remember you're from another world and confused/scared/brave about your situation
 
 Respond with ONLY the dialogue, no quotation marks or attribution.`;
 
@@ -368,21 +417,28 @@ Respond with ONLY the dialogue, no quotation marks or attribution.`;
                 innkeeperContext = `The innkeeper (${this.innDetails.innkeeper.name}) is ${this.innDetails.innkeeper.personality}.`;
             }
 
-            const prompt = `Generate a brief customer comment at ${this.innDetails.name}.
+            const prompt = `Generate a brief customer comment at ${this.innDetails.name} in HELLUNGI.
 
 Context:
-- Customer name: ${player.username || 'Adventurer'}
+- Customer name: ${player.username || 'Lost Soul'}
 - Purchasing: ${item.name} for ${price} coins
-- Location: ${this.innDetails.location}
+- Location: HELLUNGI - the dimensional abyss with no sky or ground
 - Time: ${this.innDetails.currentTime}
-- Weather: ${this.innDetails.currentWeather}
+- Conditions: ${this.innDetails.currentWeather}
 - Inn atmosphere: ${this.innDetails.atmosphere}
 - Known for: ${this.innDetails.specialties.join(', ')}
 ${innkeeperContext}
 ${options.workerPerformance ? `\nService Quality: ${this.getServiceDescription(options.workerPerformance)}` : ''}
 ${options.tip ? `- Leaving a generous ${options.tip} coin tip` : ''}
-${options.previousPurchases ? `- Regular customer who has been here ${options.previousPurchases} times before` : '- New customer'}
-${options.playerClass ? `- Character class/profession: ${options.playerClass}` : ''}
+${options.previousPurchases ? `- Been surviving here for a while, visited ${options.previousPurchases} times` : '- Recently arrived in this dimension'}
+${options.playerClass ? `- Was a ${options.playerClass} in their home world` : ''}
+
+World Context:
+- You're trapped in HELLUNGI, a dimension with endless abyss
+- You may or may not know how you got here
+- Some believe The One Pick can help escape
+- The space expands, new mines appear from nothing
+- The void consumes memories
 
 Generate a single brief comment (1 sentence) that a customer might say. It should be:
 - Natural and conversational
