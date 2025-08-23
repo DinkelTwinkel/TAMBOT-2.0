@@ -1,5 +1,14 @@
-// when users are in this channel >
-// they passively gain 1-3 coins based on randomness >
+// Innkeeper Mode - High-Activity Inn Simulation
+// 
+// EVENT TIMING:
+// - Events trigger every 5-15 seconds (randomly)
+// - NPC Sales: 40% chance per trigger
+// - Random Events: 35% chance per trigger
+//   - Bar Fights: 15% of events (costs coins)
+//   - Coin Finds: 15% of events (awards 2-25 coins)
+//   - Rumors: 70% of events (atmosphere only)
+// - Profit Distribution: Every 5 minutes
+// - Message Throttle: 3 seconds minimum between messages
 // 
 const Money = require('../../models/currency'); // Adjust path as needed
 const PlayerInventory = require('../../models/inventory'); // your inventory schema
@@ -50,15 +59,16 @@ const BAR_FIGHT_STARTERS = [
     { npc1: "Ksmvr", npc2: "Klbkch the Slayer", reason: "proper Antinium behavior" }
 ];
 
+// Reduced amounts due to higher frequency of events
 const FLOOR_FINDS = [
-    { amount: 5, description: "a few copper coins dropped by tired workers" },
-    { amount: 10, description: "a small pouch lost during yesterday's bar fight" },
-    { amount: 15, description: "silver coins that rolled under a gaming table" },
-    { amount: 20, description: "a forgotten tip that fell off the bar" },
-    { amount: 25, description: "an adventurer's loose change from their belt pouch" },
-    { amount: 50, description: "coins hidden behind a loose floorboard", rare: true },
-    { amount: 100, description: "a noble's purse dropped during last night's festivities", rare: true },
-    { amount: 75, description: "gold pieces from a gambler's lucky streak", rare: true }
+    { amount: 2, description: "a few copper coins dropped by tired workers" },
+    { amount: 3, description: "a small pouch lost during yesterday's bar fight" },
+    { amount: 5, description: "silver coins that rolled under a gaming table" },
+    { amount: 7, description: "a forgotten tip that fell off the bar" },
+    { amount: 10, description: "an adventurer's loose change from their belt pouch" },
+    { amount: 15, description: "coins hidden behind a loose floorboard", rare: true },
+    { amount: 25, description: "a noble's purse dropped during last night's festivities", rare: true },
+    { amount: 20, description: "gold pieces from a gambler's lucky streak", rare: true }
 ];
 
 // Function to calculate salary based on power level
@@ -267,8 +277,8 @@ async function generateBarFightEvent(channel, dbEntry) {
         const randomVCMember = vcMembers.length > 0 ? 
             vcMembers[Math.floor(Math.random() * vcMembers.length)] : null;
         
-        // Calculate damage/cost (higher wealth NPCs cause more damage)
-        const damageCost = Math.floor((npc1.wealth + npc2.wealth) * 10 + Math.random() * 50);
+        // Calculate damage/cost (reduced due to higher frequency)
+        const damageCost = Math.floor((npc1.wealth + npc2.wealth) * 2 + Math.random() * 10);
         
         // Generate contextual outcomes based on the characters and actual people
         const outcomes = [
@@ -348,8 +358,8 @@ async function generateCoinFindEvent(channel, dbEntry) {
             selectedFind = commonFinds[Math.floor(Math.random() * commonFinds.length)];
         }
         
-        // Apply luck bonus to amount
-        const luckBonus = Math.floor(selectedFind.amount * (luckStat / 100));
+        // Apply luck bonus to amount (reduced multiplier)
+        const luckBonus = Math.floor(selectedFind.amount * (luckStat / 200)); // Halved bonus
         const totalAmount = selectedFind.amount + luckBonus;
         
         // Try to generate AI reasoning for finding the coins
@@ -901,8 +911,16 @@ async function distributeProfits(channel, dbEntry) {
     }
 }
 
+// Message throttling to prevent spam with rapid events
+const messageThrottle = new Map();
+const MESSAGE_COOLDOWN = 3000; // 3 seconds between messages to prevent spam
+
 module.exports = async (channel, dbEntry, json) => {
     const now = Date.now(); // current timestamp in milliseconds
+    
+    // Check message throttle
+    const lastMessage = messageThrottle.get(channel.id) || 0;
+    const canSendMessage = (now - lastMessage) >= MESSAGE_COOLDOWN;
 
     // Initialize gameData with sales array and gamemode identifier if it doesn't exist
     if (!dbEntry.gameData) {
@@ -933,47 +951,57 @@ module.exports = async (channel, dbEntry, json) => {
         }
         // Initialize lastNPCSale if not exists
         if (!dbEntry.gameData.lastNPCSale) {
-            dbEntry.gameData.lastNPCSale = new Date(now - 5 * 60 * 1000); // 5 minutes ago
+            dbEntry.gameData.lastNPCSale = new Date(now - 15 * 1000); // 15 seconds ago
         }
         // Initialize lastEvent if not exists
         if (!dbEntry.gameData.lastEvent) {
-            dbEntry.gameData.lastEvent = new Date(now - 10 * 60 * 1000); // 10 minutes ago
+            dbEntry.gameData.lastEvent = new Date(now - 15 * 1000); // 15 seconds ago
         }
     }
 
-    // Check for NPC customer sales (20% chance every minute after 3 minute cooldown)
+    // Check for NPC customer sales (40% chance every 5-15 seconds)
     const lastNPCSale = new Date(dbEntry.gameData.lastNPCSale).getTime();
-    const npcCooldown = 3 * 60 * 1000; // 3 minutes
+    const npcCooldown = (5 + Math.random() * 10) * 1000; // 5-15 seconds randomly
     
-    if (now - lastNPCSale >= npcCooldown && Math.random() < 0.20) {
+    if (now - lastNPCSale >= npcCooldown && Math.random() < 0.40) {
         const npcSale = await generateNPCSale(channel, dbEntry);
         if (npcSale) {
             dbEntry.gameData.lastNPCSale = new Date();
             dbEntry.markModified('gameData');
             await dbEntry.save();
             
-            // Update the sales log with NPC info
-            await InnSalesLog.updateWithNPCPurchase(channel, dbEntry, npcSale);
+            // Update the sales log with NPC info (only if not throttled)
+            if (canSendMessage) {
+                await InnSalesLog.updateWithNPCPurchase(channel, dbEntry, npcSale);
+                messageThrottle.set(channel.id, now);
+            }
         }
     }
 
-    // Check for random events (10% chance every 2 minutes)
+    // Check for random events (35% chance every 5-15 seconds)
     const lastEvent = new Date(dbEntry.gameData.lastEvent).getTime();
-    const eventCooldown = 2 * 60 * 1000; // 2 minutes
+    const eventCooldown = (5 + Math.random() * 10) * 1000; // 5-15 seconds randomly
     
-    if (now - lastEvent >= eventCooldown && Math.random() < 0.10) {
+    if (now - lastEvent >= eventCooldown && Math.random() < 0.35) {
         const eventType = Math.random();
         let event = null;
         
-        if (eventType < 0.3) {
-            // 30% chance for bar fight
-            event = await generateBarFightEvent(channel, dbEntry);
-        } else if (eventType < 0.6) {
-            // 30% chance for finding coins
-            event = await generateCoinFindEvent(channel, dbEntry);
-        } else {
-            // 40% chance for overhearing rumor
+        if (eventType < 0.15) {
+            // 15% chance for bar fight (reduced frequency to prevent too much chaos)
+            if (canSendMessage) {
+                event = await generateBarFightEvent(channel, dbEntry);
+                if (event) messageThrottle.set(channel.id, now);
+            }
+        } else if (eventType < 0.30) {
+            // 15% chance for finding coins (reduced to prevent inflation)
+            if (canSendMessage) {
+                event = await generateCoinFindEvent(channel, dbEntry);
+                if (event) messageThrottle.set(channel.id, now);
+            }
+        } else if (canSendMessage) {
+            // 70% chance for overhearing rumor (atmospheric, no economic impact)
             event = await generateRumorEvent(channel, dbEntry);
+            if (event) messageThrottle.set(channel.id, now);
         }
         
         if (event) {
@@ -983,11 +1011,11 @@ module.exports = async (channel, dbEntry, json) => {
         }
     }
 
-    // Check if 20 minutes have passed since last profit distribution
+    // Check if 5 minutes have passed since last profit distribution (more frequent due to rapid events)
     const lastDistribution = new Date(dbEntry.gameData.lastProfitDistribution).getTime();
-    const twentyMinutesInMs = 20 * 60 * 1000; // 20 minutes
+    const fiveMinutesInMs = 5 * 60 * 1000; // 5 minutes
     
-    if (now - lastDistribution >= twentyMinutesInMs && dbEntry.gameData.sales.length > 0) {
+    if (now - lastDistribution >= fiveMinutesInMs && dbEntry.gameData.sales.length > 0) {
         // Time to distribute profits!
         await distributeProfits(channel, dbEntry);
         
@@ -999,7 +1027,9 @@ module.exports = async (channel, dbEntry, json) => {
         dbEntry.gameData.events = [];
     }
 
-    dbEntry.nextTrigger = new Date(now + 60 * 1000);
+    // Set next trigger for 5-15 seconds from now
+    const nextTriggerDelay = (5 + Math.random() * 10) * 1000; // 5-15 seconds
+    dbEntry.nextTrigger = new Date(now + nextTriggerDelay);
     
     // Mark gameData as modified since it's a Mixed type
     dbEntry.markModified('gameData');
