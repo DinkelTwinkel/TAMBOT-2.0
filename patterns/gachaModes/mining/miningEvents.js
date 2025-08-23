@@ -474,6 +474,7 @@ async function startThiefGame(channel, dbEntry) {
 /**
  * Mine Collapse Event - Floor tiles collapse and transform into various tile types
  * Enhanced for solo players with guaranteed rewards
+ * Now scales dynamically with the number of floor tiles on the map
  */
 async function startMineCollapseEvent(channel, dbEntry) {
     if (!channel?.isVoiceBased()) return;
@@ -512,8 +513,16 @@ async function startMineCollapseEvent(channel, dbEntry) {
         return 'Mine too small for collapse event';
     }
     
-    // Determine number of collapse zones (1-5 based on map size)
-    const numCollapses = Math.min(5, Math.max(1, Math.floor(floorTiles.length / 15)));
+    // Determine number of collapse zones - scales with floor tile count
+    // Base: 1 collapse per 20 floor tiles
+    // Minimum: 1 collapse zone
+    // Maximum: 12 collapse zones (for huge maps)
+    // Scaling formula: sqrt(floorTiles) / 4 gives good distribution
+    const scaleFactor = Math.sqrt(floorTiles.length);
+    const baseCollapses = Math.floor(scaleFactor / 4);
+    const numCollapses = Math.min(12, Math.max(1, baseCollapses));
+    
+    console.log(`[MINE COLLAPSE] Floor tiles: ${floorTiles.length}, Collapse zones: ${numCollapses}`);
     const collapsedZones = [];
     const affectedTiles = new Set();
     
@@ -523,8 +532,21 @@ async function startMineCollapseEvent(channel, dbEntry) {
         const centerIndex = Math.floor(Math.random() * floorTiles.length);
         const center = floorTiles[centerIndex];
         
-        // Random radius (1-3 tiles)
-        const radius = Math.floor(Math.random() * 3) + 1;
+        // Dynamic radius based on map size
+        // Small maps (< 100 floor tiles): radius 1-2
+        // Medium maps (100-400 floor tiles): radius 1-3
+        // Large maps (> 400 floor tiles): radius 2-4
+        let minRadius = 1;
+        let maxRadius = 2;
+        
+        if (floorTiles.length >= 100 && floorTiles.length < 400) {
+            maxRadius = 3;
+        } else if (floorTiles.length >= 400) {
+            minRadius = 2;
+            maxRadius = 4;
+        }
+        
+        const radius = Math.floor(Math.random() * (maxRadius - minRadius + 1)) + minRadius;
         
         // Determine collapse pattern for this zone
         const collapseType = pickCollapseType();

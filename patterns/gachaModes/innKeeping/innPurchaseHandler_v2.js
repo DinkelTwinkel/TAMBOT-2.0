@@ -196,7 +196,7 @@ class InnPurchaseHandler {
                 itemId: item.id,
                 itemName: item.name,
                 buyer: userId,
-                buyerName: member.user.username,
+                buyerName: member.displayName || member.user.username,  // Use nickname if available
                 price: itemPrice,
                 profit: profitData.profit,
                 tip: profitData.tip,
@@ -242,7 +242,8 @@ class InnPurchaseHandler {
             
             await channel.send({ embeds: [embed] });
             
-            console.log(`[InnPurchase] ${member.user.username} purchased ${item.name} for ${itemPrice}c (Profit: ${profitData.profit}c, Tip: ${profitData.tip}c)`);
+            const displayName = member.displayName || member.user.username;
+            console.log(`[InnPurchase] ${displayName} purchased ${item.name} for ${itemPrice}c (Profit: ${profitData.profit}c, Tip: ${profitData.tip}c)`);
             
             return {
                 success: true,
@@ -336,10 +337,11 @@ class InnPurchaseHandler {
      * Create purchase confirmation embed
      */
     async createPurchaseEmbed(member, item, price, profitData, newBalance) {
+        const displayName = member.displayName || member.user.username;
         const embed = new EmbedBuilder()
             .setTitle('🛍️ Purchase Complete!')
             .setColor(this.config.DISPLAY.COLORS.SUCCESS_GREEN)
-            .setDescription(`${member.user.username} purchased **${item.name}**`)
+            .setDescription(`${displayName} purchased **${item.name}**`)
             .addFields(
                 { name: 'Price', value: `${price} coins`, inline: true },
                 { name: 'Your Balance', value: `${newBalance} coins`, inline: true }
@@ -366,8 +368,9 @@ class InnPurchaseHandler {
         
         // Try to generate AI flavor text
         try {
+            const displayName = member.displayName || member.user.username;
             const flavorText = await this.aiManager.generatePurchaseDialogue(
-                member.user.username,
+                displayName,
                 item,
                 profitData.tip > 0
             );
@@ -602,7 +605,8 @@ class InnPurchaseHandler {
             
             // Calculate profit (revenue minus cost basis)
             const profit = salePrice - costBasis;
-            const buyerName = buyer.username || buyer.tag || 'Unknown';
+            // For backward compatibility - try to get display name if buyer is a member object
+            const buyerName = buyer.displayName || buyer.username || buyer.tag || 'Unknown';
             
             // Record sale in the database
             const purchaseId = this.generatePurchaseId(buyer.id, itemId, Date.now());

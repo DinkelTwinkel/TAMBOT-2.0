@@ -598,7 +598,8 @@ class InnDisplayManager {
         
         if (employeeOfTheDay) {
             const employeeEarnings = earnings.find(e => e.member.id === employeeOfTheDay.id);
-            payoutSummary = `⭐ **Worker of the Day: ${employeeOfTheDay.user.username}** ⭐\n`;
+            const employeeName = employeeOfTheDay.displayName || employeeOfTheDay.user.username;
+            payoutSummary = `⭐ **Worker of the Day: ${employeeName}** ⭐\n`;
             payoutSummary += `Total Payout: **${employeeEarnings.total}c** (2x bonus!)\n\n`;
         }
         
@@ -636,7 +637,8 @@ class InnDisplayManager {
         
         const sortedEarnings = earnings.sort((a, b) => b.total - a.total);
         for (const earning of sortedEarnings) {
-            reportText += `${earning.member.user.username}: ${earning.total}c\n`;
+            const workerName = earning.member.displayName || earning.member.user.username;
+            reportText += `${workerName}: ${earning.total}c\n`;
             reportText += `  Base: ${earning.base}c | Tips: ${earning.tips}c\n`;
             reportText += `  Salary: ${earning.salary}c | Bonus: +${earning.effectivenessBonus}c\n`;
             reportText += `  Performance: ${earning.performanceTier.toUpperCase()}\n`;

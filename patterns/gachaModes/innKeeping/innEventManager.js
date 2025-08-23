@@ -488,7 +488,8 @@ class InnEventManager {
                     mitigationData = await this.calculateMitigation(responder, channelPower, scaledDamage);
                     finalCost = mitigationData.finalCost;
                     
-                    console.log(`[InnEvents] ${responder.user.username} attempts to stop the fight!`);
+                    const responderName = responder.displayName || responder.user.username;
+                    console.log(`[InnEvents] ${responderName} attempts to stop the fight!`);
                     console.log(`[InnEvents] Stats: Speed ${mitigationData.stats.speed}, Sight ${mitigationData.stats.sight}, Luck ${mitigationData.stats.luck}`);
                     console.log(`[InnEvents] Mitigation: ${mitigationData.reductionPercent}% reduction (${scaledDamage}c → ${finalCost}c)`);
                 }
@@ -585,23 +586,25 @@ class InnEventManager {
             const finalCost = originalCost - reduction;
             
             // Generate flavor text based on mitigation success
+            const memberName = member.displayName || member.user.username;
             let flavorText = '';
             if (mitigationType === 'complete_negation') {
-                flavorText = `${member.user.username} swiftly intervenes and completely prevents any damage!`;
+                flavorText = `${memberName} swiftly intervenes and completely prevents any damage!`;
             } else if (mitigationType === 'major_reduction') {
-                flavorText = `${member.user.username} quickly steps in and prevents most of the damage!`;
+                flavorText = `${memberName} quickly steps in and prevents most of the damage!`;
             } else if (mitigationType === 'moderate_reduction') {
-                flavorText = `${member.user.username} manages to minimize some of the damage.`;
+                flavorText = `${memberName} manages to minimize some of the damage.`;
             } else if (mitigationType === 'minor_reduction') {
-                flavorText = `${member.user.username} tries to help but only slightly reduces the damage.`;
+                flavorText = `${memberName} tries to help but only slightly reduces the damage.`;
             } else if (mitigationType === 'minimal_reduction') {
-                flavorText = `${member.user.username} attempts to intervene but barely makes a difference.`;
+                flavorText = `${memberName} attempts to intervene but barely makes a difference.`;
             } else {
-                flavorText = `${member.user.username} tries to stop the fight but fails completely.`;
+                flavorText = `${memberName} tries to stop the fight but fails completely.`;
             }
             
+            const displayName = member.displayName || member.user.username;
             return {
-                responder: member.user.username,
+                responder: displayName,
                 responderId: member.id,
                 stats: {
                     speed: speedStat,
@@ -622,8 +625,9 @@ class InnEventManager {
         } catch (error) {
             console.error('[InnEvents] Error calculating mitigation:', error);
             // Return no mitigation on error
+            const displayName = member.displayName || member.user.username;
             return {
-                responder: member.user.username,
+                responder: displayName,
                 responderId: member.id,
                 stats: { speed: 0, sight: 0, luck: 0, weighted: 0, threshold: 10 },
                 mitigationType: 'failed',
@@ -708,8 +712,9 @@ class InnEventManager {
             const luckyMember = membersInVC[Math.floor(Math.random() * membersInVC.length)];
             
             // Check for recent coin find by same member
+            const finderName = luckyMember.displayName || luckyMember.user.username;
             if (this.isRecentDuplicate(channelId, 'coinFind', luckyMember.id)) {
-                console.log(`[InnEvents] ${luckyMember.user.username} recently found coins, skipping`);
+                console.log(`[InnEvents] ${finderName} recently found coins, skipping`);
                 return null;
             }
             
@@ -766,10 +771,11 @@ class InnEventManager {
             }
             
             // Generate enhanced AI description with context
+            const finderDisplayName = luckyMember.displayName || luckyMember.user.username;
             let description;
             try {
                 const coinContext = {
-                    finder: luckyMember.user.username,
+                    finder: finderDisplayName,
                     amount: totalAmount,
                     innName: innName,
                     innkeeperName: innkeeperName,
@@ -816,14 +822,15 @@ class InnEventManager {
                 }
             }
             
-            console.log(`[InnEvents] Coin find: ${luckyMember.user.username} found ${totalAmount} coins`);
+            const finderFinalName = luckyMember.displayName || luckyMember.user.username;
+            console.log(`[InnEvents] Coin find: ${finderFinalName} found ${totalAmount} coins`);
             
             return {
                 type: 'coinFind',
                 eventId: eventId,
                 amount: totalAmount,
                 finder: luckyMember.id,
-                finderName: luckyMember.user.username,
+                finderName: finderFinalName,
                 description: description,
                 powerLevel: channelPower,
                 luckBonus: luckBonus,

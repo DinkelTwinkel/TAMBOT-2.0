@@ -161,7 +161,13 @@ class InnAIManager {
             return this.selectFallback(this.fallbackDialogue.player);
         }
 
-        const prompt = `Generate a brief customer comment for ${player.username} 
+        // Handle both string names and player objects
+        // Use display name (nickname) if available, otherwise username
+        const playerName = typeof player === 'string' 
+            ? player 
+            : (player.displayName || player.username || 'Customer');
+        
+        const prompt = `Generate a brief customer comment for ${playerName} 
         buying ${item.name} for ${price} coins at an inn.
         ${context.previousPurchases > 3 ? 'They are a regular customer.' : 'They are a new customer.'}
         Keep it natural and under 15 words.
