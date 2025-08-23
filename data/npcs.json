@@ -7,6 +7,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
     "preferences": ["consumable", "food", "drink"],
     "budget": "low",
+    "wealth": 1,
+    "minChannelPower": 1,
     "tipModifier": 0.5,
     "frequency": "common",
     "dialogue": [
@@ -23,6 +25,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
     "preferences": ["consumable", "drink"],
     "budget": "high",
+    "wealth": 7,
+    "minChannelPower": 3,
     "tipModifier": 2.5,
     "frequency": "rare",
     "dialogue": [
@@ -39,6 +43,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
     "preferences": ["consumable", "drink"],
     "budget": "medium",
+    "wealth": 2,
+    "minChannelPower": 1,
     "tipModifier": 1.0,
     "frequency": "very_common",
     "dialogue": [
@@ -55,6 +61,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
     "preferences": ["consumable", "tool"],
     "budget": "high",
+    "wealth": 6,
+    "minChannelPower": 2,
     "tipModifier": 1.8,
     "frequency": "uncommon",
     "dialogue": [
@@ -71,6 +79,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
     "preferences": ["consumable", "food"],
     "budget": "low",
+    "wealth": 1,
+    "minChannelPower": 1,
     "tipModifier": 0.3,
     "frequency": "common",
     "dialogue": [
@@ -87,6 +97,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
     "preferences": ["consumable", "drink", "food"],
     "budget": "high",
+    "wealth": 5,
+    "minChannelPower": 2,
     "tipModifier": 2.0,
     "frequency": "uncommon",
     "dialogue": [
@@ -103,6 +115,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
     "preferences": ["consumable"],
     "budget": "medium",
+    "wealth": 4,
+    "minChannelPower": 1,
     "tipModifier": 1.5,
     "frequency": "rare",
     "dialogue": [
@@ -119,6 +133,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
     "preferences": ["consumable", "food", "tool"],
     "budget": "low",
+    "wealth": 1,
+    "minChannelPower": 1,
     "tipModifier": 0.8,
     "frequency": "common",
     "dialogue": [
@@ -135,6 +151,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
     "preferences": ["consumable", "tool"],
     "budget": "medium",
+    "wealth": 3,
+    "minChannelPower": 1,
     "tipModifier": 1.2,
     "frequency": "uncommon",
     "dialogue": [
@@ -151,6 +169,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
     "preferences": ["consumable", "charm"],
     "budget": "medium",
+    "wealth": 4,
+    "minChannelPower": 1,
     "tipModifier": 1.3,
     "frequency": "rare",
     "dialogue": [
@@ -167,6 +187,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
     "preferences": ["consumable", "food"],
     "budget": "medium",
+    "wealth": 2,
+    "minChannelPower": 1,
     "tipModifier": 0.2,
     "frequency": "uncommon",
     "dialogue": [
@@ -183,6 +205,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
     "preferences": ["consumable"],
     "budget": "low",
+    "wealth": 2,
+    "minChannelPower": 1,
     "tipModifier": 1.0,
     "frequency": "uncommon",
     "dialogue": [
@@ -199,6 +223,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
     "preferences": ["consumable", "drink"],
     "budget": "medium",
+    "wealth": 3,
+    "minChannelPower": 1,
     "tipModifier": 1.4,
     "frequency": "common",
     "dialogue": [
@@ -215,6 +241,8 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
     "preferences": ["consumable", "food"],
     "budget": "medium",
+    "wealth": 4,
+    "minChannelPower": 1,
     "tipModifier": 0.9,
     "frequency": "rare",
     "dialogue": [
@@ -231,12 +259,374 @@
     "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
     "preferences": ["consumable", "charm", "tool"],
     "budget": "high",
+    "wealth": 5,
+    "minChannelPower": 2,
     "tipModifier": 2.2,
     "frequency": "uncommon",
     "dialogue": [
       "Found three diamonds today! Drinks are on me!",
       "My lucky streak continues! Time to celebrate!",
       "Lady Luck smiles upon this establishment!"
+    ]
+  },
+  {
+    "id": "npc_16",
+    "name": "Baron Von Pickaxe",
+    "description": "A noble who owns several mining operations",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
+    "preferences": ["consumable", "drink", "charm"],
+    "budget": "high",
+    "wealth": 8,
+    "minChannelPower": 4,
+    "tipModifier": 3.0,
+    "frequency": "rare",
+    "dialogue": [
+      "I own half the mines in this region, you know.",
+      "Champagne! And keep the bubbles coming!",
+      "My time is valuable. I expect exceptional service."
+    ]
+  },
+  {
+    "id": "npc_17",
+    "name": "Soot-Faced Sally",
+    "description": "A chimney sweep who moonlights as a miner",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
+    "preferences": ["consumable", "food", "drink"],
+    "budget": "low",
+    "wealth": 1,
+    "minChannelPower": 1,
+    "tipModifier": 0.6,
+    "frequency": "common",
+    "dialogue": [
+      "Double shift today - mines then chimneys!",
+      "Black as coal, inside and out, haha!",
+      "Got anything that'll wash this soot down?"
+    ]
+  },
+  {
+    "id": "npc_18",
+    "name": "The Prospector",
+    "description": "An old-timer still searching for the motherlode",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
+    "preferences": ["consumable", "tool", "charm"],
+    "budget": "medium",
+    "wealth": 3,
+    "minChannelPower": 1,
+    "tipModifier": 1.1,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Any day now, I'll strike it rich!",
+      "Been prospecting these hills for forty years.",
+      "This old map says there's gold nearby..."
+    ]
+  },
+  {
+    "id": "npc_19",
+    "name": "Diamond Duchess",
+    "description": "A jeweler who sources directly from the mines",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "high",
+    "wealth": 7,
+    "minChannelPower": 3,
+    "tipModifier": 2.8,
+    "frequency": "rare",
+    "dialogue": [
+      "I need the miners happy - they find my gems!",
+      "Every diamond has a story, darling.",
+      "Quality attracts quality, wouldn't you agree?"
+    ]
+  },
+  {
+    "id": "npc_20",
+    "name": "Nervous Ned",
+    "description": "First day in the mines, already traumatized",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "food"],
+    "budget": "low",
+    "wealth": 1,
+    "minChannelPower": 1,
+    "tipModifier": 0.7,
+    "frequency": "common",
+    "dialogue": [
+      "Is it always that dark down there?!",
+      "I-I think I heard something collapse...",
+      "Maybe mining isn't for me..."
+    ]
+  },
+  {
+    "id": "npc_21",
+    "name": "Countess Coalveins",
+    "description": "Inherited a mining empire, visits to maintain appearances",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "high",
+    "wealth": 8,
+    "minChannelPower": 5,
+    "tipModifier": 2.5,
+    "frequency": "rare",
+    "dialogue": [
+      "I suppose I should mingle with the workers.",
+      "Father always said to know one's employees.",
+      "How... rustic. I'll have your best wine."
+    ]
+  },
+  {
+    "id": "npc_22",
+    "name": "Gemma the Geologist",
+    "description": "Studies rock formations, gets overly excited about minerals",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
+    "preferences": ["consumable", "tool"],
+    "budget": "medium",
+    "wealth": 4,
+    "minChannelPower": 2,
+    "tipModifier": 1.3,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Did you know this region has unique quartz formations?",
+      "The geological stratification here is FASCINATING!",
+      "I found the most beautiful piece of feldspar today!"
+    ]
+  },
+  {
+    "id": "npc_23",
+    "name": "Big Boss Bruno",
+    "description": "Runs the mining union, fights for workers' rights",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
+    "preferences": ["consumable", "food", "drink"],
+    "budget": "medium",
+    "wealth": 4,
+    "minChannelPower": 2,
+    "tipModifier": 1.5,
+    "frequency": "uncommon",
+    "dialogue": [
+      "The workers deserve better conditions!",
+      "Union meeting tonight - spread the word!",
+      "Fair wages for fair work, that's all we ask!"
+    ]
+  },
+  {
+    "id": "npc_24",
+    "name": "Tiny Tim",
+    "description": "The smallest miner, works the tightest shafts",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
+    "preferences": ["consumable", "food"],
+    "budget": "low",
+    "wealth": 2,
+    "minChannelPower": 1,
+    "tipModifier": 0.8,
+    "frequency": "common",
+    "dialogue": [
+      "Being small has its advantages in the mines!",
+      "I can fit where others can't!",
+      "Got anything in a smaller portion? I'm not that hungry."
+    ]
+  },
+  {
+    "id": "npc_25",
+    "name": "Lord Sterling",
+    "description": "Silver mine magnate with refined tastes",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "high",
+    "wealth": 7,
+    "minChannelPower": 4,
+    "tipModifier": 2.7,
+    "frequency": "rare",
+    "dialogue": [
+      "Silver is far more elegant than gold, don't you think?",
+      "I'll have whatever pairs well with success.",
+      "My mines produced record yields this quarter!"
+    ]
+  },
+  {
+    "id": "npc_26",
+    "name": "Dusty Dan",
+    "description": "Never quite gets all the dust off",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "low",
+    "wealth": 1,
+    "minChannelPower": 1,
+    "tipModifier": 0.4,
+    "frequency": "very_common",
+    "dialogue": [
+      "*cough cough* Sorry, still got dust in me lungs.",
+      "No matter how much I wash, I'm still dusty!",
+      "Something wet, please. Throat's like sandpaper."
+    ]
+  },
+  {
+    "id": "npc_27",
+    "name": "The Appraiser",
+    "description": "Values gems and minerals for the mining companies",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
+    "preferences": ["consumable", "food"],
+    "budget": "high",
+    "wealth": 6,
+    "minChannelPower": 3,
+    "tipModifier": 1.9,
+    "frequency": "uncommon",
+    "dialogue": [
+      "That stone you're wearing? Worth about 500 coins.",
+      "I've seen fortunes made and lost on my appraisals.",
+      "Hmm, interesting mineral content in this water..."
+    ]
+  },
+  {
+    "id": "npc_28",
+    "name": "Canary Kate",
+    "description": "Tends to the mine canaries, talks to them constantly",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
+    "preferences": ["consumable", "food"],
+    "budget": "low",
+    "wealth": 2,
+    "minChannelPower": 1,
+    "tipModifier": 0.9,
+    "frequency": "uncommon",
+    "dialogue": [
+      "My birds saved three lives this week!",
+      "Chirpy says hello! *makes chirping sounds*",
+      "The canaries know things, they really do..."
+    ]
+  },
+  {
+    "id": "npc_29",
+    "name": "Duke Goldstein",
+    "description": "Owns the largest gold mine in the region",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
+    "preferences": ["consumable", "drink", "charm"],
+    "budget": "high",
+    "wealth": 8,
+    "minChannelPower": 6,
+    "tipModifier": 3.5,
+    "frequency": "rare",
+    "dialogue": [
+      "Gold! It's always been about gold!",
+      "My family has mined these mountains for generations.",
+      "Spare no expense! I'm celebrating a new vein!"
+    ]
+  },
+  {
+    "id": "npc_30",
+    "name": "Rattling Roger",
+    "description": "Always shaking from too much time with the drill",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/5.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "low",
+    "wealth": 1,
+    "minChannelPower": 1,
+    "tipModifier": 0.5,
+    "frequency": "common",
+    "dialogue": [
+      "C-c-can't stop the shaking. Drill vibrations, you know.",
+      "Steady drinks help with the tremors!",
+      "Been drilling for twenty years *hands shake*"
+    ]
+  },
+  {
+    "id": "npc_31",
+    "name": "Emerald Earl",
+    "description": "Obsessed with finding the perfect emerald",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/0.png",
+    "preferences": ["consumable", "tool", "charm"],
+    "budget": "high",
+    "wealth": 6,
+    "minChannelPower": 3,
+    "tipModifier": 2.1,
+    "frequency": "uncommon",
+    "dialogue": [
+      "Green is the color of perfection!",
+      "I've searched every emerald mine from here to the coast.",
+      "One day I'll find it - the Empress Emerald!"
+    ]
+  },
+  {
+    "id": "npc_32",
+    "name": "Safety Sam",
+    "description": "The safety inspector everyone tries to avoid",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/1.png",
+    "preferences": ["consumable", "food"],
+    "budget": "medium",
+    "wealth": 3,
+    "minChannelPower": 1,
+    "tipModifier": 0.8,
+    "frequency": "uncommon",
+    "dialogue": [
+      "That's a violation! Where's your safety helmet?",
+      "According to regulation 47-B, this tavern needs more exits.",
+      "Safety first, profits second, fun... never."
+    ]
+  },
+  {
+    "id": "npc_33",
+    "name": "Whistling Willie",
+    "description": "Whistles constantly to cope with mine anxiety",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/2.png",
+    "preferences": ["consumable", "drink", "food"],
+    "budget": "medium",
+    "wealth": 2,
+    "minChannelPower": 1,
+    "tipModifier": 1.0,
+    "frequency": "common",
+    "dialogue": [
+      "*whistles nervously* Helps with the claustrophobia!",
+      "They say whistling in the mines is bad luck, but...",
+      "*whistles a jaunty tune* Keeps the spirits up!"
+    ]
+  },
+  {
+    "id": "npc_34",
+    "name": "Princess Platinum",
+    "description": "Heiress to a platinum mining fortune",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/3.png",
+    "preferences": ["consumable", "drink"],
+    "budget": "high",
+    "wealth": 8,
+    "minChannelPower": 7,
+    "tipModifier": 4.0,
+    "frequency": "rare",
+    "dialogue": [
+      "Platinum is so much rarer than gold, darling.",
+      "I'm here for my annual 'meet the miners' tour.",
+      "Everything I touch turns to platinum! *laughs*"
+    ]
+  },
+  {
+    "id": "npc_35",
+    "name": "Coughing Carl",
+    "description": "Veteran miner with damaged lungs",
+    "image": "placeholder.png",
+    "avatar": "https://cdn.discordapp.com/embed/avatars/4.png",
+    "preferences": ["consumable", "food"],
+    "budget": "low",
+    "wealth": 1,
+    "minChannelPower": 1,
+    "tipModifier": 0.6,
+    "frequency": "common",
+    "dialogue": [
+      "*violent coughing* Thirty years of dust'll do that.",
+      "Doc says I should retire... *cough* but the mine's my life.",
+      "Something smooth for the throat? *wheeze*"
     ]
   }
 ]

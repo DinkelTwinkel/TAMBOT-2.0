@@ -378,7 +378,7 @@ module.exports = async (guild) => {
                 console.log(`Running ${serverData.name} script for VC ${vc.channelId}`);
 
                 const now = Date.now();
-                vc.nextTrigger = new Date(now + 5000);
+                vc.nextTrigger = new Date(now + 500);
                 await vc.save();
 
                 // Run script with timeout protection (FIXED: prevents memory leak)

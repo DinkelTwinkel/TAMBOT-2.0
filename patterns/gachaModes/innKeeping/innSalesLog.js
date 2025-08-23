@@ -402,7 +402,7 @@ class InnSalesLog {
                         dynamic: true 
                     });
                     
-                    embed.setThumbnail(avatarURL);
+                    //embed.setThumbnail(avatarURL);
                 } catch (err) {
                     // Fallback: try to use latestSale buyer avatar if available
                     if (latestSale?.buyer?.displayAvatarURL) {
@@ -412,7 +412,7 @@ class InnSalesLog {
                                 size: 256,
                                 dynamic: true 
                             });
-                            embed.setThumbnail(avatarURL);
+                            //embed.setThumbnail(avatarURL);
                         } catch (fallbackErr) {
                             console.log('[InnSalesLog] Could not set player avatar:', fallbackErr.message);
                         }
@@ -424,7 +424,7 @@ class InnSalesLog {
                     size: 256,
                     dynamic: true 
                 });
-                embed.setThumbnail(avatarURL);
+                //embed.setThumbnail(avatarURL);
             }
         }
 

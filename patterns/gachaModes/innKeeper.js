@@ -14,6 +14,46 @@ const shopData = require('../../data/shops.json');
 const npcs = require('../../data/npcs.json');
 const ActiveVCs = require('../../models/activevcs');
 
+// Rumor and event templates for fallback when AI isn't available
+const RUMORS = [
+    "deeper levels of the mine hold ancient treasures",
+    "the old foreman buried gold somewhere in shaft 7",
+    "strange lights have been seen in the abandoned tunnels",
+    "the mine owner is looking for brave souls for a special expedition",
+    "a new vein of precious gems was discovered last week",
+    "the ghost of old miner Jack still haunts level 13",
+    "someone found a map to a secret chamber",
+    "the eastern shafts connect to ancient dwarven ruins",
+    "rare crystals glow blue during the full moon",
+    "the deepest level has never been fully explored",
+    "miners have been hearing strange music from below",
+    "there's a lucky pickaxe hidden somewhere in the inn",
+    "the bartender used to be a famous adventurer",
+    "a dragon's hoard lies beneath the mountain",
+    "the mine was built on an ancient burial ground"
+];
+
+const BAR_FIGHT_STARTERS = [
+    { npc1: "Rowdy Rick", npc2: "Grumpy Gus", reason: "spilled drink" },
+    { npc1: "Captain Ironbeard", npc2: "Big Boss Bruno", reason: "workers' rights disagreement" },
+    { npc1: "Lucky Lou", npc2: "Emerald Earl", reason: "disputed gem ownership" },
+    { npc1: "Dusty Dan", npc2: "Safety Sam", reason: "safety violations" },
+    { npc1: "Young Billy", npc2: "Nervous Ned", reason: "rookie hazing" },
+    { npc1: "The Prospector", npc2: "The Appraiser", reason: "valuation dispute" },
+    { npc1: "Whistling Willie", npc2: "Coughing Carl", reason: "annoying whistling" },
+    { npc1: "Tiny Tim", npc2: "Rattling Roger", reason: "bumped into each other" }
+];
+
+const FLOOR_FINDS = [
+    { amount: 5, description: "a few scattered coins" },
+    { amount: 10, description: "a small coin purse" },
+    { amount: 15, description: "coins that rolled under a table" },
+    { amount: 20, description: "a forgotten tip left behind" },
+    { amount: 25, description: "a miner's loose change" },
+    { amount: 50, description: "a hidden stash behind the bar", rare: true },
+    { amount: 100, description: "a wealthy patron's dropped pouch", rare: true }
+];
+
 // Function to calculate salary based on power level
 function calculateBaseSalary(power) {
     // Power 1 = 100, exponential increase
@@ -96,7 +136,204 @@ async function calculateEffectivenessBonus(memberId, baseSalary) {
     }
 }
 
-// Function to generate NPC customer sales
+// Function to generate AI dialogue with fallback
+async function generateAIDialogue(prompt, fallbackOptions) {
+    try {
+        // Check if AI generation is available
+        // This would connect to your AI service (OpenAI, local model, etc.)
+        // For now, we'll use fallback
+        
+        // TODO: Implement actual AI generation here
+        // const response = await yourAIService.generate(prompt);
+        // return response;
+        
+        // Fallback to predefined options
+        if (fallbackOptions && fallbackOptions.length > 0) {
+            return fallbackOptions[Math.floor(Math.random() * fallbackOptions.length)];
+        }
+        return null;
+    } catch (error) {
+        console.error('[InnKeeper] AI generation failed, using fallback:', error);
+        if (fallbackOptions && fallbackOptions.length > 0) {
+            return fallbackOptions[Math.floor(Math.random() * fallbackOptions.length)];
+        }
+        return null;
+    }
+}
+
+// Function to generate a rumor event
+async function generateRumorEvent(channel, dbEntry) {
+    try {
+        // Select two random NPCs for the conversation
+        const eligibleNpcs = npcs.filter(npc => {
+            // Filter by channel power if needed
+            const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
+            const channelPower = serverData?.power || 1;
+            return (!npc.minChannelPower || npc.minChannelPower <= channelPower);
+        });
+        
+        if (eligibleNpcs.length < 2) return null;
+        
+        const npc1 = eligibleNpcs[Math.floor(Math.random() * eligibleNpcs.length)];
+        let npc2 = eligibleNpcs[Math.floor(Math.random() * eligibleNpcs.length)];
+        while (npc2.id === npc1.id) {
+            npc2 = eligibleNpcs[Math.floor(Math.random() * eligibleNpcs.length)];
+        }
+        
+        // Generate or select rumor
+        const rumorPrompt = `Generate a short rumor or gossip that ${npc1.name} might share with ${npc2.name} in a mining town inn. Keep it under 20 words.`;
+        const rumor = await generateAIDialogue(rumorPrompt, RUMORS);
+        
+        const embed = new EmbedBuilder()
+            .setTitle('🗣️ Overheard Conversation')
+            .setColor(0x9B59B6)
+            .setDescription(`*You overhear ${npc1.name} whispering to ${npc2.name}:*\n\n"Have you heard? They say **${rumor}**..."`)
+            .setFooter({ text: 'Rumors spread quickly in the inn...' })
+            .setTimestamp();
+            
+        await channel.send({ embeds: [embed] });
+        
+        return { type: 'rumor', npc1: npc1.name, npc2: npc2.name, rumor };
+        
+    } catch (error) {
+        console.error('[InnKeeper] Error generating rumor event:', error);
+        return null;
+    }
+}
+
+// Function to generate a bar fight event
+async function generateBarFightEvent(channel, dbEntry) {
+    try {
+        const fight = BAR_FIGHT_STARTERS[Math.floor(Math.random() * BAR_FIGHT_STARTERS.length)];
+        
+        // Find the actual NPCs
+        const npc1 = npcs.find(n => n.name === fight.npc1);
+        const npc2 = npcs.find(n => n.name === fight.npc2);
+        
+        if (!npc1 || !npc2) return null;
+        
+        // Check channel power requirements
+        const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
+        const channelPower = serverData?.power || 1;
+        
+        if ((npc1.minChannelPower && npc1.minChannelPower > channelPower) ||
+            (npc2.minChannelPower && npc2.minChannelPower > channelPower)) {
+            return null;
+        }
+        
+        // Calculate damage/cost (higher wealth NPCs cause more damage)
+        const damageCost = Math.floor((npc1.wealth + npc2.wealth) * 10 + Math.random() * 50);
+        
+        const outcomes = [
+            `${npc1.name} throws a punch but misses and hits a barrel of ale!`,
+            `${npc2.name} tackles ${npc1.name} into a table, breaking it!`,
+            `Both fighters knock over several chairs and spill drinks everywhere!`,
+            `The fight ends when both slip on spilled beer and knock themselves out!`,
+            `Other patrons have to pull them apart before real damage is done!`
+        ];
+        
+        const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
+        
+        const embed = new EmbedBuilder()
+            .setTitle('⚔️ Bar Fight!')
+            .setColor(0xE74C3C)
+            .setDescription(`**${npc1.name}** and **${npc2.name}** start fighting over ${fight.reason}!\n\n${outcome}`)
+            .addFields(
+                { name: 'Damage Cost', value: `${damageCost} coins`, inline: true },
+                { name: 'Cause', value: fight.reason, inline: true }
+            )
+            .setFooter({ text: 'The cost will be deducted from today\'s profits!' })
+            .setTimestamp();
+            
+        await channel.send({ embeds: [embed] });
+        
+        // Deduct from profits
+        if (!dbEntry.gameData.events) dbEntry.gameData.events = [];
+        dbEntry.gameData.events.push({
+            type: 'barfight',
+            cost: damageCost,
+            timestamp: new Date()
+        });
+        
+        return { type: 'barfight', cost: damageCost, npc1: npc1.name, npc2: npc2.name };
+        
+    } catch (error) {
+        console.error('[InnKeeper] Error generating bar fight event:', error);
+        return null;
+    }
+}
+
+// Function to generate a coin finding event
+async function generateCoinFindEvent(channel, dbEntry) {
+    try {
+        // Get voice channel members
+        const voiceChannel = channel.guild.channels.cache.get(channel.id);
+        if (!voiceChannel || !voiceChannel.isVoiceBased()) return null;
+        
+        const membersInVC = Array.from(voiceChannel.members.values())
+            .filter(member => !member.user.bot);
+            
+        if (membersInVC.length === 0) return null;
+        
+        // Select random member to find coins
+        const luckyMember = membersInVC[Math.floor(Math.random() * membersInVC.length)];
+        
+        // Check their luck stat for bonus
+        const playerData = await getPlayerStats(luckyMember.id);
+        const luckStat = playerData.stats.luck || 0;
+        
+        // Select coin amount (luck increases chance of rare finds)
+        let selectedFind;
+        if (luckStat > 50 && Math.random() < 0.3) {
+            // High luck, chance for rare find
+            const rareFinds = FLOOR_FINDS.filter(f => f.rare);
+            selectedFind = rareFinds[Math.floor(Math.random() * rareFinds.length)];
+        } else {
+            const commonFinds = FLOOR_FINDS.filter(f => !f.rare);
+            selectedFind = commonFinds[Math.floor(Math.random() * commonFinds.length)];
+        }
+        
+        // Apply luck bonus to amount
+        const luckBonus = Math.floor(selectedFind.amount * (luckStat / 100));
+        const totalAmount = selectedFind.amount + luckBonus;
+        
+        // Award the coins
+        await Money.findOneAndUpdate(
+            { userId: luckyMember.id },
+            { 
+                $inc: { money: totalAmount },
+                $set: { usertag: luckyMember.user.tag }
+            },
+            { upsert: true, new: true }
+        );
+        
+        const embed = new EmbedBuilder()
+            .setTitle('💰 Coins Found!')
+            .setColor(0xF1C40F)
+            .setDescription(`**${luckyMember.user.username}** found ${selectedFind.description}!`)
+            .addFields(
+                { name: 'Amount Found', value: `${selectedFind.amount} coins`, inline: true }
+            );
+            
+        if (luckBonus > 0) {
+            embed.addFields({ name: 'Luck Bonus', value: `+${luckBonus} coins`, inline: true });
+        }
+        
+        embed.addFields({ name: 'Total', value: `**${totalAmount} coins**`, inline: true })
+            .setFooter({ text: `Luck Stat: ${luckStat}` })
+            .setTimestamp();
+            
+        await channel.send({ embeds: [embed] });
+        
+        return { type: 'coinFind', amount: totalAmount, finder: luckyMember.id };
+        
+    } catch (error) {
+        console.error('[InnKeeper] Error generating coin find event:', error);
+        return null;
+    }
+}
+
+// Function to generate NPC customer sales (updated with wealth filtering)
 async function generateNPCSale(channel, dbEntry) {
     try {
         // Get current shop items
@@ -105,6 +342,9 @@ async function generateNPCSale(channel, dbEntry) {
         
         const shopInfo = shopData.find(s => s.id === gachaInfo.shop);
         if (!shopInfo) return null;
+        
+        // Get server power for NPC filtering
+        const channelPower = gachaInfo.power || 1;
         
         // Get available items (static + rotational)
         const availableItems = [...shopInfo.staticItems];
@@ -116,7 +356,12 @@ async function generateNPCSale(channel, dbEntry) {
         
         if (consumableItems.length === 0) return null;
         
-        // Select a random NPC based on frequency
+        // Filter NPCs by channel power
+        const eligibleNpcs = npcs.filter(npc => {
+            return !npc.minChannelPower || npc.minChannelPower <= channelPower;
+        });
+        
+        // Weight NPCs by frequency AND wealth (higher channel power = higher wealth NPCs more likely)
         const npcWeights = {
             'very_common': 5,
             'common': 3,
@@ -125,12 +370,22 @@ async function generateNPCSale(channel, dbEntry) {
         };
         
         const weightedNPCs = [];
-        npcs.forEach(npc => {
-            const weight = npcWeights[npc.frequency] || 1;
+        eligibleNpcs.forEach(npc => {
+            let weight = npcWeights[npc.frequency] || 1;
+            
+            // Increase weight for wealthy NPCs if channel power is high
+            if (channelPower >= 4 && npc.wealth >= 6) {
+                weight *= 2;
+            } else if (channelPower >= 6 && npc.wealth >= 7) {
+                weight *= 3;
+            }
+            
             for (let i = 0; i < weight; i++) {
                 weightedNPCs.push(npc);
             }
         });
+        
+        if (weightedNPCs.length === 0) return null;
         
         const selectedNPC = weightedNPCs[Math.floor(Math.random() * weightedNPCs.length)];
         
@@ -169,9 +424,10 @@ async function generateNPCSale(channel, dbEntry) {
         const fluctuation = 0.8 + Math.random() * 0.4; // ±20% price fluctuation
         const salePrice = Math.floor(basePrice * fluctuation);
         
-        // Calculate tip based on NPC's tip modifier
+        // Calculate tip based on NPC's tip modifier and wealth
         const baseTip = salePrice * 0.1; // 10% base
-        const finalTip = Math.floor(baseTip * selectedNPC.tipModifier);
+        const wealthMultiplier = 1 + (selectedNPC.wealth * 0.1); // Each wealth level adds 10%
+        const finalTip = Math.floor(baseTip * selectedNPC.tipModifier * wealthMultiplier);
         
         // Calculate profit (95% margin)
         const costBasis = Math.floor(basePrice * 0.05);
@@ -186,7 +442,8 @@ async function generateNPCSale(channel, dbEntry) {
             price: salePrice,
             tip: finalTip,
             timestamp: new Date(),
-            isNPC: true
+            isNPC: true,
+            npcWealth: selectedNPC.wealth
         };
         
         // Add to gameData sales
@@ -208,7 +465,7 @@ async function generateNPCSale(channel, dbEntry) {
     }
 }
 
-// Function to distribute profits among VC members
+// Function to distribute profits among VC members (updated to account for events)
 async function distributeProfits(channel, dbEntry) {
     try {
         // Get voice channel if it exists
@@ -237,7 +494,12 @@ async function distributeProfits(channel, dbEntry) {
         const totalSales = sales.reduce((sum, sale) => sum + (sale.price || 0), 0);
         const totalProfit = sales.reduce((sum, sale) => sum + (sale.profit || 0), 0);
         const totalTips = sales.reduce((sum, sale) => sum + (sale.tip || 0), 0);
-        const grandTotal = totalProfit + totalTips;
+        
+        // Calculate event costs (bar fights, etc.)
+        const events = dbEntry.gameData.events || [];
+        const eventCosts = events.reduce((sum, event) => sum + (event.cost || 0), 0);
+        
+        const grandTotal = totalProfit + totalTips - eventCosts;
         
         // Track earnings for each member
         const earnings = {};
@@ -253,6 +515,13 @@ async function distributeProfits(channel, dbEntry) {
                 effectivenessBonus: effectivenessData.bonus,
                 speedStat: effectivenessData.speedStat,
                 sightStat: effectivenessData.sightStat,
+                luckStat: effectivenessData.luckStat,
+                miningStat: effectivenessData.miningStat,
+                speedBonus: effectivenessData.speedBonus,
+                sightBonus: effectivenessData.sightBonus,
+                luckBonus: effectivenessData.luckBonus,
+                strengthBonus: effectivenessData.strengthBonus,
+                performanceTier: effectivenessData.performanceTier,
                 total: baseSalary + effectivenessData.bonus
             };
         }
@@ -279,6 +548,14 @@ async function distributeProfits(channel, dbEntry) {
                     earnings[memberId].total += profitPerMember + tipPerMember;
                 });
             }
+        }
+        
+        // Deduct event costs equally from all members
+        if (eventCosts > 0 && memberIds.length > 0) {
+            const costPerMember = Math.floor(eventCosts / memberIds.length);
+            memberIds.forEach(memberId => {
+                earnings[memberId].total = Math.max(0, earnings[memberId].total - costPerMember);
+            });
         }
 
         // Select Employee of the Day only if there's more than one worker
@@ -417,6 +694,23 @@ async function distributeProfits(channel, dbEntry) {
                 }
             }
             
+            // Add events section if there were any
+            if (events.length > 0) {
+                itemSalesList += '\n';
+                itemSalesList += 'EVENTS & INCIDENTS:\n';
+                itemSalesList += '─'.repeat(40) + '\n';
+                
+                for (const event of events) {
+                    if (event.type === 'barfight') {
+                        itemSalesList += `⚔️ Bar Fight - Cost: ${event.cost}c\n`;
+                    } else if (event.type === 'coinFind') {
+                        itemSalesList += `💰 Coins Found - Amount: ${event.amount}c\n`;
+                    } else if (event.type === 'rumor') {
+                        itemSalesList += `🗣️ Rumor Overheard\n`;
+                    }
+                }
+            }
+            
             itemSalesList += '\n';
             itemSalesList += 'SALES REPORT:\n';
             itemSalesList += '─'.repeat(40) + '\n';
@@ -424,6 +718,9 @@ async function distributeProfits(channel, dbEntry) {
             itemSalesList += `Revenue: ${totalSales}c\n`;
             itemSalesList += `Base Profit: ${totalProfit}c\n`;
             itemSalesList += `Tips Earned: ${totalTips}c\n`;
+            if (eventCosts > 0) {
+                itemSalesList += `Event Costs: -${eventCosts}c\n`;
+            }
             itemSalesList += `Grand Total: ${grandTotal}c\n`;
             
             // Add best sale to sales report
@@ -436,6 +733,9 @@ async function distributeProfits(channel, dbEntry) {
                 const topItemName = topItem ? topItem.name : `Item #${topSale.itemId}`;
                 itemSalesList += `\n🏆 Best Sale: ${topItemName}\n`;
                 itemSalesList += `   Profit: ${topSale.profit}c | Tip: ${topSale.tip || 0}c\n`;
+                if (topSale.isNPC) {
+                    itemSalesList += `   Customer: ${topSale.buyerName} (Wealth: ${topSale.npcWealth || 'N/A'})\n`;
+                }
             }
             
             itemSalesList += '\n';
@@ -477,8 +777,9 @@ async function distributeProfits(channel, dbEntry) {
             await channel.send({ embeds: [embed] });
         }
         
-        // Clear the sales log after distribution
+        // Clear the sales log and events after distribution
         await InnSalesLog.clearSalesLog(channel);
+        dbEntry.gameData.events = [];
         
         console.log(`[InnKeeper] Distributed ${grandTotal} coins among ${payouts.length} workers`);
         
@@ -495,8 +796,10 @@ module.exports = async (channel, dbEntry, json) => {
         dbEntry.gameData = {
             gamemode: 'innkeeper', // Identifier for this game mode
             sales: [], // Array to store sales records
+            events: [], // Array to store events (bar fights, etc.)
             lastProfitDistribution: new Date(), // Track when profits were last distributed
-            lastNPCSale: new Date() // Track last NPC sale
+            lastNPCSale: new Date(), // Track last NPC sale
+            lastEvent: new Date() // Track last event
         };
     } else {
         // Ensure gamemode is set
@@ -507,6 +810,10 @@ module.exports = async (channel, dbEntry, json) => {
         if (!dbEntry.gameData.sales) {
             dbEntry.gameData.sales = [];
         }
+        // Ensure events array exists
+        if (!dbEntry.gameData.events) {
+            dbEntry.gameData.events = [];
+        }
         // Ensure lastProfitDistribution exists
         if (!dbEntry.gameData.lastProfitDistribution) {
             dbEntry.gameData.lastProfitDistribution = new Date();
@@ -514,6 +821,10 @@ module.exports = async (channel, dbEntry, json) => {
         // Initialize lastNPCSale if not exists
         if (!dbEntry.gameData.lastNPCSale) {
             dbEntry.gameData.lastNPCSale = new Date(now - 5 * 60 * 1000); // 5 minutes ago
+        }
+        // Initialize lastEvent if not exists
+        if (!dbEntry.gameData.lastEvent) {
+            dbEntry.gameData.lastEvent = new Date(now - 10 * 60 * 1000); // 10 minutes ago
         }
     }
 
@@ -533,6 +844,32 @@ module.exports = async (channel, dbEntry, json) => {
         }
     }
 
+    // Check for random events (10% chance every 2 minutes)
+    const lastEvent = new Date(dbEntry.gameData.lastEvent).getTime();
+    const eventCooldown = 2 * 60 * 1000; // 2 minutes
+    
+    if (now - lastEvent >= eventCooldown && Math.random() < 0.10) {
+        const eventType = Math.random();
+        let event = null;
+        
+        if (eventType < 0.3) {
+            // 30% chance for bar fight
+            event = await generateBarFightEvent(channel, dbEntry);
+        } else if (eventType < 0.6) {
+            // 30% chance for finding coins
+            event = await generateCoinFindEvent(channel, dbEntry);
+        } else {
+            // 40% chance for overhearing rumor
+            event = await generateRumorEvent(channel, dbEntry);
+        }
+        
+        if (event) {
+            dbEntry.gameData.lastEvent = new Date();
+            dbEntry.markModified('gameData');
+            await dbEntry.save();
+        }
+    }
+
     // Check if 20 minutes have passed since last profit distribution
     const lastDistribution = new Date(dbEntry.gameData.lastProfitDistribution).getTime();
     const twentyMinutesInMs = 20 * 60 * 1000; // 20 minutes
@@ -544,8 +881,9 @@ module.exports = async (channel, dbEntry, json) => {
         // Update last distribution time
         dbEntry.gameData.lastProfitDistribution = new Date();
         
-        // Clear sales data after distribution
+        // Clear sales data and events after distribution
         dbEntry.gameData.sales = [];
+        dbEntry.gameData.events = [];
     }
 
     dbEntry.nextTrigger = new Date(now + 60 * 1000);
@@ -560,7 +898,7 @@ module.exports = async (channel, dbEntry, json) => {
         generateShop(channel);
         
         // Debug: Log current sales count (optional)
-        console.log(`[InnKeeper] Channel ${dbEntry.channelId} - Total sales: ${dbEntry.gameData.sales.length}`);
+        console.log(`[InnKeeper] Channel ${dbEntry.channelId} - Sales: ${dbEntry.gameData.sales.length}, Events: ${dbEntry.gameData.events.length}`);
     }
    
 };
