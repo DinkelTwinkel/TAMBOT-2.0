@@ -16,8 +16,9 @@ class AIBarFightGenerator {
             console.log('[AIBarFight] OpenAI API key not found, using fallback system');
         }
         
-        // Maximum dialogue length
-        this.MAX_DIALOGUE_LENGTH = 50;
+        // Maximum lengths for different content types
+        this.MAX_REASON_LENGTH = 50;      // Fight reasons stay short
+        this.MAX_OUTCOME_LENGTH = 200;    // Fight descriptions can be longer
         
         // Cache for recent AI-generated fights to avoid repetition
         this.recentFights = new Map();
@@ -120,7 +121,7 @@ Return ONLY the reason, UNDER 50 CHARACTERS.`;
                 .toLowerCase(); // Normalize to lowercase
             
             // Ensure reason is under 50 characters
-            reason = this.truncateDialogue(reason);
+            reason = this.truncateText(reason, this.MAX_REASON_LENGTH);
             
             // Cache the result
             this.recentFights.set(cacheKey, {
@@ -168,15 +169,15 @@ Include how ${mitigation.responder}'s intervention affected the outcome.
 
             prompt += `
 Write a 2-3 sentence description that:
-1. Describes what got broken/damaged
-2. References the void or dimensional nature of the setting
-3. Has dark humor about their trapped situation
-4. If someone intervened, shows how that changed things
+1. Describes what got broken/damaged.
+2. References the inn and surrounding patrons.
+3. Has Dark humor about their situation.
+4. If someone intervened, shows how that changed things.
 
-Keep it concise and atmospheric.`;
+Keep it concise (under 200 chars) but complete the story.`;
 
             const completion = await this.openai.chat.completions.create({
-                model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
+                model: process.env.OPENAI_MODEL || "gpt-4",
                 messages: [
                     {
                         role: "system",
@@ -188,10 +189,12 @@ Keep it concise and atmospheric.`;
                     }
                 ],
                 temperature: 0.8,
-                max_tokens: 30
+                max_tokens: 120  // Increased for complete descriptions
             });
             
-            return completion.choices[0].message.content.trim();
+            const outcome = completion.choices[0].message.content.trim();
+            // Allow longer outcomes but still truncate if needed
+            return this.truncateText(outcome, this.MAX_OUTCOME_LENGTH);
             
         } catch (error) {
             console.error('[AIBarFight] Failed to generate outcome:', error.message);
@@ -248,12 +251,25 @@ Keep it concise and atmospheric.`;
     }
     
     /**
-     * Truncate dialogue to maximum length
+     * Truncate text to maximum length intelligently
      */
-    truncateDialogue(text) {
+    truncateText(text, maxLength) {
         if (!text) return '';
-        if (text.length <= this.MAX_DIALOGUE_LENGTH) return text;
-        return text.substring(0, this.MAX_DIALOGUE_LENGTH - 3) + '...';
+        if (text.length <= maxLength) return text;
+        
+        // For longer text, try to end at a complete sentence
+        const truncated = text.substring(0, maxLength - 3);
+        const lastPeriod = truncated.lastIndexOf('.');
+        const lastExclaim = truncated.lastIndexOf('!');
+        const lastQuestion = truncated.lastIndexOf('?');
+        const lastComplete = Math.max(lastPeriod, lastExclaim, lastQuestion);
+        
+        if (lastComplete > maxLength * 0.6) {
+            // If we have a complete sentence that's at least 60% of max length, use it
+            return text.substring(0, lastComplete + 1);
+        }
+        // Otherwise truncate with ellipsis
+        return truncated + '...';
     }
     
     /**
@@ -280,7 +296,34 @@ Keep it concise and atmospheric.`;
         
         // Use NPC names as seed for consistent randomness
         const seed = (npc1.name.length * npc2.name.length) % fallbackReasons.length;
-        return this.truncateDialogue(fallbackReasons[seed]);
+        return this.truncateText(fallbackReasons[seed], this.MAX_REASON_LENGTH);
+    }
+    
+    /**
+     * Get fallback fight outcomes when AI is unavailable
+     */
+    getFallbackOutcome(hasIntervention = false) {
+        const outcomes = [
+            "Tables shattered into void particles. The innkeeper sighs at the cleanup.",
+            "Chairs flew through rifts. They'll return tomorrow, maybe different colors.",
+            "The mirror cracked, showing home worlds. Everyone paused, remembering.",
+            "Bottles exploded in rainbow mist. The void-touched alcohol sparkled oddly.",
+            "Windows broke, revealing endless nothing. They quickly boarded them up.",
+            "The floor cracked, exposing void beneath. Everyone stepped back nervously."
+        ];
+        
+        const interventionOutcomes = [
+            "The fight ended when void whispers spoke true names. Both froze in dread.",
+            "A rift opened between them. They decided survival mattered more than pride.",
+            "The innkeeper's anchor activated. Both fighters reconsidered mid-punch.",
+            "Someone mentioned The One Pick. Everyone stopped to debate its existence.",
+            "The creature rumbled below. The fight seemed pointless after that."
+        ];
+        
+        if (hasIntervention) {
+            return interventionOutcomes[Math.floor(Math.random() * interventionOutcomes.length)];
+        }
+        return outcomes[Math.floor(Math.random() * outcomes.length)];
     }
 }
 

@@ -192,11 +192,11 @@ class InnDisplayManager {
                     fightDescription += `**Damage Cost:** ${event.cost} coins\n`;
                 }
                 
-                fightDescription += `*${event.outcome || 'They were separated by other patrons.'}*`;
+                fightDescription += '```' +`${event.outcome || 'They were separated by other patrons.'}` + '```';
                 
                 return {
                     title: '⚔️ Bar Fight!',
-                    description: '```' + fightDescription + '```'
+                    description: fightDescription 
                 };
                 
             case 'rumor':
@@ -216,8 +216,8 @@ class InnDisplayManager {
             case 'innkeeperComment':
                 return {
                     title: '💭 Innkeeper Observation',
-                    description: `*${event.comment}*\n` +
-                                `Business level: ${event.businessLevel}`
+                    description: '```' + `${event.comment}*\n` +
+                                `Business level: ${event.businessLevel}` + '```'
                 };
                 
             default:

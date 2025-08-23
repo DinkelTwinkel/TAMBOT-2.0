@@ -497,14 +497,17 @@ class InnEventManager {
                 );
             }
             
-            // Fallback to standard AI manager if needed
+            // Use new fallback outcomes if AI fails
             if (!outcome) {
-                outcome = await this.aiManager.generateEventDialogue('barFight', {
-                    npc1: npc1.name,
-                    npc2: npc2.name,
-                    reason: fightReason,
-                    mitigation: mitigationData
-                });
+                outcome = this.aiBarFightGenerator.getFallbackOutcome(
+                    mitigationData && mitigationData.mitigationType !== 'failed'
+                );
+                console.log('[InnEvents] Using fallback fight outcome');
+            }
+            
+            // Last resort fallback
+            if (!outcome) {
+                outcome = "Tables and chairs were destroyed in the chaos. The innkeeper sighs deeply.";
             }
             
             return {
