@@ -462,11 +462,31 @@ async function generateNPCSale(channel, dbEntry) {
         eligibleNpcs.forEach(npc => {
             let weight = npcWeights[npc.frequency] || 1;
             
-            // Increase weight for wealthy NPCs if channel power is high
-            if (channelPower >= 4 && npc.wealth >= 6) {
-                weight *= 2;
-            } else if (channelPower >= 6 && npc.wealth >= 7) {
-                weight *= 3;
+            // HEAVILY adjust weights based on channel power and NPC wealth
+            // Lower power = prefer poor NPCs, Higher power = prefer rich NPCs
+            if (channelPower <= 2) {
+                // Low power establishments: strongly prefer poor customers
+                if (npc.wealth <= 3) {
+                    weight *= 4; // 4x weight for poor customers
+                } else if (npc.wealth <= 5) {
+                    weight *= 2; // 2x weight for middle class
+                } else {
+                    weight = Math.max(1, Math.floor(weight / 2)); // Reduce weight for wealthy
+                }
+            } else if (channelPower <= 4) {
+                // Mid power establishments: balanced customer base
+                if (npc.wealth >= 4 && npc.wealth <= 6) {
+                    weight *= 2; // Prefer middle to upper-middle class
+                }
+            } else {
+                // High power establishments: strongly prefer wealthy customers
+                if (npc.wealth >= 7) {
+                    weight *= 5; // 5x weight for very wealthy
+                } else if (npc.wealth >= 5) {
+                    weight *= 3; // 3x weight for wealthy
+                } else if (npc.wealth <= 3) {
+                    weight = Math.max(1, Math.floor(weight / 3)); // Greatly reduce poor customers
+                }
             }
             
             for (let i = 0; i < weight; i++) {
@@ -513,10 +533,35 @@ async function generateNPCSale(channel, dbEntry) {
         const fluctuation = 0.8 + Math.random() * 0.4; // ±20% price fluctuation
         const salePrice = Math.floor(basePrice * fluctuation);
         
-        // Calculate tip based on NPC's tip modifier and wealth
+        // Calculate tip based on NPC's tip modifier, wealth, establishment power, and teamwork
         const baseTip = salePrice * 0.1; // 10% base
-        const wealthMultiplier = 1 + (selectedNPC.wealth * 0.1); // Each wealth level adds 10%
-        const finalTip = Math.floor(baseTip * selectedNPC.tipModifier * wealthMultiplier);
+        
+        // Get number of workers for teamwork bonus
+        const voiceChannel = channel.guild.channels.cache.get(channel.id);
+        const workersInVC = voiceChannel && voiceChannel.isVoiceBased() ? 
+            Array.from(voiceChannel.members.values()).filter(m => !m.user.bot).length : 1;
+        
+        // Power level multiplies the wealth effect on tips
+        // Power 1: normal tips, Power 4: 2x tips, Power 7: 3x tips
+        const powerMultiplier = 1 + ((channelPower - 1) * 0.33);
+        
+        // Each wealth level adds more to tips, amplified by power
+        const wealthMultiplier = 1 + (selectedNPC.wealth * 0.15 * powerMultiplier);
+        
+        // TEAMWORK BONUS: Good service from multiple workers increases tips
+        // 1 worker: 100% tips, 2 workers: 115%, 3: 125%, 4: 132%, etc.
+        const teamworkTipBonus = 1 + (Math.log(workersInVC + 1) - Math.log(2)) * 0.15;
+        
+        // High-power establishments have minimum tip percentages
+        let minTipPercent = 0.1; // 10% base
+        if (channelPower >= 6) minTipPercent = 0.25; // 25% minimum at legendary inns
+        else if (channelPower >= 4) minTipPercent = 0.15; // 15% minimum at noble establishments
+        
+        const calculatedTip = Math.max(
+            salePrice * minTipPercent,
+            baseTip * selectedNPC.tipModifier * wealthMultiplier * teamworkTipBonus
+        );
+        const finalTip = Math.floor(calculatedTip);
         
         // Calculate profit (95% margin)
         const costBasis = Math.floor(basePrice * 0.05);
@@ -572,6 +617,7 @@ async function generateNPCSale(channel, dbEntry) {
         
         saleRecord.npcDialogue = dialogue;
         saleRecord.npcData = selectedNPC;
+        saleRecord.workerCount = workersInVC; // Track how many workers served this customer
         
         return saleRecord;
         
@@ -615,7 +661,16 @@ async function distributeProfits(channel, dbEntry) {
         const events = dbEntry.gameData.events || [];
         const eventCosts = events.reduce((sum, event) => sum + (event.cost || 0), 0);
         
-        const grandTotal = totalProfit + totalTips - eventCosts;
+        // SYNERGY BONUS: Working together generates extra profit through efficiency
+        // This ensures groups earn more total than individuals working separately
+        let synergyBonus = 0;
+        if (membersInVC.length > 1) {
+            // Each worker combo adds synergy: 2 workers = 10% bonus, 3 = 18%, 4 = 24%, etc.
+            const synergyMultiplier = 1 + (Math.log(membersInVC.length) * 0.15);
+            synergyBonus = Math.floor((totalProfit + totalTips) * (synergyMultiplier - 1));
+        }
+        
+        const grandTotal = totalProfit + totalTips + synergyBonus - eventCosts;
         
         // Track earnings for each member
         const earnings = {};
@@ -844,7 +899,10 @@ async function distributeProfits(channel, dbEntry) {
             if (eventCosts > 0) {
                 itemSalesList += `Event Costs: -${eventCosts}c\n`;
             }
-            itemSalesList += `Grand Total: ${grandTotal}c\n`;
+            if (synergyBonus > 0) {
+                itemSalesList += `Synergy Bonus: +${synergyBonus}c\n`;
+            }
+            itemSalesList += `Grand Total: ${grandTotal + (synergyBonus || 0)}c\n`;
             
             // Add best sale to sales report
             if (sales.length > 0) {
@@ -891,6 +949,19 @@ async function distributeProfits(channel, dbEntry) {
             }
             
             // Add fields with code block
+            // Add teamwork summary if multiple workers
+            if (membersInVC.length > 1) {
+                const avgCustomersPerWorker = Math.floor(sales.length / membersInVC.length);
+                const synergyPercent = Math.floor((Math.log(membersInVC.length) * 0.15) * 100);
+                embed.addFields({
+                    name: '🤝 Teamwork Report',
+                    value: `**Workers:** ${membersInVC.length} | **Synergy Bonus:** +${synergyPercent}%\n` +
+                           `**Customers Served:** ${sales.length} (${avgCustomersPerWorker}/worker avg)\n` +
+                           `**Team Efficiency:** ${membersInVC.length <= 3 ? 'Optimal' : membersInVC.length <= 5 ? 'Good' : 'Overstaffed'}`,
+                    inline: false
+                });
+            }
+            
             embed.addFields({
                 name: '📜 Detailed Report',
                 value: `\`\`\`\n${itemSalesList}\`\`\``,
@@ -959,11 +1030,53 @@ module.exports = async (channel, dbEntry, json) => {
         }
     }
 
-    // Check for NPC customer sales (40% chance every 5-15 seconds)
+    // Check for NPC customer sales - frequency based on power level AND number of workers
+    // Lower power = more traffic, Higher power = less traffic
+    // More workers = can handle more customers
     const lastNPCSale = new Date(dbEntry.gameData.lastNPCSale).getTime();
-    const npcCooldown = (5 + Math.random() * 10) * 1000; // 5-15 seconds randomly
     
-    if (now - lastNPCSale >= npcCooldown && Math.random() < 0.40) {
+    // Get server power for traffic calculation
+    const gachaInfo = gachaServers.find(g => g.id === dbEntry.typeId);
+    const channelPower = gachaInfo?.power || 1;
+    
+    // Get number of workers in voice channel
+    const voiceChannel = channel.guild.channels.cache.get(channel.id);
+    const workersInVC = voiceChannel && voiceChannel.isVoiceBased() ? 
+        Array.from(voiceChannel.members.values()).filter(m => !m.user.bot).length : 0;
+    
+    // Base cooldowns scale with power
+    let minCooldown = 3 + (channelPower - 1) * 1.5; // 3s at power 1, up to 12s at power 7
+    let maxCooldown = 8 + (channelPower - 1) * 3.5; // 8s at power 1, up to 29s at power 7
+    
+    // Worker scaling: Each worker reduces cooldown and increases chance
+    // But with diminishing returns to encourage optimal team sizes
+    if (workersInVC > 0) {
+        // Cooldown reduction: 1 worker = 100%, 2 = 70%, 3 = 55%, 4 = 45%, etc.
+        const cooldownMultiplier = Math.max(0.3, 1 / (1 + Math.log(workersInVC) * 0.5));
+        minCooldown *= cooldownMultiplier;
+        maxCooldown *= cooldownMultiplier;
+        
+        // Example: Power 1 with 3 workers: 3s → ~1.65s min, 8s → ~4.4s max
+    }
+    
+    const npcCooldown = (minCooldown + Math.random() * (maxCooldown - minCooldown)) * 1000;
+    
+    // Base sale chance decreases with power
+    let baseSaleChance = Math.max(0.25, 0.60 - ((channelPower - 1) * 0.058));
+    
+    // Worker bonus to sale chance: More workers = higher chance of attracting customers
+    // Each worker adds diminishing bonus: +15%, +10%, +7%, +5%, etc.
+    if (workersInVC > 0) {
+        let workerBonus = 0;
+        for (let i = 1; i <= workersInVC; i++) {
+            workerBonus += Math.max(0.02, 0.15 / i); // Diminishing returns per worker
+        }
+        baseSaleChance = Math.min(0.95, baseSaleChance + workerBonus); // Cap at 95%
+    }
+    
+    const saleChance = baseSaleChance;
+    
+    if (now - lastNPCSale >= npcCooldown && Math.random() < saleChance) {
         const npcSale = await generateNPCSale(channel, dbEntry);
         if (npcSale) {
             dbEntry.gameData.lastNPCSale = new Date();

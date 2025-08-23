@@ -107,6 +107,10 @@ const {
     formatMaintenanceTooltip
 } = require('./mining/maintenanceDisplay');
 
+// Import bug fixes
+const miningFixes = require('./mining_fixes/fix_mining_bugs');
+const { getMinecartSummaryFresh } = require('./mining_fixes/fix_minecart_display_simple');
+
 // Enhanced Concurrency Manager with Instance Management
 class EnhancedConcurrencyManager {
     constructor() {
@@ -319,6 +323,10 @@ async function getCachedDBEntry(channelId, forceRefresh = false, retryCount = 0)
                 if (cached.breakInfo.breakEndTime && now >= cached.breakInfo.breakEndTime) {
                     console.log(`[MINING] Cached break expired, forcing refresh for ${channelId}`);
                     forceRefresh = true;
+                    
+                    // Clear break info immediately
+                    mapCacheSystem.deleteField(channelId, 'breakInfo');
+                    await mapCacheSystem.forceFlush();
                 }
             }
         }
@@ -582,16 +590,22 @@ function isBreakPeriod(dbEntry) {
     const breakInfo = dbEntry?.gameData?.breakInfo;
     
     // If no break info, not in break
-    if (!breakInfo) return false;
+    if (!breakInfo || !breakInfo.inBreak) return false;
     
-    // Check if break has expired
-    if (breakInfo.breakEndTime && now >= breakInfo.breakEndTime) {
-        console.log(`[MINING] Break has expired, should end break`);
-        return false; // Break time has passed, should end it
+    // Check if break has expired - CRITICAL FIX
+    if (breakInfo.breakEndTime) {
+        const breakEndTime = typeof breakInfo.breakEndTime === 'string' 
+            ? new Date(breakInfo.breakEndTime).getTime()
+            : breakInfo.breakEndTime;
+            
+        if (now >= breakEndTime) {
+            console.log(`[MINING] Break has expired (ended ${Math.floor((now - breakEndTime) / 1000)}s ago), should end break`);
+            return false; // Break time has passed
+        }
     }
     
     // Only return true if actually in break and time hasn't expired
-    return breakInfo.inBreak === true;
+    return true;
 }
 
 // Get a random floor tile for gathering during breaks
@@ -1127,7 +1141,8 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
             timeStatus = "MINING";
         }
 
-        const minecartSummary = getMinecartSummary(result);
+        // CRITICAL FIX: Get fresh minecart data from database instead of cache
+        const minecartSummary = await getMinecartSummaryFresh(channel.id);
         
         // Debug: Verify minecart data structure (only log occasionally)
         if (Math.random() < 0.05) { // 5% chance to log
@@ -1258,6 +1273,12 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
         const channelId = channel.id;
         const now = Date.now();
         const members = channel.members.filter(m => !m.user.bot);
+        
+        // CRITICAL FIX: Check if already in break
+        if (dbEntry.gameData?.breakInfo?.inBreak) {
+            console.log(`[MINING] Already in break for channel ${channelId}, skipping duplicate start`);
+            return;
+        }
         
         // Kill any parallel instances before starting break
         instanceManager.forceKillChannel(channelId);
@@ -1565,6 +1586,67 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
 module.exports = async (channel, dbEntry, json, client) => {
     const channelId = channel.id;
     const processingStartTime = Date.now();
+    
+    // === CRITICAL HOTFIX START ===
+    try {
+        const now = Date.now();
+        
+        // Fix 1: Ensure minecart structure exists
+        if (!dbEntry.gameData) dbEntry.gameData = {};
+        if (!dbEntry.gameData.minecart) {
+            dbEntry.gameData.minecart = { items: {}, contributors: {} };
+            dbEntry.markModified('gameData.minecart');
+            await dbEntry.save();
+            console.log(`[HOTFIX] Fixed minecart structure for ${channelId}`);
+        }
+        if (!dbEntry.gameData.minecart.items) dbEntry.gameData.minecart.items = {};
+        if (!dbEntry.gameData.minecart.contributors) dbEntry.gameData.minecart.contributors = {};
+        
+        // Fix 2: Check and fix expired breaks
+        if (dbEntry.gameData?.breakInfo?.inBreak) {
+            const breakEndTime = dbEntry.gameData.breakInfo.breakEndTime;
+            if (breakEndTime && now >= breakEndTime) {
+                console.log(`[HOTFIX] Clearing expired break for ${channelId}`);
+                
+                // Clear break state from database
+                await gachaVC.updateOne(
+                    { channelId },
+                    { 
+                        $unset: { 'gameData.breakInfo': 1 },
+                        $set: { 
+                            'gameData.breakJustEnded': now,
+                            nextTrigger: new Date(now + 1000)
+                        }
+                    }
+                );
+                
+                // Clear from cache
+                mapCacheSystem.deleteField(channelId, 'breakInfo');
+                await mapCacheSystem.forceFlush();
+                
+                // Force refresh
+                dbEntry = await getCachedDBEntry(channelId, true);
+                if (!dbEntry) {
+                    console.error(`[HOTFIX] Failed to refresh after break clear`);
+                    return;
+                }
+            }
+        }
+        
+        // Fix 3: Clear stuck instances if needed
+        if (concurrencyManager.isLocked(channelId)) {
+            const lastProcessed = healthMetrics.lastProcessed.get(channelId);
+            if (lastProcessed && (now - lastProcessed) > 120000) { // 2 minutes
+                console.log(`[HOTFIX] Clearing stuck lock for ${channelId}`);
+                concurrencyManager.forceUnlock(channelId);
+                instanceManager.forceKillChannel(channelId);
+            }
+        }
+        
+    } catch (hotfixError) {
+        console.error(`[HOTFIX] Error applying hotfix for ${channelId}:`, hotfixError);
+    }
+    // === CRITICAL HOTFIX END ===
     
     // Multi-level instance checking
     if (instanceManager.hasActiveInstance(channelId)) {
