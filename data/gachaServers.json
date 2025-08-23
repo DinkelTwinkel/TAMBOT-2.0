@@ -270,11 +270,11 @@
     },
     {
         "id": "16",
-        "name": "😈 Gluttony's Gullet",
+        "name": "😈 ???'s Gullet",
         "type": "mining",
         "rarity": "legendary",
         "spawnWeight": 0,
-        "description": "These cursed mines materialized after a hellish creature's insatiable hunger consumed an entire mountain range. The walls pulsate with digestive acids, and precious ores are embedded in crystallized bile. Miners report hearing eternal chewing sounds echoing from the deepest shafts, where the demon's stomach still digests reality itself.",
+        "description": "These cursed mines materialized after a hellish creature's insatiable hunger consumed too much broken memories, dreams and wanderers. The walls pulsate with digestive acids, and precious ores are embedded in crystallized bile. Miners report hearing eternal chewing sounds echoing from the deepest shafts, where the demon's stomach still digests reality itself.",
         "power": 8,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
