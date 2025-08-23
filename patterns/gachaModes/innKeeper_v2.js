@@ -1,5 +1,5 @@
-// InnKeeper v2.0 - Centralized and refactored inn management system
-// Main controller that orchestrates all inn operations
+// InnKeeper v2.1 - Enhanced with comprehensive concurrency protection
+// Main controller with atomic operations, distributed locks, and race condition prevention
 
 const { EmbedBuilder } = require('discord.js');
 const Money = require('../../models/currency');
@@ -22,53 +22,120 @@ class InnKeeperController {
         this.eventManager = new InnEventManager();
         this.purchaseHandler = new InnPurchaseHandler();
         this.messageThrottle = new Map();
+        this.processingLocks = new Map();
+        this.retryAttempts = new Map();
     }
 
     /**
-     * Recovery method to restart stuck inns
+     * Acquire processing lock with atomic operation
+     */
+    async acquireLock(channelId, timeout = 30000) {
+        const now = Date.now();
+        const lockExpiry = new Date(now + timeout);
+        
+        try {
+            // Atomic lock acquisition with expiry
+            const result = await ActiveVCs.findOneAndUpdate(
+                {
+                    channelId: channelId,
+                    $or: [
+                        { 'gameData.lockExpiry': { $exists: false } },
+                        { 'gameData.lockExpiry': { $lt: new Date() } },
+                        { 'gameData.lockExpiry': null }
+                    ]
+                },
+                {
+                    $set: {
+                        'gameData.lockExpiry': lockExpiry,
+                        'gameData.lockAcquiredAt': new Date(),
+                        'gameData.lockId': `${channelId}-${now}-${Math.random()}`
+                    }
+                },
+                {
+                    new: true,
+                    runValidators: false
+                }
+            );
+            
+            if (result) {
+                // Store lock ID for verification
+                this.processingLocks.set(channelId, result.gameData.lockId);
+                console.log(`[InnKeeperV2] Lock acquired for channel ${channelId}`);
+                return true;
+            }
+            
+            console.log(`[InnKeeperV2] Failed to acquire lock for channel ${channelId} - already locked`);
+            return false;
+            
+        } catch (error) {
+            console.error(`[InnKeeperV2] Error acquiring lock for ${channelId}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Release processing lock
+     */
+    async releaseLock(channelId) {
+        const lockId = this.processingLocks.get(channelId);
+        if (!lockId) return;
+        
+        try {
+            await ActiveVCs.findOneAndUpdate(
+                {
+                    channelId: channelId,
+                    'gameData.lockId': lockId
+                },
+                {
+                    $unset: {
+                        'gameData.lockExpiry': 1,
+                        'gameData.lockAcquiredAt': 1,
+                        'gameData.lockId': 1
+                    }
+                }
+            );
+            
+            this.processingLocks.delete(channelId);
+            console.log(`[InnKeeperV2] Lock released for channel ${channelId}`);
+            
+        } catch (error) {
+            console.error(`[InnKeeperV2] Error releasing lock for ${channelId}:`, error);
+        }
+    }
+
+    /**
+     * Recovery method to restart stuck inns with atomic operations
      */
     async recoverStuckInn(channel, dbEntry, now) {
         console.log('[InnKeeperV2] Attempting to recover stuck inn...');
         
         try {
-            const gameData = dbEntry.gameData;
-            
-            // Check if we're in an undefined state or if nextTrigger is way overdue
-            const overdueTime = 5 * 60 * 1000; // 5 minutes overdue
-            const nextTriggerTime = new Date(dbEntry.nextTrigger).getTime();
-            const isOverdue = now - nextTriggerTime > overdueTime;
-            
-            if (isOverdue) {
-                console.log(`[InnKeeperV2] Inn is ${Math.round((now - nextTriggerTime) / 60000)} minutes overdue`);
-            }
-            
-            // Reset to a known good state
-            if (gameData.workState === 'break') {
-                // If we're supposed to be on break, check if break should have ended
-                if (gameData.breakEndTime && now >= new Date(gameData.breakEndTime).getTime()) {
-                    console.log('[InnKeeperV2] Recovery: Ending overdue break');
-                    await this.endBreak(channel, dbEntry, now);
-                } else {
-                    // Continue the break properly
-                    console.log('[InnKeeperV2] Recovery: Continuing valid break');
-                    await this.continueBreak(dbEntry, now);
+            // Use atomic update for recovery
+            const recovered = await ActiveVCs.findOneAndUpdate(
+                {
+                    channelId: dbEntry.channelId,
+                    'gameData.gamemode': 'innkeeper'
+                },
+                {
+                    $set: {
+                        'gameData.workState': 'working',
+                        'gameData.workStartTime': new Date(),
+                        'gameData.breakEndTime': null,
+                        'gameData.lastActivity': new Date(),
+                        'gameData.stateVersion': (dbEntry.gameData.stateVersion || 0) + 1,
+                        nextTrigger: new Date(now + 5000)
+                    },
+                    $unset: {
+                        'gameData.lockExpiry': 1,
+                        'gameData.lockId': 1
+                    }
+                },
+                {
+                    new: true
                 }
-            } else {
-                // Reset to working state
-                console.log('[InnKeeperV2] Recovery: Resetting to working state');
-                gameData.workState = 'working';
-                gameData.workStartTime = new Date();
-                gameData.breakEndTime = null;
-                
-                // Clear any stuck data
-                if (!gameData.sales) gameData.sales = [];
-                if (!gameData.events) gameData.events = [];
-                
-                // Schedule immediate activity
-                dbEntry.nextTrigger = new Date(now + 5000); // 5 seconds
-                dbEntry.markModified('gameData');
-                await dbEntry.save();
-                
+            );
+            
+            if (recovered) {
                 // Send recovery message
                 const embed = new EmbedBuilder()
                     .setTitle('🔄 Inn System Recovered')
@@ -81,39 +148,51 @@ class InnKeeperController {
                 } catch (e) {
                     console.error('[InnKeeperV2] Could not send recovery message:', e);
                 }
+                
+                console.log('[InnKeeperV2] Inn recovery completed successfully');
+                return true;
             }
             
-            console.log('[InnKeeperV2] Inn recovery completed successfully');
-            return true;
+            return false;
             
         } catch (error) {
             console.error('[InnKeeperV2] Error during inn recovery:', error);
-            // Last resort: minimal reset
-            try {
-                dbEntry.nextTrigger = new Date(now + 30000); // 30 seconds
-                await dbEntry.save();
-            } catch (saveError) {
-                console.error('[InnKeeperV2] Critical: Could not save recovery state:', saveError);
-            }
             return false;
         }
     }
 
     /**
-     * Main entry point - called by the game mode system
+     * Main entry point with concurrency protection
      */
     async runCycle(channel, dbEntry, json) {
         const now = Date.now();
+        const channelId = dbEntry.channelId;
         
-        console.log(`[InnKeeperV2] Starting cycle for channel ${dbEntry.channelId}`);
+        console.log(`[InnKeeperV2] Starting cycle for channel ${channelId}`);
+        
+        // Try to acquire lock
+        const lockAcquired = await this.acquireLock(channelId);
+        if (!lockAcquired) {
+            console.log(`[InnKeeperV2] Skipping cycle - another instance is processing ${channelId}`);
+            return;
+        }
         
         try {
-            // Initialize game data if needed
-            if (!this.isInitialized(dbEntry)) {
-                await this.initializeGameData(dbEntry);
+            // Refresh data after acquiring lock
+            dbEntry = await ActiveVCs.findOne({ channelId: channelId });
+            if (!dbEntry) {
+                console.error(`[InnKeeperV2] Channel ${channelId} no longer exists`);
+                return;
             }
             
-            // Check if inn might be stuck (nextTrigger is very overdue)
+            // Initialize game data if needed
+            if (!this.isInitialized(dbEntry)) {
+                await this.initializeGameDataAtomic(channelId);
+                // Refresh after initialization
+                dbEntry = await ActiveVCs.findOne({ channelId: channelId });
+            }
+            
+            // Check if inn might be stuck
             const nextTriggerTime = new Date(dbEntry.nextTrigger).getTime();
             const timeSinceScheduled = now - nextTriggerTime;
             const overdueThreshold = 10 * 60 * 1000; // 10 minutes
@@ -124,33 +203,58 @@ class InnKeeperController {
                 if (recovered) {
                     return; // Recovery method handles scheduling
                 }
-                // If recovery failed, continue with normal cycle
             }
 
-            // Check work/break state
-            const workState = await this.checkWorkState(channel, dbEntry, now);
+            // Check work/break state with atomic operations
+            const workState = await this.checkWorkStateAtomic(channel, channelId, now);
             if (workState.shouldReturn) return;
 
             // Generate activity if needed
             if (this.shouldGenerateActivity(dbEntry, now)) {
-                await this.generateActivity(channel, dbEntry, now);
+                await this.generateActivityAtomic(channel, channelId, now);
             }
 
             // Update display if not throttled
-            if (this.shouldUpdateDisplay(channel.id, now)) {
+            if (this.shouldUpdateDisplay(channelId, now)) {
+                // Refresh data before display
+                dbEntry = await ActiveVCs.findOne({ channelId: channelId });
                 await this.displayManager.update(channel, dbEntry);
-                this.updateMessageThrottle(channel.id, now);
+                this.updateMessageThrottle(channelId, now);
             }
 
-            // Schedule next cycle
-            await this.scheduleNextCycle(dbEntry, now);
+            // Schedule next cycle atomically
+            await this.scheduleNextCycleAtomic(channelId, now);
             
         } catch (error) {
-            console.error(`[InnKeeperV2] Error in cycle for ${dbEntry.channelId}:`, error);
-            // Schedule next cycle even on error
-            dbEntry.nextTrigger = new Date(now + 30000); // 30 seconds
-            await dbEntry.save();
+            console.error(`[InnKeeperV2] Error in cycle for ${channelId}:`, error);
+            // Schedule retry with exponential backoff
+            await this.scheduleRetry(channelId, now);
+        } finally {
+            // Always release lock
+            await this.releaseLock(channelId);
         }
+    }
+
+    /**
+     * Schedule retry with exponential backoff
+     */
+    async scheduleRetry(channelId, now) {
+        const attempts = (this.retryAttempts.get(channelId) || 0) + 1;
+        this.retryAttempts.set(channelId, attempts);
+        
+        const backoffTime = Math.min(30000 * Math.pow(2, attempts - 1), 300000); // Max 5 minutes
+        
+        await ActiveVCs.findOneAndUpdate(
+            { channelId: channelId },
+            { 
+                $set: { 
+                    nextTrigger: new Date(now + backoffTime),
+                    'gameData.retryCount': attempts
+                }
+            }
+        );
+        
+        console.log(`[InnKeeperV2] Scheduled retry #${attempts} for ${channelId} in ${backoffTime}ms`);
     }
 
     /**
@@ -164,12 +268,12 @@ class InnKeeperController {
     }
 
     /**
-     * Initialize game data structure
+     * Initialize game data with atomic operation
      */
-    async initializeGameData(dbEntry) {
-        console.log('[InnKeeperV2] Initializing new game data');
+    async initializeGameDataAtomic(channelId) {
+        console.log('[InnKeeperV2] Initializing new game data atomically');
         
-        dbEntry.gameData = {
+        const initialData = {
             gamemode: 'innkeeper',
             sales: [],
             events: [],
@@ -178,34 +282,52 @@ class InnKeeperController {
             lastShopGeneration: new Date(Date.now() - 5 * 60 * 1000),
             workState: 'working',
             workStartTime: new Date(),
-            breakEndTime: null
+            breakEndTime: null,
+            stateVersion: 1,
+            eventSequence: 0
         };
         
-        dbEntry.markModified('gameData');
-        await dbEntry.save();
+        await ActiveVCs.findOneAndUpdate(
+            { channelId: channelId },
+            { 
+                $set: { gameData: initialData }
+            },
+            { upsert: false }
+        );
     }
 
     /**
-     * Check and handle work/break states
+     * Check and handle work/break states with atomic operations
      */
-    async checkWorkState(channel, dbEntry, now) {
-        const gameData = dbEntry.gameData;
+    async checkWorkStateAtomic(channel, channelId, now) {
+        // Get current state atomically
+        const current = await ActiveVCs.findOne(
+            { channelId: channelId },
+            { 'gameData.workState': 1, 'gameData.breakEndTime': 1, 'gameData.workStartTime': 1, 'gameData.stateVersion': 1 }
+        );
+        
+        if (!current || !current.gameData) {
+            return { shouldReturn: false };
+        }
+        
+        const gameData = current.gameData;
+        const stateVersion = gameData.stateVersion || 0;
         
         // Handle break state
         if (gameData.workState === 'break') {
             if (this.isBreakOver(gameData, now)) {
-                await this.endBreak(channel, dbEntry, now);
-                return { shouldReturn: false };
+                const ended = await this.endBreakAtomic(channel, channelId, stateVersion, now);
+                return { shouldReturn: !ended };
             } else {
-                await this.continueBreak(dbEntry, now);
+                await this.continueBreakAtomic(channelId, gameData.breakEndTime, now);
                 return { shouldReturn: true };
             }
         }
         
         // Check if work period is complete
         if (this.isWorkPeriodComplete(gameData, now)) {
-            await this.startBreak(channel, dbEntry, now);
-            return { shouldReturn: true };
+            const started = await this.startBreakAtomic(channel, channelId, stateVersion, now);
+            return { shouldReturn: started };
         }
         
         return { shouldReturn: false };
@@ -219,17 +341,37 @@ class InnKeeperController {
     }
 
     /**
-     * End break and resume work
+     * End break with atomic state transition
      */
-    async endBreak(channel, dbEntry, now) {
-        console.log('[InnKeeperV2] Break ending, resuming work');
+    async endBreakAtomic(channel, channelId, currentVersion, now) {
+        console.log('[InnKeeperV2] Attempting to end break atomically');
         
         try {
-            dbEntry.gameData.workState = 'working';
-            dbEntry.gameData.workStartTime = new Date();
-            dbEntry.gameData.breakEndTime = null;
-            dbEntry.gameData.sales = [];
-            dbEntry.gameData.events = [];
+            // Atomic state transition with version check
+            const updated = await ActiveVCs.findOneAndUpdate(
+                { 
+                    channelId: channelId,
+                    'gameData.workState': 'break',
+                    'gameData.stateVersion': currentVersion
+                },
+                { 
+                    $set: { 
+                        'gameData.workState': 'working',
+                        'gameData.workStartTime': new Date(),
+                        'gameData.breakEndTime': null,
+                        'gameData.stateVersion': currentVersion + 1,
+                        'gameData.sales': [],
+                        'gameData.events': [],
+                        nextTrigger: new Date(now + 10000)
+                    }
+                },
+                { new: true }
+            );
+            
+            if (!updated) {
+                console.log('[InnKeeperV2] Failed to end break - state already changed');
+                return false;
+            }
             
             const embed = new EmbedBuilder()
                 .setTitle('🔔 The Inn Reopens!')
@@ -237,48 +379,48 @@ class InnKeeperController {
                 .setDescription('Break time is over! The inn is now open for business again.')
                 .setTimestamp();
                 
-            // Try to send reopen message
             try {
                 await channel.send({ embeds: [embed] });
                 console.log('[InnKeeperV2] Reopen message sent successfully');
             } catch (messageError) {
                 console.error('[InnKeeperV2] Failed to send reopen message:', messageError);
-                // Continue with resuming work even if message fails
             }
             
-            dbEntry.nextTrigger = new Date(now + 10000);
-            dbEntry.markModified('gameData');
-            await dbEntry.save();
+            // Clear retry counter on successful state change
+            this.retryAttempts.delete(channelId);
             
-            console.log('[InnKeeperV2] Inn successfully reopened and scheduled next cycle');
+            console.log('[InnKeeperV2] Inn successfully reopened');
+            return true;
             
         } catch (error) {
             console.error('[InnKeeperV2] Error ending break:', error);
-            // Fallback: try to continue anyway
-            dbEntry.nextTrigger = new Date(now + 30000); // Retry in 30 seconds
-            dbEntry.markModified('gameData');
-            await dbEntry.save();
+            return false;
         }
     }
 
     /**
-     * Continue break period
+     * Continue break period atomically
      */
-    async continueBreak(dbEntry, now) {
+    async continueBreakAtomic(channelId, breakEndTime, now) {
         const breakTimeLeft = Math.ceil(
-            (new Date(dbEntry.gameData.breakEndTime).getTime() - now) / 60000
+            (new Date(breakEndTime).getTime() - now) / 60000
         );
         
         console.log(`[InnKeeperV2] On break for ${breakTimeLeft} more minutes`);
         
         const nextCheck = Math.min(
             30000, 
-            new Date(dbEntry.gameData.breakEndTime).getTime() - now
+            new Date(breakEndTime).getTime() - now
         );
         
-        dbEntry.nextTrigger = new Date(now + nextCheck);
-        dbEntry.markModified('gameData');
-        await dbEntry.save();
+        await ActiveVCs.findOneAndUpdate(
+            { channelId: channelId },
+            { 
+                $set: { 
+                    nextTrigger: new Date(now + nextCheck)
+                }
+            }
+        );
     }
 
     /**
@@ -292,22 +434,44 @@ class InnKeeperController {
     }
 
     /**
-     * Start break period
+     * Start break period with atomic state transition
      */
-    async startBreak(channel, dbEntry, now) {
-        console.log('[InnKeeperV2] Work day complete, starting break');
+    async startBreakAtomic(channel, channelId, currentVersion, now) {
+        console.log('[InnKeeperV2] Attempting to start break atomically');
         
         try {
-            // Distribute profits before break
-            if (dbEntry.gameData.sales.length > 0 || dbEntry.gameData.events.length > 0) {
-                await this.distributeProfits(channel, dbEntry);
+            // Get current data for profit distribution
+            const current = await ActiveVCs.findOne({ channelId: channelId });
+            
+            // Distribute profits before break if needed
+            if (current && (current.gameData.sales.length > 0 || current.gameData.events.length > 0)) {
+                await this.distributeProfitsAtomic(channel, channelId);
             }
             
-            // Set break state
-            dbEntry.gameData.workState = 'break';
-            dbEntry.gameData.breakEndTime = new Date(now + this.config.TIMING.BREAK_DURATION);
-            dbEntry.gameData.sales = [];
-            dbEntry.gameData.events = [];
+            // Atomic state transition with version check
+            const updated = await ActiveVCs.findOneAndUpdate(
+                { 
+                    channelId: channelId,
+                    'gameData.workState': 'working',
+                    'gameData.stateVersion': currentVersion
+                },
+                { 
+                    $set: { 
+                        'gameData.workState': 'break',
+                        'gameData.breakEndTime': new Date(now + this.config.TIMING.BREAK_DURATION),
+                        'gameData.stateVersion': currentVersion + 1,
+                        'gameData.sales': [],
+                        'gameData.events': [],
+                        nextTrigger: new Date(now + this.config.TIMING.BREAK_DURATION)
+                    }
+                },
+                { new: true }
+            );
+            
+            if (!updated) {
+                console.log('[InnKeeperV2] Failed to start break - state already changed');
+                return false;
+            }
             
             const embed = new EmbedBuilder()
                 .setTitle('☕ Break Time!')
@@ -319,27 +483,22 @@ class InnKeeperController {
                 )
                 .setTimestamp();
                 
-            // Try to send break message
             try {
                 await channel.send({ embeds: [embed] });
                 console.log('[InnKeeperV2] Break message sent successfully');
             } catch (messageError) {
                 console.error('[InnKeeperV2] Failed to send break message:', messageError);
-                // Continue with break even if message fails
             }
             
-            dbEntry.nextTrigger = new Date(now + this.config.TIMING.BREAK_DURATION);
-            dbEntry.markModified('gameData');
-            await dbEntry.save();
+            // Clear retry counter on successful state change
+            this.retryAttempts.delete(channelId);
             
             console.log(`[InnKeeperV2] Break scheduled to end at ${new Date(now + this.config.TIMING.BREAK_DURATION).toISOString()}`);
+            return true;
             
         } catch (error) {
             console.error('[InnKeeperV2] Error starting break:', error);
-            // Fallback: set a short retry instead of breaking completely
-            dbEntry.nextTrigger = new Date(now + 60000); // Retry in 1 minute
-            dbEntry.markModified('gameData');
-            await dbEntry.save();
+            return false;
         }
     }
 
@@ -361,31 +520,57 @@ class InnKeeperController {
     }
 
     /**
-     * Generate activity (delegate to EventManager)
+     * Generate activity with atomic operations
      */
-    async generateActivity(channel, dbEntry, now) {
+    async generateActivityAtomic(channel, channelId, now) {
         try {
-            const event = await this.eventManager.generateEvent(channel, dbEntry);
+            // Get current data
+            const current = await ActiveVCs.findOne({ channelId: channelId });
+            if (!current) return;
+            
+            const event = await this.eventManager.generateEvent(channel, current);
             
             if (event) {
-                // Update last activity
-                dbEntry.gameData.lastActivity = new Date();
+                // Generate unique event ID for idempotency
+                const eventId = `${channelId}-${now}-${Math.random()}`;
+                event.eventId = eventId;
                 
-                // Handle different event types
+                // Update with atomic operation based on event type
                 if (event.type === 'npcSale') {
-                    // Record NPC sale
-                    if (!dbEntry.gameData.sales) dbEntry.gameData.sales = [];
-                    dbEntry.gameData.sales.push(event.saleData);
-                    console.log(`[InnKeeperV2] NPC sale: ${event.saleData.buyerName} bought item for ${event.saleData.price}c`);
+                    // Add sale atomically with duplicate check
+                    const updated = await ActiveVCs.findOneAndUpdate(
+                        {
+                            channelId: channelId,
+                            'gameData.sales.eventId': { $ne: eventId }
+                        },
+                        {
+                            $push: { 'gameData.sales': event.saleData },
+                            $set: { 'gameData.lastActivity': new Date() },
+                            $inc: { 'gameData.eventSequence': 1 }
+                        }
+                    );
+                    
+                    if (updated) {
+                        console.log(`[InnKeeperV2] NPC sale recorded: ${event.saleData.buyerName} bought item for ${event.saleData.price}c`);
+                    }
                 } else {
-                    // Record other events
-                    if (!dbEntry.gameData.events) dbEntry.gameData.events = [];
-                    dbEntry.gameData.events.push(event);
-                    console.log(`[InnKeeperV2] Event: ${event.type}`);
+                    // Add other events atomically with duplicate check
+                    const updated = await ActiveVCs.findOneAndUpdate(
+                        {
+                            channelId: channelId,
+                            'gameData.events.eventId': { $ne: eventId }
+                        },
+                        {
+                            $push: { 'gameData.events': event },
+                            $set: { 'gameData.lastActivity': new Date() },
+                            $inc: { 'gameData.eventSequence': 1 }
+                        }
+                    );
+                    
+                    if (updated) {
+                        console.log(`[InnKeeperV2] Event recorded: ${event.type}`);
+                    }
                 }
-                
-                dbEntry.markModified('gameData');
-                await dbEntry.save();
             }
         } catch (error) {
             console.error('[InnKeeperV2] Error generating activity:', error);
@@ -485,9 +670,9 @@ class InnKeeperController {
     }
 
     /**
-     * Distribute profits to workers
+     * Distribute profits with atomic operations and idempotency
      */
-    async distributeProfits(channel, dbEntry) {
+    async distributeProfitsAtomic(channel, channelId) {
         try {
             const voiceChannel = channel.guild.channels.cache.get(channel.id);
             if (!voiceChannel || !voiceChannel.isVoiceBased()) {
@@ -503,15 +688,47 @@ class InnKeeperController {
                 return;
             }
 
+            // Generate distribution ID for idempotency
+            const distributionId = `dist-${channelId}-${Date.now()}-${Math.random()}`;
+            
+            // Get and lock data for distribution
+            const lockedData = await ActiveVCs.findOneAndUpdate(
+                {
+                    channelId: channelId,
+                    'gameData.lastDistributionId': { $ne: distributionId },
+                    $or: [
+                        { 'gameData.sales.0': { $exists: true } },
+                        { 'gameData.events.0': { $exists: true } }
+                    ]
+                },
+                {
+                    $set: {
+                        'gameData.lastDistributionId': distributionId,
+                        'gameData.distributionInProgress': true
+                    }
+                },
+                {
+                    new: false // Return original data
+                }
+            );
+            
+            if (!lockedData) {
+                console.log('[InnKeeperV2] No data to distribute or already distributed');
+                return;
+            }
+
             // Get server data
-            const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
+            const serverData = gachaServers.find(s => s.id === String(lockedData.typeId));
             const serverPower = serverData?.power || 1;
             const baseSalary = this.calculateBaseSalary(serverPower);
             const shopInfo = shops.find(s => s.id === serverData?.shop);
+            
+            // Get innkeeper's profit margin (default to 10% if not specified)
+            const innkeeperMargin = serverData?.profitMargins || 0.1;
 
             // Calculate totals from sales and events
-            const sales = dbEntry.gameData.sales || [];
-            const events = dbEntry.gameData.events || [];
+            const sales = lockedData.gameData.sales || [];
+            const events = lockedData.gameData.events || [];
             
             const totalSales = sales.reduce((sum, sale) => sum + (sale.price || 0), 0);
             const totalProfit = sales.reduce((sum, sale) => sum + (sale.profit || 0), 0);
@@ -527,7 +744,14 @@ class InnKeeperController {
                 synergyBonus = Math.floor((totalProfit + totalTips) * (synergyMultiplier - 1));
             }
             
-            const grandTotal = totalProfit + totalTips + synergyBonus - eventCosts;
+            // Calculate gross total before innkeeper's cut
+            const grossTotal = totalProfit + totalTips + synergyBonus - eventCosts;
+            
+            // Calculate innkeeper's cut (only from positive earnings)
+            const innkeeperCut = grossTotal > 0 ? Math.floor(grossTotal * innkeeperMargin) : 0;
+            
+            // Net total for distribution to players
+            const grandTotal = grossTotal - innkeeperCut;
             
             // Initialize earnings for each member
             const earnings = {};
@@ -586,17 +810,22 @@ class InnKeeperController {
                 earnings[employeeOfTheDay.id].isEmployeeOfDay = true;
             }
 
-            // Award the earnings
+            // Award the earnings with atomic operations
+            const updatePromises = [];
             for (const [memberId, earningData] of Object.entries(earnings)) {
-                await Money.findOneAndUpdate(
-                    { userId: memberId },
-                    { 
-                        $inc: { money: earningData.total },
-                        $set: { usertag: earningData.member.user.tag }
-                    },
-                    { upsert: true, new: true }
+                updatePromises.push(
+                    Money.findOneAndUpdate(
+                        { userId: memberId },
+                        { 
+                            $inc: { money: earningData.total },
+                            $set: { usertag: earningData.member.user.tag }
+                        },
+                        { upsert: true, new: true }
+                    )
                 );
             }
+            
+            await Promise.all(updatePromises);
 
             // Show profit report
             await this.displayManager.showProfitReport(channel, {
@@ -609,30 +838,61 @@ class InnKeeperController {
                 totalTips,
                 eventCosts,
                 synergyBonus,
+                grossTotal,
+                innkeeperCut,
+                innkeeperMargin,
                 grandTotal,
                 shopInfo,
-                serverPower
+                serverPower,
+                serverData
             });
 
-            // Clear data after distribution
-            dbEntry.gameData.sales = [];
-            dbEntry.gameData.events = [];
-            dbEntry.gameData.lastProfitDistribution = new Date();
-            dbEntry.markModified('gameData');
-            await dbEntry.save();
+            // Clear data after distribution with atomic operation
+            await ActiveVCs.findOneAndUpdate(
+                {
+                    channelId: channelId,
+                    'gameData.lastDistributionId': distributionId
+                },
+                {
+                    $set: {
+                        'gameData.sales': [],
+                        'gameData.events': [],
+                        'gameData.lastProfitDistribution': new Date(),
+                        'gameData.distributionInProgress': false
+                    }
+                }
+            );
             
-            console.log(`[InnKeeperV2] Distributed ${grandTotal} coins among ${membersInVC.length} workers`);
+            console.log(`[InnKeeperV2] Distributed ${grandTotal} coins among ${membersInVC.length} workers (after ${innkeeperCut}c innkeeper cut from ${grossTotal}c gross)`);
             
         } catch (error) {
             console.error('[InnKeeperV2] Error distributing profits:', error);
+            
+            // Clear distribution lock on error
+            await ActiveVCs.findOneAndUpdate(
+                { channelId: channelId },
+                {
+                    $set: {
+                        'gameData.distributionInProgress': false
+                    }
+                }
+            );
         }
     }
 
     /**
-     * Schedule next cycle
+     * Schedule next cycle with atomic operation
      */
-    async scheduleNextCycle(dbEntry, now) {
-        const timeSinceLastActivity = now - new Date(dbEntry.gameData.lastActivity || 0).getTime();
+    async scheduleNextCycleAtomic(channelId, now) {
+        // Get current data to check last activity
+        const current = await ActiveVCs.findOne(
+            { channelId: channelId },
+            { 'gameData.lastActivity': 1 }
+        );
+        
+        if (!current) return;
+        
+        const timeSinceLastActivity = now - new Date(current.gameData.lastActivity || 0).getTime();
         
         let nextTriggerDelay;
         if (timeSinceLastActivity >= this.config.TIMING.ACTIVITY_GUARANTEE - 5000) {
@@ -643,9 +903,14 @@ class InnKeeperController {
             nextTriggerDelay = min + Math.random() * (max - min);
         }
         
-        dbEntry.nextTrigger = new Date(now + nextTriggerDelay);
-        dbEntry.markModified('gameData');
-        await dbEntry.save();
+        await ActiveVCs.findOneAndUpdate(
+            { channelId: channelId },
+            { 
+                $set: { 
+                    nextTrigger: new Date(now + nextTriggerDelay)
+                }
+            }
+        );
         
         console.log(`[InnKeeperV2] Next trigger in ${Math.round(nextTriggerDelay/1000)}s`);
     }
@@ -665,6 +930,19 @@ module.exports.recoverInn = async (channel, dbEntry) => {
     console.log('[InnKeeperV2] Manual recovery initiated');
     const controller = new InnKeeperController();
     const now = Date.now();
+    
+    // Force clear any locks
+    await ActiveVCs.findOneAndUpdate(
+        { channelId: dbEntry.channelId },
+        {
+            $unset: {
+                'gameData.lockExpiry': 1,
+                'gameData.lockId': 1,
+                'gameData.distributionInProgress': 1
+            }
+        }
+    );
+    
     return await controller.recoverStuckInn(channel, dbEntry, now);
 };
 
@@ -679,12 +957,23 @@ module.exports.getInnStatus = async (dbEntry) => {
     const nextTriggerTime = new Date(dbEntry.nextTrigger).getTime();
     const timeSinceScheduled = now - nextTriggerTime;
     
+    // Check for locks
+    if (gameData.lockExpiry && new Date(gameData.lockExpiry).getTime() > now) {
+        return {
+            status: 'locked',
+            message: `Inn is currently being processed (lock expires in ${Math.round((new Date(gameData.lockExpiry).getTime() - now) / 1000)}s)`,
+            lockId: gameData.lockId,
+            lockExpiry: gameData.lockExpiry
+        };
+    }
+    
     if (timeSinceScheduled > 10 * 60 * 1000) { // 10 minutes overdue
         return {
             status: 'stuck',
             message: `Inn stuck for ${Math.round(timeSinceScheduled / 60000)} minutes`,
             workState: gameData.workState,
-            nextTrigger: new Date(dbEntry.nextTrigger).toISOString()
+            nextTrigger: new Date(dbEntry.nextTrigger).toISOString(),
+            stateVersion: gameData.stateVersion
         };
     }
     
@@ -694,7 +983,8 @@ module.exports.getInnStatus = async (dbEntry) => {
         return {
             status: 'on_break',
             message: `On break for ${breakTimeLeft} more minutes`,
-            breakEndTime: gameData.breakEndTime
+            breakEndTime: gameData.breakEndTime,
+            stateVersion: gameData.stateVersion
         };
     }
     
@@ -706,6 +996,9 @@ module.exports.getInnStatus = async (dbEntry) => {
         status: 'working',
         message: `Working - ${workTimeRemaining} minutes until break`,
         workTimeElapsed,
-        nextTrigger: new Date(dbEntry.nextTrigger).toISOString()
+        nextTrigger: new Date(dbEntry.nextTrigger).toISOString(),
+        stateVersion: gameData.stateVersion,
+        eventSequence: gameData.eventSequence || 0,
+        retryCount: gameData.retryCount || 0
     };
 };

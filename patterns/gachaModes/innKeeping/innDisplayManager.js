@@ -398,7 +398,8 @@ class InnDisplayManager {
      */
     async showProfitReport(channel, data) {
         const { earnings, employeeOfTheDay, sales, events, totalSales, totalProfit, 
-                totalTips, eventCosts, synergyBonus, grandTotal, shopInfo, serverPower } = data;
+                totalTips, eventCosts, synergyBonus, grossTotal, innkeeperCut, 
+                innkeeperMargin, grandTotal, shopInfo, serverPower, serverData } = data;
         
         const innkeeperName = shopInfo?.shopkeeper?.name || "The innkeeper";
         const innName = shopInfo?.name || "the inn";
@@ -441,7 +442,17 @@ class InnDisplayManager {
         if (synergyBonus > 0) {
             reportText += `Synergy Bonus: +${synergyBonus}c\n`;
         }
-        reportText += `Grand Total: ${grandTotal}c\n`;
+        reportText += `Gross Total: ${grossTotal}c\n`;
+        
+        // Show innkeeper's cut
+        if (innkeeperCut > 0) {
+            const percentageText = Math.floor(innkeeperMargin * 100);
+            reportText += `\n`;
+            reportText += `INNKEEPER'S CUT (${percentageText}%): -${innkeeperCut}c\n`;
+            reportText += '─'.repeat(40) + '\n';
+        }
+        
+        reportText += `Net Distribution: ${grandTotal}c\n`;
         
         reportText += '\n';
         reportText += 'WORKER PAYOUTS:\n';
@@ -465,11 +476,13 @@ class InnDisplayManager {
         // Add teamwork summary if multiple workers
         if (earnings.length > 1) {
             const avgEarnings = Math.floor(grandTotal / earnings.length);
+            const innInfo = serverData ? ` (${serverData.name})` : '';
             embed.addFields({
                 name: '🤝 Teamwork Report',
                 value: `**Workers:** ${earnings.length}\n` +
                        `**Average Earnings:** ${avgEarnings}c\n` +
-                       `**Synergy Bonus:** ${synergyBonus}c`,
+                       `**Synergy Bonus:** ${synergyBonus}c\n` +
+                       `**Inn${innInfo}:** Kept ${innkeeperCut}c (${Math.floor(innkeeperMargin * 100)}%)`,
                 inline: false
             });
         }

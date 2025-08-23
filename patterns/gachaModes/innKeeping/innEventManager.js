@@ -1,9 +1,10 @@
 // innKeeping/innEventManager.js
-// Centralized event generation for the inn system
+// Enhanced with atomic operations and concurrency protection for event generation
 
 const InnConfig = require('./innConfig');
 const InnAIManager = require('./innAIManager');
 const Money = require('../../../models/currency');
+const ActiveVCs = require('../../../models/activevcs');
 const getPlayerStats = require('../../calculatePlayerStat');
 const gachaServers = require('../../../data/gachaServers.json');
 const shops = require('../../../data/shops.json');
@@ -14,54 +15,106 @@ class InnEventManager {
     constructor() {
         this.config = InnConfig;
         this.aiManager = new InnAIManager();
+        this.eventGenerationLocks = new Map();
+        this.recentEvents = new Map(); // Prevent duplicate events
     }
 
     /**
-     * Main event generation method
+     * Generate unique event ID for idempotency
      */
-    async generateEvent(channel, dbEntry) {
-        const now = Date.now();
-        const gameData = dbEntry.gameData;
+    generateEventId(channelId, eventType) {
+        return `event-${channelId}-${eventType}-${Date.now()}-${Math.random()}`;
+    }
+
+    /**
+     * Check if similar event was recently generated (prevent duplicates)
+     */
+    isRecentDuplicate(channelId, eventType, npcId = null) {
+        const key = `${channelId}-${eventType}-${npcId || 'none'}`;
+        const lastEvent = this.recentEvents.get(key);
         
-        // Determine if we're forcing an event
-        const lastActivity = new Date(gameData.lastActivity || 0).getTime();
-        const timeSinceLastActivity = now - lastActivity;
-        const forceEvent = timeSinceLastActivity >= this.config.TIMING.ACTIVITY_GUARANTEE;
-        
-        // Try NPC sale first (highest priority)
-        const npcSaleChance = forceEvent ? 
-            this.config.EVENTS.NPC_SALE.FORCED_CHANCE : 
-            this.config.EVENTS.NPC_SALE.BASE_CHANCE;
-            
-        if (Math.random() < npcSaleChance) {
-            const npcSale = await this.generateNPCSale(channel, dbEntry);
-            if (npcSale) return npcSale;
+        if (lastEvent && Date.now() - lastEvent < 30000) { // 30 second cooldown
+            return true;
         }
         
-        // Try random events
-        const eventChance = forceEvent ? 
-            this.config.EVENTS.RANDOM_EVENT.FORCED_CHANCE : 
-            this.config.EVENTS.RANDOM_EVENT.BASE_CHANCE;
-            
-        if (Math.random() < eventChance) {
-            const eventType = this.selectEventType();
-            
-            switch (eventType) {
-                case 'barFight':
-                    return await this.generateBarFight(channel, dbEntry);
-                case 'rumor':
-                    return await this.generateRumor(channel, dbEntry);
-                case 'coinFind':
-                    return await this.generateCoinFind(channel, dbEntry);
+        this.recentEvents.set(key, Date.now());
+        
+        // Clean old entries
+        for (const [k, time] of this.recentEvents.entries()) {
+            if (Date.now() - time > 300000) { // 5 minutes
+                this.recentEvents.delete(k);
             }
         }
         
-        // Fallback to innkeeper comment if forcing
-        if (forceEvent && this.config.EVENTS.INNKEEPER_COMMENT.ENABLED) {
-            return await this.generateInnkeeperComment(channel, dbEntry);
+        return false;
+    }
+
+    /**
+     * Main event generation method with concurrency protection
+     */
+    async generateEvent(channel, dbEntry) {
+        const channelId = dbEntry.channelId;
+        const now = Date.now();
+        
+        // Check if event generation is already in progress
+        if (this.eventGenerationLocks.has(channelId)) {
+            const lockTime = this.eventGenerationLocks.get(channelId);
+            if (now - lockTime < 10000) { // 10 second timeout
+                console.log('[InnEvents] Event generation already in progress');
+                return null;
+            }
         }
         
-        return null;
+        // Set generation lock
+        this.eventGenerationLocks.set(channelId, now);
+        
+        try {
+            const gameData = dbEntry.gameData;
+            
+            // Determine if we're forcing an event
+            const lastActivity = new Date(gameData.lastActivity || 0).getTime();
+            const timeSinceLastActivity = now - lastActivity;
+            const forceEvent = timeSinceLastActivity >= this.config.TIMING.ACTIVITY_GUARANTEE;
+            
+            // Try NPC sale first (highest priority)
+            const npcSaleChance = forceEvent ? 
+                this.config.EVENTS.NPC_SALE.FORCED_CHANCE : 
+                this.config.EVENTS.NPC_SALE.BASE_CHANCE;
+                
+            if (Math.random() < npcSaleChance) {
+                const npcSale = await this.generateNPCSaleAtomic(channel, dbEntry);
+                if (npcSale) return npcSale;
+            }
+            
+            // Try random events
+            const eventChance = forceEvent ? 
+                this.config.EVENTS.RANDOM_EVENT.FORCED_CHANCE : 
+                this.config.EVENTS.RANDOM_EVENT.BASE_CHANCE;
+                
+            if (Math.random() < eventChance) {
+                const eventType = this.selectEventType();
+                
+                switch (eventType) {
+                    case 'barFight':
+                        return await this.generateBarFightAtomic(channel, dbEntry);
+                    case 'rumor':
+                        return await this.generateRumorAtomic(channel, dbEntry);
+                    case 'coinFind':
+                        return await this.generateCoinFindAtomic(channel, dbEntry);
+                }
+            }
+            
+            // Fallback to innkeeper comment if forcing
+            if (forceEvent && this.config.EVENTS.INNKEEPER_COMMENT.ENABLED) {
+                return await this.generateInnkeeperCommentAtomic(channel, dbEntry);
+            }
+            
+            return null;
+            
+        } finally {
+            // Release generation lock
+            this.eventGenerationLocks.delete(channelId);
+        }
     }
 
     /**
@@ -77,9 +130,9 @@ class InnEventManager {
     }
 
     /**
-     * Generate NPC sale
+     * Generate NPC sale with atomic operations
      */
-    async generateNPCSale(channel, dbEntry) {
+    async generateNPCSaleAtomic(channel, dbEntry) {
         try {
             // Get shop info
             const gachaInfo = gachaServers.find(g => g.id === String(dbEntry.typeId));
@@ -106,6 +159,12 @@ class InnEventManager {
             const selectedNPC = this.selectNPCByPower(channelPower);
             if (!selectedNPC) return null;
             
+            // Check for recent duplicate NPC
+            if (this.isRecentDuplicate(dbEntry.channelId, 'npcSale', selectedNPC.id)) {
+                console.log(`[InnEvents] NPC ${selectedNPC.name} recently visited, selecting different NPC`);
+                return null;
+            }
+            
             // Select item based on NPC preferences
             const selectedItem = this.selectItemForNPC(selectedNPC, consumableItems);
             if (!selectedItem) return null;
@@ -122,6 +181,9 @@ class InnEventManager {
             const costBasis = Math.floor(basePrice * this.config.ECONOMY.COST_BASIS_MULTIPLIER);
             const profit = salePrice - costBasis;
             
+            // Generate unique event ID
+            const eventId = this.generateEventId(dbEntry.channelId, 'npcSale');
+            
             // Generate dialogue
             const dialogue = await this.aiManager.generateNPCDialogue(
                 selectedNPC,
@@ -130,8 +192,9 @@ class InnEventManager {
                 { tip, mood: this.aiManager.determineMood(selectedNPC) }
             );
             
-            // Create sale record
+            // Create sale record with event ID
             const saleData = {
+                eventId: eventId,
                 itemId: selectedItem.id,
                 profit,
                 buyer: selectedNPC.id,
@@ -147,6 +210,7 @@ class InnEventManager {
             
             return {
                 type: 'npcSale',
+                eventId: eventId,
                 saleData
             };
             
@@ -157,7 +221,7 @@ class InnEventManager {
     }
 
     /**
-     * Select NPC based on channel power
+     * Select NPC based on channel power with concurrency-safe random selection
      */
     selectNPCByPower(channelPower) {
         // Filter NPCs by channel power
@@ -183,8 +247,7 @@ class InnEventManager {
             } else if (channelPower <= 4) {
                 const adj = this.config.NPC.WEALTH_ADJUSTMENT.MID_POWER;
                 if (npc.wealth >= 4 && npc.wealth <= 6) weight *= adj.MIDDLE_MULTIPLIER;
-                // NEW: Boost wealthy NPCs for power 4 establishments like Noble's Rest
-                if (npc.wealth >= 6) weight *= 3;  // 3x weight for wealthy customers
+                if (npc.wealth >= 6) weight *= 3;  // Boost wealthy NPCs for power 4
             } else {
                 const adj = this.config.NPC.WEALTH_ADJUSTMENT.HIGH_POWER;
                 if (npc.wealth >= 7) weight *= adj.RICH_MULTIPLIER;
@@ -198,7 +261,10 @@ class InnEventManager {
         });
         
         if (weightedNPCs.length === 0) return null;
-        return weightedNPCs[Math.floor(Math.random() * weightedNPCs.length)];
+        
+        // Use cryptographically stronger randomness for better distribution
+        const randomIndex = Math.floor(Math.random() * weightedNPCs.length);
+        return weightedNPCs[randomIndex];
     }
 
     /**
@@ -220,14 +286,14 @@ class InnEventManager {
             eligibleItems = items;
         }
         
-        // Filter by budget (adjusted for Noble's Rest)
+        // Filter by budget
         let maxPrice;
         if (npc.budget === 'low') {
-            maxPrice = 100;  // Increased from default
+            maxPrice = 100;
         } else if (npc.budget === 'medium') {
-            maxPrice = 400;  // Increased from default
+            maxPrice = 400;
         } else {
-            maxPrice = 10000;  // High budget
+            maxPrice = 10000;
         }
         eligibleItems = eligibleItems.filter(item => item.value <= maxPrice);
         
@@ -266,10 +332,18 @@ class InnEventManager {
     }
 
     /**
-     * Generate bar fight event
+     * Generate bar fight event with atomic operations
      */
-    async generateBarFight(channel, dbEntry) {
+    async generateBarFightAtomic(channel, dbEntry) {
         try {
+            const channelId = dbEntry.channelId;
+            
+            // Check for recent bar fight
+            if (this.isRecentDuplicate(channelId, 'barFight')) {
+                console.log('[InnEvents] Recent bar fight occurred, skipping');
+                return null;
+            }
+            
             const fights = this.config.BAR_FIGHTS;
             const fight = fights[Math.floor(Math.random() * fights.length)];
             
@@ -287,8 +361,13 @@ class InnEventManager {
                 return null;
             }
             
-            // Calculate damage cost
-            const damageCost = Math.floor((npc1.wealth + npc2.wealth) * 2 + Math.random() * 10);
+            // Generate unique event ID
+            const eventId = this.generateEventId(channelId, 'barFight');
+            
+            // Calculate damage cost with some randomness
+            const baseDamage = (npc1.wealth + npc2.wealth) * 2;
+            const randomDamage = Math.floor(Math.random() * 10);
+            const damageCost = Math.floor(baseDamage + randomDamage);
             
             // Generate outcome
             const outcome = await this.aiManager.generateEventDialogue('barFight', {
@@ -299,6 +378,7 @@ class InnEventManager {
             
             return {
                 type: 'barfight',
+                eventId: eventId,
                 cost: damageCost,
                 npc1: npc1.name,
                 npc2: npc2.name,
@@ -314,10 +394,18 @@ class InnEventManager {
     }
 
     /**
-     * Generate rumor event
+     * Generate rumor event with atomic operations
      */
-    async generateRumor(channel, dbEntry) {
+    async generateRumorAtomic(channel, dbEntry) {
         try {
+            const channelId = dbEntry.channelId;
+            
+            // Check for recent rumor
+            if (this.isRecentDuplicate(channelId, 'rumor')) {
+                console.log('[InnEvents] Recent rumor occurred, skipping');
+                return null;
+            }
+            
             // Select two random NPCs
             const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
             const channelPower = serverData?.power || 1;
@@ -328,11 +416,13 @@ class InnEventManager {
             
             if (eligibleNpcs.length < 2) return null;
             
-            const npc1 = eligibleNpcs[Math.floor(Math.random() * eligibleNpcs.length)];
-            let npc2 = eligibleNpcs[Math.floor(Math.random() * eligibleNpcs.length)];
-            while (npc2.id === npc1.id) {
-                npc2 = eligibleNpcs[Math.floor(Math.random() * eligibleNpcs.length)];
-            }
+            // Shuffle and select NPCs to avoid bias
+            const shuffled = [...eligibleNpcs].sort(() => Math.random() - 0.5);
+            const npc1 = shuffled[0];
+            const npc2 = shuffled[1];
+            
+            // Generate unique event ID
+            const eventId = this.generateEventId(channelId, 'rumor');
             
             // Generate rumor
             const rumor = await this.aiManager.generateEventDialogue('rumor', {
@@ -342,6 +432,7 @@ class InnEventManager {
             
             return {
                 type: 'rumor',
+                eventId: eventId,
                 npc1: npc1.name,
                 npc2: npc2.name,
                 rumor,
@@ -355,11 +446,13 @@ class InnEventManager {
     }
 
     /**
-     * Generate coin find event
+     * Generate coin find event with atomic operations
      */
-    async generateCoinFind(channel, dbEntry) {
+    async generateCoinFindAtomic(channel, dbEntry) {
         try {
+            const channelId = dbEntry.channelId;
             const voiceChannel = channel.guild.channels.cache.get(channel.id);
+            
             if (!voiceChannel || !voiceChannel.isVoiceBased()) return null;
             
             const membersInVC = Array.from(voiceChannel.members.values())
@@ -369,6 +462,12 @@ class InnEventManager {
             
             // Select random member
             const luckyMember = membersInVC[Math.floor(Math.random() * membersInVC.length)];
+            
+            // Check for recent coin find by same member
+            if (this.isRecentDuplicate(channelId, 'coinFind', luckyMember.id)) {
+                console.log(`[InnEvents] ${luckyMember.user.username} recently found coins, skipping`);
+                return null;
+            }
             
             // Get luck stat
             const playerData = await getPlayerStats(luckyMember.id);
@@ -402,20 +501,38 @@ class InnEventManager {
             const luckBonus = Math.floor(baseAmount * (luckStat / this.config.COIN_FINDS.LUCK_DIVISOR));
             const totalAmount = baseAmount + luckBonus;
             
-            // Award coins
-            await Money.findOneAndUpdate(
-                { userId: luckyMember.id },
+            // Generate unique event ID
+            const eventId = this.generateEventId(channelId, 'coinFind');
+            
+            // Award coins atomically with idempotency check
+            const awarded = await Money.findOneAndUpdate(
+                { 
+                    userId: luckyMember.id,
+                    'coinFinds.eventId': { $ne: eventId }
+                },
                 { 
                     $inc: { money: totalAmount },
-                    $set: { usertag: luckyMember.user.tag }
+                    $set: { usertag: luckyMember.user.tag },
+                    $push: {
+                        coinFinds: {
+                            eventId: eventId,
+                            amount: totalAmount,
+                            timestamp: new Date(),
+                            location: innName
+                        }
+                    }
                 },
                 { upsert: true, new: true }
             );
             
+            if (!awarded) {
+                console.log('[InnEvents] Coin find already processed, skipping');
+                return null;
+            }
+            
             // Generate enhanced AI description with context
             let description;
             try {
-                // Build context for AI generation
                 const coinContext = {
                     finder: luckyMember.user.username,
                     amount: totalAmount,
@@ -428,15 +545,12 @@ class InnEventManager {
                 
                 // Generate location-appropriate descriptions
                 if (channelPower >= 4) {
-                    // Noble establishments
                     coinContext.locations = ['beneath a velvet cushion', 'in the chandelier', 'behind the wine rack', 
                                             'under the marble floor tile', 'in the coat check room'];
                 } else if (channelPower >= 2) {
-                    // Mid-tier establishments
                     coinContext.locations = ['under the barstool', 'in the fireplace ash', 'behind the beer kegs',
                                             'in a booth cushion', 'near the dartboard'];
                 } else {
-                    // Basic establishments
                     coinContext.locations = ['under a table', 'in the sawdust', 'behind the bar',
                                             'in a floor crack', 'near the door'];
                 }
@@ -463,15 +577,15 @@ class InnEventManager {
                     ];
                     description = midFallbacks[Math.floor(Math.random() * midFallbacks.length)];
                 } else {
-                    description = selectedFind.description;
+                    description = selectedFind.description.replace('{amount}', totalAmount);
                 }
             }
             
-            // Log the find for debugging
-            console.log(`[InnEvents] Coin find at ${innName} (Power ${channelPower}): ${luckyMember.user.username} found ${totalAmount} coins (base: ${baseAmount}, luck bonus: ${luckBonus})`);
+            console.log(`[InnEvents] Coin find: ${luckyMember.user.username} found ${totalAmount} coins`);
             
             return {
                 type: 'coinFind',
+                eventId: eventId,
                 amount: totalAmount,
                 finder: luckyMember.id,
                 finderName: luckyMember.user.username,
@@ -488,10 +602,17 @@ class InnEventManager {
     }
 
     /**
-     * Generate innkeeper comment
+     * Generate innkeeper comment with atomic operations
      */
-    async generateInnkeeperComment(channel, dbEntry) {
+    async generateInnkeeperCommentAtomic(channel, dbEntry) {
         try {
+            const channelId = dbEntry.channelId;
+            
+            // Check for recent comment
+            if (this.isRecentDuplicate(channelId, 'innkeeperComment')) {
+                return null;
+            }
+            
             const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
             const shopInfo = shops.find(s => s.id === serverData?.shop);
             const innkeeperName = shopInfo?.shopkeeper?.name || "The innkeeper";
@@ -506,6 +627,9 @@ class InnEventManager {
             if (recentSales >= 5) businessLevel = 'busy';
             else if (recentSales >= 2) businessLevel = 'moderate';
             
+            // Generate unique event ID
+            const eventId = this.generateEventId(channelId, 'innkeeperComment');
+            
             // Generate comment
             const comment = await this.aiManager.generateEventDialogue('innkeeperComment', {
                 businessLevel,
@@ -514,6 +638,7 @@ class InnEventManager {
             
             return {
                 type: 'innkeeperComment',
+                eventId: eventId,
                 comment: `${innkeeperName} ${comment}`,
                 businessLevel,
                 timestamp: new Date()
@@ -522,6 +647,30 @@ class InnEventManager {
         } catch (error) {
             console.error('[InnEvents] Error generating innkeeper comment:', error);
             return null;
+        }
+    }
+
+    /**
+     * Clean up old locks and recent events (maintenance)
+     */
+    cleanup() {
+        const now = Date.now();
+        const lockTimeout = 60000; // 1 minute
+        const eventTimeout = 300000; // 5 minutes
+        
+        // Clean generation locks
+        for (const [channelId, timestamp] of this.eventGenerationLocks.entries()) {
+            if (now - timestamp > lockTimeout) {
+                this.eventGenerationLocks.delete(channelId);
+                console.log(`[InnEvents] Cleaned up stale lock for channel ${channelId}`);
+            }
+        }
+        
+        // Clean recent events
+        for (const [key, timestamp] of this.recentEvents.entries()) {
+            if (now - timestamp > eventTimeout) {
+                this.recentEvents.delete(key);
+            }
         }
     }
 }

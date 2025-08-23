@@ -1,5 +1,5 @@
 // innKeeping/innConfig.js
-// Centralized configuration for the inn system
+// Centralized configuration for the inn system with concurrency enhancements
 
 module.exports = {
     // Timing Configuration
@@ -13,6 +13,24 @@ module.exports = {
             MIN: 5000,                         // 5 seconds minimum
             MAX: 15000                         // 15 seconds maximum
         }
+    },
+
+    // Concurrency Configuration (NEW)
+    CONCURRENCY: {
+        LOCK_TIMEOUT: 30000,                   // 30 seconds lock timeout
+        LOCK_RETRY_DELAY: 1000,                // 1 second between lock retries
+        MAX_LOCK_RETRIES: 3,                   // Maximum lock acquisition attempts
+        PURCHASE_COOLDOWN: 3000,               // 3 seconds between purchases per user
+        EVENT_DUPLICATE_WINDOW: 30000,         // 30 seconds duplicate event prevention
+        DISTRIBUTION_LOCK_TIMEOUT: 60000,      // 1 minute for profit distribution
+        RETRY_BACKOFF: {
+            BASE_DELAY: 30000,                 // 30 seconds base retry delay
+            MAX_DELAY: 300000,                 // 5 minutes maximum delay
+            MULTIPLIER: 2                      // Exponential backoff multiplier
+        },
+        CLEANUP_INTERVAL: 60000,               // 1 minute cleanup interval
+        STATE_VERSION_CHECK: true,             // Enable optimistic locking
+        IDEMPOTENCY_WINDOW: 300000            // 5 minutes idempotency window
     },
 
     // Event Probabilities
@@ -80,6 +98,11 @@ module.exports = {
             ENABLED: true,
             MULTIPLIER: 0.15,                  // 15% bonus per worker (logarithmic)
             FORMULA: 'workers => 1 + (Math.log(workers) * 0.15)'
+        },
+        TRANSACTION_SAFETY: {                  // NEW
+            ENABLE_ROLLBACK: true,             // Enable transaction rollback
+            ROLLBACK_TIMEOUT: 5000,            // 5 seconds rollback timeout
+            ATOMIC_OPERATIONS: true            // Use atomic DB operations
         }
     },
 
@@ -287,12 +310,26 @@ module.exports = {
         BONUS_MULTIPLIER: 2                    // 2x total payout
     },
 
+    // Database Safety Configuration (NEW)
+    DATABASE: {
+        USE_TRANSACTIONS: false,               // MongoDB doesn't support multi-doc transactions by default
+        USE_ATOMIC_OPERATIONS: true,           // Use findOneAndUpdate, etc.
+        OPTIMISTIC_LOCKING: true,              // Use version fields for state changes
+        WRITE_CONCERN: 'majority',             // Ensure writes are acknowledged
+        READ_PREFERENCE: 'primary',            // Always read from primary for consistency
+        MAX_RETRIES: 3,                        // Database operation retry count
+        RETRY_DELAY: 1000                      // Delay between retries
+    },
+
     // Debug Configuration
     DEBUG: {
         ENABLED: process.env.NODE_ENV === 'development',
         LOG_EVENTS: true,
         LOG_SALES: true,
         LOG_AI_CALLS: false,
-        LOG_TIMING: true
+        LOG_TIMING: true,
+        LOG_LOCKS: true,                      // NEW: Log lock acquisitions/releases
+        LOG_ATOMIC_OPS: false,                 // NEW: Log atomic operations
+        LOG_RETRIES: true                      // NEW: Log retry attempts
     }
 };
