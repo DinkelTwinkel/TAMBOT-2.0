@@ -12,7 +12,10 @@ const shopData = require('../data/shops.json');
 const itemSheet = require('../data/itemSheet.json');
 const { calculateFluctuatedPrice, getShopPrices, generatePurchaseDialogue, generateSellDialogue, generatePoorDialogue, generateNoItemDialogue } = require('./generateShop');
 const getPlayerStats = require('./calculatePlayerStat');
-const InnPurchaseHandler = require('./gachaModes/innKeeping/innPurchaseHandler');
+const InnPurchaseHandler = require('./gachaModes/innKeeping/innPurchaseHandler_v2');
+
+// Create instance of InnPurchaseHandler for use in shop operations
+const innPurchaseHandler = new InnPurchaseHandler();
 
 // Performance optimization: Cache for shop prices (TTL: 5 minutes)
 const priceCache = new Map();
@@ -374,11 +377,11 @@ class ShopHandler {
         responseMessage += `\n💰 **Balance:** ${currency.money - totalCost} coins`;
 
         // Process inn sale if applicable
-        const innResult = await InnPurchaseHandler.processInnSale({
+        const innResult = await innPurchaseHandler.processInnSale({
             channel: interaction.channel,
             itemId: item.id,
             salePrice: currentBuyPrice,
-            costBasis: InnPurchaseHandler.calculateCostBasis(item.value),
+            costBasis: innPurchaseHandler.calculateCostBasis(item.value),
             buyer: interaction.user
         });
         
@@ -540,17 +543,17 @@ class ShopHandler {
             responseMessage += `\n💰 **Balance:** ${userCurrency.money - totalCost} coins`;
             
             // Process inn sale if applicable
-            const innResult = await InnPurchaseHandler.processInnSale({
+            const innResult = await innPurchaseHandler.processInnSale({
                 channel: interaction.channel,
                 itemId: item.id,
                 salePrice: currentBuyPrice * quantity,  // Total revenue from sale
-                costBasis: InnPurchaseHandler.calculateCostBasis(item.value, quantity),
+                costBasis: innPurchaseHandler.calculateCostBasis(item.value, quantity),
                 buyer: interaction.user
             });
             
             // Add tip info if it was an inn sale
             if (innResult.isInn && innResult.tipData && innResult.tipData.amount > 0) {
-                responseMessage += `\n${InnPurchaseHandler.formatTipMessage(innResult.tipData)}`;
+                responseMessage += `\n${innPurchaseHandler.formatTipMessage(innResult.tipData)}`;
             }
             
             await interaction.editReply({ 
