@@ -390,5 +390,69 @@
     "image": "coalMineShop",
     "priceChangeFactor": 0.75,
     "itemDisplayScale": 1
+  },
+  {
+    "id": 14,
+    "name": "🏹 Hunter's Lodge Tavern 🦌",
+    "shopkeeper": {
+      "name": "Selis 'Hawkeye' Greywind",
+      "bio": "Former [Ranger Captain] who retired after losing her left arm to a Wyvern. Opened the lodge with her savings and now manages it with the same precision she once tracked prey. Still deadly with a crossbow despite the handicap.",
+      "personality": "Practical, observant, and protective of her regular patrons. Has a soft spot for young adventurers but zero tolerance for troublemakers. Speaks in clipped, military-style sentences and notices everything."
+    },
+    "idleDialogue": [
+      "Fresh venison from this morning's hunt!", 
+      "The forest whispers of strange movements lately...", 
+      "Eat up! You'll need strength for the trails ahead.", 
+      "*-Sharpens a hunting knife one-handed*", 
+      "*~Adjusts a mounted griffin head on the wall*",
+      "Saw fresh Razorbeak tracks near the eastern ridge. Best avoid that path.",
+      "That [Hunter's Eye] Skill of mine still works, even in retirement.",
+      "My Hunter's Brew will put hair on your chest and sharpen your aim!",
+      "The One Pick? Ha! Give me a good bow over any pickaxe.",
+      "Used to hunt with a fellow who claimed he saw The Miner King... poor soul was never the same."
+    ],
+    "successSell": ["Good hunt, good trade!", "That'll keep you on the trail."],
+    "successBuy": ["Fair exchange for fair game.", "May it serve you well in the wilds."],
+    "failureTooPoor": ["No coin, no comfort. The wilderness taught me that.", "Hunt more, earn more."],
+    "failureOther": ["Don't waste a hunter's time.", "-SNORTS", "Track your way out."],
+    "cost": 0,
+    "staticItems": [55, 54],
+    "rotationalAmount": 2,
+    "itemPool": [51, 52, 55, 54, 58, 59, 10, 11, 4, 5, 48, 49, 50, 60, 33, 34, 37, 38],
+    "image": "hunterLodgeShop",
+    "priceChangeFactor": 0.6,
+    "itemDisplayScale": 1
+  },
+  {
+    "id": 15,
+    "name": "👑 Noble's Rest Establishment 🎇",
+    "shopkeeper": {
+      "name": "Lord Percival Ashworth III",
+      "bio": "Third son of House Ashworth, he was disinherited for 'conduct unbecoming' (he fell in love with a commoner). Now runs the finest establishment in the district with his [Innkeeper Lord] class, serving nobility while secretly funding orphanages with the profits.",
+      "personality": "Impeccably mannered, secretly compassionate, and absolutely intolerant of poor etiquette. Maintains noble bearing while harboring democratic ideals. Uses his [Noble's Presence] skill to maintain order without raising his voice."
+    },
+    "idleDialogue": [
+      "Only the finest vintages grace our cellars.", 
+      "Excellence is not an act, but a habit, as they say.", 
+      "Our Royal Feast is prepared by a [Master Chef] from the capital.", 
+      "*-Polishes a crystal goblet to perfection*", 
+      "*~Adjusts his silk cravat*",
+      "The Duke of Marlowe dined here last week. Complimented the wine selection.",
+      "My [Noble's Grace] ensures every guest feels like royalty.",
+      "Even The Miner King would remove his helm in an establishment such as this.",
+      "The One Pick? A commoner's fantasy. True power lies in connections, not tools.",
+      "We cater to those who appreciate the finer things... and can afford them."
+    ],
+    "successSell": ["An excellent transaction, as expected.", "Your patronage honors us."],
+    "successBuy": ["Exquisite taste, if I may say.", "A choice worthy of nobility."],
+    "failureTooPoor": ["Perhaps the common taverns would better suit your... budget.", "I'm afraid our establishment requires certain standards."],
+    "failureOther": ["This is most irregular.", "-CLEARS THROAT DISAPPROVINGLY", "Perhaps you've mistaken us for a lesser establishment."],
+    "cost": 0,
+    "staticItems": [56, 57],
+    "rotationalAmount": 3,
+    "itemPool": [53, 56, 57, 61, 52, 55, 62, 50, 51, 54, 35, 36, 39, 40, 41, 30, 31, 45, 46],
+    "image": "nobleRestShop",
+    "priceChangeFactor": 0.3,
+    "itemDisplayScale": 1
   }
 ]
