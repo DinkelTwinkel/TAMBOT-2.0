@@ -250,28 +250,28 @@ module.exports = {
     // Bar Fight Configuration
     BAR_FIGHTS: [
         // Low-power inn fights (works everywhere)
-        { npc1: "Grimjaw", npc2: "Tethys", reason: "which world had the stronger warriors" },
-        { npc1: "Ember", npc2: "Frost-Eye", reason: "whose elemental magic is superior" },
-        { npc1: "Driftwood", npc2: "Shard", reason: "who has the worst luck with portals" },
-        { npc1: "Whisper", npc2: "Echo", reason: "who was talking too loudly" },
-        { npc1: "Null", npc2: "Vex", reason: "a spilled drink that may have been intentional" },
-        { npc1: "Stasis", npc2: "Glitch", reason: "whose turn it was to buy the next round" },
+        { npc1: "Relc Grasstongue", npc2: "Pisces Jealnet", reason: "whose magic is more useful in combat" },
+        { npc1: "Lyonette", npc2: "Selys Shivertail", reason: "proper inn management techniques" },
+        { npc1: "Klbkch", npc2: "Numbtongue", reason: "a misunderstanding about battle tactics" },
+        { npc1: "Olesm", npc2: "Pisces Jealnet", reason: "the proper way to play chess" },
+        { npc1: "Relc Grasstongue", npc2: "Klbkch", reason: "who's the better fighter (friendly rivalry)" },
+        { npc1: "Drassi", npc2: "Lyonette", reason: "spreading gossip about the inn" },
         
         // Mid-power inn fights
-        { npc1: "Shadowbane", npc2: "Chrome", reason: "a dispute over portal territory rights" },
-        { npc1: "The Collector", npc2: "Voidwhisper", reason: "ownership of a mysterious artifact" },
-        { npc1: "Steelclaw", npc2: "Mirage", reason: "accusations of interdimensional smuggling" },
-        { npc1: "Portalkeeper Zax", npc2: "Grimjaw", reason: "unpaid portal passage fees" },
-        { npc1: "Nexus", npc2: "Shard", reason: "conflicting claims about their home worlds" },
-        { npc1: "Whisper", npc2: "Ironhide", reason: "a misunderstanding about currency exchange rates" },
+        { npc1: "Yvlon Byres", npc2: "Seborn", reason: "accusations of cheating at cards" },
+        { npc1: "Ceria Springwalker", npc2: "Moore", reason: "whose magic is more practical" },
+        { npc1: "Jelaqua", npc2: "Grimalkin", reason: "physical training methods" },
+        { npc1: "Ksmvr", npc2: "Belgrade", reason: "optimal trap placement strategies" },
+        { npc1: "Bird", npc2: "Numbtongue", reason: "making too much noise during bird watching" },
+        { npc1: "Zevara", npc2: "Wilovan", reason: "law enforcement versus gentleman thieves" },
         
         // High-power inn fights
-        { npc1: "Vex", npc2: "Quantum", reason: "a rigged dice game using probability manipulation" },
-        { npc1: "Prism", npc2: "Nexus", reason: "whose interdimensional theories are correct" },
-        { npc1: "Chrome", npc2: "Steelclaw", reason: "a business deal gone wrong" },
-        { npc1: "Quantum", npc2: "The Collector", reason: "a rare artifact's true value" },
-        { npc1: "Glitch", npc2: "Prism", reason: "incompatible technologies causing interference" },
-        { npc1: "Echo", npc2: "Null", reason: "philosophical differences about the nature of Hellungi" }
+        { npc1: "Ilvriss", npc2: "Saliss", reason: "proper dress code in the establishment" },
+        { npc1: "Rags", npc2: "Ulvama", reason: "goblin leadership hierarchy" },
+        { npc1: "Ratici", npc2: "Wilovan", reason: "who pulled off the better heist" },
+        { npc1: "Grimalkin", npc2: "Saliss", reason: "experimental alchemy safety protocols" },
+        { npc1: "Tekshia", npc2: "Ilvriss", reason: "respect for elders versus noble privilege" },
+        { npc1: "Erin", npc2: "Lyonette", reason: "who really runs the inn" }
     ],
 
     // Rumors
