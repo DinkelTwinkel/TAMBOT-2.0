@@ -239,6 +239,44 @@ async function meetsConditionalRequirements(userId, guildId, itemId) {
 }
 
 /**
+ * Calculate Midas' Burden drop chance based on player wealth
+ * @param {number} playerWealth - The player's current coin amount
+ * @returns {number} - Drop chance between 0 and 1
+ */
+function calculateMidasDropChance(playerWealth) {
+    // Base chance starts at 0.1% for poor players
+    const BASE_CHANCE = 0.001;
+    
+    // At 1 million coins, chance is 90%
+    const TARGET_WEALTH = 1000000;
+    const TARGET_CHANCE = 0.9;
+    
+    if (playerWealth <= 0) {
+        return BASE_CHANCE;
+    }
+    
+    if (playerWealth >= TARGET_WEALTH) {
+        // At 1 million coins: 90% chance
+        // After 1 million: logarithmically increases towards 99.9%
+        const baseChance = TARGET_CHANCE;
+        const remainingToMax = 0.999 - baseChance; // Can go up to 99.9%
+        
+        // Logarithmic scaling for wealth above 1 million
+        const wealthAboveTarget = playerWealth - TARGET_WEALTH;
+        const scaleFactor = Math.log10(1 + wealthAboveTarget / TARGET_WEALTH);
+        const additionalChance = remainingToMax * Math.min(scaleFactor, 1);
+        
+        return Math.min(0.999, baseChance + additionalChance);
+    }
+    
+    // Linear scaling from BASE_CHANCE to TARGET_CHANCE based on wealth
+    const wealthRatio = playerWealth / TARGET_WEALTH;
+    const chance = BASE_CHANCE + (TARGET_CHANCE - BASE_CHANCE) * wealthRatio;
+    
+    return Math.min(Math.max(chance, BASE_CHANCE), TARGET_CHANCE);
+}
+
+/**
  * Try to drop a conditional item if conditions are met
  * @param {Object} member - Discord member object
  * @param {string} guildId - Guild ID
@@ -249,22 +287,28 @@ async function tryConditionalDrop(member, guildId, itemId) {
         // Only handle Midas' Burden for now
         if (itemId !== 10) return null;
         
-        // Check if user is richest
-        const guild = member.guild || require('discord.js').Client.guilds?.cache?.get(guildId);
-        if (!guild) return null;
-        
-        const members = await guild.members.fetch();
-        const memberIds = members.map(m => m.id);
-        
-        const isRichest = await checkRichestPlayer(member.id, guildId, memberIds);
-        
-        if (!isRichest) return null;
-        
-        // Check if item is available
+        // Check if item is available (not already owned)
         const item = await UniqueItem.findOne({ itemId: 10 });
         if (!item || item.ownerId) return null;
         
-        // Assign to player
+        // Get player's current wealth
+        const playerMoney = await Money.findOne({ userId: member.id });
+        const playerWealth = playerMoney?.money || 0;
+        
+        // Calculate drop chance based on wealth
+        const dropChance = calculateMidasDropChance(playerWealth);
+        
+        // Log the drop chance for debugging
+        console.log(`[MIDAS] Player ${member.displayName || member.tag} wealth: ${playerWealth} coins, drop chance: ${(dropChance * 100).toFixed(2)}%`);
+        
+        // Roll for the drop
+        const roll = Math.random();
+        if (roll > dropChance) {
+            // Didn't get the drop
+            return null;
+        }
+        
+        // Success! Assign to player
         item.ownerId = member.id;
         item.ownerTag = member.user?.tag || member.tag || 'Unknown';
         item.maintenanceLevel = 10;
@@ -272,13 +316,31 @@ async function tryConditionalDrop(member, guildId, itemId) {
         
         await item.save();
         
+        // Create a special message based on wealth level
+        let message;
+        if (playerWealth >= 10000000) { // 10 million+
+            message = "🌟💰 **MIDAS' BURDEN BOWS TO YOUR IMMENSE FORTUNE!** The golden weight recognizes you as a god of wealth! Your riches have attracted the legendary curse!";
+        } else if (playerWealth >= 5000000) { // 5 million+
+            message = "👑💰 **MIDAS' BURDEN IS DRAWN TO YOUR VAST WEALTH!** The golden weight has chosen you, recognizing your incredible fortune!";
+        } else if (playerWealth >= 1000000) { // 1 million+
+            message = "💰 **MIDAS' BURDEN RECOGNIZES YOUR WEALTH!** The golden weight has chosen you as one worthy of its power and curse!";
+        } else if (playerWealth >= 500000) { // 500k+
+            message = "💎 **MIDAS' BURDEN SENSES YOUR GROWING FORTUNE!** The golden weight deems you wealthy enough to bear its blessing and curse!";
+        } else if (playerWealth >= 100000) { // 100k+
+            message = "🪙 **MIDAS' BURDEN NOTICES YOUR RICHES!** The golden weight has found you worthy of its ancient power!";
+        } else {
+            message = "✨ **MIDAS' BURDEN HAS CHOSEN YOU!** Despite humble means, fate has granted you the golden weight's power!";
+        }
+        
         return {
             success: true,
             item: {
                 id: 10,
                 name: "Midas' Burden"
             },
-            message: "💰 **MIDAS' BURDEN RECOGNIZES YOUR WEALTH!** The golden weight has chosen you as the wealthiest soul!"
+            message: message,
+            playerWealth: playerWealth,
+            dropChance: dropChance
         };
         
     } catch (error) {
@@ -304,5 +366,6 @@ module.exports = {
     handleMidasMaintenanceDecay,
     meetsConditionalRequirements,
     tryConditionalDrop,
-    isConditionalItem
+    isConditionalItem,
+    calculateMidasDropChance
 };
