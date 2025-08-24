@@ -123,6 +123,14 @@ const voiceSessionSchema = new mongoose.Schema({
         type: Number,
         default: 0  // in seconds
     },
+    lastUpdateDuration: {
+        type: Number,
+        default: 0  // Last recorded duration for periodic updates
+    },
+    lastUpdateTime: {
+        type: Date,
+        default: null  // Last time the periodic update was run
+    },
     isActive: {
         type: Boolean,
         default: true,

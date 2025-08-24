@@ -61,6 +61,21 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
 
+// Graceful shutdown handlers
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+  await cleanupTracking();
+  client.destroy();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
+  await cleanupTracking();
+  client.destroy();
+  process.exit(0);
+});
+
 const { scanMagentaPixels, getMagentaCoordinates } = require('./fileStoreMapData');
 const inventory = require('./models/inventory');
 scanMagentaPixels();

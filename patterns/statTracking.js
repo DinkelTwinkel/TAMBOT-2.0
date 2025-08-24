@@ -222,6 +222,20 @@ class StatTracker {
                 },
                 { upsert: true }
             );
+
+            // Update unique items voice tracking
+            // Convert seconds to minutes for unique items tracking
+            const voiceMinutes = Math.floor(duration / 60);
+            if (voiceMinutes > 0) {
+                try {
+                    const { updateActivityTracking } = require('./uniqueItemMaintenance');
+                    await updateActivityTracking(userId, 'voice', voiceMinutes);
+                    console.log(`📊 Updated unique items voice tracking: ${voiceMinutes} minutes for user ${userId}`);
+                } catch (uniqueError) {
+                    // Don't let unique items errors break the main voice tracking
+                    console.error('Error updating unique items voice tracking:', uniqueError);
+                }
+            }
         } catch (error) {
             console.error('Error updating voice time:', error);
         }
@@ -521,6 +535,73 @@ class StatTracker {
         } catch (error) {
             console.error('Error getting date range stats:', error);
             return null;
+        }
+    }
+
+    // =============== PERIODIC UPDATES ===============
+
+    // Update voice time for all active sessions (call this periodically)
+    async updateActiveSessionsVoiceTime() {
+        try {
+            const now = new Date();
+            let updatedCount = 0;
+
+            for (const [userId, session] of this.voiceSessions.entries()) {
+                // Calculate current duration
+                const currentDuration = Math.floor((now - session.joinTime) / 1000);
+                
+                // Get the last recorded duration from database
+                const dbSession = await VoiceSession.findOne({ 
+                    userId, 
+                    isActive: true 
+                }).sort({ joinTime: -1 });
+
+                if (dbSession) {
+                    // Calculate the incremental duration since last update
+                    const lastDuration = dbSession.lastUpdateDuration || 0;
+                    const incrementalDuration = currentDuration - lastDuration;
+
+                    if (incrementalDuration > 0) {
+                        // Update the session with current duration
+                        dbSession.lastUpdateDuration = currentDuration;
+                        dbSession.lastUpdateTime = now;
+                        await dbSession.save();
+
+                        // Update voice time stats and unique items
+                        await this.updateVoiceTime(userId, session.guildId, incrementalDuration);
+                        updatedCount++;
+                    }
+                }
+            }
+
+            if (updatedCount > 0) {
+                console.log(`⏱️ Updated voice time for ${updatedCount} active sessions`);
+            }
+            return updatedCount;
+        } catch (error) {
+            console.error('Error updating active sessions:', error);
+            return 0;
+        }
+    }
+
+    // Start periodic updates (call this after bot initialization)
+    startPeriodicUpdates(intervalMinutes = 5) {
+        // Update every X minutes (default 5)
+        const intervalMs = intervalMinutes * 60 * 1000;
+        
+        this.periodicUpdateInterval = setInterval(async () => {
+            await this.updateActiveSessionsVoiceTime();
+        }, intervalMs);
+
+        console.log(`🔄 Started periodic voice time updates every ${intervalMinutes} minutes`);
+    }
+
+    // Stop periodic updates (call this on bot shutdown)
+    stopPeriodicUpdates() {
+        if (this.periodicUpdateInterval) {
+            clearInterval(this.periodicUpdateInterval);
+            this.periodicUpdateInterval = null;
+            console.log('🛑 Stopped periodic voice time updates');
         }
     }
 

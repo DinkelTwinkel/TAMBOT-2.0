@@ -11,6 +11,12 @@ async function initializeStatTracking(client) {
     // Initialize with existing connection
     await tracker.initialize();
     
+    // Start periodic updates for active voice sessions
+    // This will update voice time every 5 minutes for users still in voice
+    // IMPORTANT: This ensures unique items get voice credit!
+    tracker.startPeriodicUpdates(5); // Update every 5 minutes
+    console.log('🔄 Started periodic voice updates (every 5 minutes) for unique items tracking');
+    
     // Recover any users already in voice channels after restart
     client.guilds.cache.forEach(guild => {
         guild.channels.cache.forEach(channel => {
@@ -31,7 +37,7 @@ async function initializeStatTracking(client) {
         });
     });
     
-    console.log('✅ Stat tracking system initialized');
+    console.log('✅ Stat tracking system initialized with unique items integration');
 }
 
 // Voice tracking event handler
@@ -133,6 +139,10 @@ async function getAllUserVoiceHours(guildId) {
 
 // Cleanup function for bot shutdown
 async function cleanupTracking() {
+    // Stop periodic updates
+    tracker.stopPeriodicUpdates();
+    console.log('🛑 Stopped periodic voice updates');
+    
     // End all active sessions
     for (const [userId] of tracker.voiceSessions) {
         await tracker.endVoiceSession(userId);
