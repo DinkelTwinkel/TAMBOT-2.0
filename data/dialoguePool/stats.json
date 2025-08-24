@@ -1,0 +1,75 @@
+{
+  "inn": {
+    "totalGenerated": 20,
+    "totalReused": 5,
+    "apiCallsSaved": 5,
+    "costSaved": 0.0014999999999999998
+  },
+  "shop": {
+    "totalGenerated": 5,
+    "totalReused": 0,
+    "apiCallsSaved": 0,
+    "costSaved": 0
+  },
+  "total": {
+    "totalGenerated": 25,
+    "totalReused": 5,
+    "apiCallsSaved": 5,
+    "costSaved": 0.0014999999999999998
+  },
+  "poolSummary": {
+    "inn": {
+      "npc": {
+        "contexts": 1,
+        "dialogues": 20
+      },
+      "player": {
+        "contexts": 0,
+        "dialogues": 0
+      },
+      "barFight": {
+        "contexts": 0,
+        "dialogues": 0
+      },
+      "events": {
+        "contexts": 0,
+        "dialogues": 0
+      },
+      "rumors": {
+        "contexts": 0,
+        "dialogues": 0
+      },
+      "innkeeperComments": {
+        "contexts": 0,
+        "dialogues": 0
+      }
+    },
+    "shop": {
+      "idle": {
+        "contexts": 1,
+        "dialogues": 5
+      },
+      "purchase": {
+        "contexts": 0,
+        "dialogues": 0
+      },
+      "sell": {
+        "contexts": 0,
+        "dialogues": 0
+      },
+      "poor": {
+        "contexts": 0,
+        "dialogues": 0
+      },
+      "noItem": {
+        "contexts": 0,
+        "dialogues": 0
+      }
+    },
+    "total": {
+      "contexts": 2,
+      "dialogues": 25
+    }
+  },
+  "savedAt": 1756047339822
+}

@@ -1,0 +1,85 @@
+{
+  "system": "shop",
+  "category": "idle",
+  "version": "1.0",
+  "savedAt": 1756047339821,
+  "pools": {
+    "8694992759c5": [
+      {
+        "id": "a06f127edfd3214c",
+        "dialogue": "Test shop dialogue 0: Another day in the coal mines...",
+        "contextKey": "8694992759c5",
+        "metadata": {
+          "shopType": "coal",
+          "mood": "tired",
+          "createdAt": 1756047339808,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "shop",
+          "category": "idle"
+        }
+      },
+      {
+        "id": "666137f9e5ed3ab8",
+        "dialogue": "Test shop dialogue 1: Another day in the coal mines...",
+        "contextKey": "8694992759c5",
+        "metadata": {
+          "shopType": "coal",
+          "mood": "tired",
+          "createdAt": 1756047339809,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "shop",
+          "category": "idle"
+        }
+      },
+      {
+        "id": "4848eecad7ac7280",
+        "dialogue": "Test shop dialogue 2: Another day in the coal mines...",
+        "contextKey": "8694992759c5",
+        "metadata": {
+          "shopType": "coal",
+          "mood": "tired",
+          "createdAt": 1756047339809,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "shop",
+          "category": "idle"
+        }
+      },
+      {
+        "id": "8a159c019d308496",
+        "dialogue": "Test shop dialogue 3: Another day in the coal mines...",
+        "contextKey": "8694992759c5",
+        "metadata": {
+          "shopType": "coal",
+          "mood": "tired",
+          "createdAt": 1756047339809,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "shop",
+          "category": "idle"
+        }
+      },
+      {
+        "id": "f9da758690451fbc",
+        "dialogue": "Test shop dialogue 4: Another day in the coal mines...",
+        "contextKey": "8694992759c5",
+        "metadata": {
+          "shopType": "coal",
+          "mood": "tired",
+          "createdAt": 1756047339810,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "shop",
+          "category": "idle"
+        }
+      }
+    ]
+  }
+}
