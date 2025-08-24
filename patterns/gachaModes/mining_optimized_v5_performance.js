@@ -2807,13 +2807,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         let findMessage;
                         // Treasure chests no longer spawn
                         if (destination === 'inventory') {
-                            if (tile.type === TILE_TYPES.RARE_ORE) {
+                            if (targetTile.type === TILE_TYPES.RARE_ORE) {
                                 findMessage = `💎 ${member.displayName} struck rare ore! Harvested『 ${item.name} x ${finalQuantity} 』from wall! (added to inventory)`;
                             } else {
                                 findMessage = `⛏️ ${member.displayName} harvested『 ${item.name} x ${finalQuantity} 』from wall! (added to inventory)`;
                             }
                         } else {
-                            if (tile.type === TILE_TYPES.RARE_ORE) {
+                            if (targetTile.type === TILE_TYPES.RARE_ORE) {
                                 findMessage = `💎 ${member.displayName} struck rare ore! Harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
                             } else {
                                 findMessage = `⛏️ ${member.displayName} harvested『 ${item.name} x ${finalQuantity} 』from wall!`;

@@ -182,6 +182,102 @@ async function triggerHazard(player, hazard, gameState) {
             }
             gameState.message = `🧱 ${player.name} triggered a wall trap! Paths are closing!`;
             break;
+            
+        case ENCOUNTER_TYPES.FIRE_BLAST:
+        case 'fire_blast':
+            // Fire trap - deals damage and spreads fire to adjacent tiles
+            const fireConfig = hazardConfig || {
+                damage: 20,
+                spreadChance: 0.3,
+                burnDuration: 10000,
+                knockbackDistance: 2
+            };
+            
+            // Apply damage to player
+            const fireDamage = Math.floor(fireConfig.damage * (hazard.intensity || 1));
+            player.health = Math.max(0, (player.health || 100) - fireDamage);
+            
+            // Apply knockback effect
+            const knockbackDir = {
+                x: Math.random() > 0.5 ? 1 : -1,
+                y: Math.random() > 0.5 ? 1 : -1
+            };
+            const newX = Math.max(0, Math.min(gameState.mapWidth - 1, 
+                player.x + knockbackDir.x * fireConfig.knockbackDistance));
+            const newY = Math.max(0, Math.min(gameState.mapHeight - 1,
+                player.y + knockbackDir.y * fireConfig.knockbackDistance));
+            
+            // Only move if target is a floor tile
+            if (gameState.map[newY][newX].type === 'floor') {
+                player.x = newX;
+                player.y = newY;
+            }
+            
+            // Apply burn status effect
+            player.statusEffects = player.statusEffects || [];
+            player.statusEffects.push({
+                type: 'burn',
+                damage: 5,
+                duration: fireConfig.burnDuration,
+                appliedAt: Date.now()
+            });
+            
+            // Spread fire to adjacent tiles
+            const fireSpreadRadius = 1;
+            for (let dy = -fireSpreadRadius; dy <= fireSpreadRadius; dy++) {
+                for (let dx = -fireSpreadRadius; dx <= fireSpreadRadius; dx++) {
+                    if (dx === 0 && dy === 0) continue; // Skip center
+                    
+                    const spreadX = player.x + dx;
+                    const spreadY = player.y + dy;
+                    
+                    if (spreadX >= 0 && spreadX < gameState.mapWidth && 
+                        spreadY >= 0 && spreadY < gameState.mapHeight) {
+                        
+                        // Chance to spread fire
+                        if (Math.random() < fireConfig.spreadChance) {
+                            // Mark tile as temporarily on fire
+                            if (!gameState.map[spreadY][spreadX].hazard && 
+                                gameState.map[spreadY][spreadX].type === 'floor') {
+                                
+                                gameState.map[spreadY][spreadX].temporaryHazard = {
+                                    type: 'fire_spread',
+                                    duration: 5000,
+                                    createdAt: Date.now(),
+                                    damage: fireDamage * 0.5
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Clear out walls in immediate vicinity (fire melts through)
+            const meltRadius = 1;
+            for (let dy = -meltRadius; dy <= meltRadius; dy++) {
+                for (let dx = -meltRadius; dx <= meltRadius; dx++) {
+                    const meltX = player.x + dx;
+                    const meltY = player.y + dy;
+                    
+                    if (meltX >= 0 && meltX < gameState.mapWidth && 
+                        meltY >= 0 && meltY < gameState.mapHeight) {
+                        
+                        // Fire can melt through regular walls (not reinforced)
+                        if (gameState.map[meltY][meltX].type === 'wall' || 
+                            gameState.map[meltY][meltX].type === 'wall_ore') {
+                            
+                            // 50% chance to melt wall
+                            if (Math.random() < 0.5) {
+                                gameState.map[meltY][meltX].type = 'floor';
+                                gameState.map[meltY][meltX].scorched = true;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            gameState.message = `🔥 ${player.name} triggered a FIRE TRAP! They took ${fireDamage} damage and are burning!`;
+            break;
     }
     
     return gameState;

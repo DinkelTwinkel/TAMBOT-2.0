@@ -1122,6 +1122,155 @@ const UNIFIED_ITEM_POOL = {
     ]
 };
 
+// Mine-to-ore correspondence mapping
+const MINE_ORE_CORRESPONDENCE = {
+    // Coal Mines and variants
+    '1': { oreId: '1', boost: 0.30 },      // Coal Mines L0 -> Coal Ore
+    '1001': { oreId: '1', boost: 0.35 },   // Coal Mines L-1
+    '1002': { oreId: '1', boost: 0.40 },   // Coal Mines L-2
+    '1003': { oreId: '1', boost: 0.45 },   // Coal Mines L-3
+    '1004': { oreId: '1', boost: 0.50 },   // Coal Mines L-4
+    '1005': { oreId: '1', boost: 0.55 },   // Coal Mines L-5
+    '101': { oreId: '1', boost: 0.60 },    // The Coal Pits L0
+    '1011': { oreId: '1', boost: 0.65 },   // The Coal Pits L-1
+    '1012': { oreId: '1', boost: 0.70 },   // The Coal Pits L-2
+    '1013': { oreId: '1', boost: 0.75 },   // The Coal Pits L-3
+    '1014': { oreId: '1', boost: 0.80 },   // The Coal Pits L-4
+    '1015': { oreId: '1', boost: 0.85 },   // The Coal Pits L-5
+    '113': { oreId: '1', boost: 0.90 },    // The All Black
+    
+    // Topaz Mines
+    '2': { oreId: '2', boost: 0.30 },      // Topaz Mine L0 -> Topaz
+    '2001': { oreId: '2', boost: 0.35 },
+    '2002': { oreId: '2', boost: 0.40 },
+    '2003': { oreId: '2', boost: 0.45 },
+    '2004': { oreId: '2', boost: 0.50 },
+    '2005': { oreId: '2', boost: 0.55 },
+    '102': { oreId: '2', boost: 0.60 },    // The Topaz Core L0
+    '2011': { oreId: '2', boost: 0.65 },
+    '2012': { oreId: '2', boost: 0.70 },
+    '2013': { oreId: '2', boost: 0.75 },
+    '2014': { oreId: '2', boost: 0.80 },
+    '2015': { oreId: '2', boost: 0.85 },
+    '114': { oreId: '2', boost: 0.90 },    // The Sun Under
+    
+    // Diamond Mines
+    '3': { oreId: '6', boost: 0.30 },      // Diamond Mines L0 -> Diamond
+    '3001': { oreId: '6', boost: 0.35 },
+    '3002': { oreId: '6', boost: 0.40 },
+    '3003': { oreId: '6', boost: 0.45 },
+    '3004': { oreId: '6', boost: 0.50 },
+    '3005': { oreId: '6', boost: 0.55 },
+    '103': { oreId: '6', boost: 0.60 },    // Diamond Throne L0
+    '3011': { oreId: '6', boost: 0.65 },
+    '3012': { oreId: '6', boost: 0.70 },
+    '3013': { oreId: '6', boost: 0.75 },
+    '3014': { oreId: '6', boost: 0.80 },
+    '3015': { oreId: '6', boost: 0.85 },
+    '115': { oreId: '6', boost: 0.90 },    // The Diamond Crown
+    
+    // Emerald Caverns
+    '4': { oreId: '23', boost: 0.30 },     // Emerald Caverns L0 -> Emerald
+    '4001': { oreId: '23', boost: 0.35 },
+    '4002': { oreId: '23', boost: 0.40 },
+    '4003': { oreId: '23', boost: 0.45 },
+    '4004': { oreId: '23', boost: 0.50 },
+    '4005': { oreId: '23', boost: 0.55 },
+    '104': { oreId: '23', boost: 0.60 },   // Emerald Sanctum L0
+    '4011': { oreId: '23', boost: 0.65 },
+    '4012': { oreId: '23', boost: 0.70 },
+    '4013': { oreId: '23', boost: 0.75 },
+    '4014': { oreId: '23', boost: 0.80 },
+    '4015': { oreId: '23', boost: 0.85 },
+    '116': { oreId: '23', boost: 0.90 },   // Emerald World Tree
+    
+    // Ruby Depths
+    '5': { oreId: '24', boost: 0.30 },     // Ruby Depths L0 -> Ruby
+    '5001': { oreId: '24', boost: 0.35 },
+    '5002': { oreId: '24', boost: 0.40 },
+    '5003': { oreId: '24', boost: 0.45 },
+    '5004': { oreId: '24', boost: 0.50 },
+    '5005': { oreId: '24', boost: 0.55 },
+    '105': { oreId: '24', boost: 0.60 },   // Ruby Tunnels L0
+    '5011': { oreId: '24', boost: 0.65 },
+    '5012': { oreId: '24', boost: 0.70 },
+    '5013': { oreId: '24', boost: 0.75 },
+    '5014': { oreId: '24', boost: 0.80 },
+    '5015': { oreId: '24', boost: 0.85 },
+    '117': { oreId: '24', boost: 0.90 },   // Volcanica
+    
+    // Obsidian Forge
+    '6': { oreId: '25', boost: 0.30 },     // Obsidian Forge L0 -> Obsidian
+    '6001': { oreId: '25', boost: 0.35 },
+    '6002': { oreId: '25', boost: 0.40 },
+    '6003': { oreId: '25', boost: 0.45 },
+    '6004': { oreId: '25', boost: 0.50 },
+    '6005': { oreId: '25', boost: 0.55 },
+    '106': { oreId: '25', boost: 0.60 },   // Obsidian Corridors L0
+    '6011': { oreId: '25', boost: 0.65 },
+    '6012': { oreId: '25', boost: 0.70 },
+    '6013': { oreId: '25', boost: 0.75 },
+    '6014': { oreId: '25', boost: 0.80 },
+    '6015': { oreId: '25', boost: 0.85 },
+    '118': { oreId: '25', boost: 0.90 },   // The Black Heart
+    
+    // Mythril Sanctum
+    '7': { oreId: '26', boost: 0.30 },     // Mythril Sanctum L0 -> Mythril Ore
+    '7001': { oreId: '26', boost: 0.35 },
+    '7002': { oreId: '26', boost: 0.40 },
+    '7003': { oreId: '26', boost: 0.45 },
+    '7004': { oreId: '26', boost: 0.50 },
+    '7005': { oreId: '26', boost: 0.55 },
+    '107': { oreId: '26', boost: 0.60 },   // Mythril's Rest L0
+    '7011': { oreId: '26', boost: 0.65 },
+    '7012': { oreId: '26', boost: 0.70 },
+    '7013': { oreId: '26', boost: 0.75 },
+    '7014': { oreId: '26', boost: 0.80 },
+    '7015': { oreId: '26', boost: 0.85 },
+    '119': { oreId: '26', boost: 0.90 },   // Blue Cosmos
+    
+    // Adamantite Abyss
+    '8': { oreId: '27', boost: 0.30 },     // Adamantite Abyss L0 -> Adamantite Ore
+    '8001': { oreId: '27', boost: 0.35 },
+    '8002': { oreId: '27', boost: 0.40 },
+    '8003': { oreId: '27', boost: 0.45 },
+    '8004': { oreId: '27', boost: 0.50 },
+    '8005': { oreId: '27', boost: 0.55 },
+    '18': { oreId: '27', boost: 0.90 },    // Abyssal Adamantite Depths
+    
+    // Iron Town
+    '10': { oreId: '22', boost: 0.30 },    // Iron Town L0 -> Iron Ore
+    '10001': { oreId: '22', boost: 0.35 },
+    '10002': { oreId: '22', boost: 0.40 },
+    '10003': { oreId: '22', boost: 0.45 },
+    '10004': { oreId: '22', boost: 0.50 },
+    '10005': { oreId: '22', boost: 0.55 },
+    '110': { oreId: '22', boost: 0.60 },   // Iron Fortress L0
+    '10011': { oreId: '22', boost: 0.65 },
+    '10012': { oreId: '22', boost: 0.70 },
+    '10013': { oreId: '22', boost: 0.75 },
+    '10014': { oreId: '22', boost: 0.80 },
+    '10015': { oreId: '22', boost: 0.85 },
+    '121': { oreId: '22', boost: 0.90 },   // Black Iron
+    
+    // Crystal Grottos
+    '11': { oreId: '102', boost: 0.30 },   // Crystal Grottos L0 -> Crystal Ore
+    '11001': { oreId: '102', boost: 0.35 },
+    '11002': { oreId: '102', boost: 0.40 },
+    '11003': { oreId: '102', boost: 0.45 },
+    '11004': { oreId: '102', boost: 0.50 },
+    '11005': { oreId: '102', boost: 0.55 },
+    '111': { oreId: '102', boost: 0.60 },  // Crystal Paradise L0
+    '11011': { oreId: '102', boost: 0.65 },
+    '11012': { oreId: '102', boost: 0.70 },
+    '11013': { oreId: '102', boost: 0.75 },
+    '11014': { oreId: '102', boost: 0.80 },
+    '11015': { oreId: '102', boost: 0.85 },
+    '122': { oreId: '102', boost: 0.90 },  // Crystal Heaven
+    
+    // Note: ???'s Gullet (id: 16) and Rusty Relic Realm (id: 17) are special cases handled separately
+};
+
 // Unified function to find any item
 function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false, isDeeperMine = false, mineTypeId = null) {
     // Check if we're in ???'s gullet (id: 16)
@@ -1189,9 +1338,34 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     // Step 2: Apply context multipliers
     const contextMults = CONTEXT_MULTIPLIERS[context] || CONTEXT_MULTIPLIERS.exploration;
     
+    // Get mine correspondence info
+    const mineCorrespondence = MINE_ORE_CORRESPONDENCE[String(mineTypeId)];
+    
     for (const item of eligibleItems) {
         const categoryMult = contextMults[item.category] || 1.0;
         item.adjustedWeight = item.baseWeight * categoryMult;
+        
+        // Apply mine-specific ore boost
+        if (mineCorrespondence && item.itemId === mineCorrespondence.oreId) {
+            // For mining context, ensure the corresponding ore has at minimum the boost percentage chance
+            if (context === 'mining_wall' || context === 'rare_ore') {
+                // To ensure this ore has at least X% chance, we need to boost its weight significantly
+                // Calculate the weight of all other items
+                const otherItemsWeight = eligibleItems
+                    .filter(i => i.itemId !== mineCorrespondence.oreId)
+                    .reduce((sum, i) => sum + (i.baseWeight * (contextMults[i.category] || 1.0)), 0);
+                
+                // To achieve the target percentage: weight / (weight + others) = boost
+                // Solving for weight: weight = (boost * others) / (1 - boost)
+                const targetWeight = (mineCorrespondence.boost * otherItemsWeight) / (1 - mineCorrespondence.boost);
+                
+                // Set the weight to achieve at least the target percentage
+                item.adjustedWeight = Math.max(item.adjustedWeight, targetWeight);
+            } else {
+                // For other contexts (treasure chests, etc.), apply a smaller boost
+                item.adjustedWeight *= 1.5;
+            }
+        }
         
         // Apply tier multipliers based on context
         if (context === 'treasure_chest' || context === 'rare_ore') {
@@ -1842,6 +2016,7 @@ module.exports = {
     // Unified item system
     UNIFIED_ITEM_POOL,
     GULLET_ITEM_POOL,  // Export the gullet item pool
+    MINE_ORE_CORRESPONDENCE,  // Export mine-ore correspondence mapping
     ITEM_CATEGORY,
     CONTEXT_MULTIPLIERS,
     findItemUnified,

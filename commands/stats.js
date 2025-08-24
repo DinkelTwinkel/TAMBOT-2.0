@@ -65,7 +65,10 @@ module.exports = {
       if (Object.keys(stats).length > 0) {
         const statsDisplay = Object.entries(stats)
           .sort(([a], [b]) => a.localeCompare(b))
-          .map(([ability, power]) => `${getStatEmoji(ability)} **${capitalize(ability)}:** ${power}`)
+          .map(([ability, power]) => {
+            const sign = power >= 0 ? '+' : '';
+            return `${getStatEmoji(ability)} **${capitalize(ability)}:** ${sign}${power}`;
+          })
           .join(' | ');
         
         embed.addFields({
@@ -93,11 +96,12 @@ module.exports = {
           // Format stats with actual power shown (for unique items with maintenance scaling)
           const statsStr = item.abilities
             .map(a => {
+              const sign = a.power >= 0 ? '+' : '';
               // Show base power in parentheses if it's scaled down
               if (item.isUnique && a.basePower && a.power !== a.basePower) {
-                return `${a.name} +${a.power} (${a.basePower})`;
+                return `${a.name} ${sign}${a.power} (${a.basePower})`;
               }
-              return `${a.name} +${a.power}`;
+              return `${a.name} ${sign}${a.power}`;
             })
             .join(', ');
           
@@ -130,9 +134,13 @@ module.exports = {
               itemDisplay = `• ${itemName} **(${statsStr})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)`;
             } else {
               // Multiple stats - show first inline, rest with └
-              const primaryStat = `${item.abilities[0].name} +${item.abilities[0].power}`;
+              const primarySign = item.abilities[0].power >= 0 ? '+' : '';
+              const primaryStat = `${item.abilities[0].name} ${primarySign}${item.abilities[0].power}`;
               const additionalStats = item.abilities.slice(1)
-                .map(a => `${a.name} +${a.power}`)
+                .map(a => {
+                  const sign = a.power >= 0 ? '+' : '';
+                  return `${a.name} ${sign}${a.power}`;
+                })
                 .join(', ');
               
               itemDisplay = `• ${itemName} **(${primaryStat})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)\n  └ ${additionalStats}`;
@@ -168,9 +176,10 @@ module.exports = {
             // List all stats on the same line
             const statsLine = legendary.abilities
               .map(ability => {
+                const sign = ability.power >= 0 ? '+' : '';
                 const powerDisplay = ability.basePower && ability.power !== ability.basePower
-                  ? `${ability.name} +${ability.power} (base: ${ability.basePower})`
-                  : `${ability.name} +${ability.power}`;
+                  ? `${ability.name} ${sign}${ability.power} (base: ${ability.basePower})`
+                  : `${ability.name} ${sign}${ability.power}`;
                 return powerDisplay;
               })
               .join(', ');
@@ -225,7 +234,10 @@ module.exports = {
         const buffsDisplay = activeBuffs.map(buff => {
           const timeLeft = getTimeRemaining(buff.expiresAt);
           const effects = Array.from(buff.effects.entries())
-            .map(([ability, power]) => `${ability} +${power}`)
+            .map(([ability, power]) => {
+              const sign = power >= 0 ? '+' : '';
+              return `${ability} ${sign}${power}`;
+            })
             .join(', ');
           return `• **${buff.name}** (${effects}) - *${timeLeft}*`;
         }).join('\n');

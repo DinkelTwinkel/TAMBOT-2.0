@@ -136,13 +136,13 @@ module.exports = async function consume(context) {
                 console.error('[CONSUME] Failed to apply buff:', buffError);
                 // Continue even if buff fails - item is already consumed
             }
+                   // Log the consumption for debugging
+                console.log(`[CONSUME] ${userId} consumed item ${item.id} (${item.name})`);
         }
         
-        // Log the consumption for debugging
-        console.log(`[CONSUME] ${userId} consumed item ${item.id} (${item.name})`);
 
         // If this is a special consumable with additional effects, handle them
-        if (item.id === '13') { // Banana Axe special case
+        else if (item.id === '13') { // Banana Axe special case
             // The Banana Axe is both a tool and consumable
             // It's a slippery, unreliable tool that can be eaten for power!
             const bananaMsg = await channel.send({

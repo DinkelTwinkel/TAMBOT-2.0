@@ -70,15 +70,15 @@ module.exports = {
             return a.name.localeCompare(b.name);
         });
 
-        // Pagination setup
+        // Paginate items based on description character limit
+        const pages = this.paginateItems(usableInventoryItems);
         let currentPage = 0;
-        const itemsPerPage = 25;
-        const totalPages = Math.ceil(usableInventoryItems.length / itemsPerPage);
+        const totalPages = pages.length;
 
         // Send initial message
         const message = await interaction.editReply({
-            embeds: [this.createUsableItemsEmbed(usableInventoryItems, currentPage, itemsPerPage, user, totalPages)],
-            components: this.createComponents(usableInventoryItems, currentPage, itemsPerPage, totalPages, user.id, interaction.channelId),
+            embeds: [this.createUsableItemsEmbed(pages[currentPage], currentPage, user, totalPages)],
+            components: this.createComponents(pages[currentPage], currentPage, totalPages, user.id, interaction.channelId),
             ephemeral: true
         });
 
@@ -96,8 +96,8 @@ module.exports = {
             }
 
             await i.update({
-                embeds: [this.createUsableItemsEmbed(usableInventoryItems, currentPage, itemsPerPage, user, totalPages)],
-                components: this.createComponents(usableInventoryItems, currentPage, itemsPerPage, totalPages, user.id, interaction.channelId),
+                embeds: [this.createUsableItemsEmbed(pages[currentPage], currentPage, user, totalPages)],
+                components: this.createComponents(pages[currentPage], currentPage, totalPages, user.id, interaction.channelId),
                 ephemeral: true
             });
         });
@@ -113,76 +113,161 @@ module.exports = {
         });
     },
 
-    // Create embed showing usable items
-    createUsableItemsEmbed(items, page, itemsPerPage, user, totalPages) {
-        const start = page * itemsPerPage;
-        const end = Math.min(start + itemsPerPage, items.length);
-        const pageItems = items.slice(start, end);
+    // Paginate items based on Discord's description limit
+    paginateItems(items) {
+        const maxDescriptionLength = 4096 - 7; // Account for ```\n at start and ``` at end
+        const pages = [];
+        let currentPageItems = [];
+        let currentDescription = '';
 
-        const embed = new EmbedBuilder()
-            .setTitle('🎮 Use Items')
-            .setDescription('Select an item to use from your inventory')
-            .setColor(0x9B59B6)
-            .setFooter({ text: `Page ${page + 1} of ${totalPages} • Total usable items: ${items.length}` })
-            .setTimestamp();
-
-        // Group items by type for better display
+        // Group items by type first
         const itemsByType = {};
-        for (const item of pageItems) {
+        for (const item of items) {
             if (!itemsByType[item.type]) {
                 itemsByType[item.type] = [];
             }
             itemsByType[item.type].push(item);
         }
 
-        // Add fields for each type
+        // Build description and split into pages
         for (const [type, typeItems] of Object.entries(itemsByType)) {
             const typeEmoji = this.getTypeEmoji(type);
-            const itemList = typeItems.map(item => {
-                let line = `• **${item.name}** (x${item.owned})`;
+            const typeHeader = `\n**${typeEmoji} ${this.formatTypeName(type)}**\n`;
+            
+            // Check if we need to start a new page for this type header
+            if (currentDescription.length + typeHeader.length > maxDescriptionLength && currentPageItems.length > 0) {
+                pages.push(currentPageItems);
+                currentPageItems = [];
+                currentDescription = '';
+            }
+            
+            let typeStartedOnPage = false;
+            
+            for (const item of typeItems) {
+                let line = `『${item.name}』 (x${item.owned})`;
                 
                 // Add script type indicator
                 line += ` [${item.script}]`;
                 
                 // Add value if exists
                 if (item.value) {
-                    line += ` - 💰${item.value}`;
-                }
-                
-                // Add durability if exists
-                if (item.maxDurability && item.currentDurability !== undefined) {
-                    line += ` [${item.currentDurability}/${item.maxDurability}]`;
+                    line += ` - ${item.value}`;
                 }
                 
                 // Add duration if exists (for consumables)
                 if (item.duration) {
-                    line += ` ⏱️${item.duration}m`;
+                    line += ` BUFF ${item.duration}m`;
                 }
                 
                 // Add abilities if exists
                 if (item.abilities && item.abilities.length > 0) {
-                    const abilityList = item.abilities.map(a => `${a.name}+${a.powerlevel}`).join(', ');
+                    const abilityList = item.abilities.map(a => {
+                        const sign = a.powerlevel >= 0 ? '+' : '';
+                        return `${a.name}${sign}${a.powerlevel}`;
+                    }).join(', ');
                     line += ` (${abilityList})`;
                 }
                 
-                return line;
-            }).join('\n');
-
-            embed.addFields({
-                name: `${typeEmoji} ${this.formatTypeName(type)}`,
-                value: itemList || 'None',
-                inline: false
-            });
+                line += '\n';
+                
+                // Calculate what would be added
+                const toAdd = (!typeStartedOnPage ? typeHeader : '') + line;
+                
+                // Check if adding this item would exceed the limit
+                if (currentDescription.length + toAdd.length > maxDescriptionLength && currentPageItems.length > 0) {
+                    // Start a new page
+                    pages.push(currentPageItems);
+                    currentPageItems = [];
+                    currentDescription = typeHeader + line;
+                    typeStartedOnPage = true;
+                } else {
+                    // Add to current page
+                    if (!typeStartedOnPage) {
+                        currentDescription += typeHeader;
+                        typeStartedOnPage = true;
+                    }
+                    currentDescription += line;
+                }
+                
+                currentPageItems.push(item);
+            }
         }
+        
+        // Add remaining items
+        if (currentPageItems.length > 0) {
+            pages.push(currentPageItems);
+        }
+        
+        return pages.length > 0 ? pages : [[]];
+    },
+
+    // Create embed showing usable items
+    createUsableItemsEmbed(pageItems, page, user, totalPages) {
+        // Build description from page items
+        let description = '```\n';
+        const itemsByType = {};
+        
+        // Group items by type
+        for (const item of pageItems) {
+            if (!itemsByType[item.type]) {
+                itemsByType[item.type] = [];
+            }
+            itemsByType[item.type].push(item);
+        }
+        
+        // Build description
+        for (const [type, typeItems] of Object.entries(itemsByType)) {
+            const typeEmoji = this.getTypeEmoji(type);
+            description += `\n**${typeEmoji} ${this.formatTypeName(type)}**\n`;
+            
+            for (const item of typeItems) {
+                let line = `『${item.name}』 (x${item.owned})`;
+                
+                // Add script type indicator
+                line += ` [${item.script}]`;
+                
+                // Add value if exists
+                if (item.value) {
+                    line += ` - ${item.value}`;
+                }
+                
+                // Add duration if exists (for consumables)
+                if (item.duration) {
+                    line += ` BUFF ${item.duration}m`;
+                }
+                
+                // Add abilities if exists
+                if (item.abilities && item.abilities.length > 0) {
+                    const abilityList = item.abilities.map(a => {
+                        const sign = a.powerlevel >= 0 ? '+' : '';
+                        return `${a.name}${sign}${a.powerlevel}`;
+                    }).join(', ');
+                    line += ` (${abilityList})`;
+                }
+                
+                description += line + '\n';
+            }
+        }
+        
+        // If no items, show a message
+        if (description === '```\n') {
+            description = '```\nNo items available on this page.\n```';
+        } else {
+            description += '```';
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle('🎮 Use Items')
+            .setDescription(description)
+            .setColor(0x9B59B6)
+            .setFooter({ text: `Page ${page + 1} of ${totalPages} • Items on this page: ${pageItems.length}` })
+            .setTimestamp();
 
         return embed;
     },
 
-    createComponents(items, page, itemsPerPage, totalPages, userId, channelId) {
+    createComponents(pageItems, page, totalPages, userId, channelId) {
         const components = [];
-        const start = page * itemsPerPage;
-        const end = Math.min(start + itemsPerPage, items.length);
-        const pageItems = items.slice(start, end);
 
         // Create select menu with items on current page
         const selectOptions = pageItems.map(item => {
@@ -201,6 +286,12 @@ module.exports = {
 
             // Create value with all necessary data encoded
             const value = `${userId}_${channelId}_${item.id}_${page}`;
+            
+            // Ensure value doesn't exceed Discord's limit (100 chars)
+            if (value.length > 100) {
+                console.error(`Warning: Select menu value too long for item ${item.id}`);
+                return null; // Return null for invalid items
+            }
 
             return {
                 label: label,
@@ -208,7 +299,7 @@ module.exports = {
                 value: value,
                 emoji: this.getTypeEmoji(item.type)
             };
-        });
+        }).filter(option => option !== null); // Filter out null values
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId(`use_item_select`)

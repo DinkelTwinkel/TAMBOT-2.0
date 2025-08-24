@@ -890,6 +890,137 @@ async function drawEncounter(ctx, pixelX, pixelY, tileSize, encountersData, tile
 }
 
 /**
+ * Draw animated fire trap with enhanced visual effects
+ */
+function drawFireTrap(ctx, centerX, centerY, tileSize, isVisible, wasDiscovered, animationFrame = 0) {
+    const fireSize = Math.max(tileSize * 0.8, 16);
+    
+    // Create multiple flame layers for depth
+    const flames = [
+        { size: fireSize, offset: 0, alpha: 0.9 },
+        { size: fireSize * 0.8, offset: -fireSize * 0.1, alpha: 0.7 },
+        { size: fireSize * 0.6, offset: -fireSize * 0.2, alpha: 0.5 }
+    ];
+    
+    ctx.save();
+    
+    // Draw base embers/coals
+    const emberGradient = ctx.createRadialGradient(
+        centerX, centerY + fireSize * 0.3, 0,
+        centerX, centerY + fireSize * 0.3, fireSize * 0.5
+    );
+    emberGradient.addColorStop(0, isVisible ? '#FF4500' : '#7F2200');
+    emberGradient.addColorStop(0.5, isVisible ? '#8B0000' : '#450000');
+    emberGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = emberGradient;
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY + fireSize * 0.3, fireSize * 0.4, fireSize * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw flame layers
+    flames.forEach((flame, index) => {
+        ctx.save();
+        ctx.globalAlpha = flame.alpha;
+        
+        // Animate flame with sine wave
+        const waveOffset = Math.sin(animationFrame * 0.1 + index) * fireSize * 0.05;
+        const heightVariation = 1 + Math.sin(animationFrame * 0.15 + index * 0.5) * 0.1;
+        
+        // Create flame gradient
+        const flameGradient = ctx.createRadialGradient(
+            centerX + waveOffset, centerY + flame.offset, 0,
+            centerX + waveOffset, centerY + flame.offset, flame.size / 2
+        );
+        
+        // Inner core - white hot
+        flameGradient.addColorStop(0, isVisible ? '#FFFFFF' : '#808080');
+        flameGradient.addColorStop(0.2, isVisible ? '#FFFF99' : '#7F7F4C');
+        flameGradient.addColorStop(0.4, isVisible ? '#FFD700' : '#7F6B00');
+        flameGradient.addColorStop(0.6, isVisible ? '#FFA500' : '#7F5200');
+        flameGradient.addColorStop(0.8, isVisible ? '#FF6B35' : '#7F351A');
+        flameGradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        
+        // Draw flame shape using bezier curves
+        ctx.fillStyle = flameGradient;
+        ctx.beginPath();
+        
+        const flameHeight = flame.size * heightVariation;
+        const flameWidth = flame.size * 0.6;
+        
+        // Flame path
+        ctx.moveTo(centerX + waveOffset, centerY + flame.offset - flameHeight * 0.5);
+        ctx.bezierCurveTo(
+            centerX + waveOffset - flameWidth * 0.5, centerY + flame.offset - flameHeight * 0.3,
+            centerX + waveOffset - flameWidth * 0.4, centerY + flame.offset + flameHeight * 0.2,
+            centerX + waveOffset, centerY + flame.offset + flameHeight * 0.3
+        );
+        ctx.bezierCurveTo(
+            centerX + waveOffset + flameWidth * 0.4, centerY + flame.offset + flameHeight * 0.2,
+            centerX + waveOffset + flameWidth * 0.5, centerY + flame.offset - flameHeight * 0.3,
+            centerX + waveOffset, centerY + flame.offset - flameHeight * 0.5
+        );
+        
+        ctx.fill();
+        ctx.restore();
+    });
+    
+    // Add sparks/particles
+    if (tileSize >= 32) {
+        ctx.save();
+        ctx.globalAlpha = 0.8;
+        for (let i = 0; i < 5; i++) {
+            const sparkTime = (animationFrame * 0.02 + i * 0.4) % 1;
+            const sparkY = centerY + fireSize * 0.3 - sparkTime * fireSize * 1.5;
+            const sparkX = centerX + Math.sin(i * 2 + animationFrame * 0.05) * fireSize * 0.3;
+            const sparkSize = Math.max(1, (1 - sparkTime) * tileSize * 0.05);
+            
+            ctx.fillStyle = isVisible ? '#FFD700' : '#7F6B00';
+            ctx.beginPath();
+            ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+    
+    // Add heat distortion effect (shimmer)
+    ctx.save();
+    ctx.globalAlpha = 0.2;
+    const shimmerGradient = ctx.createRadialGradient(
+        centerX, centerY - fireSize * 0.2, 0,
+        centerX, centerY - fireSize * 0.2, fireSize
+    );
+    shimmerGradient.addColorStop(0, isVisible ? 'rgba(255, 255, 255, 0.5)' : 'rgba(128, 128, 128, 0.5)');
+    shimmerGradient.addColorStop(0.5, 'rgba(255, 165, 0, 0.2)');
+    shimmerGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = shimmerGradient;
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY - fireSize * 0.2, fireSize * 0.8, fireSize * 1.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    
+    // Add ground scorch marks
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    const scorchGradient = ctx.createRadialGradient(
+        centerX, centerY + fireSize * 0.35, 0,
+        centerX, centerY + fireSize * 0.35, fireSize * 0.7
+    );
+    scorchGradient.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
+    scorchGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.3)');
+    scorchGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = scorchGradient;
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY + fireSize * 0.35, fireSize * 0.6, fireSize * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    
+    ctx.restore();
+}
+
+/**
  * Fallback rendering for encounters without images
  */
 function drawEncounterFallback(ctx, encounter, centerX, centerY, tileSize, isVisible, wasDiscovered) {
@@ -914,46 +1045,9 @@ function drawEncounterFallback(ctx, encounter, centerX, centerY, tileSize, isVis
     } else {
         // Special rendering for fire_blast
         if (encounter.type === 'fire_blast' || encounter.type === ENCOUNTER_TYPES?.FIRE_BLAST) {
-            // Draw fire effect
-            const fireGradient = ctx.createRadialGradient(
-                centerX, centerY, 0,
-                centerX, centerY, encounterSize / 2
-            );
-            fireGradient.addColorStop(0, isVisible ? '#FFFF00' : '#7F7F00');
-            fireGradient.addColorStop(0.3, isVisible ? '#FFA500' : '#7F5200');
-            fireGradient.addColorStop(0.6, isVisible ? '#FF6B35' : '#7F351A');
-            fireGradient.addColorStop(1, isVisible ? 'rgba(255, 107, 53, 0.3)' : 'rgba(127, 53, 26, 0.3)');
-            
-            ctx.fillStyle = fireGradient;
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, encounterSize / 2, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw fire symbol
-            if (tileSize >= 20) {
-                ctx.fillStyle = isVisible ? '#FFFFFF' : '#7F7F7F';
-                ctx.font = `bold ${Math.floor(encounterSize * 0.5)}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('🔥', centerX, centerY);
-            }
-            
-            // Add flickering glow effect
-            ctx.save();
-            ctx.globalAlpha = 0.3;
-            const glowSize = encounterSize * (1 + Math.random() * 0.2);
-            const glowGradient = ctx.createRadialGradient(
-                centerX, centerY, 0,
-                centerX, centerY, glowSize
-            );
-            glowGradient.addColorStop(0, isVisible ? '#FF6B35' : '#7F351A');
-            glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = glowGradient;
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, glowSize, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-            
+            // Use the enhanced fire trap rendering
+            const animationFrame = Date.now() / 50; // Simple animation based on time
+            drawFireTrap(ctx, centerX, centerY, tileSize, isVisible, wasDiscovered, animationFrame);
         } else {
             // Default rendering for other hazards
             const baseColor = config?.color || '#FF0000';
