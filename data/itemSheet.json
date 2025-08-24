@@ -850,5 +850,205 @@
     "image": "shepherds_pie",
     "script": "consume",
     "duration": 65
+  },
+  {
+    "id": "200",
+    "name": "Gullet Flesh Scrap",
+    "type": "mineLoot",
+    "description": "A small piece of pulsating flesh from the gullet's walls.",
+    "value": 3,
+    "vendable": false,
+    "abilities": [],
+    "image": "flesh_scrap"
+  },
+  {
+    "id": "201",
+    "name": "Sinew Strand",
+    "type": "mineLoot",
+    "description": "Tough, fibrous tissue that still twitches occasionally.",
+    "value": 10,
+    "vendable": false,
+    "abilities": [],
+    "image": "sinew_strand"
+  },
+  {
+    "id": "202",
+    "name": "Bile-Soaked Meat",
+    "type": "mineLoot",
+    "description": "Meat chunks marinated in digestive acids. Surprisingly tender.",
+    "value": 18,
+    "vendable": false,
+    "abilities": [],
+    "image": "bile_meat"
+  },
+  {
+    "id": "203",
+    "name": "Muscle Fiber Bundle",
+    "type": "mineLoot",
+    "description": "A thick bundle of muscle fibers, still warm to the touch.",
+    "value": 30,
+    "vendable": false,
+    "abilities": [],
+    "image": "muscle_bundle"
+  },
+  {
+    "id": "204",
+    "name": "Marbled Organ Meat",
+    "type": "mineLoot",
+    "description": "Rich, fatty meat from an unknown organ. Glistens in the light.",
+    "value": 55,
+    "vendable": false,
+    "abilities": [],
+    "image": "organ_meat"
+  },
+  {
+    "id": "205",
+    "name": "Digestive Tract Section",
+    "type": "mineLoot",
+    "description": "A preserved section of digestive tract. Still contracting rhythmically.",
+    "value": 80,
+    "vendable": false,
+    "abilities": [],
+    "image": "tract_section"
+  },
+  {
+    "id": "206",
+    "name": "Prime Stomach Lining",
+    "type": "mineLoot",
+    "description": "Premium cut from the stomach walls. Highly prized by connoisseurs.",
+    "value": 110,
+    "vendable": false,
+    "abilities": [],
+    "image": "stomach_lining"
+  },
+  {
+    "id": "207",
+    "name": "Gastric Membrane",
+    "type": "mineLoot",
+    "description": "A translucent membrane infused with powerful digestive enzymes.",
+    "value": 160,
+    "vendable": false,
+    "abilities": [],
+    "image": "gastric_membrane"
+  },
+  {
+    "id": "208",
+    "name": "Esophageal Core",
+    "type": "mineLoot",
+    "description": "The dense, muscular core of the esophagus. Extremely rare.",
+    "value": 220,
+    "vendable": false,
+    "abilities": [],
+    "image": "esophageal_core"
+  },
+  {
+    "id": "209",
+    "name": "Heart of the Gullet",
+    "type": "mineLoot",
+    "description": "The legendary heart of ???'s gullet. Still beats with eldritch power.",
+    "value": 5000,
+    "vendable": false,
+    "abilities": [],
+    "image": "gullet_heart"
+  },
+  {
+    "id": "210",
+    "name": "Bone Marrow Extract",
+    "type": "mineLoot",
+    "description": "Rich marrow extracted from ancient bones embedded in the flesh.",
+    "value": 40,
+    "vendable": false,
+    "abilities": [],
+    "image": "bone_marrow"
+  },
+  {
+    "id": "211",
+    "name": "Cartilage Chunk",
+    "type": "mineLoot",
+    "description": "Rubbery cartilage that provides structure to the gullet.",
+    "value": 25,
+    "vendable": false,
+    "abilities": [],
+    "image": "cartilage_chunk"
+  },
+  {
+    "id": "212",
+    "name": "Blood Vessel Network",
+    "type": "mineLoot",
+    "description": "An intact network of blood vessels, still pulsing with dark ichor.",
+    "value": 95,
+    "vendable": false,
+    "abilities": [],
+    "image": "blood_vessels"
+  },
+  {
+    "id": "213",
+    "name": "Lymph Node Cluster",
+    "type": "mineLoot",
+    "description": "A cluster of swollen lymph nodes, filtering unknown substances.",
+    "value": 70,
+    "vendable": false,
+    "abilities": [],
+    "image": "lymph_nodes"
+  },
+  {
+    "id": "214",
+    "name": "Neural Tissue Sample",
+    "type": "mineLoot",
+    "description": "Nerve tissue that sparks with residual electrical activity.",
+    "value": 145,
+    "vendable": false,
+    "abilities": [],
+    "image": "neural_tissue"
+  },
+  {
+    "id": "215",
+    "name": "Adipose Deposit",
+    "type": "mineLoot",
+    "description": "A large deposit of fatty tissue. Surprisingly valuable.",
+    "value": 60,
+    "vendable": false,
+    "abilities": [],
+    "image": "adipose_deposit"
+  },
+  {
+    "id": "216",
+    "name": "Glandular Secretion",
+    "type": "mineLoot",
+    "description": "A vial of mysterious secretions from unknown glands.",
+    "value": 125,
+    "vendable": false,
+    "abilities": [],
+    "image": "glandular_secretion"
+  },
+  {
+    "id": "217",
+    "name": "Peristaltic Muscle Ring",
+    "type": "mineLoot",
+    "description": "A complete ring of muscles used for swallowing. Still functional.",
+    "value": 190,
+    "vendable": false,
+    "abilities": [],
+    "image": "muscle_ring"
+  },
+  {
+    "id": "218",
+    "name": "Void-Touched Flesh",
+    "type": "mineLoot",
+    "description": "Meat that has been altered by exposure to the void. Shimmers unnaturally.",
+    "value": 280,
+    "vendable": false,
+    "abilities": [],
+    "image": "void_flesh"
+  },
+  {
+    "id": "219",
+    "name": "Essence of Hunger",
+    "type": "mineLoot",
+    "description": "The crystallized essence of eternal hunger. Extremely rare and valuable.",
+    "value": 500,
+    "vendable": false,
+    "abilities": [],
+    "image": "essence_hunger"
   }
 ]

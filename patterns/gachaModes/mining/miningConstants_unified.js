@@ -326,6 +326,213 @@ const CONTEXT_MULTIPLIERS = {
     }
 };
 
+// Special meat item pool for ???'s gullet (id: 16)
+const GULLET_ITEM_POOL = {
+    // Meat items from the gullet walls
+    meats: [
+        { 
+            itemId: "200", 
+            name: "Gullet Flesh Scrap", 
+            value: 3,
+            baseWeight: 100,
+            tier: 'common',
+            minPowerLevel: 1,
+            maxPowerLevel: 3,
+            category: ITEM_CATEGORY.ORE  // Treated as ore for mining purposes
+        },
+        { 
+            itemId: "201", 
+            name: "Sinew Strand", 
+            value: 10,
+            baseWeight: 80,
+            tier: 'common',
+            minPowerLevel: 1,
+            maxPowerLevel: 4,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "202", 
+            name: "Bile-Soaked Meat", 
+            value: 18,
+            baseWeight: 60,
+            tier: 'uncommon',
+            minPowerLevel: 2,
+            maxPowerLevel: 5,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "211", 
+            name: "Cartilage Chunk", 
+            value: 25,
+            baseWeight: 50,
+            tier: 'uncommon',
+            minPowerLevel: 2,
+            maxPowerLevel: 5,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "203", 
+            name: "Muscle Fiber Bundle", 
+            value: 30,
+            baseWeight: 40,
+            tier: 'uncommon',
+            minPowerLevel: 2,
+            maxPowerLevel: 6,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "210", 
+            name: "Bone Marrow Extract", 
+            value: 40,
+            baseWeight: 35,
+            tier: 'uncommon',
+            minPowerLevel: 3,
+            maxPowerLevel: 6,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "204", 
+            name: "Marbled Organ Meat", 
+            value: 55,
+            baseWeight: 25,
+            tier: 'rare',
+            minPowerLevel: 3,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "215", 
+            name: "Adipose Deposit", 
+            value: 60,
+            baseWeight: 22,
+            tier: 'rare',
+            minPowerLevel: 3,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "213", 
+            name: "Lymph Node Cluster", 
+            value: 70,
+            baseWeight: 20,
+            tier: 'rare',
+            minPowerLevel: 3,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "205", 
+            name: "Digestive Tract Section", 
+            value: 80,
+            baseWeight: 18,
+            tier: 'rare',
+            minPowerLevel: 4,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "212", 
+            name: "Blood Vessel Network", 
+            value: 95,
+            baseWeight: 15,
+            tier: 'rare',
+            minPowerLevel: 4,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "206", 
+            name: "Prime Stomach Lining", 
+            value: 110,
+            baseWeight: 10,
+            tier: 'epic',
+            minPowerLevel: 4,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "216", 
+            name: "Glandular Secretion", 
+            value: 125,
+            baseWeight: 8,
+            tier: 'epic',
+            minPowerLevel: 5,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "214", 
+            name: "Neural Tissue Sample", 
+            value: 145,
+            baseWeight: 7,
+            tier: 'epic',
+            minPowerLevel: 5,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "207", 
+            name: "Gastric Membrane", 
+            value: 160,
+            baseWeight: 6,
+            tier: 'epic',
+            minPowerLevel: 5,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "217", 
+            name: "Peristaltic Muscle Ring", 
+            value: 190,
+            baseWeight: 4,
+            tier: 'epic',
+            minPowerLevel: 6,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "208", 
+            name: "Esophageal Core", 
+            value: 220,
+            baseWeight: 3,
+            tier: 'legendary',
+            minPowerLevel: 6,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "218", 
+            name: "Void-Touched Flesh", 
+            value: 280,
+            baseWeight: 2,
+            tier: 'legendary',
+            minPowerLevel: 7,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "209", 
+            name: "Heart of the Gullet", 
+            value: 350,
+            baseWeight: 1,
+            tier: 'legendary',
+            minPowerLevel: 7,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "219", 
+            name: "Essence of Hunger", 
+            value: 500,
+            baseWeight: 0.5,
+            tier: 'legendary',
+            minPowerLevel: 7,
+            maxPowerLevel: 7,
+            category: ITEM_CATEGORY.ORE
+        }
+    ]
+};
+
 // Complete item pool from itemSheet.json
 const UNIFIED_ITEM_POOL = {
     // Mining Ores and Gems
@@ -895,7 +1102,10 @@ const UNIFIED_ITEM_POOL = {
 };
 
 // Unified function to find any item
-function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false, isDeeperMine = false) {
+function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false, isDeeperMine = false, mineTypeId = null) {
+    // Check if we're in ???'s gullet (id: 16)
+    const isGullet = mineTypeId === 16 || mineTypeId === '16';
+    
     // Apply deeper mine bonus to effective power level
     let effectivePowerLevel = powerLevel;
     if (isDeeperMine) {
@@ -905,10 +1115,20 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     // Step 1: Get all eligible items for this power level
     const eligibleItems = [];
     
-    // Add ores
-    for (const ore of UNIFIED_ITEM_POOL.ores) {
-        if (ore.minPowerLevel <= effectivePowerLevel && ore.maxPowerLevel >= effectivePowerLevel) {
-            eligibleItems.push({...ore});
+    // If in ???'s gullet, use meat items instead of ores
+    if (isGullet) {
+        // Add meat items from gullet
+        for (const meat of GULLET_ITEM_POOL.meats) {
+            if (meat.minPowerLevel <= effectivePowerLevel && meat.maxPowerLevel >= effectivePowerLevel) {
+                eligibleItems.push({...meat});
+            }
+        }
+    } else {
+        // Add normal ores
+        for (const ore of UNIFIED_ITEM_POOL.ores) {
+            if (ore.minPowerLevel <= effectivePowerLevel && ore.maxPowerLevel >= effectivePowerLevel) {
+                eligibleItems.push({...ore});
+            }
         }
     }
     
@@ -936,8 +1156,12 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     }
     
     if (eligibleItems.length === 0) {
-        // Fallback to coal if nothing is available
-        return UNIFIED_ITEM_POOL.ores[0];
+        // Fallback to basic item if nothing is available
+        if (isGullet) {
+            return GULLET_ITEM_POOL.meats[0]; // Gullet Flesh Scrap
+        } else {
+            return UNIFIED_ITEM_POOL.ores[0]; // Coal
+        }
     }
     
     // Step 2: Apply context multipliers
@@ -1071,7 +1295,7 @@ function calculateItemQuantity(item, context, miningPower = 0, luckStat = 0, pow
 }
 
 // Legacy functions for backward compatibility
-function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency, isDeeperMine = false) {
+function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency, isDeeperMine = false, mineTypeId = null) {
     // Map tile types to contexts
     let context = 'mining_wall';
     if (tileType === TILE_TYPES.TREASURE_CHEST) {
@@ -1080,7 +1304,7 @@ function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, avail
         context = 'rare_ore';
     }
     
-    const item = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine);
+    const item = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine, mineTypeId);
     const quantity = calculateItemQuantity(item, context, miningPower, luckStat, powerLevel, isDeeperMine);
     
     // Apply efficiency value multiplier
@@ -1092,7 +1316,7 @@ function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, avail
     };
 }
 
-function generateTreasure(powerLevel, efficiency, isDeeperMine = false) {
+function generateTreasure(powerLevel, efficiency, isDeeperMine = false, mineTypeId = null) {
     // Special treasure generation using unified system
     let treasureChance = efficiency.treasureChance || 0.01;
     
@@ -1102,7 +1326,7 @@ function generateTreasure(powerLevel, efficiency, isDeeperMine = false) {
     }
     
     if (Math.random() < treasureChance) {
-        const item = findItemUnified('treasure_chest', powerLevel, 0, true, isDeeperMine);
+        const item = findItemUnified('treasure_chest', powerLevel, 0, true, isDeeperMine, mineTypeId);
         const enhancedValue = Math.floor(item.value * efficiency.valueMultiplier * (isDeeperMine ? 1.5 : 1.0));
         
         return {
@@ -1170,6 +1394,18 @@ const SERVER_POWER_MODIFIERS = {
         powerLevel: 7,
         specialBonus: "Abyssal depth mastery",
         itemBonuses: { "27": 3.5 }
+    },
+    // Special ???'s gullet configuration
+    "gulletsGullet": {
+        powerLevel: 5,
+        specialBonus: "Flesh harvesting efficiency",
+        itemBonuses: { 
+            "200": 1.5,  // Flesh Scrap
+            "201": 1.5,  // Sinew Strand
+            "209": 3.0,  // Heart of the Gullet
+            "219": 5.0   // Essence of Hunger
+        },
+        isGullet: true
     },
     // Deeper mine special modifiers
     "theBlackDepths": {
@@ -1558,6 +1794,7 @@ module.exports = {
     
     // Unified item system
     UNIFIED_ITEM_POOL,
+    GULLET_ITEM_POOL,  // Export the gullet item pool
     ITEM_CATEGORY,
     CONTEXT_MULTIPLIERS,
     findItemUnified,

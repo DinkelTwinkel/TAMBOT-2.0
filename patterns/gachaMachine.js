@@ -94,6 +94,40 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                         if (gulletChannel && storedTypeId != 16) {
                             console.log(`🔥 Sacrifice override on cooldown recreation: Switching from ${chosenChannelType?.name} to ???'s gullet`);
                             chosenChannelType = gulletChannel;
+                            
+                            // Check if a gullet channel already exists
+                            const existingGulletVC = await ActiveVCS.findOne({ 
+                                guildId: guild.id, 
+                                typeId: 16 
+                            });
+                            
+                            if (existingGulletVC) {
+                                try {
+                                    const existingGullet = await guild.channels.fetch(existingGulletVC.channelId);
+                                    // Move to existing gullet instead
+                                    await roller.setChannel(existingGullet);
+                                    
+                                    // Update cooldown
+                                    userCooldown.gachaRollData.channelId = existingGullet.id;
+                                    userCooldown.gachaRollData.typeId = 16;
+                                    await userCooldown.save();
+                                    
+                                    await gachaRollChannel.send(
+                                        `🔥 **${rollerMember.user.tag}** Your previous VC was deleted. Moving you to the existing **???'s gullet**!\n` +
+                                        `⏰ You can roll for a new one in **${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}**.`
+                                    );
+                                    
+                                    await existingGullet.send(
+                                        `🔥 ${rollerMember} **REJOINS THE GULLET!** 🔥\n` +
+                                        `⏰ This is the collective gullet. You can roll for a new VC at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+                                    );
+                                    
+                                    return;
+                                } catch (err) {
+                                    // Gullet doesn't exist anymore, will create new one below
+                                    await ActiveVCS.deleteOne({ channelId: existingGulletVC.channelId });
+                                }
+                            }
                         }
                     }
                 
@@ -137,6 +171,18 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                         }
                         
                         await storeVC.save();
+                        
+                        // If this is a gullet channel, set special permissions
+                        if (chosenChannelType.id == 16) {
+                            await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                                ViewChannel: true,
+                                Connect: false,
+                                Speak: true,
+                                UseVAD: true,
+                                Stream: true,
+                                SendMessages: true
+                            });
+                        }
 
                         // Update cooldown with new channel ID
                         userCooldown.gachaRollData.channelId = newGachaChannel.id;
@@ -235,6 +281,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
         // roll for VC type > then update the storeVC to match it.
         let chosenChannelType;
+        let existingGulletChannel = null;
         
         // If sacrificing is active, force roll to ???'s gullet (id: 16)
         if (sacrificeData && sacrificeData.isSacrificing) {
@@ -244,11 +291,78 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                 chosenChannelType = pickRandomChannelWeighted(channelData); // Fallback to normal roll
             } else {
                 console.log(`🔥 Sacrifice override: Rolling ???'s gullet for ${rollerMember.user.tag}`);
+                
+                // Check if a gullet channel already exists
+                const existingGulletVC = await ActiveVCS.findOne({ 
+                    guildId: guild.id, 
+                    typeId: 16 
+                });
+                
+                if (existingGulletVC) {
+                    try {
+                        existingGulletChannel = await guild.channels.fetch(existingGulletVC.channelId);
+                        console.log(`🔥 Found existing gullet channel: ${existingGulletChannel.name}`);
+                    } catch (err) {
+                        console.log(`🔥 Previous gullet channel no longer exists, will create new one`);
+                        // Delete the stale database entry
+                        await ActiveVCS.deleteOne({ channelId: existingGulletVC.channelId });
+                    }
+                }
             }
         } else {
             chosenChannelType = pickRandomChannelWeighted(channelData);
         }
 
+        // If we have an existing gullet channel, move player there instead of creating new
+        if (existingGulletChannel && chosenChannelType.id == 16) {
+            // Delete the temporary channel we just created
+            await newGachaChannel.delete();
+            await ActiveVCS.deleteOne({ channelId: newGachaChannel.id });
+            
+            // Move player to existing gullet
+            await roller.setChannel(existingGulletChannel);
+            
+            console.log(`🔥 Moved ${rollerMember.user.tag} to existing gullet channel`);
+            
+            // Update the cooldown to reference the existing gullet channel
+            const cooldownExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+            
+            if (!userCooldown) {
+                userCooldown = new Cooldown({
+                    userId: roller.id,
+                    cooldowns: new Map(),
+                    gachaRollData: {
+                        channelId: existingGulletChannel.id,
+                        typeId: 16,
+                        rolledAt: new Date(),
+                        expiresAt: cooldownExpiry
+                    }
+                });
+            } else {
+                userCooldown.gachaRollData = {
+                    channelId: existingGulletChannel.id,
+                    typeId: 16,
+                    rolledAt: new Date(),
+                    expiresAt: cooldownExpiry
+                };
+            }
+            await userCooldown.save();
+            
+            // Send messages about joining the existing gullet
+            await gachaRollChannel.send(
+                `🔥 **SACRIFICE OVERRIDE** 🔥\n` +
+                `**${rollerMember.user.tag}** The sacrifice ritual compels you! You've been drawn into the existing **???'s gullet**!\n` +
+                `⏰ Next roll available in **60 minutes**.`
+            );
+            
+            await existingGulletChannel.send(
+                `🔥 ${rollerMember} **ANOTHER SOUL JOINS THE GULLET!** 🔥\n` +
+                `Welcome to the collective feast within ???'s digestive system!`
+            );
+            
+            return; // Exit early since we're using existing channel
+        }
+        
         storeVC.typeId = parseInt(chosenChannelType.id); // Ensure consistent type
         
         // If it's a mining type VC, set up initial data
@@ -264,6 +378,21 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         }
         
         await storeVC.save();
+
+        // If this is a gullet channel, set special permissions
+        if (chosenChannelType.id == 16) {
+            // Set permissions: everyone can view, but can't connect
+            await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                ViewChannel: true,        // Can see the channel
+                Connect: false,           // Cannot connect directly
+                Speak: true,             // Can speak if moved there
+                UseVAD: true,            // Can use voice activity
+                Stream: true,            // Can stream
+                SendMessages: true       // Can send messages in chat
+            });
+            
+            console.log(`🔥 Created new gullet channel with restricted access`);
+        }
 
         // Update VC name to the selected VC and create the intro message
         await newGachaChannel.setName('『 ' + chosenChannelType.rarity.toUpperCase() + ' ROLL 』');
