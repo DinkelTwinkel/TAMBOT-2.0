@@ -661,11 +661,11 @@ function getRandomFloorTile(mapData) {
     }
 }
 
-// Enhanced mining system with power level filtering and error handling
+// Enhanced mining system with GUARANTEE system and power level filtering
 async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency, isDeeperMine = false, mineTypeId = null) {
     try {
-        // Import the unified mining system for gullet support
-        const { findItemUnified, calculateItemQuantity } = require('./mining/miningConstants_unified');
+        // Import the unified mining system and mine correspondence
+        const { findItemUnified, calculateItemQuantity, MINE_ORE_CORRESPONDENCE } = require('./mining/miningConstants_unified');
         
         // Check if we should use the unified system (for gullet and other special mines)
         const isGullet = mineTypeId === 16 || mineTypeId === '16';
@@ -693,6 +693,72 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
                 quantity,
                 destination
             };
+        }
+        
+        // GUARANTEE SYSTEM: Check mine correspondence for specialized ore guarantee
+        const mineConfig = MINE_ORE_CORRESPONDENCE[String(mineTypeId)];
+        
+        if (mineConfig && mineConfig.guarantee) {
+            const guaranteeRoll = Math.random();
+            
+            // If roll is within guarantee threshold, FORCE the specialized ore
+            if (guaranteeRoll < mineConfig.guarantee) {
+                // Find the specialized ore in available items
+                const specializedOre = availableItems.find(item => 
+                    String(item.itemId) === String(mineConfig.oreId)
+                );
+                
+                if (specializedOre) {
+                    // Log guarantee activation (5% chance to avoid spam)
+                    if (Math.random() < 0.05) {
+                        console.log(`[MINING GUARANTEE] ${specializedOre.name} guaranteed in mine ${mineTypeId} (${(mineConfig.guarantee * 100).toFixed(0)}% guarantee rate)`);
+                    }
+                    
+                    // Calculate quantity with bonuses for higher tier mines
+                    let quantity = 1;
+                    
+                    // Base quantity from mining power
+                    if (miningPower > 0) {
+                        const maxBonus = Math.min(miningPower * 0.5, 2);
+                        quantity = 1 + Math.floor(Math.random() * maxBonus);
+                    }
+                    
+                    // Luck bonus
+                    if (luckStat && luckStat > 0) {
+                        const bonusChance = Math.min(0.3, luckStat * 0.04);
+                        if (Math.random() < bonusChance) {
+                            quantity += Math.floor(1 + Math.random() * 2);
+                        }
+                    }
+                    
+                    // Bonus quantity in higher tier mines
+                    if (mineConfig.guarantee >= 0.70) {
+                        quantity = Math.ceil(quantity * 1.5); // 50% more in deep mines
+                    }
+                    if (mineConfig.guarantee >= 0.90) {
+                        quantity = Math.ceil(quantity * 1.33); // Additional 33% for legendary mines (total 2x)
+                    }
+                    
+                    // Rare ore tile bonus
+                    if (tileType === TILE_TYPES.RARE_ORE) {
+                        quantity = Math.ceil(quantity * 1.5);
+                    }
+                    
+                    // Enhanced value
+                    const enhancedValue = Math.floor(specializedOre.value * efficiency.valueMultiplier);
+                    
+                    // Determine destination
+                    destination = (specializedOre.tier === 'legendary' || specializedOre.tier === 'unique' || specializedOre.tier === 'mythic') 
+                        ? 'inventory' : 'minecart';
+                    
+                    return {
+                        item: { ...specializedOre, value: enhancedValue },
+                        quantity,
+                        destination,
+                        guaranteed: true // Mark as guaranteed find for logging
+                    };
+                }
+            }
         }
         
         // Validate availableItems parameter
@@ -765,11 +831,21 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             eligibleItems = availableItems;
         }
         
-        // Apply tier multipliers to weights
-        const weightedItems = eligibleItems.map(item => ({
-            ...item,
-            adjustedWeight: item.baseWeight * (tierMultipliers[item.tier] || 0.1)
-        }));
+        // Apply tier multipliers and mine correspondence boost to weights
+        const weightedItems = eligibleItems.map(item => {
+            let adjustedWeight = item.baseWeight * (tierMultipliers[item.tier] || 0.1);
+            
+            // Apply mine-specific ore boost if this is the specialized ore
+            if (mineConfig && String(item.itemId) === String(mineConfig.oreId)) {
+                // Apply the boost multiplier to make this ore more likely even when not guaranteed
+                adjustedWeight *= mineConfig.boost;
+            }
+            
+            return {
+                ...item,
+                adjustedWeight
+            };
+        });
         
         const totalWeight = weightedItems.reduce((sum, item) => sum + item.adjustedWeight, 0);
         let random = Math.random() * totalWeight;

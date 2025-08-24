@@ -1122,151 +1122,151 @@ const UNIFIED_ITEM_POOL = {
     ]
 };
 
-// Mine-to-ore correspondence mapping
+// Mine-to-ore correspondence mapping - ENHANCED WITH GUARANTEES
 const MINE_ORE_CORRESPONDENCE = {
     // Coal Mines and variants
-    '1': { oreId: '1', boost: 0.30 },      // Coal Mines L0 -> Coal Ore
-    '1001': { oreId: '1', boost: 0.35 },   // Coal Mines L-1
-    '1002': { oreId: '1', boost: 0.40 },   // Coal Mines L-2
-    '1003': { oreId: '1', boost: 0.45 },   // Coal Mines L-3
-    '1004': { oreId: '1', boost: 0.50 },   // Coal Mines L-4
-    '1005': { oreId: '1', boost: 0.55 },   // Coal Mines L-5
-    '101': { oreId: '1', boost: 0.60 },    // The Coal Pits L0
-    '1011': { oreId: '1', boost: 0.65 },   // The Coal Pits L-1
-    '1012': { oreId: '1', boost: 0.70 },   // The Coal Pits L-2
-    '1013': { oreId: '1', boost: 0.75 },   // The Coal Pits L-3
-    '1014': { oreId: '1', boost: 0.80 },   // The Coal Pits L-4
-    '1015': { oreId: '1', boost: 0.85 },   // The Coal Pits L-5
-    '113': { oreId: '1', boost: 0.90 },    // The All Black
+    '1': { oreId: '1', boost: 2.5, guarantee: 0.40 },      // Coal Mines L0 -> 40% guaranteed
+    '1001': { oreId: '1', boost: 3.0, guarantee: 0.45 },   // Coal Mines L-1 -> 45%
+    '1002': { oreId: '1', boost: 3.5, guarantee: 0.50 },   // Coal Mines L-2 -> 50%
+    '1003': { oreId: '1', boost: 4.0, guarantee: 0.55 },   // Coal Mines L-3 -> 55%
+    '1004': { oreId: '1', boost: 4.5, guarantee: 0.60 },   // Coal Mines L-4 -> 60%
+    '1005': { oreId: '1', boost: 5.0, guarantee: 0.65 },   // Coal Mines L-5 -> 65%
+    '101': { oreId: '1', boost: 6.0, guarantee: 0.70 },    // The Coal Pits L0 -> 70%
+    '1011': { oreId: '1', boost: 7.0, guarantee: 0.75 },   // The Coal Pits L-1 -> 75%
+    '1012': { oreId: '1', boost: 8.0, guarantee: 0.80 },   // The Coal Pits L-2 -> 80%
+    '1013': { oreId: '1', boost: 9.0, guarantee: 0.85 },   // The Coal Pits L-3 -> 85%
+    '1014': { oreId: '1', boost: 10.0, guarantee: 0.90 },  // The Coal Pits L-4 -> 90%
+    '1015': { oreId: '1', boost: 12.0, guarantee: 0.95 },  // The Coal Pits L-5 -> 95%
+    '113': { oreId: '1', boost: 999, guarantee: 1.00 },    // The All Black -> 100% GUARANTEED
     
     // Topaz Mines
-    '2': { oreId: '2', boost: 0.30 },      // Topaz Mine L0 -> Topaz
-    '2001': { oreId: '2', boost: 0.35 },
-    '2002': { oreId: '2', boost: 0.40 },
-    '2003': { oreId: '2', boost: 0.45 },
-    '2004': { oreId: '2', boost: 0.50 },
-    '2005': { oreId: '2', boost: 0.55 },
-    '102': { oreId: '2', boost: 0.60 },    // The Topaz Core L0
-    '2011': { oreId: '2', boost: 0.65 },
-    '2012': { oreId: '2', boost: 0.70 },
-    '2013': { oreId: '2', boost: 0.75 },
-    '2014': { oreId: '2', boost: 0.80 },
-    '2015': { oreId: '2', boost: 0.85 },
-    '114': { oreId: '2', boost: 0.90 },    // The Sun Under
+    '2': { oreId: '2', boost: 2.5, guarantee: 0.40 },      // Topaz Mine L0 -> 40% guaranteed
+    '2001': { oreId: '2', boost: 3.0, guarantee: 0.45 },
+    '2002': { oreId: '2', boost: 3.5, guarantee: 0.50 },
+    '2003': { oreId: '2', boost: 4.0, guarantee: 0.55 },
+    '2004': { oreId: '2', boost: 4.5, guarantee: 0.60 },
+    '2005': { oreId: '2', boost: 5.0, guarantee: 0.65 },
+    '102': { oreId: '2', boost: 6.0, guarantee: 0.70 },    // The Topaz Core L0 -> 70%
+    '2011': { oreId: '2', boost: 7.0, guarantee: 0.75 },
+    '2012': { oreId: '2', boost: 8.0, guarantee: 0.80 },
+    '2013': { oreId: '2', boost: 9.0, guarantee: 0.85 },
+    '2014': { oreId: '2', boost: 10.0, guarantee: 0.90 },
+    '2015': { oreId: '2', boost: 12.0, guarantee: 0.95 },
+    '114': { oreId: '2', boost: 999, guarantee: 1.00 },    // The Sun Under -> 100%
     
     // Diamond Mines
-    '3': { oreId: '6', boost: 0.30 },      // Diamond Mines L0 -> Diamond
-    '3001': { oreId: '6', boost: 0.35 },
-    '3002': { oreId: '6', boost: 0.40 },
-    '3003': { oreId: '6', boost: 0.45 },
-    '3004': { oreId: '6', boost: 0.50 },
-    '3005': { oreId: '6', boost: 0.55 },
-    '103': { oreId: '6', boost: 0.60 },    // Diamond Throne L0
-    '3011': { oreId: '6', boost: 0.65 },
-    '3012': { oreId: '6', boost: 0.70 },
-    '3013': { oreId: '6', boost: 0.75 },
-    '3014': { oreId: '6', boost: 0.80 },
-    '3015': { oreId: '6', boost: 0.85 },
-    '115': { oreId: '6', boost: 0.90 },    // The Diamond Crown
+    '3': { oreId: '6', boost: 2.5, guarantee: 0.40 },      // Diamond Mines L0 -> 40% guaranteed
+    '3001': { oreId: '6', boost: 3.0, guarantee: 0.45 },
+    '3002': { oreId: '6', boost: 3.5, guarantee: 0.50 },
+    '3003': { oreId: '6', boost: 4.0, guarantee: 0.55 },
+    '3004': { oreId: '6', boost: 4.5, guarantee: 0.60 },
+    '3005': { oreId: '6', boost: 5.0, guarantee: 0.65 },
+    '103': { oreId: '6', boost: 6.0, guarantee: 0.70 },    // Diamond Throne L0 -> 70%
+    '3011': { oreId: '6', boost: 7.0, guarantee: 0.75 },
+    '3012': { oreId: '6', boost: 8.0, guarantee: 0.80 },
+    '3013': { oreId: '6', boost: 9.0, guarantee: 0.85 },
+    '3014': { oreId: '6', boost: 10.0, guarantee: 0.90 },
+    '3015': { oreId: '6', boost: 12.0, guarantee: 0.95 },
+    '115': { oreId: '6', boost: 999, guarantee: 1.00 },    // The Diamond Crown -> 100%
     
     // Emerald Caverns
-    '4': { oreId: '23', boost: 0.30 },     // Emerald Caverns L0 -> Emerald
-    '4001': { oreId: '23', boost: 0.35 },
-    '4002': { oreId: '23', boost: 0.40 },
-    '4003': { oreId: '23', boost: 0.45 },
-    '4004': { oreId: '23', boost: 0.50 },
-    '4005': { oreId: '23', boost: 0.55 },
-    '104': { oreId: '23', boost: 0.60 },   // Emerald Sanctum L0
-    '4011': { oreId: '23', boost: 0.65 },
-    '4012': { oreId: '23', boost: 0.70 },
-    '4013': { oreId: '23', boost: 0.75 },
-    '4014': { oreId: '23', boost: 0.80 },
-    '4015': { oreId: '23', boost: 0.85 },
-    '116': { oreId: '23', boost: 0.90 },   // Emerald World Tree
+    '4': { oreId: '23', boost: 2.5, guarantee: 0.40 },     // Emerald Caverns L0 -> 40% guaranteed
+    '4001': { oreId: '23', boost: 3.0, guarantee: 0.45 },
+    '4002': { oreId: '23', boost: 3.5, guarantee: 0.50 },
+    '4003': { oreId: '23', boost: 4.0, guarantee: 0.55 },
+    '4004': { oreId: '23', boost: 4.5, guarantee: 0.60 },
+    '4005': { oreId: '23', boost: 5.0, guarantee: 0.65 },
+    '104': { oreId: '23', boost: 6.0, guarantee: 0.70 },   // Emerald Sanctum L0 -> 70%
+    '4011': { oreId: '23', boost: 7.0, guarantee: 0.75 },
+    '4012': { oreId: '23', boost: 8.0, guarantee: 0.80 },
+    '4013': { oreId: '23', boost: 9.0, guarantee: 0.85 },
+    '4014': { oreId: '23', boost: 10.0, guarantee: 0.90 },
+    '4015': { oreId: '23', boost: 12.0, guarantee: 0.95 },
+    '116': { oreId: '23', boost: 999, guarantee: 1.00 },   // Emerald World Tree -> 100%
     
     // Ruby Depths
-    '5': { oreId: '24', boost: 0.30 },     // Ruby Depths L0 -> Ruby
-    '5001': { oreId: '24', boost: 0.35 },
-    '5002': { oreId: '24', boost: 0.40 },
-    '5003': { oreId: '24', boost: 0.45 },
-    '5004': { oreId: '24', boost: 0.50 },
-    '5005': { oreId: '24', boost: 0.55 },
-    '105': { oreId: '24', boost: 0.60 },   // Ruby Tunnels L0
-    '5011': { oreId: '24', boost: 0.65 },
-    '5012': { oreId: '24', boost: 0.70 },
-    '5013': { oreId: '24', boost: 0.75 },
-    '5014': { oreId: '24', boost: 0.80 },
-    '5015': { oreId: '24', boost: 0.85 },
-    '117': { oreId: '24', boost: 0.90 },   // Volcanica
+    '5': { oreId: '24', boost: 2.5, guarantee: 0.40 },     // Ruby Depths L0 -> 40% guaranteed
+    '5001': { oreId: '24', boost: 3.0, guarantee: 0.45 },
+    '5002': { oreId: '24', boost: 3.5, guarantee: 0.50 },
+    '5003': { oreId: '24', boost: 4.0, guarantee: 0.55 },
+    '5004': { oreId: '24', boost: 4.5, guarantee: 0.60 },
+    '5005': { oreId: '24', boost: 5.0, guarantee: 0.65 },
+    '105': { oreId: '24', boost: 6.0, guarantee: 0.70 },   // Ruby Tunnels L0 -> 70%
+    '5011': { oreId: '24', boost: 7.0, guarantee: 0.75 },
+    '5012': { oreId: '24', boost: 8.0, guarantee: 0.80 },
+    '5013': { oreId: '24', boost: 9.0, guarantee: 0.85 },
+    '5014': { oreId: '24', boost: 10.0, guarantee: 0.90 },
+    '5015': { oreId: '24', boost: 12.0, guarantee: 0.95 },
+    '117': { oreId: '24', boost: 999, guarantee: 1.00 },   // Volcanica -> 100%
     
     // Obsidian Forge
-    '6': { oreId: '25', boost: 0.30 },     // Obsidian Forge L0 -> Obsidian
-    '6001': { oreId: '25', boost: 0.35 },
-    '6002': { oreId: '25', boost: 0.40 },
-    '6003': { oreId: '25', boost: 0.45 },
-    '6004': { oreId: '25', boost: 0.50 },
-    '6005': { oreId: '25', boost: 0.55 },
-    '106': { oreId: '25', boost: 0.60 },   // Obsidian Corridors L0
-    '6011': { oreId: '25', boost: 0.65 },
-    '6012': { oreId: '25', boost: 0.70 },
-    '6013': { oreId: '25', boost: 0.75 },
-    '6014': { oreId: '25', boost: 0.80 },
-    '6015': { oreId: '25', boost: 0.85 },
-    '118': { oreId: '25', boost: 0.90 },   // The Black Heart
+    '6': { oreId: '25', boost: 2.5, guarantee: 0.40 },     // Obsidian Forge L0 -> 40% guaranteed
+    '6001': { oreId: '25', boost: 3.0, guarantee: 0.45 },
+    '6002': { oreId: '25', boost: 3.5, guarantee: 0.50 },
+    '6003': { oreId: '25', boost: 4.0, guarantee: 0.55 },
+    '6004': { oreId: '25', boost: 4.5, guarantee: 0.60 },
+    '6005': { oreId: '25', boost: 5.0, guarantee: 0.65 },
+    '106': { oreId: '25', boost: 6.0, guarantee: 0.70 },   // Obsidian Corridors L0 -> 70%
+    '6011': { oreId: '25', boost: 7.0, guarantee: 0.75 },
+    '6012': { oreId: '25', boost: 8.0, guarantee: 0.80 },
+    '6013': { oreId: '25', boost: 9.0, guarantee: 0.85 },
+    '6014': { oreId: '25', boost: 10.0, guarantee: 0.90 },
+    '6015': { oreId: '25', boost: 12.0, guarantee: 0.95 },
+    '118': { oreId: '25', boost: 999, guarantee: 1.00 },   // The Black Heart -> 100%
     
     // Mythril Sanctum
-    '7': { oreId: '26', boost: 0.30 },     // Mythril Sanctum L0 -> Mythril Ore
-    '7001': { oreId: '26', boost: 0.35 },
-    '7002': { oreId: '26', boost: 0.40 },
-    '7003': { oreId: '26', boost: 0.45 },
-    '7004': { oreId: '26', boost: 0.50 },
-    '7005': { oreId: '26', boost: 0.55 },
-    '107': { oreId: '26', boost: 0.60 },   // Mythril's Rest L0
-    '7011': { oreId: '26', boost: 0.65 },
-    '7012': { oreId: '26', boost: 0.70 },
-    '7013': { oreId: '26', boost: 0.75 },
-    '7014': { oreId: '26', boost: 0.80 },
-    '7015': { oreId: '26', boost: 0.85 },
-    '119': { oreId: '26', boost: 0.90 },   // Blue Cosmos
+    '7': { oreId: '26', boost: 2.5, guarantee: 0.40 },     // Mythril Sanctum L0 -> 40% guaranteed
+    '7001': { oreId: '26', boost: 3.0, guarantee: 0.45 },
+    '7002': { oreId: '26', boost: 3.5, guarantee: 0.50 },
+    '7003': { oreId: '26', boost: 4.0, guarantee: 0.55 },
+    '7004': { oreId: '26', boost: 4.5, guarantee: 0.60 },
+    '7005': { oreId: '26', boost: 5.0, guarantee: 0.65 },
+    '107': { oreId: '26', boost: 6.0, guarantee: 0.70 },   // Mythril's Rest L0 -> 70%
+    '7011': { oreId: '26', boost: 7.0, guarantee: 0.75 },
+    '7012': { oreId: '26', boost: 8.0, guarantee: 0.80 },
+    '7013': { oreId: '26', boost: 9.0, guarantee: 0.85 },
+    '7014': { oreId: '26', boost: 10.0, guarantee: 0.90 },
+    '7015': { oreId: '26', boost: 12.0, guarantee: 0.95 },
+    '119': { oreId: '26', boost: 999, guarantee: 1.00 },   // Blue Cosmos -> 100%
     
     // Adamantite Abyss
-    '8': { oreId: '27', boost: 0.30 },     // Adamantite Abyss L0 -> Adamantite Ore
-    '8001': { oreId: '27', boost: 0.35 },
-    '8002': { oreId: '27', boost: 0.40 },
-    '8003': { oreId: '27', boost: 0.45 },
-    '8004': { oreId: '27', boost: 0.50 },
-    '8005': { oreId: '27', boost: 0.55 },
-    '18': { oreId: '27', boost: 0.90 },    // Abyssal Adamantite Depths
+    '8': { oreId: '27', boost: 2.5, guarantee: 0.40 },     // Adamantite Abyss L0 -> 40% guaranteed
+    '8001': { oreId: '27', boost: 3.0, guarantee: 0.45 },
+    '8002': { oreId: '27', boost: 3.5, guarantee: 0.50 },
+    '8003': { oreId: '27', boost: 4.0, guarantee: 0.55 },
+    '8004': { oreId: '27', boost: 4.5, guarantee: 0.60 },
+    '8005': { oreId: '27', boost: 5.0, guarantee: 0.65 },
+    '18': { oreId: '27', boost: 999, guarantee: 1.00 },    // Abyssal Adamantite Depths -> 100%
     
     // Iron Town
-    '10': { oreId: '22', boost: 0.30 },    // Iron Town L0 -> Iron Ore
-    '10001': { oreId: '22', boost: 0.35 },
-    '10002': { oreId: '22', boost: 0.40 },
-    '10003': { oreId: '22', boost: 0.45 },
-    '10004': { oreId: '22', boost: 0.50 },
-    '10005': { oreId: '22', boost: 0.55 },
-    '110': { oreId: '22', boost: 0.60 },   // Iron Fortress L0
-    '10011': { oreId: '22', boost: 0.65 },
-    '10012': { oreId: '22', boost: 0.70 },
-    '10013': { oreId: '22', boost: 0.75 },
-    '10014': { oreId: '22', boost: 0.80 },
-    '10015': { oreId: '22', boost: 0.85 },
-    '121': { oreId: '22', boost: 0.90 },   // Black Iron
+    '10': { oreId: '22', boost: 2.5, guarantee: 0.40 },    // Iron Town L0 -> 40% guaranteed
+    '10001': { oreId: '22', boost: 3.0, guarantee: 0.45 },
+    '10002': { oreId: '22', boost: 3.5, guarantee: 0.50 },
+    '10003': { oreId: '22', boost: 4.0, guarantee: 0.55 },
+    '10004': { oreId: '22', boost: 4.5, guarantee: 0.60 },
+    '10005': { oreId: '22', boost: 5.0, guarantee: 0.65 },
+    '110': { oreId: '22', boost: 6.0, guarantee: 0.70 },   // Iron Fortress L0 -> 70%
+    '10011': { oreId: '22', boost: 7.0, guarantee: 0.75 },
+    '10012': { oreId: '22', boost: 8.0, guarantee: 0.80 },
+    '10013': { oreId: '22', boost: 9.0, guarantee: 0.85 },
+    '10014': { oreId: '22', boost: 10.0, guarantee: 0.90 },
+    '10015': { oreId: '22', boost: 12.0, guarantee: 0.95 },
+    '121': { oreId: '22', boost: 999, guarantee: 1.00 },   // Black Iron -> 100%
     
     // Crystal Grottos
-    '11': { oreId: '102', boost: 0.30 },   // Crystal Grottos L0 -> Crystal Ore
-    '11001': { oreId: '102', boost: 0.35 },
-    '11002': { oreId: '102', boost: 0.40 },
-    '11003': { oreId: '102', boost: 0.45 },
-    '11004': { oreId: '102', boost: 0.50 },
-    '11005': { oreId: '102', boost: 0.55 },
-    '111': { oreId: '102', boost: 0.60 },  // Crystal Paradise L0
-    '11011': { oreId: '102', boost: 0.65 },
-    '11012': { oreId: '102', boost: 0.70 },
-    '11013': { oreId: '102', boost: 0.75 },
-    '11014': { oreId: '102', boost: 0.80 },
-    '11015': { oreId: '102', boost: 0.85 },
-    '122': { oreId: '102', boost: 0.90 },  // Crystal Heaven
+    '11': { oreId: '102', boost: 2.5, guarantee: 0.40 },   // Crystal Grottos L0 -> 40% guaranteed
+    '11001': { oreId: '102', boost: 3.0, guarantee: 0.45 },
+    '11002': { oreId: '102', boost: 3.5, guarantee: 0.50 },
+    '11003': { oreId: '102', boost: 4.0, guarantee: 0.55 },
+    '11004': { oreId: '102', boost: 4.5, guarantee: 0.60 },
+    '11005': { oreId: '102', boost: 5.0, guarantee: 0.65 },
+    '111': { oreId: '102', boost: 6.0, guarantee: 0.70 },  // Crystal Paradise L0 -> 70%
+    '11011': { oreId: '102', boost: 7.0, guarantee: 0.75 },
+    '11012': { oreId: '102', boost: 8.0, guarantee: 0.80 },
+    '11013': { oreId: '102', boost: 9.0, guarantee: 0.85 },
+    '11014': { oreId: '102', boost: 10.0, guarantee: 0.90 },
+    '11015': { oreId: '102', boost: 12.0, guarantee: 0.95 },
+    '122': { oreId: '102', boost: 999, guarantee: 1.00 },  // Crystal Heaven -> 100%
     
     // Note: ???'s Gullet (id: 16) and Rusty Relic Realm (id: 17) are special cases handled separately
 };

@@ -12,8 +12,8 @@ class DigDeeperListener {
         this.client = client;
         this.setupListener();
         
-        // Track processing to prevent duplicates
-        this.processingChannels = new Set();
+        // Track processing to prevent duplicates - now using guild+mineType as key
+        this.processingRequests = new Map();
     }
     
     setupListener() {
@@ -63,54 +63,56 @@ class DigDeeperListener {
             });
         }
         
-        // Prevent duplicate processing
-        if (this.processingChannels.has(channelId)) {
+        // Load gacha servers data
+        const gachaServers = require(gachaServersPath);
+        
+        // Find the current mine configuration
+        const currentMine = gachaServers.find(s => s.id == currentMineId);
+        if (!currentMine || !currentMine.deeperMineId) {
             return interaction.reply({ 
-                content: '⏳ Already processing deeper mine creation. Please wait...', 
+                content: '❌ This mine does not have a deeper level configured.',
                 ephemeral: true 
             });
         }
         
-        this.processingChannels.add(channelId);
+        // Find the deeper mine configuration
+        const deeperMine = gachaServers.find(s => s.id == currentMine.deeperMineId);
+        if (!deeperMine) {
+            return interaction.reply({ 
+                content: '❌ Deeper mine configuration not found.',
+                ephemeral: true 
+            });
+        }
         
-        // Defer the reply
+        // Create a unique processing key for this guild and deeper mine type
+        const processingKey = `${interaction.guild.id}_${deeperMine.id}`;
+        
+        // Check if already processing this type of deeper mine in this guild
+        if (this.processingRequests.get(processingKey)) {
+            return interaction.reply({ 
+                content: '⏳ A deeper mine of this type is already being created. Please wait a moment...', 
+                ephemeral: true 
+            });
+        }
+        
+        // Mark as processing
+        this.processingRequests.set(processingKey, true);
+        
+        // Defer the reply early
         await interaction.deferReply();
         
         try {
-            // Load gacha servers data
-            const gachaServers = require(gachaServersPath);
-            
-            // Find the current mine configuration
-            const currentMine = gachaServers.find(s => s.id == currentMineId);
-            if (!currentMine || !currentMine.deeperMineId) {
-                this.processingChannels.delete(channelId);
-                return interaction.editReply({ 
-                    content: '❌ This mine does not have a deeper level configured.' 
-                });
-            }
-            
-            // Find the deeper mine configuration
-            const deeperMine = gachaServers.find(s => s.id == currentMine.deeperMineId);
-            if (!deeperMine) {
-                this.processingChannels.delete(channelId);
-                return interaction.editReply({ 
-                    content: '❌ Deeper mine configuration not found.' 
-                });
-            }
-            
             // Get the current channel and its database entry
             const currentChannel = interaction.guild.channels.cache.get(channelId);
             if (!currentChannel) {
-                this.processingChannels.delete(channelId);
                 return interaction.editReply({ 
                     content: '❌ Current voice channel not found.' 
                 });
             }
             
-            // Get the database entry
+            // Get the database entry for the current channel
             const dbEntry = await ActiveVCS.findOne({ channelId: channelId });
             if (!dbEntry) {
-                this.processingChannels.delete(channelId);
                 return interaction.editReply({ 
                     content: '❌ Channel database entry not found.' 
                 });
@@ -121,7 +123,6 @@ class DigDeeperListener {
             const conditionsMet = deeperMineChecker.checkConditions(dbEntry, currentMine);
             
             if (!conditionsMet) {
-                this.processingChannels.delete(channelId);
                 return interaction.editReply({ 
                     content: '❌ You no longer meet the conditions to dig deeper.' 
                 });
@@ -129,24 +130,38 @@ class DigDeeperListener {
             
             let newChannel;
             let isNewChannel = false;
+            let existingDbEntry = null;
             
-            // Check if a deeper mine channel already exists for this channel
-            if (dbEntry.gameData.deeperMineChannelId) {
-                // Try to get the existing deeper mine channel
-                newChannel = interaction.guild.channels.cache.get(dbEntry.gameData.deeperMineChannelId);
-                
-                // If the channel doesn't exist (was deleted), create a new one
-                if (!newChannel) {
-                    console.log(`[DIG_DEEPER] Deeper mine channel ${dbEntry.gameData.deeperMineChannelId} not found, creating new one`);
-                    dbEntry.gameData.deeperMineChannelId = null;
-                    isNewChannel = true;
+            // Check if ANY channel in this guild already has a deeper mine of this type
+            // This prevents duplicate deeper mines of the same type
+            const allActiveChannels = await ActiveVCS.find({ 
+                guildId: interaction.guild.id,
+                typeId: parseInt(deeperMine.id)
+            });
+            
+            console.log(`[DIG_DEEPER] Found ${allActiveChannels.length} existing channels of type ${deeperMine.id} in guild`);
+            
+            // Find an existing valid deeper mine channel
+            for (const activeChannel of allActiveChannels) {
+                const existingChannel = interaction.guild.channels.cache.get(activeChannel.channelId);
+                if (existingChannel) {
+                    // Found a valid existing deeper mine channel
+                    newChannel = existingChannel;
+                    existingDbEntry = activeChannel;
+                    isNewChannel = false;
+                    console.log(`[DIG_DEEPER] Found existing deeper mine channel: ${existingChannel.id}`);
+                    break;
+                } else {
+                    // Channel no longer exists, clean up the database entry
+                    console.log(`[DIG_DEEPER] Cleaning up orphaned DB entry for channel ${activeChannel.channelId}`);
+                    await ActiveVCS.deleteOne({ channelId: activeChannel.channelId });
                 }
-            } else {
-                isNewChannel = true;
             }
             
-            // Create new channel if needed
-            if (isNewChannel) {
+            // Create new channel if no valid existing channel was found
+            if (!newChannel) {
+                isNewChannel = true;
+                
                 // Create the new deeper mine voice channel
                 const parentCategory = currentChannel.parent;
                 
@@ -158,7 +173,7 @@ class DigDeeperListener {
                     name: deeperMine.name,
                     type: ChannelType.GuildVoice,
                     parent: parentCategory,
-                    userLimit: currentChannel.userLimit,
+                    userLimit: currentChannel.userLimit || 0,
                     bitrate: currentChannel.bitrate
                 };
                 
@@ -168,32 +183,32 @@ class DigDeeperListener {
                         {
                             id: interaction.guild.id, // @everyone role
                             deny: [
-                                'Connect', // Cannot connect to voice
-                                'SendMessages', // Cannot send messages
-                                'ReadMessageHistory', // Cannot read message history
-                                'AddReactions', // Cannot add reactions
-                                'AttachFiles', // Cannot attach files
-                                'EmbedLinks', // Cannot embed links
-                                'UseApplicationCommands' // Cannot use slash commands
+                                PermissionsBitField.Flags.Connect,
+                                PermissionsBitField.Flags.SendMessages,
+                                PermissionsBitField.Flags.ReadMessageHistory,
+                                PermissionsBitField.Flags.AddReactions,
+                                PermissionsBitField.Flags.AttachFiles,
+                                PermissionsBitField.Flags.EmbedLinks,
+                                PermissionsBitField.Flags.UseApplicationCommands
                             ],
                             allow: [
-                                'ViewChannel' // Can see the channel exists
+                                PermissionsBitField.Flags.ViewChannel
                             ]
                         },
                         {
                             id: member.id, // The user who clicked the button
                             allow: [
-                                'ViewChannel', // Can see the channel
-                                'Connect', // Can connect to voice
-                                'Speak', // Can speak in voice
-                                'SendMessages', // Can send messages
-                                'ReadMessageHistory', // Can read message history
-                                'AddReactions', // Can add reactions
-                                'AttachFiles', // Can attach files
-                                'EmbedLinks', // Can embed links
-                                'UseApplicationCommands', // Can use slash commands
-                                'Stream', // Can stream
-                                'UseVAD' // Can use voice activity
+                                PermissionsBitField.Flags.ViewChannel,
+                                PermissionsBitField.Flags.Connect,
+                                PermissionsBitField.Flags.Speak,
+                                PermissionsBitField.Flags.SendMessages,
+                                PermissionsBitField.Flags.ReadMessageHistory,
+                                PermissionsBitField.Flags.AddReactions,
+                                PermissionsBitField.Flags.AttachFiles,
+                                PermissionsBitField.Flags.EmbedLinks,
+                                PermissionsBitField.Flags.UseApplicationCommands,
+                                PermissionsBitField.Flags.Stream,
+                                PermissionsBitField.Flags.UseVAD
                             ]
                         }
                     ];
@@ -203,23 +218,28 @@ class DigDeeperListener {
                 
                 newChannel = await interaction.guild.channels.create(channelOptions);
                 
-                // Create new database entry for the deeper mine (fresh entry like gachaMachine.js)
+                // Determine the deeper level
+                const deeperLevel = dbEntry.gameData.isDeeperMine ? 
+                    (dbEntry.gameData.deeperLevel || 2) + 1 : 2;
+                
+                // Create new database entry for the deeper mine
                 const newEntry = new ActiveVCS({
                     channelId: newChannel.id,
                     guildId: interaction.guild.id,
                     typeId: parseInt(deeperMine.id),
                     nextTrigger: new Date(Date.now() + 1000 * 30),
-                    nextShopRefresh: new Date(Date.now() + 1000 * 60 * 25), // Fresh shop refresh time
-                    nextLongBreak: new Date(Date.now() + 60 * 1000 * 100), // Fresh long break time
+                    nextShopRefresh: new Date(Date.now() + 1000 * 60 * 25),
+                    nextLongBreak: new Date(Date.now() + 60 * 1000 * 100),
                     gameData: {
                         miningMode: true,
                         powerLevel: deeperMine.power,
                         parentChannelId: channelId,
                         isDeeperMine: true,
-                        deeperLevel: dbEntry.gameData.isDeeperMine ? 3 : 2, // Track if this is level 2 or 3
-                        // Initialize fresh mining data for the deeper level
-                        map: undefined, // Will be regenerated
-                        minecart: { items: {}, contributors: {} }, // Fresh minecart
+                        deeperLevel: deeperLevel,
+                        isSharedDeeperMine: true, // Mark as shared deeper mine
+                        // Initialize fresh mining data
+                        map: undefined,
+                        minecart: { items: {}, contributors: {} },
                         miningStats: {
                             wallsBroken: 0,
                             oresFound: 0,
@@ -230,13 +250,11 @@ class DigDeeperListener {
                             deeperLevelReached: true,
                             deeperLevelTime: Date.now(),
                             parentChannelStats: {
-                                // Store parent channel stats for reference
                                 wallsBroken: dbEntry.gameData.miningStats?.wallsBroken || 0,
                                 oresFound: dbEntry.gameData.miningStats?.oresFound || 0,
                                 treasuresFound: dbEntry.gameData.miningStats?.treasuresFound || 0
                             }
                         },
-                        // Don't copy any player-specific data, start fresh
                         players: {},
                         speedActions: new Map(),
                         speedCooldowns: new Map()
@@ -244,25 +262,25 @@ class DigDeeperListener {
                 });
                 
                 await newEntry.save();
+                existingDbEntry = newEntry;
                 
-                // Store the deeper mine channel ID in parent's gameData for reuse
-                // This allows multiple players to use the same deeper mine channel
-                // instead of creating duplicate channels for the same deeper level
-                dbEntry.gameData.deeperMineChannelId = newChannel.id;
-                await dbEntry.save();
-                
-                console.log(`[DIG_DEEPER] Created new deeper mine channel ${newChannel.id} for channel ${channelId}`);
+                console.log(`[DIG_DEEPER] Created new deeper mine channel ${newChannel.id} (Level ${deeperLevel}) for guild ${interaction.guild.id}`);
             }
             
-            // Check if this is a locked channel and user doesn't already have permissions
+            // Store reference to the deeper mine in the parent channel's data
+            dbEntry.gameData.deeperMineChannelId = newChannel.id;
+            dbEntry.gameData.lastDeeperAccess = Date.now();
+            await dbEntry.save();
+            
+            // Handle locked channel permissions
             const isLocked = deeperMine.isLocked === true;
             if (isLocked && !isNewChannel) {
                 // Check if user already has permissions
                 const permissions = newChannel.permissionOverwrites.cache.get(member.id);
-                const hasAccess = permissions && permissions.allow.has('Connect');
+                const hasAccess = permissions && permissions.allow.has(PermissionsBitField.Flags.Connect);
                 
                 if (!hasAccess) {
-                    // Grant individual permissions to this user for the existing locked channel
+                    // Grant individual permissions to this user
                     await newChannel.permissionOverwrites.create(member.id, {
                         ViewChannel: true,
                         Connect: true,
@@ -281,13 +299,12 @@ class DigDeeperListener {
                 }
             }
             
-            // Move only the button clicker to the new channel
+            // Move the user to the deeper mine
             try {
                 await member.voice.setChannel(newChannel);
                 console.log(`[DIG_DEEPER] Moved member ${member.id} to deeper mine ${newChannel.id}`);
             } catch (err) {
                 console.error(`[DIG_DEEPER] Failed to move member ${member.id}:`, err);
-                this.processingChannels.delete(channelId);
                 return interaction.editReply({ 
                     content: '❌ Failed to move you to the deeper mine. Please try again.' 
                 });
@@ -311,17 +328,25 @@ class DigDeeperListener {
                     }
                 );
             
+            // Add level indicator
+            const deeperLevel = existingDbEntry.gameData.deeperLevel || 2;
+            successEmbed.addFields({
+                name: '🏔️ Depth',
+                value: `Level **${deeperLevel}** Deeper Mine`,
+                inline: true
+            });
+            
             // Add locked status field if applicable
             if (isLocked) {
                 successEmbed.addFields({
                     name: '🔒 Exclusive Access',
-                    value: 'This is a **locked** deeper mine! Only you have been granted access.',
+                    value: 'This is a **locked** deeper mine! Only qualified miners can enter.',
                     inline: false
                 });
             }
             
             successEmbed
-                .setFooter({ text: isNewChannel ? 'New deeper mine created!' : 'Moved to existing deeper mine!' })
+                .setFooter({ text: isNewChannel ? 'New deeper mine created!' : 'Joined existing deeper mine!' })
                 .setTimestamp();
             
             // Send success message to the interaction
@@ -330,72 +355,39 @@ class DigDeeperListener {
                 embeds: [successEmbed]
             });
             
-            // Only send welcome message and generate shop if this is a new channel
+            // Send appropriate message in the new channel
             if (isNewChannel) {
-                // Determine the deeper level for better image selection
-                const deeperLevel = dbEntry.gameData.isDeeperMine ? 3 : 2;
+                // New channel - send full welcome message with image
+                const deeperLevel = existingDbEntry.gameData.deeperLevel || 2;
                 
-                // Send welcome message in the new channel with image
+                // Find the best image for this deeper mine
                 let imagePath = path.join(__dirname, '../assets/game/tiles', deeperMine.image + '.png');
                 let imageFileName = deeperMine.image + '.png';
                 
                 console.log(`[DIG_DEEPER] Looking for image: ${imagePath}`);
                 
-                // Check if image exists, fallback to parent mine image or placeholder
+                // Try various image naming patterns
                 if (!fs.existsSync(imagePath)) {
-                    console.log(`[DIG_DEEPER] Image not found: ${deeperMine.image}.png`);
+                    const imageFallbacks = [
+                        // Try with Deep/Ultra suffixes based on level
+                        deeperLevel === 3 ? currentMine.image.replace('Deep', '') + 'Ultra' : currentMine.image + 'Deep',
+                        // Try base mine name variations
+                        deeperMine.image.replace('Deep', '').replace('Ultra', ''),
+                        currentMine.image,
+                        // Extract base name
+                        deeperMine.image.replace('MineDeep', 'Mine').replace('MineUltra', 'Mine'),
+                        // Final fallback
+                        'placeHolder'
+                    ];
                     
-                    // For level 3, try "Ultra" suffix first, then "Deep"
-                    if (deeperLevel === 3) {
-                        const ultraImageName = currentMine.image.replace('Deep', '') + 'Ultra';
-                        imagePath = path.join(__dirname, '../assets/game/tiles', ultraImageName + '.png');
-                        imageFileName = ultraImageName + '.png';
-                        console.log(`[DIG_DEEPER] Trying level 3 ultra image: ${ultraImageName}.png`);
+                    for (const fallback of imageFallbacks) {
+                        imagePath = path.join(__dirname, '../assets/game/tiles', fallback + '.png');
+                        imageFileName = fallback + '.png';
+                        console.log(`[DIG_DEEPER] Trying fallback image: ${fallback}.png`);
                         
-                        if (!fs.existsSync(imagePath)) {
-                            // Try base mine name + Ultra
-                            const baseMineName = currentMine.image.replace('MineDeep', 'Mine').replace('Deep', '');
-                            const ultraBaseName = baseMineName + 'Ultra';
-                            imagePath = path.join(__dirname, '../assets/game/tiles', ultraBaseName + '.png');
-                            imageFileName = ultraBaseName + '.png';
-                            console.log(`[DIG_DEEPER] Trying level 3 base ultra: ${ultraBaseName}.png`);
+                        if (fs.existsSync(imagePath)) {
+                            break;
                         }
-                    }
-                    
-                    // Try parent mine image with "Deep" suffix for level 2
-                    if (!fs.existsSync(imagePath) && deeperLevel === 2) {
-                        const parentImageName = currentMine.image + 'Deep';
-                        imagePath = path.join(__dirname, '../assets/game/tiles', parentImageName + '.png');
-                        imageFileName = parentImageName + '.png';
-                        console.log(`[DIG_DEEPER] Trying level 2 deep image: ${parentImageName}.png`);
-                    }
-                    
-                    // Try the current mine's image (parent of this deeper mine)
-                    if (!fs.existsSync(imagePath)) {
-                        imagePath = path.join(__dirname, '../assets/game/tiles', currentMine.image + '.png');
-                        imageFileName = currentMine.image + '.png';
-                        console.log(`[DIG_DEEPER] Trying parent mine image: ${currentMine.image}.png`);
-                    }
-                    
-                    // Try to extract base mine name and use that
-                    if (!fs.existsSync(imagePath)) {
-                        // Extract base name (remove Deep/Ultra suffixes)
-                        let baseName = deeperMine.image
-                            .replace('Deep', '')
-                            .replace('Ultra', '')
-                            .replace('MineDeep', 'Mine')
-                            .replace('MineUltra', 'Mine');
-                        
-                        imagePath = path.join(__dirname, '../assets/game/tiles', baseName + '.png');
-                        imageFileName = baseName + '.png';
-                        console.log(`[DIG_DEEPER] Trying base mine name: ${baseName}.png`);
-                    }
-                    
-                    // Final fallback to placeholder
-                    if (!fs.existsSync(imagePath)) {
-                        console.log(`[DIG_DEEPER] All image attempts failed, using placeholder`);
-                        imagePath = path.join(__dirname, '../assets/game/tiles', 'placeHolder.png');
-                        imageFileName = 'placeHolder.png';
                     }
                 }
                 
@@ -421,63 +413,96 @@ class DigDeeperListener {
                             name: '⚠️ Danger', 
                             value: `Hazard spawn rate: **${Math.round(deeperMine.hazardConfig.spawnChance * 100)}%**`, 
                             inline: true 
+                        },
+                        {
+                            name: '🏔️ Current Depth',
+                            value: `You are now at Level **${deeperLevel}** of the mines`,
+                            inline: true
                         }
                     );
                 
-                // Add exclusive access field if this is a locked mine
                 if (isLocked) {
                     welcomeEmbed.addFields({
                         name: '🔒 Exclusive Access',
-                        value: 'This is an **exclusive locked mine**! Only those who meet the requirements can enter. Others can see this channel but cannot join or interact with it.',
+                        value: 'This is an **exclusive locked mine**! Only those who meet the requirements can enter.',
                         inline: false
                     });
                 }
                 
                 welcomeEmbed
-                    .setFooter({ text: `Deeper mine accessed by ${member.displayName}` })
+                    .setFooter({ text: `First accessed by ${member.displayName}` })
                     .setTimestamp();
                 
                 await newChannel.send({ 
-                    content: `🎉 **Congratulations!** You've reached the deeper level of the ${currentMine.name.replace('⛏️ ', '')}!`,
+                    content: `🎉 **NEW DEEPER MINE DISCOVERED!**\n${member.displayName} is the first to reach this depth!`,
                     embeds: [welcomeEmbed], 
                     files: [imageAttachment] 
                 });
                 
                 // Generate initial shop for the new channel
                 const generateShop = require('./generateShop');
-                await generateShop(newChannel, 1); // Full shop generation
+                await generateShop(newChannel, 1);
                 
-                console.log(`[DIG_DEEPER] Successfully created deeper mine ${deeperMine.name} for channel ${newChannel.id}`);
+                console.log(`[DIG_DEEPER] Successfully created and initialized deeper mine ${deeperMine.name}`);
+                
             } else {
-                // Send a notification based on whether this is a locked channel and if access was just granted
-                let notificationContent = `⛏️ **${member.displayName}** has descended to the deeper mine!`;
-                
-                if (isLocked && !isNewChannel) {
-                    // Check if we just granted new permissions
-                    const permissions = newChannel.permissionOverwrites.cache.get(member.id);
-                    if (permissions && permissions.allow.has('Connect')) {
-                        // Check if this was just granted (within the last second)
-                        const permissionAge = Date.now() - permissions.createdTimestamp;
-                        if (permissionAge < 2000) { // If permission was created very recently
-                            notificationContent = `🔓 **${member.displayName}** has unlocked access to this exclusive deeper mine and descended!\n\n*This channel is locked to others - only those who meet the requirements can enter.*`;
+                // Existing channel - send join notification
+                const joinEmbed = new EmbedBuilder()
+                    .setTitle('⛏️ Another Miner Descends!')
+                    .setDescription(`**${member.displayName}** has joined the deeper mine!`)
+                    .setColor(0x00FF00)
+                    .setThumbnail(member.user.displayAvatarURL())
+                    .addFields(
+                        {
+                            name: '👥 Current Miners',
+                            value: `${newChannel.members.size} miner(s) exploring this level`,
+                            inline: true
+                        },
+                        {
+                            name: '🏔️ Mine Level',
+                            value: `Level ${existingDbEntry.gameData.deeperLevel || 2} Deeper Mine`,
+                            inline: true
                         }
-                    }
+                    );
+                
+                if (isLocked) {
+                    joinEmbed.addFields({
+                        name: '🔓 Access Granted',
+                        value: `${member.displayName} has earned access to this exclusive mine!`,
+                        inline: false
+                    });
                 }
                 
-                await newChannel.send({ 
-                    content: notificationContent 
-                });
+                joinEmbed
+                    .setFooter({ text: 'Work together to mine efficiently!' })
+                    .setTimestamp();
                 
-                console.log(`[DIG_DEEPER] Moved member ${member.id} to existing deeper mine ${newChannel.id}`);
+                await newChannel.send({ embeds: [joinEmbed] });
+                
+                console.log(`[DIG_DEEPER] Member ${member.id} joined existing deeper mine ${newChannel.id}`);
             }
             
         } catch (error) {
-            console.error('[DIG_DEEPER] Error creating deeper mine:', error);
-            await interaction.editReply({ 
-                content: '❌ Failed to create deeper mine. Please try again or contact an administrator.' 
-            });
+            console.error('[DIG_DEEPER] Error creating/joining deeper mine:', error);
+            
+            // Try to send error message
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ 
+                        content: '❌ Failed to access the deeper mine. Please try again.',
+                        ephemeral: true 
+                    });
+                } else {
+                    await interaction.editReply({ 
+                        content: '❌ Failed to access the deeper mine. Please try again.' 
+                    });
+                }
+            } catch (e) {
+                console.error('[DIG_DEEPER] Failed to send error response:', e);
+            }
         } finally {
-            this.processingChannels.delete(channelId);
+            // Always clear the processing flag
+            this.processingRequests.delete(processingKey);
         }
     }
 }
