@@ -1214,12 +1214,37 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
             
             const mapData = dbEntry.gameData.map;
             const updatedPositions = {};
+            
+            // Get rail tiles for long break positioning
+            const railStorage = require('./mining/railStorage');
+            const railsData = await railStorage.getRailsData(channel.id);
+            const railTiles = [];
+            
+            if (railsData && railsData.rails && railsData.rails.size > 0) {
+                for (const [key, rail] of railsData.rails) {
+                    const [x, y] = key.split(',').map(Number);
+                    if (x >= 0 && x < mapData.width && y >= 0 && y < mapData.height) {
+                        railTiles.push({ x, y });
+                    }
+                }
+            }
+            
+            // Move players to random rail tiles, or entrance if no rails
             for (const member of members.values()) {
-                updatedPositions[member.id] = {
-                    x: mapData.entranceX,
-                    y: mapData.entranceY,
-                    hidden: true
-                };
+                if (railTiles.length > 0) {
+                    const randomRail = railTiles[Math.floor(Math.random() * railTiles.length)];
+                    updatedPositions[member.id] = {
+                        x: randomRail.x,
+                        y: randomRail.y,
+                        hidden: true
+                    };
+                } else {
+                    updatedPositions[member.id] = {
+                        x: mapData.entranceX,
+                        y: mapData.entranceY,
+                        hidden: true
+                    };
+                }
             }
             
             mapCacheSystem.updateMultiple(channel.id, { 'map.playerPositions': updatedPositions });
@@ -1235,6 +1260,13 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
             const selectedEvent = preSelectedEvent || pickLongBreakEvent(playerCount);
             
             console.log(`[LONG BREAK] Selected event: ${selectedEvent.name || 'Unknown'}`);
+            
+            // Log where players were moved
+            if (railTiles.length > 0) {
+                console.log(`[LONG BREAK] Moving ${members.size} players to random rail tiles (${railTiles.length} rails available)`);
+            } else {
+                console.log(`[LONG BREAK] No rails found, moving ${members.size} players to entrance`);
+            }
             
             const eventResult = await selectedEvent(channel, updatedDbEntry);
             
