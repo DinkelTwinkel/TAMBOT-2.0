@@ -7,6 +7,7 @@ const UniqueItem = require('../models/uniqueItems');
 const { getUniqueItemById } = require('../data/uniqueItemsSheet');
 const { checkConditionalOwnership } = require('./conditionalUniqueItems');
 const DigDeeperListener = require('../patterns/digDeeperListener');
+const Sacrifice = require('../models/SacrificeSchema'); // Import Sacrifice model
 
 // Load gacha server data
 const gachaServersPath = path.join(__dirname, '../data/gachaServers.json');
@@ -328,6 +329,45 @@ module.exports = async (guild) => {
     // --- INTERVAL CHECK ---
     setInterval(async () => {
         const now = Date.now();
+
+        // Check for gullet cleanup when not sacrificing
+        try {
+            const sacrificeData = await Sacrifice.findOne({ 
+                guildId: guild.id,
+                isSacrificing: true 
+            });
+
+            // If not sacrificing (or no sacrifice data), delete any gullet channels
+            if (!sacrificeData || !sacrificeData.isSacrificing) {
+                const existingGullets = await ActiveVCS.find({ 
+                    guildId: guild.id, 
+                    typeId: 16 
+                });
+                
+                if (existingGullets.length > 0) {
+                    console.log(`🧹 Not sacrificing, cleaning up ${existingGullets.length} gullet channel(s)...`);
+                    
+                    for (const gulletEntry of existingGullets) {
+                        try {
+                            // Try to fetch and delete the actual Discord channel
+                            const gulletChannel = await guild.channels.fetch(gulletEntry.channelId).catch(() => null);
+                            if (gulletChannel) {
+                                await gulletChannel.delete('Sacrifice ended - cleaning up gullet channels');
+                                console.log(`🗑️ Deleted gullet channel: ${gulletChannel.name}`);
+                            }
+                            
+                            // Remove from database
+                            await ActiveVCS.deleteOne({ channelId: gulletEntry.channelId });
+                            console.log(`📝 Removed gullet channel from database: ${gulletEntry.channelId}`);
+                        } catch (err) {
+                            console.error(`Error cleaning up gullet channel ${gulletEntry.channelId}:`, err);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error checking/cleaning gullet channels:', error);
+        }
 
         // global Shop price shift KEY change update.
         const guildDb = await GuildConfig.findOne({guildId: guild.id});

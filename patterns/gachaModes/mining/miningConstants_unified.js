@@ -1268,6 +1268,36 @@ const MINE_ORE_CORRESPONDENCE = {
     '11015': { oreId: '102', boost: 12.0, guarantee: 0.95 },
     '122': { oreId: '102', boost: 999, guarantee: 1.00 },  // Crystal Heaven -> 100%
     
+    // Copper Quarry
+    '9': { oreId: '21', boost: 2.5, guarantee: 0.40 },     // Copper Quarry L0 -> 40% guaranteed
+    '9001': { oreId: '21', boost: 3.0, guarantee: 0.45 },
+    '9002': { oreId: '21', boost: 3.5, guarantee: 0.50 },
+    '9003': { oreId: '21', boost: 4.0, guarantee: 0.55 },
+    '9004': { oreId: '21', boost: 4.5, guarantee: 0.60 },
+    '9005': { oreId: '21', boost: 5.0, guarantee: 0.65 },
+    '109': { oreId: '21', boost: 6.0, guarantee: 0.70 },   // Copper Throne L0 -> 70%
+    '9011': { oreId: '21', boost: 7.0, guarantee: 0.75 },
+    '9012': { oreId: '21', boost: 8.0, guarantee: 0.80 },
+    '9013': { oreId: '21', boost: 9.0, guarantee: 0.85 },
+    '9014': { oreId: '21', boost: 10.0, guarantee: 0.90 },
+    '9015': { oreId: '21', boost: 12.0, guarantee: 0.95 },
+    '120': { oreId: '21', boost: 999, guarantee: 1.00 },   // Pure Copper -> 100%
+    
+    // Fossil Excavation
+    '12': { oreId: '103', boost: 2.5, guarantee: 0.40 },   // Fossil Excavation L0 -> 40% guaranteed
+    '12001': { oreId: '103', boost: 3.0, guarantee: 0.45 },
+    '12002': { oreId: '103', boost: 3.5, guarantee: 0.50 },
+    '12003': { oreId: '103', boost: 4.0, guarantee: 0.55 },
+    '12004': { oreId: '103', boost: 4.5, guarantee: 0.60 },
+    '12005': { oreId: '103', boost: 5.0, guarantee: 0.65 },
+    '112': { oreId: '103', boost: 6.0, guarantee: 0.70 },  // Ancient Fossil Vault L0 -> 70%
+    '12011': { oreId: '103', boost: 7.0, guarantee: 0.75 },
+    '12012': { oreId: '103', boost: 8.0, guarantee: 0.80 },
+    '12013': { oreId: '103', boost: 9.0, guarantee: 0.85 },
+    '12014': { oreId: '103', boost: 10.0, guarantee: 0.90 },
+    '12015': { oreId: '103', boost: 12.0, guarantee: 0.95 },
+    '123': { oreId: '103', boost: 999, guarantee: 1.00 },  // Prehistoric Paradise -> 100%
+    
     // Note: ???'s Gullet (id: 16) and Rusty Relic Realm (id: 17) are special cases handled separately
 };
 
