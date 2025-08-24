@@ -852,6 +852,46 @@
     "duration": 65
   },
   {
+    "id": "101",
+    "name": "Ancient Coin",
+    "type": "mineLoot",
+    "description": "A weathered coin from a forgotten civilization, still gleaming with mysterious power.",
+    "value": 50,
+    "vendable": false,
+    "abilities": [],
+    "image": "ancient_coin"
+  },
+  {
+    "id": "102",
+    "name": "Crystal Ore",
+    "type": "mineLoot",
+    "description": "A luminous crystalline formation that pulses with inner light.",
+    "value": 65,
+    "vendable": false,
+    "abilities": [],
+    "image": "crystal_ore"
+  },
+  {
+    "id": "103",
+    "name": "Ancient Fossil",
+    "type": "mineLoot",
+    "description": "Preserved remains of prehistoric creatures, embedded in stone.",
+    "value": 20,
+    "vendable": false,
+    "abilities": [],
+    "image": "ancient_fossil"
+  },
+  {
+    "id": "104",
+    "name": "Abyssal Relic",
+    "type": "mineLoot",
+    "description": "A dark artifact from the deepest depths, radiating otherworldly energy.",
+    "value": 200,
+    "vendable": false,
+    "abilities": [],
+    "image": "abyssal_relic"
+  },
+  {
     "id": "200",
     "name": "Gullet Flesh Scrap",
     "type": "consumable",

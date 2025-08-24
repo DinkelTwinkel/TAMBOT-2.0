@@ -2486,7 +2486,7 @@
         "colour": "800080",
         "image": "adamantiteMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 3000,
+        "conditionCost": 5000,
         "deeperMineId": "18",
         "parentMineId": "8004",
         "isLocked": false
