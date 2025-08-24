@@ -670,13 +670,17 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         // Check if we should use the unified system (for gullet and other special mines)
         const isGullet = mineTypeId === 16 || mineTypeId === '16';
         let destination = 'minecart'; // Default
-        if (isGullet || mineTypeId) {
+        if (isGullet) {
             // Use unified item system for special mines
             let context = 'mining_wall';
             if (tileType === TILE_TYPES.TREASURE_CHEST) {
                 context = 'treasure_chest';
             } else if (tileType === TILE_TYPES.RARE_ORE) {
                 context = 'rare_ore';
+            }
+
+            if (isGullet) {
+                destination = 'inventory';
             }
             
             const item = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine, mineTypeId);
@@ -687,7 +691,7 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             return { 
                 item: { ...item, value: enhancedValue }, 
                 quantity,
-                destination: 'inventory'  // ← ADD THIS
+                destination
             };
         }
         
@@ -808,14 +812,6 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         } else {
             // Regular ores go to minecart
             destination = 'minecart';
-        }
-
-                if (isGullet) {
-            destination = 'inventory'; // All gullet items → inventory
-        } else if (item.tier === 'legendary' || item.tier === 'unique' || item.tier === 'mythic') {
-            destination = 'inventory'; // Rare items → inventory
-        } else if (tileType === TILE_TYPES.TREASURE_CHEST) {
-            destination = 'inventory'; // Treasures → inventory
         }
         
         let quantity = 1;
