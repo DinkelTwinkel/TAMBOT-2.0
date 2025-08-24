@@ -177,6 +177,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                             name: chosenChannelType.name,
                             type: ChannelType.GuildVoice,
                             parent: parentCategory,
+                            position: 0, // Place at the top of the channel list
                         });
 
                         await roller.setChannel(newGachaChannel);
@@ -294,6 +295,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             name: '🎲 Rolling...',
             type: ChannelType.GuildVoice,
             parent: parentCategory,
+            position: 0, // Place at the top of the channel list
         });
 
         await roller.setChannel(newGachaChannel);

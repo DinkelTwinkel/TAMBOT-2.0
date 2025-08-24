@@ -701,7 +701,7 @@
         "rarity": "rare",
         "spawnWeight": 15,
         "description": "Brilliant diamonds sparkle in the darkness of these legendary caverns. Only the most skilled miners dare venture into these perilous depths for the ultimate prize.",
-        "power": 3,
+        "power": 4,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.02,
@@ -723,7 +723,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Deeper caverns where diamonds grow larger and clearer.",
-        "power": 3.3,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.022,
@@ -746,7 +746,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Perfect clarity diamonds begin to appear in these depths.",
-        "power": 3.6,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.024,
@@ -769,7 +769,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Light refracts endlessly through the crystalline chambers.",
-        "power": 3.9,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.026,
@@ -792,7 +792,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Rainbow prisms dance across walls of pure diamond.",
-        "power": 4.2,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.028,
@@ -815,7 +815,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "The entrance to the legendary diamond throne awaits.",
-        "power": 4.5,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.030,
@@ -864,7 +864,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Diamonds the size of houses line these royal chambers.",
-        "power": 5.6,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.040,
@@ -889,7 +889,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Reality itself crystallizes into diamond here. Space bends through the facets.",
-        "power": 6.2,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.045,
@@ -914,7 +914,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The throne room itself, where diamond kings once ruled.",
-        "power": 6.8,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.050,
@@ -939,7 +939,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Time itself is captured in these eternal diamonds.",
-        "power": 7.4,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.055,
