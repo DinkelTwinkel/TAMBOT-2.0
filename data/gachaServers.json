@@ -847,7 +847,7 @@
                 "bombRadius": 3
             }
         },
-        "shop": 3,
+        "shop": 103,
         "colour": "E0E0FF",
         "image": "diamondMineDeep",
         "isDeeper": false,
