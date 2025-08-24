@@ -58,7 +58,7 @@ const POWER_LEVEL_CONFIG = {
         treasureChance: 0.04,
         speedBonus: 1.4,
         valueMultiplier: 2.2,
-        reinforcedWallChance: 0.16  // 16% chance
+        reinforcedWallChance: 0.20  // 16% chance
     },
     6: {
         name: "Legendary Expedition",
@@ -68,7 +68,7 @@ const POWER_LEVEL_CONFIG = {
         treasureChance: 0.06,
         speedBonus: 1.6,
         valueMultiplier: 2.8,
-        reinforcedWallChance: 0.20  // 20% chance
+        reinforcedWallChance: 0.30  // 20% chance
     },
     7: {
         name: "Abyssal Expedition",
@@ -78,7 +78,7 @@ const POWER_LEVEL_CONFIG = {
         treasureChance: 0.1,
         speedBonus: 2.0,
         valueMultiplier: 3.5,
-        reinforcedWallChance: 0.25  // 25% chance - maximum difficulty!
+        reinforcedWallChance: 0.50  // 25% chance - maximum difficulty!
     },
     // Deeper mine power levels (8-10) - EXTREME difficulty and rewards
     8: {
@@ -89,7 +89,7 @@ const POWER_LEVEL_CONFIG = {
         treasureChance: 0.15,
         speedBonus: 2.5,
         valueMultiplier: 5.0,
-        reinforcedWallChance: 0.35  // 35% chance - deeper mines are tough!
+        reinforcedWallChance: 0.60  // 35% chance - deeper mines are tough!
     },
     9: {
         name: "Core Breach Expedition",
@@ -99,7 +99,7 @@ const POWER_LEVEL_CONFIG = {
         treasureChance: 0.20,
         speedBonus: 3.0,
         valueMultiplier: 7.0,
-        reinforcedWallChance: 0.45  // 45% chance - nearly half walls are reinforced
+        reinforcedWallChance: 0.70  // 45% chance - nearly half walls are reinforced
     },
     10: {
         name: "Void Touched Mining",
@@ -109,7 +109,7 @@ const POWER_LEVEL_CONFIG = {
         treasureChance: 0.30,
         speedBonus: 4.0,
         valueMultiplier: 10.0,
-        reinforcedWallChance: 0.60  // 60% chance - most walls are reinforced!
+        reinforcedWallChance: 0.80  // 60% chance - most walls are reinforced!
     }
 };
 
