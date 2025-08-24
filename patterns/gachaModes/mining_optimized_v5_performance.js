@@ -669,6 +669,7 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         
         // Check if we should use the unified system (for gullet and other special mines)
         const isGullet = mineTypeId === 16 || mineTypeId === '16';
+        let destination = 'minecart'; // Default
         if (isGullet || mineTypeId) {
             // Use unified item system for special mines
             let context = 'mining_wall';
@@ -685,7 +686,8 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             
             return { 
                 item: { ...item, value: enhancedValue }, 
-                quantity 
+                quantity,
+                destination: 'inventory'  // ← ADD THIS
             };
         }
         
@@ -795,6 +797,26 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         if (!selectedItem.tier) {
             selectedItem.tier = 'common';
         }
+
+        // Determine destination based on the selected item
+        if (isGullet) {
+            destination = 'inventory'; // All gullet items → inventory
+        } else if (selectedItem.tier === 'legendary' || selectedItem.tier === 'unique' || selectedItem.tier === 'mythic') {
+            destination = 'inventory'; // Rare items → inventory
+        } else if (tileType === TILE_TYPES.TREASURE_CHEST) {
+            destination = 'inventory'; // Treasures → inventory
+        } else {
+            // Regular ores go to minecart
+            destination = 'minecart';
+        }
+
+                if (isGullet) {
+            destination = 'inventory'; // All gullet items → inventory
+        } else if (item.tier === 'legendary' || item.tier === 'unique' || item.tier === 'mythic') {
+            destination = 'inventory'; // Rare items → inventory
+        } else if (tileType === TILE_TYPES.TREASURE_CHEST) {
+            destination = 'inventory'; // Treasures → inventory
+        }
         
         let quantity = 1;
         
@@ -861,13 +883,15 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         
         return { 
             item: { ...selectedItem, value: enhancedValue }, 
-            quantity 
+            quantity ,
+            destination  // ← ADD THIS
         };
     } catch (error) {
         console.error('[MINING] Error mining from tile:', error);
         return {
             item: availableItems[0] || { itemId: 'default', name: 'Stone', value: 1 },
-            quantity: 1
+            quantity: 1,
+            destination: 'minecart'  // ← Add this
         };
     }
 }
@@ -2483,7 +2507,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         mythic: 1
                     };
                     finalQuantity = Math.min(finalQuantity, finalQuantityCaps[item.tier] || 10);
-                    
+                    console.log (`${member.displayName} got ${item.name} and its going to ${destination}`);
                     await addItemWithDestination(dbEntry, member.id, item.itemId, finalQuantity, destination);
                     
                     mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
@@ -2768,6 +2792,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         };
                         finalQuantity = Math.min(finalQuantity, movementQuantityCaps[item.tier] || 8);
                         
+                        console.log (`${member.displayName} got ${item.name} and its going to ${destination}`);
                         await addItemWithDestination(dbEntry, member.id, item.itemId, finalQuantity, destination);
                         
                         let findMessage;

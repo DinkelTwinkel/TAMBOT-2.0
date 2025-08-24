@@ -784,7 +784,7 @@ async function createMiningSummary(channel, dbEntry) {
 module.exports = {
     DatabaseTransaction,
     addItemToMinecart,
-    addItemWithDestination,
+    addItemWithDestination,  // ← ADD THIS LINE
     resetMinecart,
     breakPickaxe,
     updateItemDurability,
