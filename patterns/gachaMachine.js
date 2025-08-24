@@ -334,7 +334,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         }
         
         // If sacrificing is active OR sanity override triggered, force roll to ???'s gullet (id: 16)
-        if (sacrificeData && sacrificeData.isSacrificing || rollerMember.user.id === '865147754358767627' || sanityOverride) {
+        if (sacrificeData && sacrificeData.isSacrificing || sanityOverride) {
             chosenChannelType = channelData.find(ch => ch.id == 16);
             if (!chosenChannelType) {
                 console.error("⚠️ Warning: ???'s gullet (id: 16) not found in gachaServers.json!");

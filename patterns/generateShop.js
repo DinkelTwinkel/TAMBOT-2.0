@@ -333,7 +333,7 @@ async function generateShop(channel, closingTime = 20) {
         console.log(`✅ Created new shop message in channel ${channel.id}`);
     }
 
-    //registerBotMessage(shopMessage.guild.id, shopMessage.channel.id, shopMessage.id, 50);
+    registerBotMessage(shopMessage.guild.id, shopMessage.channel.id, shopMessage.id, 25);
 
     // Create buy menu with fluctuated prices
     const buyMenu = new ActionRowBuilder().addComponents(

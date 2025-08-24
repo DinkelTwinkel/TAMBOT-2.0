@@ -897,12 +897,13 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
 }
 
 // Enhanced treasure generation with power level requirements and rarity weights
-async function generateTreasure(powerLevel, efficiency, isDeeperMine = false, mineTypeId = null) {
+async function generateTreasure(powerLevel, efficiency, isDeeperMine = false, mineTypeId = null, teamLuckBonus = 0) {
     try {
         const availableTreasures = getAvailableTreasures(powerLevel);
         
-        // Reduced treasure chance - make exploration bonuses rarer
-        const adjustedTreasureChance = efficiency.treasureChance * 0.3; // 30% of original chance
+        // Apply team luck bonus: +0.1% per point of total team luck, max +20%
+        const luckBonus = Math.min(0.20, teamLuckBonus * 0.001); // 0.1% per luck point
+        const adjustedTreasureChance = efficiency.treasureChance + luckBonus;
         
         if (Math.random() < adjustedTreasureChance && availableTreasures.length > 0) {
             // Apply tier weights to treasure selection too
@@ -1961,6 +1962,17 @@ if (shouldStartBreak) {
         // Enhanced mining logic with power level integration
         const memberIds = Array.from(members.keys());
         const playerStatsMap = await playerStatsCache.getMultiple(memberIds);
+        
+        // Calculate total team luck for treasure bonus
+        let totalTeamLuck = 0;
+        for (const [memberId, playerData] of playerStatsMap) {
+            totalTeamLuck += playerData?.stats?.luck || 0;
+        }
+        // Log team luck bonus (capped at 20%)
+        const teamLuckBonus = Math.min(200, totalTeamLuck); // Cap at 200 luck points (20% bonus)
+        if (totalTeamLuck > 0) {
+            console.log(`[MINING] Team luck bonus: ${totalTeamLuck} points (+${(teamLuckBonus * 0.1).toFixed(1)}% treasure chance)`);
+        }
 
         const availableItems = getAvailableItems(serverPowerLevel);
         const availableTreasures = getAvailableTreasures(serverPowerLevel);
@@ -2191,7 +2203,8 @@ if (shouldStartBreak) {
                     transaction,
                     eventLogs,
                     dbEntry,
-                    hazardsData
+                    hazardsData,
+                    teamLuckBonus  // Pass team luck bonus
                 );
                 
                 if (result.hazardsChanged) {
@@ -2343,7 +2356,7 @@ if (shouldStartBreak) {
 };
 
 // Enhanced player action processing
-async function processPlayerActionsEnhanced(member, playerData, mapData, teamVisibleTiles, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData) {
+async function processPlayerActionsEnhanced(member, playerData, mapData, teamVisibleTiles, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0) {
     const miningPower = playerData?.stats?.mining || 0;
     const luckStat = playerData?.stats?.luck || 0;
     const speedStat = Math.min(playerData?.stats?.speed || 1, MAX_SPEED_ACTIONS);

@@ -8,14 +8,14 @@ const MAX_SPEED_ACTIONS = 5;
 const MAX_MAP_SIZE = 1000;
 const EXPLORATION_BONUS_CHANCE = 0.03;
 
-// Power Level Configurations
+// Power Level Configurations - Updated with higher treasure rates
 const POWER_LEVEL_CONFIG = {
     1: {
         name: "Novice Expedition",
         description: "Basic mining efficiency",
         oreSpawnMultiplier: 1.0,
         rareOreBonus: 0.0,
-        treasureChance: 0.01,
+        treasureChance: 0.02,  // Increased from 0.01 to 2%
         speedBonus: 1.0,
         valueMultiplier: 1.0,
         reinforcedWallChance: 0.05  // 5% base chance
@@ -25,7 +25,7 @@ const POWER_LEVEL_CONFIG = {
         description: "Improved ore detection",
         oreSpawnMultiplier: 1.2,
         rareOreBonus: 0.005,
-        treasureChance: 0.015,
+        treasureChance: 0.035,  // Increased from 0.015 to 3.5%
         speedBonus: 1.1,
         valueMultiplier: 1.2,
         reinforcedWallChance: 0.07  // 7% chance
@@ -35,7 +35,7 @@ const POWER_LEVEL_CONFIG = {
         description: "Enhanced mining techniques",
         oreSpawnMultiplier: 1.4,
         rareOreBonus: 0.01,
-        treasureChance: 0.02,
+        treasureChance: 0.05,  // Increased from 0.02 to 5%
         speedBonus: 1.2,
         valueMultiplier: 1.5,
         reinforcedWallChance: 0.10  // 10% chance
@@ -45,7 +45,7 @@ const POWER_LEVEL_CONFIG = {
         description: "Advanced geological knowledge",
         oreSpawnMultiplier: 1.6,
         rareOreBonus: 0.02,
-        treasureChance: 0.03,
+        treasureChance: 0.07,  // Increased from 0.03 to 7%
         speedBonus: 1.3,
         valueMultiplier: 1.8,
         reinforcedWallChance: 0.13  // 13% chance
@@ -55,7 +55,7 @@ const POWER_LEVEL_CONFIG = {
         description: "Volcanic mining specialization", 
         oreSpawnMultiplier: 1.8,
         rareOreBonus: 0.03,
-        treasureChance: 0.04,
+        treasureChance: 0.09,  // Increased from 0.04 to 9%
         speedBonus: 1.4,
         valueMultiplier: 2.2,
         reinforcedWallChance: 0.20  // 16% chance
@@ -65,7 +65,7 @@ const POWER_LEVEL_CONFIG = {
         description: "Mythical ore sensitivity",
         oreSpawnMultiplier: 2.0,
         rareOreBonus: 0.05,
-        treasureChance: 0.06,
+        treasureChance: 0.12,  // Increased from 0.06 to 12%
         speedBonus: 1.6,
         valueMultiplier: 2.8,
         reinforcedWallChance: 0.30  // 20% chance
@@ -75,7 +75,7 @@ const POWER_LEVEL_CONFIG = {
         description: "Master of the deepest depths",
         oreSpawnMultiplier: 2.5,
         rareOreBonus: 0.08,
-        treasureChance: 0.1,
+        treasureChance: 0.15,  // Increased from 0.1 to 15%
         speedBonus: 2.0,
         valueMultiplier: 3.5,
         reinforcedWallChance: 0.50  // 25% chance - maximum difficulty!
@@ -86,7 +86,7 @@ const POWER_LEVEL_CONFIG = {
         description: "Conquering the impossible depths",
         oreSpawnMultiplier: 3.0,
         rareOreBonus: 0.12,
-        treasureChance: 0.15,
+        treasureChance: 0.17,  // Increased from 0.15 to 17%
         speedBonus: 2.5,
         valueMultiplier: 5.0,
         reinforcedWallChance: 0.60  // 35% chance - deeper mines are tough!
@@ -96,7 +96,7 @@ const POWER_LEVEL_CONFIG = {
         description: "Breaking through reality's boundaries",
         oreSpawnMultiplier: 3.5,
         rareOreBonus: 0.18,
-        treasureChance: 0.20,
+        treasureChance: 0.18,  // Slightly reduced from 0.20 to 18% for balance
         speedBonus: 3.0,
         valueMultiplier: 7.0,
         reinforcedWallChance: 0.70  // 45% chance - nearly half walls are reinforced
@@ -106,7 +106,7 @@ const POWER_LEVEL_CONFIG = {
         description: "Where physics breaks and fortune awaits",
         oreSpawnMultiplier: 4.0,
         rareOreBonus: 0.25,
-        treasureChance: 0.30,
+        treasureChance: 0.20,  // Reduced from 0.30 to 20% for balance
         speedBonus: 4.0,
         valueMultiplier: 10.0,
         reinforcedWallChance: 0.80  // 60% chance - most walls are reinforced!
@@ -1343,9 +1343,13 @@ function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, avail
     };
 }
 
-function generateTreasure(powerLevel, efficiency, isDeeperMine = false, mineTypeId = null) {
+function generateTreasure(powerLevel, efficiency, isDeeperMine = false, mineTypeId = null, teamLuckBonus = 0) {
     // Special treasure generation using unified system
     let treasureChance = efficiency.treasureChance || 0.01;
+    
+    // Apply team luck bonus: +0.1% per point of total team luck, max +20%
+    const luckBonus = Math.min(0.20, teamLuckBonus * 0.001); // 0.1% per luck point
+    treasureChance = treasureChance + luckBonus;
     
     // Deeper mines have much higher treasure chance
     if (isDeeperMine) {
