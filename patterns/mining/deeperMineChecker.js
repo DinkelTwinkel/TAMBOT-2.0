@@ -1,6 +1,6 @@
 // patterns/mining/deeperMineChecker.js
 // Module to check if conditions are met for accessing deeper mine levels
-// UPDATED TO USE EXISTING STAT TRACKING
+// UPDATED TO USE EXISTING STAT TRACKING + EXIT TILE SYSTEM
 
 const fs = require('fs');
 const path = require('path');
@@ -99,6 +99,154 @@ function calculateMinecartValue(minecart) {
     
     console.log(`[DEBUG-DEEPER] Total value calculated: ${totalValue} from ${itemCount} item types`);
     return totalValue;
+}
+
+/**
+ * Calculate persistent total run value (lifetime accumulated value)
+ * @param {Object} dbEntry - The database entry
+ * @returns {number} - Total lifetime value accumulated
+ */
+function calculatePersistentRunValue(dbEntry) {
+    console.log('[DEBUG-DEEPER] calculatePersistentRunValue called');
+    
+    if (!dbEntry.gameData || !dbEntry.gameData.stats) {
+        console.log('[DEBUG-DEEPER] No gameData or stats for persistent value');
+        return 0;
+    }
+    
+    const stats = dbEntry.gameData.stats;
+    
+    // Use lifetime value if it exists, otherwise initialize it
+    const lifetimeValue = stats.lifetimeValue || 0;
+    
+    console.log(`[DEBUG-DEEPER] Persistent lifetime value: ${lifetimeValue}`);
+    return lifetimeValue;
+}
+
+/**
+ * Update persistent run value when items are added
+ * @param {Object} dbEntry - The database entry
+ * @param {number} addedValue - Value to add to lifetime total
+ */
+async function updatePersistentRunValue(dbEntry, addedValue) {
+    console.log('[DEBUG-DEEPER] updatePersistentRunValue called with value:', addedValue);
+    
+    if (!dbEntry.gameData) {
+        dbEntry.gameData = {};
+    }
+    if (!dbEntry.gameData.stats) {
+        dbEntry.gameData.stats = {};
+    }
+    
+    // Initialize if doesn't exist
+    if (!dbEntry.gameData.stats.lifetimeValue) {
+        dbEntry.gameData.stats.lifetimeValue = 0;
+    }
+    
+    // Add to lifetime value
+    dbEntry.gameData.stats.lifetimeValue += addedValue;
+    
+    console.log(`[DEBUG-DEEPER] Updated lifetime value to: ${dbEntry.gameData.stats.lifetimeValue}`);
+    
+    // Save to database
+    await gachaVC.updateOne(
+        { channelId: dbEntry.channelId },
+        { $set: { 'gameData.stats.lifetimeValue': dbEntry.gameData.stats.lifetimeValue } }
+    );
+}
+
+/**
+ * Check if exit tile has been found and broken
+ * @param {Object} dbEntry - The database entry
+ * @returns {boolean} - Whether exit tile has been found
+ */
+function checkExitTileFound(dbEntry) {
+    if (!dbEntry.gameData || !dbEntry.gameData.stats) {
+        return false;
+    }
+    
+    return dbEntry.gameData.stats.exitTileFound === true;
+}
+
+/**
+ * Mark exit tile as found and store its position relative to entrance
+ * @param {Object} dbEntry - The database entry
+ * @param {Object} exitTileData - Exit tile data including position
+ */
+async function markExitTileFound(dbEntry, exitTileData) {
+    console.log('[DEBUG-DEEPER] Marking exit tile as found at position:', exitTileData);
+    
+    if (!dbEntry.gameData) {
+        dbEntry.gameData = {};
+    }
+    if (!dbEntry.gameData.stats) {
+        dbEntry.gameData.stats = {};
+    }
+    
+    dbEntry.gameData.stats.exitTileFound = true;
+    dbEntry.gameData.stats.exitTileFoundAt = new Date();
+    
+    // Get entrance position from map for relative positioning
+    const entranceX = dbEntry.gameData?.map?.entranceX || 0;
+    const entranceY = dbEntry.gameData?.map?.entranceY || 0;
+    
+    // Store exit tile with BOTH absolute and relative positions
+    dbEntry.gameData.exitTile = {
+        // Absolute position (may become invalid on map expansion)
+        x: exitTileData.x,
+        y: exitTileData.y,
+        // Relative position to entrance (stable across map changes)
+        relativeX: exitTileData.x - entranceX,
+        relativeY: exitTileData.y - entranceY,
+        // Store map dimensions when found (to detect expansion)
+        mapWidth: dbEntry.gameData?.map?.width || 50,
+        mapHeight: dbEntry.gameData?.map?.height || 50,
+        // Metadata
+        discoveredAt: exitTileData.discoveredAt,
+        discoveredBy: exitTileData.discoveredBy,
+        active: true
+    };
+    
+    // Save to database
+    await gachaVC.updateOne(
+        { channelId: dbEntry.channelId },
+        { 
+            $set: { 
+                'gameData.stats.exitTileFound': true,
+                'gameData.stats.exitTileFoundAt': new Date(),
+                'gameData.exitTile': dbEntry.gameData.exitTile
+            } 
+        }
+    );
+    
+    console.log('[DEBUG-DEEPER] Exit tile marked with relative position:', 
+                `Relative: (${dbEntry.gameData.exitTile.relativeX}, ${dbEntry.gameData.exitTile.relativeY})`);
+}
+
+/**
+ * Reset exit tile status (for when entering a new mine level)
+ * @param {Object} dbEntry - The database entry
+ */
+async function resetExitTileStatus(dbEntry) {
+    console.log('[DEBUG-DEEPER] Resetting exit tile status');
+    
+    if (dbEntry.gameData && dbEntry.gameData.stats) {
+        dbEntry.gameData.stats.exitTileFound = false;
+        delete dbEntry.gameData.stats.exitTileFoundAt;
+        delete dbEntry.gameData.exitTile;
+        
+        // Save to database
+        await gachaVC.updateOne(
+            { channelId: dbEntry.channelId },
+            { 
+                $set: { 'gameData.stats.exitTileFound': false },
+                $unset: { 
+                    'gameData.stats.exitTileFoundAt': 1,
+                    'gameData.exitTile': 1
+                }
+            }
+        );
+    }
 }
 
 /**
@@ -215,6 +363,18 @@ function checkConditions(dbEntry, mineConfig) {
             console.log(`[DEBUG-DEEPER] Total value: ${currentValue} / ${conditionCost}`);
             return currentValue >= conditionCost;
             
+        case 'persistentValue':
+            // Use lifetime accumulated value instead of current minecart
+            const lifetimeValue = calculatePersistentRunValue(dbEntry);
+            console.log(`[DEBUG-DEEPER] Persistent lifetime value: ${lifetimeValue} / ${conditionCost}`);
+            return lifetimeValue >= conditionCost;
+            
+        case 'exitTile':
+            // Check if exit tile has been found and broken
+            const exitFound = checkExitTileFound(dbEntry);
+            console.log(`[DEBUG-DEEPER] Exit tile found: ${exitFound}`);
+            return exitFound;
+            
         case 'rareOresFound':
             // Count rare, epic, and legendary ores in minecart
             const rareCount = countRareOres(minecart);
@@ -267,12 +427,30 @@ function getProgress(dbEntry, mineConfig) {
         case 'totalValue':
             current = calculateMinecartValue(minecart);
             break;
+        case 'persistentValue':
+            current = calculatePersistentRunValue(dbEntry);
+            break;
+        case 'exitTile':
+            // For exit tile, show if found or not
+            current = checkExitTileFound(dbEntry) ? 1 : 0;
+            break;
         case 'rareOresFound':
             current = countRareOres(minecart);
             break;
         case 'fossilsFound':
             current = countFossils(minecart);
             break;
+    }
+    
+    // Special handling for exit tile condition
+    if (conditionType === 'exitTile') {
+        const result = {
+            current: current,
+            required: 1,
+            percentage: current * 100
+        };
+        console.log('[DEBUG-DEEPER] Exit tile progress:', result);
+        return result;
     }
     
     const result = {
@@ -320,6 +498,10 @@ function getConditionDescription(mineConfig) {
             return `Discover ${conditionCost} treasures`;
         case 'totalValue':
             return `Mine ${conditionCost} coins worth of materials`;
+        case 'persistentValue':
+            return `Accumulate ${conditionCost} lifetime value`;
+        case 'exitTile':
+            return `Find and break the Exit Tile (1/1000 chance)`;
         case 'rareOresFound':
             return `Find ${conditionCost} rare or better ores`;
         case 'fossilsFound':
@@ -327,6 +509,139 @@ function getConditionDescription(mineConfig) {
         default:
             return `Complete mining objectives`;
     }
+}
+
+/**
+ * Check if a wall break spawns the exit tile
+ * @param {Object} dbEntry - The database entry
+ * @param {number} x - X coordinate of the broken wall
+ * @param {number} y - Y coordinate of the broken wall
+ * @returns {Object|null} - Exit tile data if spawned, null otherwise
+ */
+async function checkForExitTileSpawn(dbEntry, x, y) {
+    // First check if this mine's condition type is exitTile
+    const mineTypeId = dbEntry.typeId;
+    if (!mineTypeId) {
+        return null; // No mine type configured
+    }
+    
+    const mineConfig = getMineConfig(mineTypeId);
+    if (!mineConfig) {
+        return null; // No mine configuration found
+    }
+    
+    // Only spawn exit tiles if the condition type is 'exitTile'
+    if (mineConfig.nextLevelConditionType !== 'exitTile') {
+        return null; // This mine doesn't use exit tile condition
+    }
+    
+    // Don't spawn if already found
+    if (checkExitTileFound(dbEntry)) {
+        return null;
+    }
+    
+    // Don't spawn on entrance tile or adjacent to it
+    const entranceX = dbEntry.gameData?.map?.entranceX || 0;
+    const entranceY = dbEntry.gameData?.map?.entranceY || 0;
+    const distFromEntrance = Math.abs(x - entranceX) + Math.abs(y - entranceY);
+    
+    if (distFromEntrance < 2) {
+        return null; // Too close to entrance
+    }
+    
+    // 1 in 10000 chance (simplified)
+    const roll = Math.random();
+    const spawnChance = 1 / 10000;
+    
+    if (roll < spawnChance) {
+        console.log('[DEBUG-DEEPER] EXIT TILE SPAWNED! Roll:', roll, 'vs chance:', spawnChance);
+        console.log('[DEBUG-DEEPER] Exit tile location: (' + x + ', ' + y + ')');
+        console.log('[DEBUG-DEEPER] Distance from entrance:', distFromEntrance);
+        console.log('[DEBUG-DEEPER] Mine type:', mineConfig.name);
+        
+        // Return exit tile data with position
+        return {
+            x: x,
+            y: y,
+            discoveredAt: Date.now(),
+            discoveredBy: null // Will be set by caller
+        };
+    }
+    
+    return null;
+}
+
+/**
+ * Create exit tile visual data for map rendering
+ * @param {number} x - X coordinate
+ * @param {number} y - Y coordinate
+ * @returns {Object} - Exit tile visual data
+ */
+function createExitTileVisual(x, y) {
+    return {
+        x: x,
+        y: y,
+        type: 'exit_tile',
+        symbol: '🚪',
+        color: '#FFD700',  // Gold color
+        glow: true,
+        animation: 'pulse',
+        name: 'Exit Tile',
+        description: 'A mysterious glowing tile that leads to deeper sections of the mine'
+    };
+}
+
+/**
+ * Get exit tile data from database entry (with map expansion handling)
+ * @param {Object} dbEntry - The database entry
+ * @returns {Object|null} - Exit tile data if exists
+ */
+function getExitTileData(dbEntry) {
+    if (!dbEntry.gameData || !dbEntry.gameData.exitTile || !dbEntry.gameData.exitTile.active) {
+        return null;
+    }
+    
+    const exitTile = dbEntry.gameData.exitTile;
+    const currentMap = dbEntry.gameData.map;
+    
+    if (!currentMap) {
+        return exitTile;
+    }
+    
+    // Check if map has expanded since exit tile was found
+    const mapExpanded = (currentMap.width !== exitTile.mapWidth || 
+                        currentMap.height !== exitTile.mapHeight);
+    
+    if (mapExpanded || !isValidPosition(exitTile.x, exitTile.y, currentMap)) {
+        console.log('[DEBUG-DEEPER] Map has changed, recalculating exit tile position');
+        
+        // Recalculate position based on relative coordinates
+        const newX = currentMap.entranceX + exitTile.relativeX;
+        const newY = currentMap.entranceY + exitTile.relativeY;
+        
+        // Ensure new position is within bounds
+        exitTile.x = Math.max(0, Math.min(newX, currentMap.width - 1));
+        exitTile.y = Math.max(0, Math.min(newY, currentMap.height - 1));
+        
+        // Update the stored dimensions
+        exitTile.mapWidth = currentMap.width;
+        exitTile.mapHeight = currentMap.height;
+        
+        console.log('[DEBUG-DEEPER] Exit tile repositioned to:', exitTile.x, exitTile.y);
+    }
+    
+    return exitTile;
+}
+
+/**
+ * Check if position is valid on current map
+ * @param {number} x - X coordinate
+ * @param {number} y - Y coordinate
+ * @param {Object} map - Map data
+ * @returns {boolean} - Whether position is valid
+ */
+function isValidPosition(x, y, map) {
+    return x >= 0 && x < map.width && y >= 0 && y < map.height;
 }
 
 /**
@@ -423,11 +738,21 @@ async function checkAndAddDeeperMineButton(embed, dbEntry, channelId) {
         console.log('[DEBUG-DEEPER] Condition description:', conditionDesc);
         console.log('[DEBUG-DEEPER] Progress bar:', progressBar);
         
-        embed.addFields({
-            name: '🔓 Deeper Level Progress',
-            value: `${conditionDesc}\n${progressBar} ${progress.current}/${progress.required} (${progress.percentage}%)`,
-            inline: false
-        });
+        // Special display for exit tile condition
+        if (mineConfig.nextLevelConditionType === 'exitTile') {
+            const exitTileStatus = checkExitTileFound(dbEntry) ? '✅ Found!' : '❌ Not found yet';
+            embed.addFields({
+                name: '🔓 Deeper Level Progress',
+                value: `${conditionDesc}\nStatus: ${exitTileStatus}\n\n*Break walls to have a chance at finding the Exit Tile!*`,
+                inline: false
+            });
+        } else {
+            embed.addFields({
+                name: '🔓 Deeper Level Progress',
+                value: `${conditionDesc}\n${progressBar} ${progress.current}/${progress.required} (${progress.percentage}%)`,
+                inline: false
+            });
+        }
         
         // Create button (enabled only if conditions are met)
         if (conditionsMet) {
@@ -470,6 +795,74 @@ function createProgressBar(percentage) {
     return '█'.repeat(filled) + '░'.repeat(empty);
 }
 
+/**
+ * Update exit tile position after map expansion
+ * @param {Object} dbEntry - The database entry
+ * @param {Object} oldMapBounds - Previous map boundaries
+ * @param {Object} newMapBounds - New map boundaries
+ */
+async function updateExitTileAfterExpansion(dbEntry, oldMapBounds, newMapBounds) {
+    const exitTile = dbEntry.gameData?.exitTile;
+    
+    if (!exitTile || !exitTile.active) {
+        return;
+    }
+    
+    console.log('[DEBUG-DEEPER] Updating exit tile after map expansion');
+    
+    // If entrance moved, update relative position remains the same
+    // But absolute position needs to be recalculated
+    const newEntranceX = newMapBounds.entranceX || dbEntry.gameData.map.entranceX;
+    const newEntranceY = newMapBounds.entranceY || dbEntry.gameData.map.entranceY;
+    
+    // Recalculate absolute position from relative
+    const newX = newEntranceX + exitTile.relativeX;
+    const newY = newEntranceY + exitTile.relativeY;
+    
+    // Ensure within new bounds
+    exitTile.x = Math.max(0, Math.min(newX, newMapBounds.width - 1));
+    exitTile.y = Math.max(0, Math.min(newY, newMapBounds.height - 1));
+    exitTile.mapWidth = newMapBounds.width;
+    exitTile.mapHeight = newMapBounds.height;
+    
+    // Save updated position
+    await gachaVC.updateOne(
+        { channelId: dbEntry.channelId },
+        { $set: { 'gameData.exitTile': exitTile } }
+    );
+    
+    console.log('[DEBUG-DEEPER] Exit tile repositioned from', 
+                `(${exitTile.x}, ${exitTile.y}) to (${newX}, ${newY})`);
+}
+
+/**
+ * Check if a mine uses exit tile condition
+ * @param {number|string} mineTypeId - The mine type ID
+ * @returns {boolean} - Whether this mine uses exit tile condition
+ */
+function usesExitTileCondition(mineTypeId) {
+    if (!mineTypeId) return false;
+    
+    const mineConfig = getMineConfig(mineTypeId);
+    if (!mineConfig) return false;
+    
+    return mineConfig.nextLevelConditionType === 'exitTile';
+}
+
+/**
+ * Get the condition type for a mine
+ * @param {number|string} mineTypeId - The mine type ID
+ * @returns {string|null} - The condition type or null
+ */
+function getMineConditionType(mineTypeId) {
+    if (!mineTypeId) return null;
+    
+    const mineConfig = getMineConfig(mineTypeId);
+    if (!mineConfig) return null;
+    
+    return mineConfig.nextLevelConditionType || null;
+}
+
 module.exports = {
     getMineConfig,
     checkConditions,
@@ -480,6 +873,17 @@ module.exports = {
     createProgressBar,
     reloadGachaServers,
     calculateMinecartValue,
+    calculatePersistentRunValue,
+    updatePersistentRunValue,
+    checkExitTileFound,
+    markExitTileFound,
+    resetExitTileStatus,
+    checkForExitTileSpawn,
+    createExitTileVisual,
+    getExitTileData,
+    updateExitTileAfterExpansion,
+    usesExitTileCondition,
+    getMineConditionType,
     countRareOres,
     countFossils
 };

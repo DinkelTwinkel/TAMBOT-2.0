@@ -3,6 +3,7 @@ const gachaVC = require('../../../models/activevcs');
 const PlayerInventory = require('../../../models/inventory');
 const Currency = require('../../../models/currency');
 const { miningItemPool, treasureItems } = require('./miningConstants_unified');
+const deeperMineChecker = require('../../mining/deeperMineChecker');
 
 // Enhanced Database System
 class DatabaseTransaction {
@@ -204,6 +205,20 @@ async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
     // Debug logging to verify items are being added
     if (Math.random() < 0.1) { // Log 10% of additions to avoid spam
         console.log(`[MINECART] Adding ${amount}x item ${itemId} for player ${playerId} to channel ${channelId}`);
+    }
+    
+    // DEEPER MINE INTEGRATION: Track persistent value
+    const poolItem = miningItemPool.find(item => item.itemId === itemId) || 
+                    treasureItems.find(item => item.itemId === itemId);
+    
+    if (poolItem && poolItem.value) {
+        const itemValue = poolItem.value * amount;
+        // Update persistent lifetime value for deeper mine conditions
+        await deeperMineChecker.updatePersistentRunValue(dbEntry, itemValue);
+        if (Math.random() < 0.05) { // Log 5% of the time
+            const currentLifetime = deeperMineChecker.calculatePersistentRunValue(dbEntry);
+            console.log(`[DEEPER MINE] Lifetime value: ${currentLifetime} (+${itemValue})`);
+        }
     }
     
     try {

@@ -1,137 +1,127 @@
-# Mining Image Generation System
+# Mine Image Generation Scripts
 
 ## Overview
-The mining game now includes an automatic image generation system that creates missing tile and encounter images programmatically. When an image is not found, the system will:
-1. Generate it programmatically based on the theme colors
-2. Save it to the correct location
-3. Use the saved version from then on
+This directory contains scripts to generate all the mine-themed images for TAMBOT 2.0's mining game mode.
 
-This ensures that the game always has images to display and only needs to generate them once.
+## Files
 
-## Directory Structure
-```
-./assets/game/
-├── tiles/           # Tile images (floors, walls, ores, etc.)
-│   ├── coalMine_floor.png
-│   ├── coalMine_floor_2.png
-│   ├── coalMine_floor_3.png
-│   ├── coalMine_wall.png
-│   └── ...
-└── encounters/      # Encounter images (hazards, treasures)
-    ├── coalMine_portal_trap.png
-    ├── coalMine_treasure_chest.png
-    └── ...
-```
+### `generateAllMines.js`
+The main generation module that creates all mine images including:
+- **Base Mines**: coal, copper, topaz, iron, diamond, emerald, ruby, crystal, obsidian, mythril, adamantite, fossil
+- **Deep Variations**: Enhanced versions with glow effects (e.g., coalMineDeep, topazMineDeep)
+- **Ultra Variations**: Ultimate versions with special effects (e.g., coalMineUltra, topazMineUltra)
+- **Special Mines**: Unique themed mines (gluttonyMine, rustyRelicMine, abyssalAdamantiteMine)
 
-## Themes
-Based on `gachaServers.json`, the following themes are supported:
-- **coalMine** - Dark gray/black theme
-- **copperMine** - Copper/bronze theme
-- **topazMine** - Golden/orange theme
-- **ironMine** - Silver/gray theme
-- **diamondMine** - Light blue/crystal theme
-- **emeraldMine** - Green theme
-- **rubyMine** - Red/crimson theme
-- **crystalMine** - Pink/purple theme
-- **obsidianMine** - Dark gray/black volcanic theme
-- **mythrilMine** - Blue/ethereal theme
-- **adamantiteMine** - Purple/violet theme
-- **fossilMine** - Brown/tan archaeological theme
-- **generic** - Default brown theme (fallback)
+### `generateMissingImages.js`
+Original script for generating base mine images (already complete).
 
-## Image Types
+## What Gets Generated
 
-### Tile Images (64x64 pixels)
-- **floor** - 3 variations (stone pattern, cracks, dots)
-- **wall** - 3 variations (bricks, rock face, rough)
-- **entrance** - 1 variation (with EXIT marker)
-- **wallOre** - 3 variations (different ore vein patterns)
-- **rareOre** - 2 variations (crystal formations)
-- **wallReinforced** - 2 variations (metal plates with rivets)
+For each mine theme, the following images are created:
 
-### Encounter Images (64x64 pixels)
-- **portal_trap** - Swirling purple portal
-- **bomb_trap** - Black bomb with lit fuse
-- **toxic_fog** - Green fog cloud with skull
-- **wall_trap** - Pressure plate mechanism
-- **treasure_chest** - Golden chest with lock
-- **rare_treasure** - Ornate chest with jewels and crown
+### Tiles (64x64 or 64x90 pixels):
+- `floor` - 3 variations of floor tiles
+- `wall` - 3 variations of wall tiles (taller for perspective)
+- `entrance` - Special entrance/exit tile
+- `wallOre` - 3 variations of walls with ore veins
+- `rareOre` - 3 variations of walls with rare crystals
+- `wallReinforced` - 3 variations of reinforced/metal walls
+
+### Encounters (64x64 pixels):
+- `portal_trap` - Teleportation hazard
+- `bomb_trap` - Explosive hazard
+- `toxic_fog` / `green_fog` - Poisonous gas hazard
+- `wall_trap` - Pressure plate hazard
+- `treasure_chest` - Standard treasure
+- `rare_treasure` - Enhanced treasure
+
+## Special Effects by Theme Level
+
+### Base Mines
+Standard pixel art style with theme-appropriate colors.
+
+### Deep Mines (Level 2)
+- Glow effects on ore veins
+- Enhanced lighting
+- More vibrant colors
+- Energy patterns
+
+### Ultra Mines (Level 3)
+- `voidEffect` - Dark void particles and distortion
+- `cosmicEffect` - Star fields and cosmic energy
+- `lavaEffect` - Molten lava glow and heat waves
+- `electricEffect` - Lightning bolts and sparks
+- `lifeEffect` - Organic growth patterns
+- `magneticEffect` - Magnetic field distortions
+- `prismEffect` - Rainbow light refraction
+- `infinityEffect` - Endless reflections
+- `ancientEffect` - Time-worn textures
+- `digestiveEffect` - Organic, pulsing textures
+- `rustEffect` - Corroded metal patterns
+- `abyssalEffect` - Deep void corruption
+
+## Current Status
+
+✅ **Already Generated:**
+- All base mine tiles and encounters
+
+❌ **Missing (will be generated):**
+- All Deep variations (*MineDeep)
+- All Ultra variations (*MineUltra)
+- Special mines (gluttony, rusty relic, abyssal adamantite)
 
 ## Usage
 
-### Automatic Generation
-Images are generated automatically when needed:
-```javascript
-// In mining-layered-render.js
-const image = await loadTileImageVariation(TILE_TYPES.FLOOR, 'rubyMine', 0);
-// If rubyMine_floor.png doesn't exist, it will be generated and saved
-```
+From the TAMBOT 2.0 root directory, run:
 
-### Pre-Generate All Images
-To generate all images at once (recommended for production):
 ```bash
-node generateAllMiningImages.js
+# Using Node directly
+node generateMineImages.js
+
+# Or using the batch file (Windows)
+generate-mine-images.bat
 ```
 
-### Generate Specific Theme
-```javascript
-const { generateThemeImages } = require('./patterns/gachaModes/mining/imageProcessing/generateMissingImages');
+## Requirements
 
-// Generate all images for ruby mine theme
-await generateThemeImages('rubyMine');
+- Node.js
+- `canvas` npm package (`npm install canvas`)
+- Write permissions to `./assets/game/tiles/` and `./assets/game/encounters/`
+
+## Image Naming Convention
+
+Images follow this pattern:
+```
+{themeName}_{tileType}[_{variation}].png
 ```
 
-## Customization
+Examples:
+- `coalMine_floor.png` - Base coal mine floor (variation 1)
+- `coalMine_floor_2.png` - Coal mine floor variation 2
+- `coalMineDeep_wall.png` - Deep coal mine wall
+- `diamondMineUltra_rareOre_3.png` - Ultra diamond mine rare ore variation 3
 
-### Adding Custom Images
-Simply place your custom PNG images in the appropriate directories:
-- Tiles: `./assets/game/tiles/[theme]_[tileType]_[variation].png`
-- Encounters: `./assets/game/encounters/[theme]_[encounterType].png`
+## Color Schemes
 
-The system will use your custom images instead of generating them.
+Each mine level has progressively more intense color schemes:
 
-### Modifying Generation
-Edit `generateMissingImages.js` to customize:
-- Theme colors in `THEMES` object
-- Tile patterns in generator functions
-- Encounter designs in encounter generators
+| Mine Type | Base | Deep | Ultra |
+|-----------|------|------|-------|
+| Coal | Dark gray | Darker with silver glow | Pure black with void |
+| Topaz | Golden orange | Bright orange with glow | Solar yellow |
+| Diamond | Light blue | White-blue | Pure white prism |
+| Emerald | Green | Deep green glow | Bright green life |
+| Ruby | Red-pink | Deep red | Volcanic red |
+| Crystal | Pink-purple | Magenta | Pure magenta infinity |
+| Obsidian | Dark slate | Navy-black | Void black |
+| Mythril | Royal blue | Sky blue | Cosmic blue |
+| Copper | Brown-orange | Copper glow | Electric orange |
+| Iron | Gray | Dark gray | Black iron magnetic |
+| Fossil | Tan-brown | Dark brown | Ancient brown |
 
-### Adding New Themes
-1. Add theme to `MINE_THEMES` in `mining-layered-render.js`
-2. Add theme configuration to `THEMES` in `generateMissingImages.js`
-3. Update `gachaServers.json` image field to use the theme name
+## Notes
 
-## Performance Benefits
-- **One-time generation**: Images are only generated once, then cached
-- **Reduced CPU usage**: No need for programmatic rendering every frame
-- **Faster loading**: Pre-generated PNGs load faster than runtime rendering
-- **Consistent appearance**: All tiles of the same type look identical
-
-## File Naming Convention
-- **Tiles**: `[theme]_[tileType]_[variation].png`
-  - Example: `rubyMine_wall_2.png`
-  - Variation 1 can omit the number: `rubyMine_wall.png`
-  
-- **Encounters**: `[theme]_[encounterType].png`
-  - Example: `emeraldMine_treasure_chest.png`
-
-## Integration with Game
-The system automatically:
-1. Checks if requested image exists
-2. If not, generates it using theme colors
-3. Saves to disk for future use
-4. Returns the image for rendering
-
-This ensures the game never fails due to missing images and maintains consistent visual quality.
-
-## Troubleshooting
-- **Images not generating**: Check write permissions for `./assets/game/` directories
-- **Wrong colors**: Verify theme configuration in `generateMissingImages.js`
-- **Missing variations**: Ensure variation numbers are within expected range (1-3 for most tiles)
-- **Performance issues**: Run `generateAllMiningImages.js` to pre-generate all images
-
-## Total Images
-With 13 themes and all variations:
-- **Tile images**: 13 themes × 14 variations = 182 images
-- **Encounter images**: 13 themes × 6 types = 78 images
-- **Total**: 260 images
+- Images are procedurally generated with pixel art style
+- Each variation adds unique patterns (bricks, stones, rough texture)
+- Special effects are theme-appropriate (void, lava, cosmic, etc.)
+- All images maintain consistent sizing for game compatibility
