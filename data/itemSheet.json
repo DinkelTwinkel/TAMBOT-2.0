@@ -157,7 +157,7 @@
     "vendable": true,
     "abilities": [
       { "name": "mining", "powerlevel": 5 },
-      { "name": "luck", "powerlevel": 20 }
+      { "name": "luck", "powerlevel": 5 }
     ],
     "image": "pixter",
     "durability": 30
