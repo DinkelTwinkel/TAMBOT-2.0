@@ -8,7 +8,7 @@ module.exports = {
         .setDescription('Check your voice tracking status for unique items maintenance'),
     
     async execute(interaction) {
-        await interaction.deferReply();
+        await interaction.deferReply({ephemeral: true});
         
         const userId = interaction.user.id;
         const username = interaction.user.username;
