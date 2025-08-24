@@ -7,7 +7,7 @@
  * Usage: node generateAllMiningImages.js
  */
 
-const { generateAllMissingImages } = require('./patterns/gachaModes/mining/imageProcessing/generateMissingImages');
+const { generateAllMissingImages } = require('./patterns/gachaModes/mining/imageProcessing/generateAllMines');
 
 console.log('='.repeat(60));
 console.log(' MINING IMAGE GENERATOR');
