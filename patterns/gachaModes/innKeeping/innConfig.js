@@ -376,7 +376,7 @@ module.exports = {
     EMPLOYEE_OF_DAY: {
         ENABLED: true,
         MIN_WORKERS: 2,                        // Minimum workers to enable
-        BONUS_MULTIPLIER: 2                    // 2x total payout
+        BONUS_MULTIPLIER: 1.2                    // 2x total payout
     },
 
     // Database Safety Configuration (NEW)
