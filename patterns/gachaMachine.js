@@ -10,6 +10,7 @@ const Cooldown = require('../models/coolDowns');
 const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const generateShop = require('./generateShop');
 const GuildConfig = require('../models/GuildConfig');
+const Sacrifice = require('../models/SacrificeSchema'); // Import Sacrifice model
 
 const channelsFile = path.join(__dirname, '../data/gachaServers.json');
 const channelData = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
@@ -20,6 +21,16 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
     let guildConfig = await GuildConfig.findOne({ guildId: guild.id });
 
     console.log (guildConfig);
+
+    // Check for active sacrifice in the guild
+    const sacrificeData = await Sacrifice.findOne({ 
+        guildId: guild.id,
+        isSacrificing: true 
+    });
+
+    if (sacrificeData) {
+        console.log(`🔥 Guild ${guild.id} is sacrificing! Forcing roll to ???'s gullet (id: 16)`);
+    }
 
     if (guildConfig.gachaCost == null) {
     // If config exists but gachaCost field is missing or null
@@ -70,7 +81,21 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                 
                 // Find the gacha type from stored data
                 const storedTypeId = userCooldown.gachaRollData.typeId;
-                const chosenChannelType = channelData.find(ch => ch.id == storedTypeId); // Use == for type coercion
+                let chosenChannelType = channelData.find(ch => ch.id == storedTypeId); // Use == for type coercion
+                    
+                    // Check if sacrifice is active and override to ???'s gullet if needed
+                    const sacrificeDataCooldown = await Sacrifice.findOne({ 
+                        guildId: guild.id,
+                        isSacrificing: true 
+                    });
+                    
+                    if (sacrificeDataCooldown && sacrificeDataCooldown.isSacrificing) {
+                        const gulletChannel = channelData.find(ch => ch.id == 16);
+                        if (gulletChannel && storedTypeId != 16) {
+                            console.log(`🔥 Sacrifice override on cooldown recreation: Switching from ${chosenChannelType?.name} to ???'s gullet`);
+                            chosenChannelType = gulletChannel;
+                        }
+                    }
                 
                 if (!chosenChannelType) {
                     // Type not found, let them roll a new one
@@ -209,7 +234,20 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         await storeVC.save();
 
         // roll for VC type > then update the storeVC to match it.
-        const chosenChannelType = pickRandomChannelWeighted(channelData);
+        let chosenChannelType;
+        
+        // If sacrificing is active, force roll to ???'s gullet (id: 16)
+        if (sacrificeData && sacrificeData.isSacrificing) {
+            chosenChannelType = channelData.find(ch => ch.id == 16);
+            if (!chosenChannelType) {
+                console.error("⚠️ Warning: ???'s gullet (id: 16) not found in gachaServers.json!");
+                chosenChannelType = pickRandomChannelWeighted(channelData); // Fallback to normal roll
+            } else {
+                console.log(`🔥 Sacrifice override: Rolling ???'s gullet for ${rollerMember.user.tag}`);
+            }
+        } else {
+            chosenChannelType = pickRandomChannelWeighted(channelData);
+        }
 
         storeVC.typeId = parseInt(chosenChannelType.id); // Ensure consistent type
         
@@ -259,15 +297,33 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
         await userCooldown.save();
 
-        await gachaRollChannel.send(
-            `**${rollerMember.user.tag}** Inserted ${rollPrice} Coins! Your rolling booth is ready: **${newGachaChannel.name}**\n` +
-            `⏰ Next roll available in **60 minutes**.`
-        )
+        // Send special message if sacrifice override happened
+        if (sacrificeData && sacrificeData.isSacrificing && chosenChannelType.id == 16) {
+            await gachaRollChannel.send(
+                `🔥 **SACRIFICE OVERRIDE** 🔥\n` +
+                `**${rollerMember.user.tag}** The sacrifice ritual compels you! You've been drawn into **???'s gullet**!\n` +
+                `⏰ Next roll available in **60 minutes**.`
+            );
+        } else {
+            await gachaRollChannel.send(
+                `**${rollerMember.user.tag}** Inserted ${rollPrice} Coins! Your rolling booth is ready: **${newGachaChannel.name}**\n` +
+                `⏰ Next roll available in **60 minutes**.`
+            );
+        }
 
-        await newGachaChannel.send(
-            `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
-            `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
-        );
+        // Send special message in the VC if sacrifice override happened
+        if (sacrificeData && sacrificeData.isSacrificing && chosenChannelType.id == 16) {
+            await newGachaChannel.send(
+                `🔥 ${rollerMember} **THE SACRIFICE DEMANDS YOUR PRESENCE!** 🔥\n` +
+                `You've been forcefully drawn into ${chosenChannelType.name}!\n` +
+                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+            );
+        } else {
+            await newGachaChannel.send(
+                `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
+                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+            );
+        }
 
         // Build the file path for the image
         let imagePath = path.join(__dirname, '../assets/gachaLocations', chosenChannelType.image + '.png');
