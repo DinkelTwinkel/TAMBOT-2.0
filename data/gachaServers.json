@@ -239,7 +239,7 @@
             "allowedTypes": ["bomb_trap"],
             "modifiers": {}
         },
-        "shop": 1,
+        "shop": 101,
         "colour": "1C1C1C",
         "image": "coalMineDeep",
         "isDeeper": false,
@@ -381,7 +381,7 @@
                 "greenFogDamage": 3
             }
         },
-        "shop": 1,
+        "shop": 0,
         "colour": "000000",
         "image": "coalMineUltra",
         "isDeeper": false,
@@ -540,7 +540,7 @@
             "allowedTypes": ["wall_trap", "bomb_trap"],
             "modifiers": {}
         },
-        "shop": 2,
+        "shop": 102,
         "colour": "FFA500",
         "image": "topazMineDeep",
         "isDeeper": false,
@@ -686,7 +686,7 @@
                 "greenFogDamage": 3
             }
         },
-        "shop": 2,
+        "shop": 0,
         "colour": "FFFF00",
         "image": "topazMineUltra",
         "isDeeper": true,
@@ -836,7 +836,7 @@
         "name": "💎 Diamond Throne 『 L0 』",
         "type": "mining",
         "rarity": "epic",
-        "spawnWeight": 0,
+        "spawnWeight": 103,
         "description": "The legendary diamond core where perfect crystals the size of boulders await. Light refracts endlessly through the crystalline chambers, creating rainbow prisms that can blind the unwary.",
         "power": 5,
         "script": "mining_optimized_v5_performance.js",
@@ -847,7 +847,7 @@
                 "bombRadius": 3
             }
         },
-        "shop": 103,
+        "shop": 3,
         "colour": "E0E0FF",
         "image": "diamondMineDeep",
         "isDeeper": false,
@@ -1000,7 +1000,7 @@
                 "portalChaos": true
             }
         },
-        "shop": 3,
+        "shop": 0,
         "colour": "FFFFFF",
         "image": "diamondMineUltra",
         "isDeeper": true,
@@ -1173,7 +1173,7 @@
                 "greenFogIntensity": 2.0
             }
         },
-        "shop": 4,
+        "shop": 104,
         "colour": "00A86B",
         "image": "emeraldMineDeep",
         "isDeeper": false,
@@ -1327,7 +1327,7 @@
                 "greenFogDamage": 5
             }
         },
-        "shop": 4,
+        "shop": 0,
         "colour": "00FF00",
         "image": "emeraldMineUltra",
         "isDeeper": true,
@@ -1490,7 +1490,7 @@
                 "bombRadius": 3
             }
         },
-        "shop": 5,
+        "shop": 105,
         "colour": "CC0033",
         "image": "rubyMineDeep",
         "isDeeper": false,
@@ -1643,7 +1643,7 @@
                 "greenFogDamage": 4
             }
         },
-        "shop": 5,
+        "shop": 0,
         "colour": "FF0000",
         "image": "rubyMineUltra",
         "isDeeper": true,
@@ -1818,7 +1818,7 @@
                 "greenFogDamage": 2
             }
         },
-        "shop": 6,
+        "shop": 106,
         "colour": "1A1A2E",
         "image": "obsidianMineDeep",
         "isDeeper": false,
@@ -2159,7 +2159,7 @@
                 "portalChaos": true
             }
         },
-        "shop": 7,
+        "shop": 107,
         "colour": "6495ED",
         "image": "mythrilMineDeep",
         "isDeeper": false,
@@ -2670,7 +2670,7 @@
             "allowedTypes": ["fire_blast", "bomb_trap", "wall_trap"],
             "modifiers": {}
         },
-        "shop": 10,
+        "shop": 110,
         "colour": "414141",
         "image": "ironMineDeep",
         "isDeeper": false,
@@ -2980,7 +2980,7 @@
                 "bombRadius": 3
             }
         },
-        "shop": 11,
+        "shop": 111,
         "colour": "FF1493",
         "image": "crystalMineDeep",
         "isDeeper": false,
