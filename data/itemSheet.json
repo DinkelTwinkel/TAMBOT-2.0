@@ -854,201 +854,339 @@
   {
     "id": "200",
     "name": "Gullet Flesh Scrap",
-    "type": "mineLoot",
-    "description": "A small piece of pulsating flesh from the gullet's walls.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "A small piece of pulsating flesh from the gullet's walls. Slightly nutritious but disturbing.",
     "value": 3,
     "vendable": false,
-    "abilities": [],
-    "image": "flesh_scrap"
+    "abilities": [
+      { "name": "mining", "powerlevel": 1 },
+      { "name": "sanity", "powerlevel": -1 }
+    ],
+    "image": "flesh_scrap",
+    "script": "consume",
+    "duration": 30
   },
   {
     "id": "201",
     "name": "Sinew Strand",
-    "type": "mineLoot",
-    "description": "Tough, fibrous tissue that still twitches occasionally.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Tough, fibrous tissue that still twitches occasionally. Increases strength but unsettles the mind.",
     "value": 10,
     "vendable": false,
-    "abilities": [],
-    "image": "sinew_strand"
+    "abilities": [
+      { "name": "mining", "powerlevel": 2 },
+      { "name": "sanity", "powerlevel": -1 }
+    ],
+    "image": "sinew_strand",
+    "script": "consume",
+    "duration": 35
   },
   {
     "id": "202",
     "name": "Bile-Soaked Meat",
-    "type": "mineLoot",
-    "description": "Meat chunks marinated in digestive acids. Surprisingly tender.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Meat chunks marinated in digestive acids. Surprisingly tender but mentally taxing.",
     "value": 18,
     "vendable": false,
-    "abilities": [],
-    "image": "bile_meat"
+    "abilities": [
+      { "name": "speed", "powerlevel": 2 },
+      { "name": "sanity", "powerlevel": -2 }
+    ],
+    "image": "bile_meat",
+    "script": "consume",
+    "duration": 40
   },
   {
     "id": "203",
     "name": "Muscle Fiber Bundle",
-    "type": "mineLoot",
-    "description": "A thick bundle of muscle fibers, still warm to the touch.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "A thick bundle of muscle fibers, still warm to the touch. Grants power at a mental cost.",
     "value": 30,
     "vendable": false,
-    "abilities": [],
-    "image": "muscle_bundle"
+    "abilities": [
+      { "name": "mining", "powerlevel": 3 },
+      { "name": "sanity", "powerlevel": -2 }
+    ],
+    "image": "muscle_bundle",
+    "script": "consume",
+    "duration": 45
   },
   {
     "id": "204",
     "name": "Marbled Organ Meat",
-    "type": "mineLoot",
-    "description": "Rich, fatty meat from an unknown organ. Glistens in the light.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Rich, fatty meat from an unknown organ. Glistens in the light. Enhances luck but disturbs the psyche.",
     "value": 55,
     "vendable": false,
-    "abilities": [],
-    "image": "organ_meat"
+    "abilities": [
+      { "name": "luck", "powerlevel": 3 },
+      { "name": "sanity", "powerlevel": -3 }
+    ],
+    "image": "organ_meat",
+    "script": "consume",
+    "duration": 50
   },
   {
     "id": "205",
     "name": "Digestive Tract Section",
-    "type": "mineLoot",
-    "description": "A preserved section of digestive tract. Still contracting rhythmically.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "A preserved section of digestive tract. Still contracting rhythmically. Greatly enhances abilities but damages sanity.",
     "value": 80,
     "vendable": false,
-    "abilities": [],
-    "image": "tract_section"
+    "abilities": [
+      { "name": "mining", "powerlevel": 3 },
+      { "name": "speed", "powerlevel": 2 },
+      { "name": "sanity", "powerlevel": -4 }
+    ],
+    "image": "tract_section",
+    "script": "consume",
+    "duration": 55
   },
   {
     "id": "206",
     "name": "Prime Stomach Lining",
-    "type": "mineLoot",
-    "description": "Premium cut from the stomach walls. Highly prized by connoisseurs.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Premium cut from the stomach walls. Highly prized by connoisseurs. Powerful but mentally scarring.",
     "value": 110,
     "vendable": false,
-    "abilities": [],
-    "image": "stomach_lining"
+    "abilities": [
+      { "name": "mining", "powerlevel": 4 },
+      { "name": "sight", "powerlevel": 2 },
+      { "name": "sanity", "powerlevel": -5 }
+    ],
+    "image": "stomach_lining",
+    "script": "consume",
+    "duration": 60
   },
   {
     "id": "207",
     "name": "Gastric Membrane",
-    "type": "mineLoot",
-    "description": "A translucent membrane infused with powerful digestive enzymes.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "A translucent membrane infused with powerful digestive enzymes. Immense power at a terrible mental price.",
     "value": 160,
     "vendable": false,
-    "abilities": [],
-    "image": "gastric_membrane"
+    "abilities": [
+      { "name": "mining", "powerlevel": 5 },
+      { "name": "luck", "powerlevel": 3 },
+      { "name": "sanity", "powerlevel": -6 }
+    ],
+    "image": "gastric_membrane",
+    "script": "consume",
+    "duration": 65
   },
   {
     "id": "208",
     "name": "Esophageal Core",
-    "type": "mineLoot",
-    "description": "The dense, muscular core of the esophagus. Extremely rare.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "The dense, muscular core of the esophagus. Extremely rare. Legendary power but devastating to sanity.",
     "value": 220,
     "vendable": false,
-    "abilities": [],
-    "image": "esophageal_core"
+    "abilities": [
+      { "name": "mining", "powerlevel": 6 },
+      { "name": "speed", "powerlevel": 3 },
+      { "name": "sanity", "powerlevel": -8 }
+    ],
+    "image": "esophageal_core",
+    "script": "consume",
+    "duration": 70
   },
   {
     "id": "209",
     "name": "Heart of the Gullet",
-    "type": "mineLoot",
-    "description": "The legendary heart of ???'s gullet. Still beats with eldritch power.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "The legendary heart of ???'s gullet. Still beats with eldritch power. Godlike abilities but shatters the mind.",
     "value": 5000,
     "vendable": false,
-    "abilities": [],
-    "image": "gullet_heart"
+    "abilities": [
+      { "name": "mining", "powerlevel": 10 },
+      { "name": "luck", "powerlevel": 5 },
+      { "name": "speed", "powerlevel": 5 },
+      { "name": "sight", "powerlevel": 5 },
+      { "name": "sanity", "powerlevel": -15 }
+    ],
+    "image": "gullet_heart",
+    "script": "consume",
+    "duration": 90
   },
   {
     "id": "210",
     "name": "Bone Marrow Extract",
-    "type": "mineLoot",
-    "description": "Rich marrow extracted from ancient bones embedded in the flesh.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Rich marrow extracted from ancient bones embedded in the flesh. Strengthens but unnerves.",
     "value": 40,
     "vendable": false,
-    "abilities": [],
-    "image": "bone_marrow"
+    "abilities": [
+      { "name": "mining", "powerlevel": 3 },
+      { "name": "sanity", "powerlevel": -2 }
+    ],
+    "image": "bone_marrow",
+    "script": "consume",
+    "duration": 45
   },
   {
     "id": "211",
     "name": "Cartilage Chunk",
-    "type": "mineLoot",
-    "description": "Rubbery cartilage that provides structure to the gullet.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Rubbery cartilage that provides structure to the gullet. Tough to chew but energizing.",
     "value": 25,
     "vendable": false,
-    "abilities": [],
-    "image": "cartilage_chunk"
+    "abilities": [
+      { "name": "speed", "powerlevel": 2 },
+      { "name": "sanity", "powerlevel": -2 }
+    ],
+    "image": "cartilage_chunk",
+    "script": "consume",
+    "duration": 40
   },
   {
     "id": "212",
     "name": "Blood Vessel Network",
-    "type": "mineLoot",
-    "description": "An intact network of blood vessels, still pulsing with dark ichor.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "An intact network of blood vessels, still pulsing with dark ichor. Enhances circulation but drains sanity.",
     "value": 95,
     "vendable": false,
-    "abilities": [],
-    "image": "blood_vessels"
+    "abilities": [
+      { "name": "speed", "powerlevel": 4 },
+      { "name": "sight", "powerlevel": 2 },
+      { "name": "sanity", "powerlevel": -5 }
+    ],
+    "image": "blood_vessels",
+    "script": "consume",
+    "duration": 55
   },
   {
     "id": "213",
     "name": "Lymph Node Cluster",
-    "type": "mineLoot",
-    "description": "A cluster of swollen lymph nodes, filtering unknown substances.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "A cluster of swollen lymph nodes, filtering unknown substances. Boosts immunity but disturbs the mind.",
     "value": 70,
     "vendable": false,
-    "abilities": [],
-    "image": "lymph_nodes"
+    "abilities": [
+      { "name": "luck", "powerlevel": 3 },
+      { "name": "mining", "powerlevel": 2 },
+      { "name": "sanity", "powerlevel": -4 }
+    ],
+    "image": "lymph_nodes",
+    "script": "consume",
+    "duration": 50
   },
   {
     "id": "214",
     "name": "Neural Tissue Sample",
-    "type": "mineLoot",
-    "description": "Nerve tissue that sparks with residual electrical activity.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Nerve tissue that sparks with residual electrical activity. Enhances reflexes but causes mental instability.",
     "value": 145,
     "vendable": false,
-    "abilities": [],
-    "image": "neural_tissue"
+    "abilities": [
+      { "name": "sight", "powerlevel": 4 },
+      { "name": "speed", "powerlevel": 3 },
+      { "name": "sanity", "powerlevel": -6 }
+    ],
+    "image": "neural_tissue",
+    "script": "consume",
+    "duration": 60
   },
   {
     "id": "215",
     "name": "Adipose Deposit",
-    "type": "mineLoot",
-    "description": "A large deposit of fatty tissue. Surprisingly valuable.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "A large deposit of fatty tissue. Surprisingly valuable. Provides energy but unsettles the stomach.",
     "value": 60,
     "vendable": false,
-    "abilities": [],
-    "image": "adipose_deposit"
+    "abilities": [
+      { "name": "mining", "powerlevel": 3 },
+      { "name": "luck", "powerlevel": 2 },
+      { "name": "sanity", "powerlevel": -3 }
+    ],
+    "image": "adipose_deposit",
+    "script": "consume",
+    "duration": 50
   },
   {
     "id": "216",
     "name": "Glandular Secretion",
-    "type": "mineLoot",
-    "description": "A vial of mysterious secretions from unknown glands.",
+    "type": "consumable",
+    "subtype": "drink",
+    "description": "A vial of mysterious secretions from unknown glands. Potent but psychologically damaging.",
     "value": 125,
     "vendable": false,
-    "abilities": [],
-    "image": "glandular_secretion"
+    "abilities": [
+      { "name": "luck", "powerlevel": 4 },
+      { "name": "sight", "powerlevel": 3 },
+      { "name": "sanity", "powerlevel": -5 }
+    ],
+    "image": "glandular_secretion",
+    "script": "consume",
+    "duration": 60
   },
   {
     "id": "217",
     "name": "Peristaltic Muscle Ring",
-    "type": "mineLoot",
-    "description": "A complete ring of muscles used for swallowing. Still functional.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "A complete ring of muscles used for swallowing. Still functional. Massive power boost but mentally traumatic.",
     "value": 190,
     "vendable": false,
-    "abilities": [],
-    "image": "muscle_ring"
+    "abilities": [
+      { "name": "mining", "powerlevel": 5 },
+      { "name": "speed", "powerlevel": 4 },
+      { "name": "sanity", "powerlevel": -7 }
+    ],
+    "image": "muscle_ring",
+    "script": "consume",
+    "duration": 65
   },
   {
     "id": "218",
     "name": "Void-Touched Flesh",
-    "type": "mineLoot",
-    "description": "Meat that has been altered by exposure to the void. Shimmers unnaturally.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Meat that has been altered by exposure to the void. Shimmers unnaturally. Otherworldly power at extreme mental cost.",
     "value": 280,
     "vendable": false,
-    "abilities": [],
-    "image": "void_flesh"
+    "abilities": [
+      { "name": "mining", "powerlevel": 7 },
+      { "name": "luck", "powerlevel": 4 },
+      { "name": "sight", "powerlevel": 3 },
+      { "name": "sanity", "powerlevel": -10 }
+    ],
+    "image": "void_flesh",
+    "script": "consume",
+    "duration": 75
   },
   {
     "id": "219",
     "name": "Essence of Hunger",
-    "type": "mineLoot",
-    "description": "The crystallized essence of eternal hunger. Extremely rare and valuable.",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "The crystallized essence of eternal hunger. Extremely rare and valuable. Transcendent power but obliterates sanity.",
     "value": 500,
     "vendable": false,
-    "abilities": [],
-    "image": "essence_hunger"
+    "abilities": [
+      { "name": "mining", "powerlevel": 8 },
+      { "name": "luck", "powerlevel": 5 },
+      { "name": "speed", "powerlevel": 4 },
+      { "name": "sight", "powerlevel": 4 },
+      { "name": "sanity", "powerlevel": -12 }
+    ],
+    "image": "essence_hunger",
+    "script": "consume",
+    "duration": 80
   }
 ]

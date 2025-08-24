@@ -63,6 +63,7 @@ const {
 const {
     DatabaseTransaction,
     addItemToMinecart,
+    addItemWithDestination,  // Import new routing function
     initializeGameData,
     createMiningSummary
 } = require('./mining/miningDatabase');
@@ -87,6 +88,15 @@ const {
 const hazardStorage = require('./mining/hazardStorage');
 const hazardEffects = require('./mining/hazardEffects');
 const { getHazardSpawnChance } = require('./mining/miningConstants');
+// Import the geological scanner for hazard detection
+const { 
+    performGeologicalScan, 
+    resetGeologicalScan, 
+    forceResetGeologicalCooldown,
+    shouldResetScan, 
+    getHazardProbability, 
+    HAZARD_CATALOG 
+} = require('./mining/hazards/geologicalScanner');
 
 // Import performance optimizations
 const {
@@ -914,280 +924,9 @@ async function generateTreasure(powerLevel, efficiency, isDeeperMine = false, mi
     }
 }
 
-// Get all possible hazards with enhanced descriptions for higher danger levels
-function getAllPossibleHazards(dangerLevel) {
-    const hazardList = [];
-    
-    // Enhanced hazard descriptions with more variety for danger 6-7
-    const enhancedHazards = {
-        1: [
-            { type: 'rocks', name: '🪨 Falling Rocks', description: 'Loose rocks that may fall and stun players' },
-            { type: 'gas', name: '💨 Gas Pocket', description: 'Toxic gas that disorients miners' },
-            { type: 'treasure', name: '💎 Hidden Treasure', description: 'A cache of valuable items' }
-        ],
-        2: [
-            { type: 'rocks', name: '🪨 Rock Slide', description: 'Dangerous rockfalls that can knock out miners' },
-            { type: 'gas', name: '☠️ Poison Gas', description: 'Deadly fumes that incapacitate unwary explorers' },
-            { type: 'water', name: '💧 Water Leak', description: 'Underground water that floods passages' },
-            { type: 'treasure', name: '💰 Treasure Cache', description: 'A valuable stash of rare items' }
-        ],
-        3: [
-            { type: 'explosion', name: '💥 Gas Explosion', description: 'Volatile gas pockets that explode on contact' },
-            { type: 'collapse', name: '⛰️ Cave-in', description: 'Unstable ceiling that collapses' },
-            { type: 'portal', name: '🌀 Strange Portal', description: 'Mysterious portal that teleports miners' },
-            { type: 'rare_treasure', name: '👑 Rare Treasure', description: 'Exceptionally valuable ancient artifacts' }
-        ],
-        4: [
-            { type: 'explosion', name: '💥 Chain Explosion', description: 'Multiple gas pockets that trigger chain reactions' },
-            { type: 'collapse', name: '🏔️ Major Cave-in', description: 'Massive structural collapse' },
-            { type: 'portal', name: '🌌 Unstable Portal', description: 'Chaotic portal that randomly displaces miners' },
-            { type: 'monster', name: '👹 Cave Monster', description: 'Dangerous creature lurking in the depths' },
-            { type: 'rare_treasure', name: '💎 Ancient Vault', description: 'Legendary treasures from forgotten times' }
-        ],
-        5: [
-            { type: 'explosion', name: '🔥 Inferno Blast', description: 'Massive fiery explosion' },
-            { type: 'collapse', name: '🌋 Seismic Collapse', description: 'Earthquake-triggered cave-in' },
-            { type: 'portal', name: '🕳️ Void Portal', description: 'Portal to the unknown void' },
-            { type: 'monster', name: '🐉 Ancient Beast', description: 'Powerful creature guarding the depths' },
-            { type: 'curse', name: '👻 Ancient Curse', description: 'Mysterious curse that weakens miners' },
-            { type: 'legendary_treasure', name: '👑 Legendary Hoard', description: 'Mythical treasures of immense value' }
-        ],
-        6: [
-            // Enhanced danger 6 hazards
-            { type: 'explosion', name: '☄️ Meteor Strike', description: 'Underground meteor impact zone' },
-            { type: 'collapse', name: '🌊 Tidal Collapse', description: 'Underground tsunami that floods entire sections' },
-            { type: 'portal', name: '🌀 Dimensional Rift', description: 'Reality-warping portal that distorts space' },
-            { type: 'monster', name: '🦑 Eldritch Horror', description: 'Unspeakable terror from the deep' },
-            { type: 'curse', name: '💀 Death Curse', description: 'Lethal curse that spreads to nearby miners' },
-            { type: 'trap', name: '⚡ Lightning Trap', description: 'Ancient electrical defense system' },
-            { type: 'lava', name: '🌋 Lava Flow', description: 'Molten rock that instantly vaporizes miners' },
-            { type: 'void', name: '⚫ Void Zone', description: 'Area where reality breaks down' },
-            { type: 'legendary_treasure', name: '🏆 Divine Artifacts', description: 'God-tier items of unimaginable power' }
-        ],
-        7: [
-            // Maximum danger hazards
-            { type: 'apocalypse', name: '💥 Apocalypse Zone', description: 'Chain reaction of all hazard types' },
-            { type: 'blackhole', name: '🕳️ Black Hole', description: 'Gravitational anomaly that consumes everything' },
-            { type: 'demon_lord', name: '👺 Demon Lord', description: 'Boss-level entity that hunts all miners' },
-            { type: 'time_warp', name: '⏰ Time Distortion', description: 'Temporal anomaly that reverses progress' },
-            { type: 'nuclear', name: '☢️ Nuclear Zone', description: 'Radioactive area with extreme danger' },
-            { type: 'nightmare', name: '😱 Nightmare Realm', description: 'Psychological horror that affects all players' },
-            { type: 'omega_curse', name: '⚰️ Omega Curse', description: 'Ultimate curse affecting the entire mine' },
-            { type: 'cataclysm', name: '🌪️ Cataclysmic Storm', description: 'Reality-tearing storm of pure chaos' },
-            { type: 'divine_wrath', name: '⚡ Divine Wrath', description: 'Punishment from angry mining gods' },
-            { type: 'mythic_treasure', name: '💎 Mythic Treasury', description: 'Reality-bending treasures beyond comprehension' }
-        ]
-    };
-    
-    // Add hazards based on danger level
-    for (let level = 1; level <= Math.min(dangerLevel, 7); level++) {
-        if (enhancedHazards[level]) {
-            hazardList.push(...enhancedHazards[level]);
-        }
-    }
-    
-    return hazardList;
-}
 
-// Modified hazard generation for initial roll with more cryptic messages
-async function performInitialHazardRoll(channel, dbEntry, powerLevel) {
-    try {
-        // Only perform if not already done
-        if (dbEntry.gameData?.hazardRollDone) {
-            return null;
-        }
-        
-        const members = channel.members.filter(m => !m.user.bot);
-        const dangerLevel = Math.min(powerLevel, 7);
-        
-        // Generate and store hazard seed
-        const hazardSeed = Date.now() + Math.floor(Math.random() * 1000000);
-        
-        // Get spawn chance (dramatically increased for levels 6-7)
-        let baseSpawnChance = getHazardSpawnChance(powerLevel);
-        if (dangerLevel >= 6) {
-            baseSpawnChance *= 3; // Triple hazards for danger 6
-        }
-        if (dangerLevel >= 7) {
-            baseSpawnChance *= 5; // 5x hazards for danger 7
-        }
-        
-        // Get all possible hazards with more cryptic descriptions
-        const crypticHazards = getCrypticHazardDescriptions(dangerLevel);
-        
-        // Create embed with more mysterious tone
-        const embed = new EmbedBuilder()
-            .setTitle(`🔮 ANOMALY DETECTION - Depth ${dangerLevel}`)
-            .setColor(dangerLevel >= 6 ? 0x4B0082 : dangerLevel >= 4 ? 0x8B008B : 0x483D8B)
-            .setDescription(`*Strange energies pulse through the ${POWER_LEVEL_CONFIG[powerLevel]?.name || 'Unknown Depths'}...*`)
-            .setTimestamp();
-        
-        // Add cryptic danger indicator
-        const dangerRunes = '◈'.repeat(dangerLevel) + '◇'.repeat(7 - dangerLevel);
-        embed.addFields({
-            name: '⚡ Energy Resonance',
-            value: `\`${dangerRunes}\`\n*The air itself trembles with unknown power...*`,
-            inline: false
-        });
-        
-        // Add cryptic spawn rate
-        const spawnPercent = Math.round(baseSpawnChance * 100);
-        let frequencyMessage = `${spawnPercent}% probability of anomalous encounters`;
-        if (dangerLevel >= 7) {
-            frequencyMessage = `⚠️ **REALITY UNSTABLE** - Extreme anomaly density detected`;
-        } else if (dangerLevel >= 6) {
-            frequencyMessage = `⚠️ **DIMENSIONAL RIFTS** - High anomaly concentration`;
-        }
-        
-        embed.addFields({
-            name: '📊 Disturbance Frequency',
-            value: frequencyMessage,
-            inline: true
-        });
-        
-        // Group hazards with cryptic names
-        const hazardGroups = {
-            '🌫️ Whispers in the Stone': crypticHazards.filter(h => h.tier === 'common'),
-            '🌙 Shadows That Move': crypticHazards.filter(h => h.tier === 'dangerous'),
-            '💀 Ancient Warnings': crypticHazards.filter(h => h.tier === 'extreme'),
-            '⚫ The Void Beckons': crypticHazards.filter(h => h.tier === 'apocalyptic')
-        };
-        
-        // Add cryptic hazard lists
-        for (const [groupName, hazards] of Object.entries(hazardGroups)) {
-            if (hazards.length > 0) {
-                const hazardList = hazards.map(h => `${h.crypticName}`).join('\n');
-                if (hazardList) {
-                    embed.addFields({
-                        name: groupName,
-                        value: hazardList.substring(0, 1024), // Discord field limit
-                        inline: true
-                    });
-                }
-            }
-        }
-        
-        // Add cryptic warning message based on danger level
-        let warningMessage = '';
-        if (dangerLevel >= 7) {
-            warningMessage = '***The boundaries of reality grow thin here. Ancient things stir in the darkness. Those who enter may never truly leave...***';
-        } else if (dangerLevel >= 6) {
-            warningMessage = '***Echoes of forgotten catastrophes linger. The stones remember what was lost. Tread carefully, lest you join them...***';
-        } else if (dangerLevel >= 5) {
-            warningMessage = '***Old curses sleep beneath the surface. Something watches from the shadows. Do not wake what should not be woken...***';
-        } else if (dangerLevel >= 3) {
-            warningMessage = '***Unstable energies flow through these tunnels. Strange sounds echo in the darkness. Keep your wits about you...***';
-        } else {
-            warningMessage = '***Minor disturbances detected. The depths hold their secrets close. Watch your step...***';
-        }
-        
-        embed.addFields({
-            name: '🌑 The Depths Speak',
-            value: warningMessage,
-            inline: false
-        });
-        
-        // Add cryptic player list
-        const playerList = Array.from(members.values()).map(m => m.displayName).join(' • ');
-        embed.setFooter({
-            text: `Those who dare descend: ${playerList}`
-        });
-        
-        // Store hazard seed and level in database
-        await gachaVC.updateOne(
-            { channelId: channel.id },
-            { 
-                $set: { 
-                    'gameData.hazardRollDone': true, 
-                    'gameData.dangerLevel': dangerLevel,
-                    'gameData.hazardSeed': hazardSeed
-                } 
-            }
-        );
-        
-        // Send the embed
-        await channel.send({ embeds: [embed] });
-        
-        console.log(`[MINING] Hazard roll performed for channel ${channel.id}: Level ${dangerLevel}, Seed ${hazardSeed}`);
-        
-        return embed;
-    } catch (error) {
-        console.error('[MINING] Error performing hazard roll:', error);
-        return null;
-    }
-}
 
-// Helper function to get cryptic hazard descriptions
-function getCrypticHazardDescriptions(dangerLevel) {
-    const crypticHazards = [];
-    
-    const hazardMappings = {
-        1: [
-            { type: 'rocks', crypticName: '• Trembling Stones', tier: 'common' },
-            { type: 'gas', crypticName: '• Whispering Vapors', tier: 'common' },
-            { type: 'treasure', crypticName: '• Glimmers in Darkness', tier: 'common' }
-        ],
-        2: [
-            { type: 'rocks', crypticName: '• The Ceiling Weeps', tier: 'common' },
-            { type: 'gas', crypticName: '• Breath of the Forgotten', tier: 'common' },
-            { type: 'water', crypticName: '• Dark Waters Rising', tier: 'common' },
-            { type: 'treasure', crypticName: '• Lost Fortunes', tier: 'common' }
-        ],
-        3: [
-            { type: 'explosion', crypticName: '• Volatile Echoes', tier: 'dangerous' },
-            { type: 'collapse', crypticName: '• The Weight Above', tier: 'dangerous' },
-            { type: 'portal', crypticName: '• Doorways to Nowhere', tier: 'dangerous' },
-            { type: 'rare_treasure', crypticName: '• Forgotten Relics', tier: 'dangerous' }
-        ],
-        4: [
-            { type: 'explosion', crypticName: '• Cascading Fury', tier: 'dangerous' },
-            { type: 'collapse', crypticName: '• When Mountains Fall', tier: 'dangerous' },
-            { type: 'portal', crypticName: '• Rifts in Space', tier: 'dangerous' },
-            { type: 'monster', crypticName: '• Things That Hunt', tier: 'dangerous' },
-            { type: 'rare_treasure', crypticName: '• Vault of Ancients', tier: 'dangerous' }
-        ],
-        5: [
-            { type: 'explosion', crypticName: '• Infernal Awakening', tier: 'extreme' },
-            { type: 'collapse', crypticName: '• Earth\'s Revenge', tier: 'extreme' },
-            { type: 'portal', crypticName: '• Void Passages', tier: 'extreme' },
-            { type: 'monster', crypticName: '• The Sleeper Wakes', tier: 'extreme' },
-            { type: 'curse', crypticName: '• Marks of the Damned', tier: 'extreme' },
-            { type: 'legendary_treasure', crypticName: '• Myths Made Real', tier: 'extreme' }
-        ],
-        6: [
-            { type: 'explosion', crypticName: '• Stars Falling Underground', tier: 'apocalyptic' },
-            { type: 'collapse', crypticName: '• Tsunamis of Stone', tier: 'apocalyptic' },
-            { type: 'portal', crypticName: '• Reality Fractures', tier: 'apocalyptic' },
-            { type: 'monster', crypticName: '• That Which Should Not Be', tier: 'apocalyptic' },
-            { type: 'curse', crypticName: '• Death\'s Own Shadow', tier: 'apocalyptic' },
-            { type: 'trap', crypticName: '• Lightning Prison', tier: 'apocalyptic' },
-            { type: 'lava', crypticName: '• Rivers of Fire', tier: 'apocalyptic' },
-            { type: 'void', crypticName: '• Where Reality Ends', tier: 'apocalyptic' },
-            { type: 'legendary_treasure', crypticName: '• Divine Fragments', tier: 'apocalyptic' }
-        ],
-        7: [
-            { type: 'apocalypse', crypticName: '• The End of All Things', tier: 'apocalyptic' },
-            { type: 'blackhole', crypticName: '• Consuming Darkness', tier: 'apocalyptic' },
-            { type: 'demon_lord', crypticName: '• The Unnamed One', tier: 'apocalyptic' },
-            { type: 'time_warp', crypticName: '• Yesterday\'s Tomorrow', tier: 'apocalyptic' },
-            { type: 'nuclear', crypticName: '• Atomic Ghosts', tier: 'apocalyptic' },
-            { type: 'nightmare', crypticName: '• Dreams Made Flesh', tier: 'apocalyptic' },
-            { type: 'omega_curse', crypticName: '• The Final Word', tier: 'apocalyptic' },
-            { type: 'cataclysm', crypticName: '• Storm of Chaos', tier: 'apocalyptic' },
-            { type: 'divine_wrath', crypticName: '• Judgment Day', tier: 'apocalyptic' },
-            { type: 'mythic_treasure', crypticName: '• Beyond Comprehension', tier: 'apocalyptic' }
-        ]
-    };
-    
-    // Add hazards based on danger level
-    for (let level = 1; level <= Math.min(dangerLevel, 7); level++) {
-        if (hazardMappings[level]) {
-            crypticHazards.push(...hazardMappings[level]);
-        }
-    }
-    
-    return crypticHazards;
-}
+// All hazard-related functions have been moved to geologicalScanner.js
 
 // Optimized Event Log System with power level display and error handling
 async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = null) {
@@ -1721,6 +1460,9 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
         await verifyAndFixPlayerPositions(channel.id, mapCacheSystem, gachaVC);
         
         const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
+        // Reset geological scan when break ends (new mining session)
+        await resetGeologicalScan(channelId);
+        
         await logEvent(channel, '⛏️ Break ended! Mining resumed.', true, {
             level: powerLevel,
             name: powerLevelConfig?.name || 'Unknown Mine',
@@ -1945,8 +1687,16 @@ module.exports = async (channel, dbEntry, json, client) => {
         
         console.log(`[MINING] Power Level ${serverPowerLevel} detected for ${serverName}`);
         
-        // Perform initial hazard roll (once per session)
-        await performInitialHazardRoll(channel, dbEntry, serverPowerLevel);
+        // Check if we should reset the geological scan flag (server changed)
+        // Note: The 2-hour cooldown is handled separately in performGeologicalScan
+        if (shouldResetScan(dbEntry, serverName)) {
+            await resetGeologicalScan(channel.id);
+            // Refresh dbEntry to get the updated flag
+            dbEntry = await getCachedDBEntry(channel.id, true);
+        }
+        
+        // Perform geological scan (2-hour cooldown per channel)
+        await performGeologicalScan(channel, dbEntry, serverPowerLevel, serverName);
         
         // Check if we're in a break period with proper time validation
         const inBreak = isBreakPeriod(dbEntry);
@@ -2167,6 +1917,9 @@ if (shouldStartBreak) {
             try {
                 await createMiningSummary(channel, dbEntry);
                 console.log(`[MINING] Mining summary created successfully for channel ${channel.id}`);
+                
+                // Reset geological scan when mining ends (before break)
+                await resetGeologicalScan(channel.id);
             } catch (summaryError) {
                 console.error(`[MINING] ERROR creating mining summary for channel ${channel.id}:`, summaryError);
             }
@@ -2205,14 +1958,8 @@ if (shouldStartBreak) {
             mapData = initializeMap(channel.id);
             mapChanged = true;
             
-            // Enhanced hazard spawn chance for high danger levels
-            let hazardSpawnChance = getHazardSpawnChance(serverPowerLevel);
-            if (serverPowerLevel >= 6) {
-                hazardSpawnChance *= 3;
-            }
-            if (serverPowerLevel >= 7) {
-                hazardSpawnChance *= 5;
-            }
+            // Use geological scanner's hazard probability
+            const hazardSpawnChance = getHazardProbability(serverPowerLevel);
             
             hazardsData = hazardStorage.generateHazardsForArea(
                 hazardsData,
@@ -2663,8 +2410,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             if (Math.random() < efficiency.treasureChance * 0.2) { // Only 20% of original chance
                 const treasure = await generateTreasure(powerLevel, efficiency);
                 if (treasure) {
-                    await addItemToMinecart(dbEntry, member.id, treasure.itemId, 1);
-                    eventLogs.push(`🎁 ${member.displayName} discovered ${treasure.name} while exploring!`);
+                    // Treasures go to inventory, not minecart
+                    await addItemWithDestination(dbEntry, member.id, treasure.itemId, 1, 'inventory');
+                    eventLogs.push(`🎁 ${member.displayName} discovered ${treasure.name} while exploring! (added to inventory)`);
                     treasuresFound++;
                 }
             }
@@ -2707,7 +2455,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             if (adjacentTarget) {
                 const tile = adjacentTarget.tile;
                 if (await canBreakTile(member.id, miningPower, tile)) {
-                    const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, tile.type, availableItems, efficiency, isDeeperMine, mineTypeId);
+                    const { item, quantity, destination } = await mineFromTile(member, miningPower, luckStat, powerLevel, tile.type, availableItems, efficiency, isDeeperMine, mineTypeId);
                     
                     let finalQuantity = quantity;
                     let finalValue = item.value;
@@ -2736,7 +2484,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     };
                     finalQuantity = Math.min(finalQuantity, finalQuantityCaps[item.tier] || 10);
                     
-                    await addItemToMinecart(dbEntry, member.id, item.itemId, finalQuantity);
+                    await addItemWithDestination(dbEntry, member.id, item.itemId, finalQuantity, destination);
                     
                     mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                     mapChanged = true;
@@ -2744,10 +2492,20 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     
                     let findMessage;
                     // Treasure chests no longer spawn
-                    if (tile.type === TILE_TYPES.RARE_ORE) {
-                        findMessage = `💎 ${member.displayName} struck rare ore! Harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
+
+
+                    if (destination === 'inventory') {
+                        if (tile.type === TILE_TYPES.RARE_ORE) {
+                            findMessage = `💎 ${member.displayName} struck rare ore! Harvested『 ${item.name} x ${finalQuantity} 』from wall! (added to inventory)`;
+                        } else {
+                            findMessage = `⛏️ ${member.displayName} harvested『 ${item.name} x ${finalQuantity} 』from wall! (added to inventory)`;
+                        }
                     } else {
-                        findMessage = `⛏️ ${member.displayName} harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
+                        if (tile.type === TILE_TYPES.RARE_ORE) {
+                            findMessage = `💎 ${member.displayName} struck rare ore! Harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
+                        } else {
+                            findMessage = `⛏️ ${member.displayName} harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
+                        }
                     }
                     
                     if (bestPickaxe) {
@@ -2849,7 +2607,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                                 luckStat: luckStat,
                                 powerLevel: powerLevel,
                                 availableItems: availableItems,
-                                efficiency: efficiency
+                                efficiency: efficiency,
                             }
                         );
                         wallsBroken += extraWalls;
@@ -2871,7 +2629,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                                     member, miningPower, luckStat, powerLevel, 
                                     chainTile.type, availableItems, efficiency
                                 , isDeeperMine, mineTypeId);
-                                await addItemToMinecart(dbEntry, member.id, chainItem.itemId, chainQty);
+                                await addItemWithDestination(dbEntry, member.id, chainItem.itemId, chainQty, destination);
                                 mapData.tiles[chainTarget.y][chainTarget.x] = { 
                                     type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 
                                 };
@@ -2990,7 +2748,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         continue;
                     }
                     if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
-                        const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, targetTile.type, availableItems, efficiency, isDeeperMine, mineTypeId);
+                        const { item, quantity, destination } = await mineFromTile(member, miningPower, luckStat, powerLevel, targetTile.type, availableItems, efficiency, isDeeperMine, mineTypeId);
                         
                         let finalQuantity = quantity;
                         if (serverModifiers.itemBonuses && serverModifiers.itemBonuses[item.itemId]) {
@@ -3010,14 +2768,22 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         };
                         finalQuantity = Math.min(finalQuantity, movementQuantityCaps[item.tier] || 8);
                         
-                        await addItemToMinecart(dbEntry, member.id, item.itemId, finalQuantity);
+                        await addItemWithDestination(dbEntry, member.id, item.itemId, finalQuantity, destination);
                         
                         let findMessage;
                         // Treasure chests no longer spawn
-                        if (targetTile.type === TILE_TYPES.RARE_ORE) {
-                            findMessage = `💎 ${member.displayName} mined rare ore! Found『 ${item.name} x${finalQuantity} 』!`;
+                        if (destination === 'inventory') {
+                            if (tile.type === TILE_TYPES.RARE_ORE) {
+                                findMessage = `💎 ${member.displayName} struck rare ore! Harvested『 ${item.name} x ${finalQuantity} 』from wall! (added to inventory)`;
+                            } else {
+                                findMessage = `⛏️ ${member.displayName} harvested『 ${item.name} x ${finalQuantity} 』from wall! (added to inventory)`;
+                            }
                         } else {
-                            findMessage = `⛏️ ${member.displayName} harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
+                            if (tile.type === TILE_TYPES.RARE_ORE) {
+                                findMessage = `💎 ${member.displayName} struck rare ore! Harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
+                            } else {
+                                findMessage = `⛏️ ${member.displayName} harvested『 ${item.name} x ${finalQuantity} 』from wall!`;
+                            }
                         }
                         
                         eventLogs.push(findMessage);
@@ -3137,7 +2903,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         for (let i = 0; i < itemCount; i++) {
                             // Use RARE_ORE type since treasure chests no longer spawn
                             const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, TILE_TYPES.RARE_ORE, availableItems, efficiency, isDeeperMine, mineTypeId);
-                            await addItemToMinecart(dbEntry, member.id, item.itemId, quantity);
+                            await addItemToWithDestination(dbEntry, member.id, item.itemId, quantity, destination);
                             foundItems.push(`${item.name} x${quantity}`);
                             totalValue += item.value * quantity;
                         }
@@ -3223,8 +2989,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                             }
                         }
                         
-                        eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
-                        await addItemToMinecart(dbEntry, member.id, bonusItem.itemId, 1);
+                        // Show different icon and text based on destination
+                        if (destination === 'inventory') {
+                            eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring! (Added to inventory)`);;
+                        } else {
+                            eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
+                        }
+                        await addItemWithDestination(dbEntry, member.id, bonusItem.itemId, 1, destination);
                     }
                 }
             }

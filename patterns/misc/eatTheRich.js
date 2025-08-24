@@ -110,7 +110,7 @@ module.exports = (client) => {
       try {
         // Fetch donor profile
         const donorProfile = await Money.findOne({ userId: donorId });
-      if (!donorProfile || donorProfile.money < 1) {
+      if (!donorProfile || donorProfile.money < 10000) {
         return interaction.editReply({ content: "You don't have enough money to donate!" });
       }
 
@@ -118,12 +118,12 @@ module.exports = (client) => {
       const session = await Money.startSession();
       session.startTransaction();
       try {
-        donorProfile.money -= 1;
+        donorProfile.money -= 10000;
         await donorProfile.save({ session });
 
         const recipientProfile = await Money.findOne({ userId: recipientId });
         if (recipientProfile) {
-          recipientProfile.money += 1;
+          recipientProfile.money += 10000;
           await recipientProfile.save({ session });
         } else {
           // Create recipient profile if doesn't exist
@@ -137,7 +137,7 @@ module.exports = (client) => {
         setTimeout(() => msg.delete().catch(() => {}), 5000); // 5000 ms = 5 seconds
 
         return interaction.editReply({
-          content: `✅ Successfully donated 1 monie to <@${recipientId}>!`,
+          content: `✅ Successfully donated 10000 monie to <@${recipientId}>!`,
         });
 
 

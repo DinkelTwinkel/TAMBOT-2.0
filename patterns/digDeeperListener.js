@@ -1,7 +1,7 @@
 // patterns/digDeeperListener.js
 // Event listener for handling "Dig Deeper" button interactions
 
-const { ChannelType, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { ChannelType, EmbedBuilder, AttachmentBuilder, PermissionsBitField } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const ActiveVCS = require('../models/activevcs');
@@ -149,13 +149,59 @@ class DigDeeperListener {
             if (isNewChannel) {
                 // Create the new deeper mine voice channel
                 const parentCategory = currentChannel.parent;
-                newChannel = await interaction.guild.channels.create({
+                
+                // Check if the deeper mine is locked
+                const isLocked = deeperMine.isLocked === true;
+                
+                // Prepare channel creation options
+                const channelOptions = {
                     name: deeperMine.name,
                     type: ChannelType.GuildVoice,
                     parent: parentCategory,
                     userLimit: currentChannel.userLimit,
                     bitrate: currentChannel.bitrate
-                });
+                };
+                
+                // If the mine is locked, set restrictive permissions
+                if (isLocked) {
+                    channelOptions.permissionOverwrites = [
+                        {
+                            id: interaction.guild.id, // @everyone role
+                            deny: [
+                                'Connect', // Cannot connect to voice
+                                'SendMessages', // Cannot send messages
+                                'ReadMessageHistory', // Cannot read message history
+                                'AddReactions', // Cannot add reactions
+                                'AttachFiles', // Cannot attach files
+                                'EmbedLinks', // Cannot embed links
+                                'UseApplicationCommands' // Cannot use slash commands
+                            ],
+                            allow: [
+                                'ViewChannel' // Can see the channel exists
+                            ]
+                        },
+                        {
+                            id: member.id, // The user who clicked the button
+                            allow: [
+                                'ViewChannel', // Can see the channel
+                                'Connect', // Can connect to voice
+                                'Speak', // Can speak in voice
+                                'SendMessages', // Can send messages
+                                'ReadMessageHistory', // Can read message history
+                                'AddReactions', // Can add reactions
+                                'AttachFiles', // Can attach files
+                                'EmbedLinks', // Can embed links
+                                'UseApplicationCommands', // Can use slash commands
+                                'Stream', // Can stream
+                                'UseVAD' // Can use voice activity
+                            ]
+                        }
+                    ];
+                    
+                    console.log(`[DIG_DEEPER] Creating LOCKED deeper mine channel for ${member.displayName}`);
+                }
+                
+                newChannel = await interaction.guild.channels.create(channelOptions);
                 
                 // Create new database entry for the deeper mine (fresh entry like gachaMachine.js)
                 const newEntry = new ActiveVCS({
@@ -208,6 +254,33 @@ class DigDeeperListener {
                 console.log(`[DIG_DEEPER] Created new deeper mine channel ${newChannel.id} for channel ${channelId}`);
             }
             
+            // Check if this is a locked channel and user doesn't already have permissions
+            const isLocked = deeperMine.isLocked === true;
+            if (isLocked && !isNewChannel) {
+                // Check if user already has permissions
+                const permissions = newChannel.permissionOverwrites.cache.get(member.id);
+                const hasAccess = permissions && permissions.allow.has('Connect');
+                
+                if (!hasAccess) {
+                    // Grant individual permissions to this user for the existing locked channel
+                    await newChannel.permissionOverwrites.create(member.id, {
+                        ViewChannel: true,
+                        Connect: true,
+                        Speak: true,
+                        SendMessages: true,
+                        ReadMessageHistory: true,
+                        AddReactions: true,
+                        AttachFiles: true,
+                        EmbedLinks: true,
+                        UseApplicationCommands: true,
+                        Stream: true,
+                        UseVAD: true
+                    });
+                    
+                    console.log(`[DIG_DEEPER] Granted access to locked channel ${newChannel.id} for ${member.displayName}`);
+                }
+            }
+            
             // Move only the button clicker to the new channel
             try {
                 await member.voice.setChannel(newChannel);
@@ -236,7 +309,18 @@ class DigDeeperListener {
                         value: `Hazard Chance: **${Math.round(deeperMine.hazardConfig.spawnChance * 100)}%**`, 
                         inline: true 
                     }
-                )
+                );
+            
+            // Add locked status field if applicable
+            if (isLocked) {
+                successEmbed.addFields({
+                    name: '🔒 Exclusive Access',
+                    value: 'This is a **locked** deeper mine! Only you have been granted access.',
+                    inline: false
+                });
+            }
+            
+            successEmbed
                 .setFooter({ text: isNewChannel ? 'New deeper mine created!' : 'Moved to existing deeper mine!' })
                 .setTimestamp();
             
@@ -338,7 +422,18 @@ class DigDeeperListener {
                             value: `Hazard spawn rate: **${Math.round(deeperMine.hazardConfig.spawnChance * 100)}%**`, 
                             inline: true 
                         }
-                    )
+                    );
+                
+                // Add exclusive access field if this is a locked mine
+                if (isLocked) {
+                    welcomeEmbed.addFields({
+                        name: '🔒 Exclusive Access',
+                        value: 'This is an **exclusive locked mine**! Only those who meet the requirements can enter. Others can see this channel but cannot join or interact with it.',
+                        inline: false
+                    });
+                }
+                
+                welcomeEmbed
                     .setFooter({ text: `Deeper mine accessed by ${member.displayName}` })
                     .setTimestamp();
                 
@@ -354,9 +449,23 @@ class DigDeeperListener {
                 
                 console.log(`[DIG_DEEPER] Successfully created deeper mine ${deeperMine.name} for channel ${newChannel.id}`);
             } else {
-                // Send a simple notification that user has moved to the existing deeper mine
+                // Send a notification based on whether this is a locked channel and if access was just granted
+                let notificationContent = `⛏️ **${member.displayName}** has descended to the deeper mine!`;
+                
+                if (isLocked && !isNewChannel) {
+                    // Check if we just granted new permissions
+                    const permissions = newChannel.permissionOverwrites.cache.get(member.id);
+                    if (permissions && permissions.allow.has('Connect')) {
+                        // Check if this was just granted (within the last second)
+                        const permissionAge = Date.now() - permissions.createdTimestamp;
+                        if (permissionAge < 2000) { // If permission was created very recently
+                            notificationContent = `🔓 **${member.displayName}** has unlocked access to this exclusive deeper mine and descended!\n\n*This channel is locked to others - only those who meet the requirements can enter.*`;
+                        }
+                    }
+                }
+                
                 await newChannel.send({ 
-                    content: `⛏️ **${member.displayName}** has descended to the deeper mine!` 
+                    content: notificationContent 
                 });
                 
                 console.log(`[DIG_DEEPER] Moved member ${member.id} to existing deeper mine ${newChannel.id}`);

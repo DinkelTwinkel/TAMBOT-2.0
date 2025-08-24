@@ -286,11 +286,17 @@ const HAZARD_SPAWN_CONFIG = {
 
 // Item categories for finding
 const ITEM_CATEGORY = {
-    ORE: 'ore',           // Mining loot (coal, copper, etc.)
-    EQUIPMENT: 'equipment', // Tools, charms, gear
-    CONSUMABLE: 'consumable', // Temporary boosts
-    UNIQUE: 'unique'      // Unique legendary items
+    ORE: 'ore',           // Mining loot (coal, copper, etc.) - goes to minecart
+    EQUIPMENT: 'equipment', // Tools, charms, gear - goes to player inventory
+    CONSUMABLE: 'consumable', // Temporary boosts - goes to player inventory
+    UNIQUE: 'unique'      // Unique legendary items - goes to player inventory
 };
+
+// Helper function to determine if item should go to player inventory
+function shouldGoToInventory(item) {
+    // All non-ore items go to player inventory
+    return item.category !== ITEM_CATEGORY.ORE;
+}
 
 // Context multipliers for different activities
 const CONTEXT_MULTIPLIERS = {
@@ -337,8 +343,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 100,
             tier: 'common',
             minPowerLevel: 1,
-            maxPowerLevel: 3,
-            category: ITEM_CATEGORY.ORE  // Treated as ore for mining purposes
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE  // Now consumable, goes to player inventory
         },
         { 
             itemId: "201", 
@@ -347,8 +353,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 80,
             tier: 'common',
             minPowerLevel: 1,
-            maxPowerLevel: 4,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE  // Now consumable, goes to player inventory
         },
         { 
             itemId: "202", 
@@ -357,8 +363,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 60,
             tier: 'uncommon',
             minPowerLevel: 2,
-            maxPowerLevel: 5,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "211", 
@@ -367,8 +373,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 50,
             tier: 'uncommon',
             minPowerLevel: 2,
-            maxPowerLevel: 5,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "203", 
@@ -377,8 +383,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 40,
             tier: 'uncommon',
             minPowerLevel: 2,
-            maxPowerLevel: 6,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "210", 
@@ -387,8 +393,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 35,
             tier: 'uncommon',
             minPowerLevel: 3,
-            maxPowerLevel: 6,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "204", 
@@ -397,8 +403,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 25,
             tier: 'rare',
             minPowerLevel: 3,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "215", 
@@ -407,8 +413,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 22,
             tier: 'rare',
             minPowerLevel: 3,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "213", 
@@ -417,8 +423,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 20,
             tier: 'rare',
             minPowerLevel: 3,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "205", 
@@ -427,8 +433,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 18,
             tier: 'rare',
             minPowerLevel: 4,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "212", 
@@ -437,8 +443,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 15,
             tier: 'rare',
             minPowerLevel: 4,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "206", 
@@ -447,8 +453,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 10,
             tier: 'epic',
             minPowerLevel: 4,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "216", 
@@ -457,8 +463,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 8,
             tier: 'epic',
             minPowerLevel: 5,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "214", 
@@ -467,8 +473,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 7,
             tier: 'epic',
             minPowerLevel: 5,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "207", 
@@ -477,8 +483,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 6,
             tier: 'epic',
             minPowerLevel: 5,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "217", 
@@ -487,8 +493,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 4,
             tier: 'epic',
             minPowerLevel: 6,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "208", 
@@ -497,8 +503,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 3,
             tier: 'legendary',
             minPowerLevel: 6,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "218", 
@@ -507,8 +513,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 2,
             tier: 'legendary',
             minPowerLevel: 7,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "209", 
@@ -517,8 +523,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 1,
             tier: 'legendary',
             minPowerLevel: 7,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
             itemId: "219", 
@@ -527,8 +533,8 @@ const GULLET_ITEM_POOL = {
             baseWeight: 0.5,
             tier: 'legendary',
             minPowerLevel: 7,
-            maxPowerLevel: 7,
-            category: ITEM_CATEGORY.ORE
+            maxPowerLevel: 100,
+            category: ITEM_CATEGORY.CONSUMABLE
         }
     ]
 };
@@ -544,7 +550,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 100,
             tier: 'common',
             minPowerLevel: 1,
-            maxPowerLevel: 3,
+            maxPowerLevel: 5,
             category: ITEM_CATEGORY.ORE
         },
         { 
@@ -554,7 +560,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 80,
             tier: 'common',
             minPowerLevel: 1,
-            maxPowerLevel: 4,
+            maxPowerLevel: 7,
             category: ITEM_CATEGORY.ORE
         },
         { 
@@ -564,7 +570,7 @@ const UNIFIED_ITEM_POOL = {
         baseWeight: 60,
         tier: 'uncommon',
         minPowerLevel: 2,
-        maxPowerLevel: 5,
+        maxPowerLevel: 8,
         category: ITEM_CATEGORY.ORE
         },
     { 
@@ -574,7 +580,7 @@ const UNIFIED_ITEM_POOL = {
         baseWeight: 40,
         tier: 'uncommon',
         minPowerLevel: 2,
-        maxPowerLevel: 5,
+        maxPowerLevel: 9,
         category: ITEM_CATEGORY.ORE
     },
         { 
@@ -584,7 +590,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 40,
             tier: 'uncommon',
             minPowerLevel: 2,
-            maxPowerLevel: 6,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.ORE
         },
         { 
@@ -594,7 +600,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 25,
             tier: 'rare',
             minPowerLevel: 3,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.ORE
         },
         { 
@@ -604,7 +610,7 @@ const UNIFIED_ITEM_POOL = {
         baseWeight: 20,
         tier: 'rare',
         minPowerLevel: 3,
-        maxPowerLevel: 7,
+        maxPowerLevel: 10,
         category: ITEM_CATEGORY.ORE
         },
     { 
@@ -614,7 +620,7 @@ const UNIFIED_ITEM_POOL = {
         baseWeight: 22,
         tier: 'rare',
         minPowerLevel: 3,
-        maxPowerLevel: 7,
+        maxPowerLevel: 10,
         category: ITEM_CATEGORY.ORE
     },
         { 
@@ -624,7 +630,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 10,
             tier: 'epic',
             minPowerLevel: 4,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.ORE
         },
         { 
@@ -634,7 +640,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 6,
             tier: 'epic',
             minPowerLevel: 5,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.ORE
         },
         { 
@@ -644,7 +650,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 3,
             tier: 'legendary',
             minPowerLevel: 6,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.ORE
         },
         { 
@@ -654,7 +660,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 1,
             tier: 'legendary',
             minPowerLevel: 7,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.ORE
         }
     ],
@@ -691,7 +697,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 25,
             tier: 'uncommon',
             minPowerLevel: 2,
-            maxPowerLevel: 4,
+            maxPowerLevel: 8,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'mining'
         },
@@ -702,7 +708,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 20,
             tier: 'uncommon',
             minPowerLevel: 3,
-            maxPowerLevel: 5,
+            maxPowerLevel: 8,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'mining'
         },
@@ -713,7 +719,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 15,
             tier: 'rare',
             minPowerLevel: 3,
-            maxPowerLevel: 6,
+            maxPowerLevel: 8,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'mining'
         },
@@ -745,8 +751,8 @@ const UNIFIED_ITEM_POOL = {
             value: 1200,
             baseWeight: 10,
             tier: 'rare',
-            minPowerLevel: 4,
-            maxPowerLevel: 7,
+            minPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'mining'
         },
@@ -756,8 +762,8 @@ const UNIFIED_ITEM_POOL = {
             value: 2000,
             baseWeight: 6,
             tier: 'epic',
-            minPowerLevel: 5,
-            maxPowerLevel: 7,
+            minPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'mining'
         },
@@ -767,8 +773,8 @@ const UNIFIED_ITEM_POOL = {
             value: 5000,
             baseWeight: 4,
             tier: 'epic',
-            minPowerLevel: 5,
-            maxPowerLevel: 7,
+            minPowerLevel: 9,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'mining'
         },
@@ -778,8 +784,8 @@ const UNIFIED_ITEM_POOL = {
             value: 8000,
             baseWeight: 3,
             tier: 'legendary',
-            minPowerLevel: 6,
-            maxPowerLevel: 7,
+            minPowerLevel: 9,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'mining'
         },
@@ -789,8 +795,8 @@ const UNIFIED_ITEM_POOL = {
             value: 12000,
             baseWeight: 2,
             tier: 'legendary',
-            minPowerLevel: 6,
-            maxPowerLevel: 7,
+            minPowerLevel: 9,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'mining'
         },
@@ -800,8 +806,8 @@ const UNIFIED_ITEM_POOL = {
             value: 10000,
             baseWeight: 1,
             tier: 'legendary',
-            minPowerLevel: 7,
-            maxPowerLevel: 7,
+            minPowerLevel: 9,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'mining'
         },
@@ -882,7 +888,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 3,
             tier: 'rare',
             minPowerLevel: 3,
-            maxPowerLevel: 6,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'charm'
         },
@@ -893,7 +899,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 3,
             tier: 'epic',
             minPowerLevel: 4,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'charm'
         },
@@ -904,7 +910,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 3,
             tier: 'legendary',
             minPowerLevel: 5,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'charm'
         },
@@ -917,7 +923,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 1,
             tier: 'common',
             minPowerLevel: 1,
-            maxPowerLevel: 4,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'feet'
         },
@@ -928,7 +934,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 1,
             tier: 'uncommon',
             minPowerLevel: 2,
-            maxPowerLevel: 5,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'feet'
         },
@@ -939,7 +945,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 1,
             tier: 'rare',
             minPowerLevel: 3,
-            maxPowerLevel: 6,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'charm'
         },
@@ -950,7 +956,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 1,
             tier: 'epic',
             minPowerLevel: 4,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'charm'
         },
@@ -961,7 +967,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 1,
             tier: 'legendary',
             minPowerLevel: 5,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'charm'
         },
@@ -974,7 +980,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 1,
             tier: 'rare',
             minPowerLevel: 3,
-            maxPowerLevel: 6,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'charm'
         },
@@ -985,7 +991,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 1,
             tier: 'epic',
             minPowerLevel: 4,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'charm'
         },
@@ -996,7 +1002,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 1,
             tier: 'uncommon',
             minPowerLevel: 2,
-            maxPowerLevel: 5,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.EQUIPMENT,
             slot: 'charm'
         }
@@ -1011,7 +1017,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 15,
             tier: 'rare',
             minPowerLevel: 1,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.ORE  // Categorized as ore for selling
         },
         { 
@@ -1021,7 +1027,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 5,
             tier: 'legendary',
             minPowerLevel: 5,
-            maxPowerLevel: 7,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.ORE  // Categorized as ore for selling
         }
     ],
@@ -1035,7 +1041,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 40,
             tier: 'common',
             minPowerLevel: 1,
-            maxPowerLevel: 3,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.CONSUMABLE
         },
         { 
@@ -1095,7 +1101,7 @@ const UNIFIED_ITEM_POOL = {
             baseWeight: 22,
             tier: 'uncommon',
             minPowerLevel: 2,
-            maxPowerLevel: 5,
+            maxPowerLevel: 10,
             category: ITEM_CATEGORY.CONSUMABLE
         }
     ]
@@ -1115,14 +1121,15 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     // Step 1: Get all eligible items for this power level
     const eligibleItems = [];
     
-    // If in ???'s gullet, use meat items instead of ores
+    // If in ???'s gullet, use ONLY meat items
     if (isGullet) {
-        // Add meat items from gullet
+        // Add meat items from gullet - NOTHING ELSE
         for (const meat of GULLET_ITEM_POOL.meats) {
             if (meat.minPowerLevel <= effectivePowerLevel && meat.maxPowerLevel >= effectivePowerLevel) {
                 eligibleItems.push({...meat});
             }
         }
+        // Skip all other item types for gullet - meat only!
     } else {
         // Add normal ores
         for (const ore of UNIFIED_ITEM_POOL.ores) {
@@ -1130,28 +1137,28 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
                 eligibleItems.push({...ore});
             }
         }
-    }
-    
-    // Add treasures
-    if (UNIFIED_ITEM_POOL.treasures) {
-        for (const treasure of UNIFIED_ITEM_POOL.treasures) {
-            if (treasure.minPowerLevel <= effectivePowerLevel && treasure.maxPowerLevel >= effectivePowerLevel) {
-                eligibleItems.push({...treasure});
+        
+        // Add treasures (only for non-gullet mines)
+        if (UNIFIED_ITEM_POOL.treasures) {
+            for (const treasure of UNIFIED_ITEM_POOL.treasures) {
+                if (treasure.minPowerLevel <= effectivePowerLevel && treasure.maxPowerLevel >= effectivePowerLevel) {
+                    eligibleItems.push({...treasure});
+                }
             }
         }
-    }
-    
-    // Add equipment
-    for (const equipment of UNIFIED_ITEM_POOL.equipment) {
-        if (equipment.minPowerLevel <= effectivePowerLevel && equipment.maxPowerLevel >= effectivePowerLevel) {
-            eligibleItems.push({...equipment});
+        
+        // Add equipment (only for non-gullet mines)
+        for (const equipment of UNIFIED_ITEM_POOL.equipment) {
+            if (equipment.minPowerLevel <= effectivePowerLevel && equipment.maxPowerLevel >= effectivePowerLevel) {
+                eligibleItems.push({...equipment});
+            }
         }
-    }
-    
-    // Add consumables
-    for (const consumable of UNIFIED_ITEM_POOL.consumables) {
-        if (consumable.minPowerLevel <= effectivePowerLevel && consumable.maxPowerLevel >= effectivePowerLevel) {
-            eligibleItems.push({...consumable});
+        
+        // Add consumables (only for non-gullet mines)
+        for (const consumable of UNIFIED_ITEM_POOL.consumables) {
+            if (consumable.minPowerLevel <= effectivePowerLevel && consumable.maxPowerLevel >= effectivePowerLevel) {
+                eligibleItems.push({...consumable});
+            }
         }
     }
     
@@ -1238,6 +1245,25 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     return eligibleItems[0];
 }
 
+// Helper function to get item destination
+function getItemDestination(item, mineTypeId = null) {
+    // Check if we're in ???'s gullet
+    const isGullet = mineTypeId === 16 || mineTypeId === '16';
+    
+    // Gullet items (now consumables) always go to player inventory
+    if (isGullet) {
+        return 'inventory';
+    }
+    
+    // Non-ore items go to player inventory
+    if (shouldGoToInventory(item)) {
+        return 'inventory';
+    }
+    
+    // Regular ores go to minecart
+    return 'minecart';
+}
+
 // Calculate quantity based on context and stats
 function calculateItemQuantity(item, context, miningPower = 0, luckStat = 0, powerLevel = 1, isDeeperMine = false) {
     let quantity = 1;
@@ -1312,7 +1338,8 @@ function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, avail
     
     return { 
         item: { ...item, value: enhancedValue }, 
-        quantity 
+        quantity,
+        destination: getItemDestination(item, mineTypeId) 
     };
 }
 
@@ -1331,7 +1358,8 @@ function generateTreasure(powerLevel, efficiency, isDeeperMine = false, mineType
         
         return {
             ...item,
-            value: enhancedValue
+            value: enhancedValue,
+            destination: getItemDestination(item, mineTypeId)
         };
     }
     
@@ -1799,6 +1827,8 @@ module.exports = {
     CONTEXT_MULTIPLIERS,
     findItemUnified,
     calculateItemQuantity,
+    shouldGoToInventory,  // Export helper function
+    getItemDestination,   // Export helper function
     
     // Legacy functions for backward compatibility
     mineFromTile,

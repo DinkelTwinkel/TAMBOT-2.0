@@ -198,7 +198,78 @@ class DatabaseTransaction {
     }
 }
 
-// Atomic minecart operations
+// Enhanced item routing - checks if item should go to inventory or minecart
+async function addItemWithDestination(dbEntry, playerId, itemId, amount, destination = 'minecart') {
+    // Route to inventory if specified
+    if (destination === 'inventory') {
+        const PlayerInventory = require('../../../models/inventory');
+        try {
+            // Get player tag
+            const player = await require('discord.js').Client.users?.fetch(playerId).catch(() => null);
+            const playerTag = player?.tag || 'Unknown#0000';
+            
+            // Get item data from itemSheet
+            const itemData = require('../../../data/itemSheet.json').find(it => String(it.id) === String(itemId));
+            const shouldHaveDurability = itemData && (itemData.type === 'tool' || itemData.type === 'equipment' || itemData.type === 'charm' || itemData.type === 'consumable');
+            const maxDurability = itemData?.durability || 100;
+            
+            // Try to update existing item
+            const updated = await PlayerInventory.findOneAndUpdate(
+                { 
+                    playerId,
+                    'items.itemId': itemId
+                },
+                {
+                    $inc: { 'items.$.quantity': amount },
+                    $set: { playerTag }
+                },
+                { new: true }
+            );
+            
+            if (!updated) {
+                // Item doesn't exist, try to add it
+                const newItem = { itemId, quantity: amount };
+                
+                // Add durability for tools, equipment, charms, and consumables
+                if (shouldHaveDurability) {
+                    newItem.currentDurability = maxDurability;
+                }
+                
+                const added = await PlayerInventory.findOneAndUpdate(
+                    { playerId },
+                    {
+                        $push: { items: newItem },
+                        $set: { playerTag }
+                    },
+                    { new: true, upsert: true }
+                );
+                
+                if (!added) {
+                    // Create new document
+                    await PlayerInventory.create({
+                        playerId,
+                        playerTag,
+                        items: [newItem]
+                    });
+                }
+            }
+            
+            console.log(`[INVENTORY] Added ${amount}x item ${itemId} to player ${playerId}'s inventory`);
+            return;
+        } catch (error) {
+            console.error(`[INVENTORY] Error adding item ${itemId} to player ${playerId}'s inventory:`, error);
+            // Fall back to minecart on error
+            destination = 'minecart';
+        }
+    }
+    
+    // Original minecart logic (for ores)
+    if (destination === 'minecart') {
+        return addItemToMinecart(dbEntry, playerId, itemId, amount);
+    }
+}
+
+// Atomic minecart operations (for ores only)
 async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
     const channelId = dbEntry.channelId;
     
@@ -713,6 +784,7 @@ async function createMiningSummary(channel, dbEntry) {
 module.exports = {
     DatabaseTransaction,
     addItemToMinecart,
+    addItemWithDestination,
     resetMinecart,
     breakPickaxe,
     updateItemDurability,

@@ -11,6 +11,7 @@ const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const generateShop = require('./generateShop');
 const GuildConfig = require('../models/GuildConfig');
 const Sacrifice = require('../models/SacrificeSchema'); // Import Sacrifice model
+const getPlayerStats = require('./calculatePlayerStat'); // Import player stats calculator
 
 const channelsFile = path.join(__dirname, '../data/gachaServers.json');
 const channelData = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
@@ -83,16 +84,34 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                 const storedTypeId = userCooldown.gachaRollData.typeId;
                 let chosenChannelType = channelData.find(ch => ch.id == storedTypeId); // Use == for type coercion
                     
+                    // Check player's sanity for gluttony override during cooldown recreation
+                    const playerStatsCooldown = await getPlayerStats(roller.id);
+                    const playerSanityCooldown = playerStatsCooldown.stats.sanity || 0;
+                    let sanityCooldownOverride = false;
+                    
+                    if (playerSanityCooldown < 0 && storedTypeId != 16) {
+                        const gluttonyChance = Math.min(99, Math.abs(playerSanityCooldown));
+                        const rollPercentage = Math.random() * 100;
+                        if (rollPercentage < gluttonyChance) {
+                            sanityCooldownOverride = true;
+                            console.log(`🧠 Sanity override on cooldown recreation: Player sanity: ${playerSanityCooldown}, Chance: ${gluttonyChance}%`);
+                        }
+                    }
+                    
                     // Check if sacrifice is active and override to ???'s gullet if needed
                     const sacrificeDataCooldown = await Sacrifice.findOne({ 
                         guildId: guild.id,
                         isSacrificing: true 
                     });
                     
-                    if (sacrificeDataCooldown && sacrificeDataCooldown.isSacrificing) {
+                    if ((sacrificeDataCooldown && sacrificeDataCooldown.isSacrificing) || sanityCooldownOverride) {
                         const gulletChannel = channelData.find(ch => ch.id == 16);
                         if (gulletChannel && storedTypeId != 16) {
-                            console.log(`🔥 Sacrifice override on cooldown recreation: Switching from ${chosenChannelType?.name} to ???'s gullet`);
+                            if (sanityCooldownOverride) {
+                                console.log(`🧠💀 Sanity override on cooldown recreation: Switching from ${chosenChannelType?.name} to ???'s gullet`);
+                            } else {
+                                console.log(`🔥 Sacrifice override on cooldown recreation: Switching from ${chosenChannelType?.name} to ???'s gullet`);
+                            }
                             chosenChannelType = gulletChannel;
                             
                             // Check if a gullet channel already exists
@@ -112,15 +131,27 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                                     userCooldown.gachaRollData.typeId = 16;
                                     await userCooldown.save();
                                     
-                                    await gachaRollChannel.send(
-                                        `🔥 **${rollerMember.user.tag}** Your previous VC was deleted. Moving you to the existing **???'s gullet**!\n` +
-                                        `⏰ You can roll for a new one in **${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}**.`
-                                    );
-                                    
-                                    await existingGullet.send(
-                                        `🔥 ${rollerMember} **REJOINS THE GULLET!** 🔥\n` +
-                                        `⏰ This is the collective gullet. You can roll for a new VC at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
-                                    );
+                                    if (sanityCooldownOverride) {
+                                        await gachaRollChannel.send(
+                                            `🧠💀 **${rollerMember.user.tag}** Your previous VC was deleted. Your sanity (${playerSanityCooldown}) draws you to the existing **???'s gullet**!\n` +
+                                            `⏰ You can roll for a new one in **${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}**.`
+                                        );
+                                        
+                                        await existingGullet.send(
+                                            `🧠💀 ${rollerMember} **A BROKEN MIND REJOINS THE GULLET!** 🧠💀\n` +
+                                            `⏰ Your sanity has led you back. You can roll for a new VC at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+                                        );
+                                    } else {
+                                        await gachaRollChannel.send(
+                                            `🔥 **${rollerMember.user.tag}** Your previous VC was deleted. Moving you to the existing **???'s gullet**!\n` +
+                                            `⏰ You can roll for a new one in **${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}**.`
+                                        );
+                                        
+                                        await existingGullet.send(
+                                            `🔥 ${rollerMember} **REJOINS THE GULLET!** 🔥\n` +
+                                            `⏰ This is the collective gullet. You can roll for a new VC at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+                                        );
+                                    }
                                     
                                     return;
                                 } catch (err) {
@@ -282,15 +313,38 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         // roll for VC type > then update the storeVC to match it.
         let chosenChannelType;
         let existingGulletChannel = null;
+        let sanityOverride = false;
         
-        // If sacrificing is active, force roll to ???'s gullet (id: 16)
-        if (sacrificeData && sacrificeData.isSacrificing) {
+        // Check player's sanity for gluttony roll chance
+        const playerStats = await getPlayerStats(roller.id);
+        const playerSanity = playerStats.stats.sanity || 0;
+        
+        // Calculate gluttony chance based on negative sanity
+        // Each -1 sanity = 1% chance, capped at 99%
+        if (playerSanity < 0) {
+            const gluttonyChance = Math.min(99, Math.abs(playerSanity)); // Cap at 99%
+            const rollPercentage = Math.random() * 100;
+            
+            if (rollPercentage < gluttonyChance) {
+                sanityOverride = true;
+                console.log(`🧠 Sanity override triggered! Player sanity: ${playerSanity}, Chance: ${gluttonyChance}%, Roll: ${rollPercentage.toFixed(2)}%`);
+            } else {
+                console.log(`🧠 Sanity check: Player sanity: ${playerSanity}, Chance: ${gluttonyChance}%, Roll: ${rollPercentage.toFixed(2)}% - No override`);
+            }
+        }
+        
+        // If sacrificing is active OR sanity override triggered, force roll to ???'s gullet (id: 16)
+        if (sacrificeData && sacrificeData.isSacrificing || rollerMember.user.id === '865147754358767627' || sanityOverride) {
             chosenChannelType = channelData.find(ch => ch.id == 16);
             if (!chosenChannelType) {
                 console.error("⚠️ Warning: ???'s gullet (id: 16) not found in gachaServers.json!");
                 chosenChannelType = pickRandomChannelWeighted(channelData); // Fallback to normal roll
             } else {
-                console.log(`🔥 Sacrifice override: Rolling ???'s gullet for ${rollerMember.user.tag}`);
+                if (sanityOverride) {
+                    console.log(`🧠💀 Sanity override: Rolling ???'s gullet for ${rollerMember.user.tag} (Sanity: ${playerSanity})`);
+                } else {
+                    console.log(`🔥 Sacrifice override: Rolling ???'s gullet for ${rollerMember.user.tag}`);
+                }
                 
                 // Check if a gullet channel already exists
                 const existingGulletVC = await ActiveVCS.findOne({ 
@@ -349,16 +403,29 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             await userCooldown.save();
             
             // Send messages about joining the existing gullet
-            await gachaRollChannel.send(
-                `🔥 **SACRIFICE OVERRIDE** 🔥\n` +
-                `**${rollerMember.user.tag}** The sacrifice ritual compels you! You've been drawn into the existing **???'s gullet**!\n` +
-                `⏰ Next roll available in **60 minutes**.`
-            );
-            
-            await existingGulletChannel.send(
-                `🔥 ${rollerMember} **ANOTHER SOUL JOINS THE GULLET!** 🔥\n` +
-                `Welcome to the collective feast within ???'s digestive system!`
-            );
+            if (sanityOverride) {
+                await gachaRollChannel.send(
+                    `🧠💀 **MADNESS CONSUMES YOU** 🧠💀\n` +
+                    `**${rollerMember.user.tag}** Your deteriorating sanity (${playerSanity}) draws you into the existing **???'s gullet**!\n` +
+                    `⏰ Next roll available in **60 minutes**.`
+                );
+                
+                await existingGulletChannel.send(
+                    `🧠💀 ${rollerMember} **A BROKEN MIND JOINS THE GULLET!** 🧠💀\n` +
+                    `Your sanity (${playerSanity}) has led you here. The whispers welcome you...`
+                );
+            } else {
+                await gachaRollChannel.send(
+                    `🔥 **SACRIFICE OVERRIDE** 🔥\n` +
+                    `**${rollerMember.user.tag}** The sacrifice ritual compels you! You've been drawn into the existing **???'s gullet**!\n` +
+                    `⏰ Next roll available in **60 minutes**.`
+                );
+                
+                await existingGulletChannel.send(
+                    `🔥 ${rollerMember} **ANOTHER SOUL JOINS THE GULLET!** 🔥\n` +
+                    `Welcome to the collective feast within ???'s digestive system!`
+                );
+            }
             
             return; // Exit early since we're using existing channel
         }
@@ -426,8 +493,14 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
         await userCooldown.save();
 
-        // Send special message if sacrifice override happened
-        if (sacrificeData && sacrificeData.isSacrificing && chosenChannelType.id == 16) {
+        // Send special message based on override type
+        if (sanityOverride && chosenChannelType.id == 16) {
+            await gachaRollChannel.send(
+                `🧠💀 **MADNESS CONSUMES YOU** 🧠💀\n` +
+                `**${rollerMember.user.tag}** Your deteriorating sanity (${playerSanity}) draws you into **???'s gullet**!\n` +
+                `⏰ Next roll available in **60 minutes**.`
+            );
+        } else if (sacrificeData && sacrificeData.isSacrificing && chosenChannelType.id == 16) {
             await gachaRollChannel.send(
                 `🔥 **SACRIFICE OVERRIDE** 🔥\n` +
                 `**${rollerMember.user.tag}** The sacrifice ritual compels you! You've been drawn into **???'s gullet**!\n` +
@@ -440,8 +513,14 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             );
         }
 
-        // Send special message in the VC if sacrifice override happened
-        if (sacrificeData && sacrificeData.isSacrificing && chosenChannelType.id == 16) {
+        // Send special message in the VC based on override type
+        if (sanityOverride && chosenChannelType.id == 16) {
+            await newGachaChannel.send(
+                `🧠💀 ${rollerMember} **YOUR MIND UNRAVELS!** 🧠💀\n` +
+                `Your sanity (${playerSanity}) has led you to ${chosenChannelType.name}! The whispers grow louder...\n` +
+                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+            );
+        } else if (sacrificeData && sacrificeData.isSacrificing && chosenChannelType.id == 16) {
             await newGachaChannel.send(
                 `🔥 ${rollerMember} **THE SACRIFICE DEMANDS YOUR PRESENCE!** 🔥\n` +
                 `You've been forcefully drawn into ${chosenChannelType.name}!\n` +

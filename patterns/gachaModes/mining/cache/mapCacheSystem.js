@@ -343,24 +343,82 @@ class MapCacheSystem {
         const cleaned = {};
         const paths = Object.keys(updates);
         
-        for (const path of paths) {
-            let hasConflict = false;
+        // First, remove exact duplicates (shouldn't happen but just in case)
+        const uniquePaths = [...new Set(paths)];
+        
+        // Group paths by their root and check for conflicts
+        const pathGroups = {};
+        
+        for (const path of uniquePaths) {
+            // Skip delete markers for now, handle them separately
+            if (path.startsWith('__delete_')) {
+                cleaned[path] = updates[path];
+                continue;
+            }
             
-            for (const otherPath of paths) {
-                if (path !== otherPath && !path.startsWith('__delete_') && !otherPath.startsWith('__delete_')) {
-                    if (this.isPathConflict(path, otherPath)) {
-                        // Keep the more specific path
-                        if (path.length < otherPath.length) {
-                            hasConflict = true;
-                            break;
+            // Get the root of the path (e.g., 'gameData.map' from 'gameData.map.field')
+            const parts = path.split('.');
+            let root = parts[0];
+            if (parts.length > 1 && parts[0] === 'gameData') {
+                root = `${parts[0]}.${parts[1]}`;
+            }
+            
+            if (!pathGroups[root]) {
+                pathGroups[root] = [];
+            }
+            pathGroups[root].push(path);
+        }
+        
+        // Process each group to resolve conflicts
+        for (const [root, groupPaths] of Object.entries(pathGroups)) {
+            if (groupPaths.length === 1) {
+                // No conflict in this group
+                cleaned[groupPaths[0]] = updates[groupPaths[0]];
+            } else {
+                // Sort paths by specificity (more dots = more specific)
+                groupPaths.sort((a, b) => {
+                    const aDepth = a.split('.').length;
+                    const bDepth = b.split('.').length;
+                    return bDepth - aDepth; // Most specific first
+                });
+                
+                // Check for parent-child conflicts
+                const toKeep = [];
+                for (const path of groupPaths) {
+                    let hasParentConflict = false;
+                    
+                    for (const otherPath of groupPaths) {
+                        if (path !== otherPath && this.isPathConflict(path, otherPath)) {
+                            // If this path is less specific (parent), skip it
+                            if (path.split('.').length < otherPath.split('.').length) {
+                                hasParentConflict = true;
+                                console.log(`[MAP_CACHE] Removing parent path '${path}' in favor of child '${otherPath}'`);
+                                break;
+                            }
                         }
                     }
+                    
+                    if (!hasParentConflict) {
+                        toKeep.push(path);
+                    }
+                }
+                
+                // Add the paths we're keeping
+                for (const path of toKeep) {
+                    cleaned[path] = updates[path];
+                }
+                
+                // Log if we removed any paths
+                if (toKeep.length < groupPaths.length) {
+                    console.log(`[MAP_CACHE] Resolved conflicts in ${root}: kept ${toKeep.length} of ${groupPaths.length} paths`);
                 }
             }
-            
-            if (!hasConflict) {
-                cleaned[path] = updates[path];
-            }
+        }
+        
+        // Log the cleaning results for debugging
+        if (Object.keys(updates).length !== Object.keys(cleaned).length) {
+            console.log(`[MAP_CACHE] Cleaned updates: ${Object.keys(updates).length} -> ${Object.keys(cleaned).length} paths`);
+            console.log('[MAP_CACHE] Removed paths:', Object.keys(updates).filter(k => !cleaned.hasOwnProperty(k)));
         }
         
         return cleaned;
@@ -401,21 +459,95 @@ class MapCacheSystem {
         const writes = Array.from(this.pendingWrites.entries());
         this.pendingWrites.clear();
         
-        try {
-            await Promise.all(writes.map(async ([channelId, updates]) => {
-                await gachaVC.updateOne(
-                    { channelId },
-                    { $set: updates },
-                    { upsert: false }
-                );
-            }));
-            
-            console.log('[MAP_CACHE] Force flush completed');
-            this.stats.writes += writes.length;
-        } catch (error) {
-            console.error('[MAP_CACHE] Force flush failed:', error);
-            this.stats.errors++;
+        let successCount = 0;
+        let errorCount = 0;
+        
+        // Process each write individually to better handle errors
+        const results = await Promise.allSettled(writes.map(async ([channelId, updates]) => {
+            try {
+                // Log original updates for debugging
+                if (Object.keys(updates).length > 10) {
+                    console.log(`[MAP_CACHE] Channel ${channelId} has ${Object.keys(updates).length} pending updates`);
+                }
+                
+                // Clean conflicting paths before writing
+                const cleanedUpdates = this.cleanConflictingPaths(updates);
+                
+                // Separate regular updates from deletes
+                const setUpdates = {};
+                const unsetUpdates = {};
+                
+                for (const [key, value] of Object.entries(cleanedUpdates)) {
+                    if (key.startsWith('__delete_')) {
+                        const fieldPath = key.replace('__delete_', '');
+                        unsetUpdates[fieldPath] = "";
+                    } else {
+                        setUpdates[key] = value;
+                    }
+                }
+                
+                // Build the update operation
+                const updateOp = {};
+                if (Object.keys(setUpdates).length > 0) {
+                    updateOp.$set = setUpdates;
+                }
+                if (Object.keys(unsetUpdates).length > 0) {
+                    updateOp.$unset = unsetUpdates;
+                }
+                
+                if (Object.keys(updateOp).length > 0) {
+                    // Log complex updates for debugging
+                    if (Object.keys(setUpdates).length > 5) {
+                        console.log(`[MAP_CACHE] Large update for ${channelId}: ${Object.keys(setUpdates).length} set operations`);
+                    }
+                    
+                    await gachaVC.updateOne(
+                        { channelId },
+                        updateOp,
+                        { upsert: false }
+                    );
+                    successCount++;
+                }
+            } catch (error) {
+                errorCount++;
+                
+                // Detailed error logging
+                if (error.code === 40) {
+                    console.error(`[MAP_CACHE] Conflict error for channel ${channelId}:`);
+                    console.error(`  Error message: ${error.errmsg}`);
+                    console.error(`  Update paths attempted:`, Object.keys(updates));
+                    
+                    // Try to identify the specific conflicting path from the error message
+                    const conflictMatch = error.errmsg.match(/at '([^']+)'/);
+                    if (conflictMatch) {
+                        const conflictPath = conflictMatch[1];
+                        console.error(`  Conflicting path: ${conflictPath}`);
+                        
+                        // Find all updates related to this path
+                        const relatedPaths = Object.keys(updates).filter(path => 
+                            path.startsWith(conflictPath) || conflictPath.startsWith(path.replace('__delete_', ''))
+                        );
+                        console.error(`  Related paths in update:`, relatedPaths);
+                    }
+                } else {
+                    console.error(`[MAP_CACHE] Failed to flush channel ${channelId}:`, error.message);
+                }
+                
+                throw error; // Re-throw to be caught by allSettled
+            }
+        }));
+        
+        // Log summary
+        const failedWrites = results.filter(r => r.status === 'rejected');
+        
+        if (failedWrites.length > 0) {
+            console.error(`[MAP_CACHE] Force flush completed with errors: ${successCount} succeeded, ${errorCount} failed`);
+            this.stats.errors += errorCount;
+        } else {
+            console.log(`[MAP_CACHE] Force flush completed successfully: ${successCount} writes`);
         }
+        
+        this.stats.writes += successCount;
     }
     
     /**
@@ -594,6 +726,105 @@ class MapCacheSystem {
         const pending = this.pendingWrites.get(channelId) || {};
         pending[`__delete_${field}`] = true;
         this.pendingWrites.set(channelId, pending);
+    }
+    
+    /**
+     * Diagnostic method to inspect pending writes and identify conflicts
+     */
+    inspectPendingWrites(channelId = null) {
+        console.log('\n[MAP_CACHE] === PENDING WRITES INSPECTION ==="');
+        
+        if (channelId) {
+            // Inspect specific channel
+            const pending = this.pendingWrites.get(channelId);
+            if (!pending) {
+                console.log(`No pending writes for channel ${channelId}`);
+                return;
+            }
+            
+            console.log(`Channel ${channelId}: ${Object.keys(pending).length} pending updates`);
+            this.analyzePendingUpdates(pending);
+        } else {
+            // Inspect all channels
+            if (this.pendingWrites.size === 0) {
+                console.log('No pending writes in queue');
+                return;
+            }
+            
+            for (const [channelId, pending] of this.pendingWrites.entries()) {
+                console.log(`\nChannel ${channelId}: ${Object.keys(pending).length} pending updates`);
+                this.analyzePendingUpdates(pending);
+            }
+        }
+        
+        console.log('\n=== END INSPECTION ===\n');
+    }
+    
+    /**
+     * Analyze pending updates for conflicts
+     */
+    analyzePendingUpdates(updates) {
+        const paths = Object.keys(updates);
+        const conflicts = [];
+        
+        // Group by root path
+        const groups = {};
+        for (const path of paths) {
+            const root = path.split('.').slice(0, 2).join('.');
+            if (!groups[root]) groups[root] = [];
+            groups[root].push(path);
+        }
+        
+        // Check each group for conflicts
+        for (const [root, groupPaths] of Object.entries(groups)) {
+            if (groupPaths.length > 1) {
+                // Check for parent-child conflicts
+                for (let i = 0; i < groupPaths.length; i++) {
+                    for (let j = i + 1; j < groupPaths.length; j++) {
+                        if (this.isPathConflict(groupPaths[i], groupPaths[j])) {
+                            conflicts.push([groupPaths[i], groupPaths[j]]);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Report findings
+        console.log(`  Paths by root:`);
+        for (const [root, groupPaths] of Object.entries(groups)) {
+            console.log(`    ${root}: ${groupPaths.length} updates`);
+            if (groupPaths.length <= 5) {
+                groupPaths.forEach(p => console.log(`      - ${p}`));
+            } else {
+                console.log(`      - [${groupPaths.length} paths, showing first 5]`);
+                groupPaths.slice(0, 5).forEach(p => console.log(`      - ${p}`));
+            }
+        }
+        
+        if (conflicts.length > 0) {
+            console.log(`  ⚠️  Found ${conflicts.length} conflicts:`);
+            conflicts.forEach(([path1, path2]) => {
+                console.log(`    - "${path1}" conflicts with "${path2}"`);
+            });
+        } else {
+            console.log(`  ✅ No conflicts detected`);
+        }
+    }
+    
+    /**
+     * Manually clear pending writes for a channel (use with caution)
+     */
+    clearPendingWrites(channelId = null) {
+        if (channelId) {
+            if (this.pendingWrites.has(channelId)) {
+                this.pendingWrites.delete(channelId);
+                console.log(`[MAP_CACHE] Cleared pending writes for channel ${channelId}`);
+            }
+        } else {
+            const count = this.pendingWrites.size;
+            this.pendingWrites.clear();
+            console.log(`[MAP_CACHE] Cleared all pending writes (${count} channels)`);
+        }
     }
 }
 

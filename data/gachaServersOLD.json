@@ -1,0 +1,913 @@
+[
+    {
+        "id": "1",
+        "name": "⛏️ Coal Mines",
+        "type": "mining",
+        "rarity": "common",
+        "spawnWeight": 100,
+        "description": "Dark tunnels echo with the sound of pickaxes against coal seams. The air is thick with dust, but honest work awaits those brave enough to venture into these depths.",
+        "power": 1,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.01,
+            "allowedTypes": ["portal_trap"],
+            "modifiers": {}
+        },
+        "shop": 1,
+        "colour": "2C2C2C",
+        "image": "coalMine",
+        "nextLevelConditionType": "wallsBroken",
+        "conditionCost": 500,
+        "deeperMineId": "101"
+    },
+    {
+        "id": "2",
+        "name": "⛏️ Topaz Mine",
+        "type": "mining",
+        "rarity": "uncommon",
+        "spawnWeight": 20,
+        "description": "Golden veins of topaz gleam in the lamplight. These crystalline chambers offer more precious rewards for miners willing to delve deeper.",
+        "power": 2,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.015,
+            "allowedTypes": ["portal_trap", "bomb_trap"],
+            "modifiers": {}
+        },
+        "shop": 2,
+        "colour": "FFB347",
+        "image": "topazMine",
+        "nextLevelConditionType": "oresFound",
+        "conditionCost": 1000,
+        "deeperMineId": "102"
+    },
+    {
+        "id": "3",
+        "name": "⛏️ Diamond Mines",
+        "type": "mining",
+        "rarity": "rare",
+        "spawnWeight": 15,
+        "description": "Brilliant diamonds sparkle in the darkness of these legendary caverns. Only the most skilled miners dare venture into these perilous depths for the ultimate prize.",
+        "power": 3,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.02,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog"],
+            "modifiers": {}
+        },
+        "shop": 3,
+        "colour": "B9F2FF",
+        "image": "diamondMine",
+        "nextLevelConditionType": "treasuresFound",
+        "conditionCost": 50,
+        "deeperMineId": "103"
+    },
+    {
+        "id": "4",
+        "name": "⛏️ Emerald Caverns",
+        "type": "mining",
+        "rarity": "rare",
+        "spawnWeight": 12,
+        "description": "Ancient emerald formations line these mystical caverns. The green glow emanating from the walls hints at treasures beyond imagination.",
+        "power": 3,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.018,
+            "allowedTypes": ["portal_trap", "green_fog"],
+            "modifiers": {
+                "greenFogIntensity": 1.5
+            }
+        },
+        "shop": 4,
+        "colour": "50C878",
+        "image": "emeraldMine",
+        "nextLevelConditionType": "wallsBroken",
+        "conditionCost": 750,
+        "deeperMineId": "104"
+    },
+    {
+        "id": "5",
+        "name": "⛏️ Ruby Depths",
+        "type": "mining",
+        "rarity": "epic",
+        "spawnWeight": 8,
+        "description": "Crimson ruby veins pulse with an otherworldly energy. These scorching depths test even the most experienced miners with their intense heat and valuable rewards.",
+        "power": 4,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.025,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {}
+        },
+        "shop": 5,
+        "colour": "E0115F",
+        "image": "rubyMine",
+        "nextLevelConditionType": "persistentValue",
+        "conditionCost": 10000,
+        "deeperMineId": "105"
+    },
+    {
+        "id": "6",
+        "name": "⛏️ Obsidian Forge",
+        "type": "mining",
+        "rarity": "epic",
+        "spawnWeight": 5,
+        "description": "Volcanic glass formations create treacherous terrain in these ancient forges. The obsidian here is sharper than any blade and more valuable than gold.",
+        "power": 5,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.03,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 3
+            }
+        },
+        "shop": 6,
+        "colour": "36454F",
+        "image": "obsidianMine",
+        "nextLevelConditionType": "wallsBroken",
+        "conditionCost": 1000,
+        "deeperMineId": "106"
+    },
+    {
+        "id": "7",
+        "name": "⛏️ Mythril Sanctum",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 3,
+        "description": "The legendary mythril ore glows with ethereal blue light in these sacred chambers. Only the chosen few have ever laid eyes upon these otherworldly deposits.",
+        "power": 6,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.035,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 3,
+                "greenFogDamage": 2
+            }
+        },
+        "shop": 7,
+        "colour": "4169E1",
+        "image": "mythrilMine",
+        "nextLevelConditionType": "rareOresFound",
+        "conditionCost": 100,
+        "deeperMineId": "107"
+    },
+    {
+        "id": "8",
+        "name": "⛏️ Adamantite Abyss",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 1,
+        "description": "The deepest and most dangerous mining location known to mortalkind. Adamantite ore, harder than diamond and rarer than dreams, awaits in this abyssal realm.",
+        "power": 7,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.04,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 4,
+                "greenFogDamage": 3,
+                "portalChaos": true
+            }
+        },
+        "shop": 8,
+        "colour": "800080",
+        "image": "adamantiteMine",
+        "nextLevelConditionType": "wallsBroken",
+        "conditionCost": 1500,
+        "deeperMineId": "18"
+    },
+    {
+        "id": "9",
+        "name": "⛏️ Copper Quarry",
+        "type": "mining",
+        "rarity": "common",
+        "spawnWeight": 80,
+        "description": "Weathered copper veins run through these open-air quarries. A perfect starting point for apprentice miners to hone their skills on reliable ore deposits.",
+        "power": 1,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.01,
+            "allowedTypes": ["portal_trap"],
+            "modifiers": {}
+        },
+        "shop": 9,
+        "colour": "B87333",
+        "image": "copperMine",
+        "nextLevelConditionType": "wallsBroken",
+        "conditionCost": 500,
+        "deeperMineId": "109"
+    },
+    {
+        "id": "10",
+        "name": "⛏️ Iron Town",
+        "type": "mining",
+        "rarity": "uncommon",
+        "spawnWeight": 25,
+        "description": "A bustling underground mining town built around massive iron ore deposits. The metallic ring of hammers on iron echoes through these industrial mining halls.",
+        "power": 2,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.015,
+            "allowedTypes": ["portal_trap", "bomb_trap"],
+            "modifiers": {}
+        },
+        "shop": 10,
+        "colour": "708090",
+        "image": "ironMine",
+        "nextLevelConditionType": "oresFound",
+        "conditionCost": 1000,
+        "deeperMineId": "110"
+    },
+    {
+        "id": "11",
+        "name": "⛏️ Crystal Grottos",
+        "type": "mining",
+        "rarity": "rare",
+        "spawnWeight": 10,
+        "description": "Iridescent crystal formations create a maze of glittering passages. Each crystal shard harvested here pulses with raw magical energy.",
+        "power": 4,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.025,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {}
+        },
+        "shop": 11,
+        "colour": "FF69B4",
+        "image": "crystalMine",
+        "nextLevelConditionType": "treasuresFound",
+        "conditionCost": 75,
+        "deeperMineId": "111"
+    },
+    {
+        "id": "12",
+        "name": "⛏️ Fossil Excavation",
+        "type": "mining",
+        "rarity": "uncommon",
+        "spawnWeight": 18,
+        "description": "Ancient fossils and prehistoric treasures lie buried in these archaeological dig sites. History and wealth await those patient enough to uncover the past.",
+        "power": 2,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.012,
+            "allowedTypes": ["portal_trap", "wall_trap"],
+            "modifiers": {}
+        },
+        "shop": 12,
+        "colour": "DEB887",
+        "image": "fossilMine",
+        "nextLevelConditionType": "fossilsFound",
+        "conditionCost": 50,
+        "deeperMineId": "112"
+    },
+    {
+        "id": "101",
+        "name": "⚫ The Coal Pits",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The deepest coal shafts where ancient carbon has compressed into midnight crystals. The walls shimmer with a dark iridescence, and veins of rare anthracite promise greater rewards for those brave enough to delve into the crushing darkness.",
+        "power": 3,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.025,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog"],
+            "modifiers": {}
+        },
+        "shop": 1,
+        "colour": "1C1C1C",
+        "image": "coalMineDeep",
+        "isDeeper": false,
+        "parentMineId": "1",
+        "nextLevelConditionType": "wallsBroken",
+        "conditionCost": 2000,
+        "deeperMineId": "113"
+    },
+    {
+        "id": "102",
+        "name": "💡 The Topaz Core",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "Crystal chambers where imperial topaz forms in massive geodes. The golden light here is almost blinding, and each crystal resonates with concentrated solar energy worth a fortune.",
+        "power": 4,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.03,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {}
+        },
+        "shop": 2,
+        "colour": "FFA500",
+        "image": "topazMineDeep",
+        "isDeeper": false,
+        "parentMineId": "2",
+        "nextLevelConditionType": "oresFound",
+        "conditionCost": 3000,
+        "deeperMineId": "114"
+    },
+    {
+        "id": "103",
+        "name": "💎 Diamond Throne",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The legendary diamond core where perfect crystals the size of boulders await. Light refracts endlessly through the crystalline chambers, creating rainbow prisms that can blind the unwary.",
+        "power": 5,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.035,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 3
+            }
+        },
+        "shop": 3,
+        "colour": "E0E0FF",
+        "image": "diamondMineDeep",
+        "isDeeper": false,
+        "parentMineId": "3",
+        "nextLevelConditionType": "treasuresFound",
+        "conditionCost": 100,
+        "deeperMineId": "115"
+    },
+    {
+        "id": "104",
+        "name": "🟢 Emerald Sanctum",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The emerald heart where the Mother Crystal grows. Veins of pure emerald energy pulse through the walls, and the very air shimmers with verdant power that accelerates all life.",
+        "power": 5,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.032,
+            "allowedTypes": ["portal_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "greenFogIntensity": 2.0
+            }
+        },
+        "shop": 4,
+        "colour": "00A86B",
+        "image": "emeraldMineDeep",
+        "isDeeper": false,
+        "parentMineId": "4",
+        "nextLevelConditionType": "wallsBroken",
+        "conditionCost": 2500,
+        "deeperMineId": "116"
+    },
+    {
+        "id": "105",
+        "name": "🔴 Ruby Tunnels",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The molten ruby core where blood-red crystals form from pure elemental fire. The heat here would instantly incinerate the unprepared, but the rubies found here burn with eternal flame.",
+        "power": 6,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.04,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 3
+            }
+        },
+        "shop": 5,
+        "colour": "CC0033",
+        "image": "rubyMineDeep",
+        "isDeeper": false,
+        "parentMineId": "5",
+        "nextLevelConditionType": "persistentValue",
+        "conditionCost": 50000,
+        "deeperMineId": "117"
+    },
+    {
+        "id": "106",
+        "name": "⚫ Obsidian Corridors",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The primordial forge where obsidian forms from the planet's core. Volcanic glass here is sharper than any known material and contains fragments of creation itself.",
+        "power": 7,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.045,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 4,
+                "greenFogDamage": 2
+            }
+        },
+        "shop": 6,
+        "colour": "1A1A2E",
+        "image": "obsidianMineDeep",
+        "isDeeper": false,
+        "parentMineId": "6",
+        "nextLevelConditionType": "wallsBroken",
+        "conditionCost": 3000,
+        "deeperMineId": "118"
+    },
+    {
+        "id": "107",
+        "name": "🔵 Mythril's Rest",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The inner sanctum where pure mythril crystallizes from concentrated magic. The ore here transcends physical matter, existing partially in other dimensions.",
+        "power": 8,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.05,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 4,
+                "greenFogDamage": 3,
+                "portalChaos": true
+            }
+        },
+        "shop": 7,
+        "colour": "6495ED",
+        "image": "mythrilMineDeep",
+        "isDeeper": false,
+        "parentMineId": "7",
+        "nextLevelConditionType": "rareOresFound",
+        "conditionCost": 200,
+        "deeperMineId": "119"
+    },
+    {
+        "id": "109",
+        "name": "🟠 Copper Well",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "Ancient copper deposits where the metal has aged into mystical verdigris. These deep quarries contain copper infused with electrical properties unknown to surface miners.",
+        "power": 3,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.025,
+            "allowedTypes": ["portal_trap", "bomb_trap"],
+            "modifiers": {}
+        },
+        "shop": 9,
+        "colour": "CD7F32",
+        "image": "copperMineDeep",
+        "isDeeper": false,
+        "parentMineId": "9",
+        "nextLevelConditionType": "wallsBroken",
+        "conditionCost": 2000,
+        "deeperMineId": "120"
+    },
+    {
+        "id": "110",
+        "name": "⚙️ Iron Fortress",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The iron heart where meteoric iron and terrestrial iron merge. Magnetic fields warp reality here, and the iron extracted can hold enchantments thought impossible.",
+        "power": 4,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.03,
+            "allowedTypes": ["portal_trap", "bomb_trap", "wall_trap"],
+            "modifiers": {}
+        },
+        "shop": 10,
+        "colour": "414141",
+        "image": "ironMineDeep",
+        "isDeeper": false,
+        "parentMineId": "10",
+        "nextLevelConditionType": "oresFound",
+        "conditionCost": 3000,
+        "deeperMineId": "121"
+    },
+    {
+        "id": "111",
+        "name": "🔮 Crystal Paradise",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The crystal nexus where all types of gems converge. Reality bends around these formations, and the crystals here contain memories of the earth's formation.",
+        "power": 6,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.04,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 3
+            }
+        },
+        "shop": 11,
+        "colour": "FF1493",
+        "image": "crystalMineDeep",
+        "isDeeper": false,
+        "parentMineId": "11",
+        "nextLevelConditionType": "treasuresFound",
+        "conditionCost": 150,
+        "deeperMineId": "122"
+    },
+    {
+        "id": "112",
+        "name": "🦴 Ancient Fossil Vault",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The primordial depths where the first life forms are preserved in perfect detail. These fossils contain DNA that could resurrect extinct species and amber with creatures from before time.",
+        "power": 4,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.025,
+            "allowedTypes": ["portal_trap", "wall_trap", "bomb_trap"],
+            "modifiers": {}
+        },
+        "shop": 12,
+        "colour": "8B7355",
+        "image": "fossilMineDeep",
+        "isDeeper": false,
+        "parentMineId": "12",
+        "nextLevelConditionType": "fossilsFound",
+        "conditionCost": 100,
+        "deeperMineId": "123"
+    },
+    {
+        "id": "113",
+        "name": "⚫ The Black Depths",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The absolute core of all coal deposits where pressure has created black diamonds. Space-time warps around these ultra-dense carbon formations, and the coal here burns with void energy.",
+        "power": 8,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.08,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 4,
+                "greenFogDamage": 3
+            }
+        },
+        "shop": 1,
+        "colour": "000000",
+        "image": "coalMineUltra",
+        "isDeeper": false,
+        "isDeeperLevel3": true,
+        "parentMineId": "101"
+    },
+    {
+        "id": "114",
+        "name": "⭐ The Sun Under",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "An underground sun where topaz crystals have absorbed stellar radiation for eons. Each gem contains the power of a dying star, radiating heat that can melt steel.",
+        "power": 9,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.10,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 4,
+                "greenFogDamage": 3
+            }
+        },
+        "shop": 2,
+        "colour": "FFFF00",
+        "image": "topazMineUltra",
+        "isDeeper": true,
+        "isDeeperLevel3": true,
+        "parentMineId": "102"
+    },
+    {
+        "id": "115",
+        "name": "💠 The Diamond Crown",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The ultimate crown of diamonds, where crystallized carbon forms a royal vault. Reality itself has been compressed into diamond, and mining here grants wealth beyond imagination.",
+        "power": 10,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.15,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 5,
+                "greenFogDamage": 4,
+                "portalChaos": true
+            }
+        },
+        "shop": 3,
+        "colour": "FFFFFF",
+        "image": "diamondMineUltra",
+        "isDeeper": true,
+        "isDeeperLevel3": true,
+        "parentMineId": "103"
+    },
+    {
+        "id": "116",
+        "name": "🌳 Emerald World Tree",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The root of Yggdrasil itself, crystallized in pure emerald. Life energy flows so strongly here that the walls regenerate faster than they can be mined.",
+        "power": 10,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.12,
+            "allowedTypes": ["portal_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "greenFogIntensity": 3.0,
+                "greenFogDamage": 5
+            }
+        },
+        "shop": 4,
+        "colour": "00FF00",
+        "image": "emeraldMineUltra",
+        "isDeeper": true,
+        "isDeeperLevel3": true,
+        "parentMineId": "104"
+    },
+    {
+        "id": "117",
+        "name": "🌋 Volcanica",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The volcanic heart of the planet where rubies form from pure magma. The heat here transcends physical temperature, burning souls directly.",
+        "power": 10,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.18,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 5,
+                "greenFogDamage": 4
+            }
+        },
+        "shop": 5,
+        "colour": "FF0000",
+        "image": "rubyMineUltra",
+        "isDeeper": true,
+        "isDeeperLevel3": true,
+        "parentMineId": "105"
+    },
+    {
+        "id": "118",
+        "name": "🖤 The Black Heart",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The black heart of the world where obsidian forms from pure darkness. Mining here risks corrupting one's very soul with void energy.",
+        "power": 10,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.20,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 6,
+                "greenFogDamage": 5,
+                "portalChaos": true
+            }
+        },
+        "shop": 6,
+        "colour": "0A0A0A",
+        "image": "obsidianMineUltra",
+        "isDeeper": true,
+        "isDeeperLevel3": true,
+        "parentMineId": "106"
+    },
+    {
+        "id": "119",
+        "name": "🌠 Blue Cosmos",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The blue cosmos where mythril is born from colliding stars. The ore here shimmers with cosmic energy from all dimensions.",
+        "power": 10,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.25,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 6,
+                "greenFogDamage": 5,
+                "portalChaos": true
+            }
+        },
+        "shop": 7,
+        "colour": "0000FF",
+        "image": "mythrilMineUltra",
+        "isDeeper": true,
+        "isDeeperLevel3": true,
+        "parentMineId": "107"
+    },
+    {
+        "id": "120",
+        "name": "⚡ Copper Throne",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The primordial forge where the first copper was created. Lightning constantly strikes here, charging the copper with divine electricity.",
+        "power": 8,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.08,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog"],
+            "modifiers": {
+                "bombRadius": 4
+            }
+        },
+        "shop": 9,
+        "colour": "FF6600",
+        "image": "copperMineUltra",
+        "isDeeper": true,
+        "isDeeperLevel3": true,
+        "parentMineId": "109"
+    },
+    {
+        "id": "121",
+        "name": "🔩 Black Iron",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "Where all iron in the universe converges. The magnetic fields here can tear apart molecular bonds and reassemble matter.",
+        "power": 9,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.10,
+            "allowedTypes": ["portal_trap", "bomb_trap", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 4
+            }
+        },
+        "shop": 10,
+        "colour": "2A2A2A",
+        "image": "ironMineUltra",
+        "isDeeper": true,
+        "isDeeperLevel3": true,
+        "parentMineId": "110"
+    },
+    {
+        "id": "122",
+        "name": "💫 Crystal Eternity",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The eternal crystal garden where time has no meaning. Every crystal contains infinite reflections of all possible futures.",
+        "power": 10,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.18,
+            "allowedTypes": ["portal_trap", "bomb_trap", "green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 5,
+                "greenFogDamage": 4
+            }
+        },
+        "shop": 11,
+        "colour": "FF00FF",
+        "image": "crystalMineUltra",
+        "isDeeper": true,
+        "isDeeperLevel3": true,
+        "parentMineId": "111"
+    },
+    {
+        "id": "123",
+        "name": "🦕 The Origin",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The moment life began, frozen in stone. These fossils contain the DNA of gods and the memories of creation itself.",
+        "power": 9,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.10,
+            "allowedTypes": ["portal_trap", "wall_trap", "bomb_trap", "green_fog"],
+            "modifiers": {
+                "bombRadius": 4
+            }
+        },
+        "shop": 12,
+        "colour": "654321",
+        "image": "fossilMineUltra",
+        "isDeeper": true,
+        "isDeeperLevel3": true,
+        "parentMineId": "112"
+    },
+    {
+        "id": "13",
+        "name": "🍖 Miner's Inn",
+        "type": "innkeeper",
+        "rarity": "rare",
+        "spawnWeight": 30,
+        "description": "A hearty tavern where weary miners gather after long shifts underground. Known for its generous portions of meat and ale, this rustic inn offers warm beds and warmer company to those who work the depths.",
+        "power": 1,
+        "script": "innKeeper_v2_fixed.js",
+        "profitMargins": 0.1,
+        "shop": 13,
+        "colour": "DEB887",
+        "image": "minerInn"
+    },
+    {
+        "id": "14",
+        "name": "🏹 Hunter's Lodge",
+        "type": "innkeeper",
+        "rarity": "uncommon",
+        "spawnWeight": 40,
+        "description": "A cozy lodge decorated with mounted trophies and pelts, where hunters gather to share tales of their expeditions. The scent of roasting venison and wild herbs fills the air, while rangers trade maps and tracking tips by the fireplace.",
+        "power": 2,
+        "script": "innKeeper_v2_fixed.js",
+        "profitMargins": 0.15,
+        "shop": 14,
+        "colour": "8B4513",
+        "image": "hunterLodge"
+    },
+    {
+        "id": "15",
+        "name": "👑 Noble's Rest",
+        "type": "innkeeper",
+        "rarity": "epic",
+        "spawnWeight": 15,
+        "description": "An opulent establishment where the wealthy and influential dine on exotic delicacies and aged wines. Crystal chandeliers illuminate silk-draped dining rooms, while discrete staff attend to every whim of their distinguished clientele.",
+        "power": 4,
+        "script": "innKeeper_v2_fixed.js",
+        "profitMargins": 0.25,
+        "shop": 15,
+        "colour": "FFD700",
+        "image": "nobleRest"
+    },
+    {
+        "id": "16",
+        "name": "😈 ???'s Gullet",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "These cursed mines materialized after a hellish creature's insatiable hunger consumed too much broken memories, dreams and wanderers. The walls pulsate with digestive acids, and precious ores are embedded in crystallized bile. Miners report hearing eternal chewing sounds echoing from the deepest shafts, where the demon's stomach still digests reality itself.",
+        "power": 10,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.5,
+            "allowedTypes": ["green_fog", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 5,
+                "greenFogDamage": 4,
+                "portalChaos": true,
+                "acidDigestion": true
+            }
+        },
+        "shop": 16,
+        "colour": "8B0000",
+        "image": "gluttonyMine"
+    },
+    {
+        "id": "17",
+        "name": "🗝️ Rusty Relic Realm",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "Discovered when a drunk patron stumbled upon a rusty key beneath the tavern floorboards, this mine exists between dimensions. The key unlocks passages to ancient dwarven vaults frozen in time. Rust-covered mechanisms and clockwork guardians protect treasures that predate recorded history. Every surface is covered in a patina of ages, and time flows differently in each chamber.",
+        "power": 10,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.5,
+            "allowedTypes": ["bomb_trap", "wall_trap"],
+            "modifiers": {
+                "bombRadius": 4,
+                "greenFogDamage": 3,
+                "portalChaos": true,
+                "timeDistortion": true,
+                "rustCorrosion": true
+            }
+        },
+        "shop": 17,
+        "colour": "8B4513",
+        "image": "rustyRelicMine"
+    },
+    {
+        "id": "18",
+        "name": "💀 Abyssal Adamantite Depths",
+        "type": "mining",
+        "rarity": "legendary",
+        "spawnWeight": 0,
+        "description": "The true depths beneath the Adamantite Abyss, where reality breaks down and the void bleeds through. Here, adamantite ore has evolved into something more - Void Adamantite, a material that exists in multiple dimensions simultaneously. The darkness is alive, gravity shifts without warning, and miners who delve too deep report seeing their own deaths reflected in the crystalline walls. Only accessible to those who have already conquered the standard Adamantite Abyss.",
+        "power": 10,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.5,
+            "allowedTypes": ["portal_trap"],
+            "modifiers": {
+                "bombRadius": 6,
+                "greenFogDamage": 5,
+                "portalChaos": true,
+                "voidCorruption": true,
+                "gravityAnomaly": true,
+                "dimensionalTear": true
+            }
+        },
+        "shop": 18,
+        "colour": "000000",
+        "image": "abyssalAdamantiteMine",
+        "isDeeper": true,
+        "parentMineId": "8"
+    }
+]

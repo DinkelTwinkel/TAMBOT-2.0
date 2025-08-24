@@ -113,7 +113,7 @@ async function generateShop(channel, closingTime = 20) {
         console.warn(`⚠️ No shop data found for VC type ${matchingVC.typeId}, defaulting to ${DEFAULT_SHOP_ID}`);
         shopInfo = shopData.find(s => s.id === DEFAULT_SHOP_ID);
         if (!shopInfo) {
-            return channel.send('⚠️ No shop data found and default shop is missing!');
+            return channel.send('⚠️ No shop found...');
         }
     }
     
