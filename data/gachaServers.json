@@ -379,7 +379,7 @@
         "image": "rubyMineDeep",
         "isDeeper": false,
         "parentMineId": "5",
-        "nextLevelConditionType": "totalValue",
+        "nextLevelConditionType": "persistentValue",
         "conditionCost": 50000,
         "deeperMineId": "117"
     },

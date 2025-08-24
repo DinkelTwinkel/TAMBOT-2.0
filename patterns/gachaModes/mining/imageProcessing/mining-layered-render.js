@@ -107,6 +107,9 @@ const TILE_COLORS = {
 /**
  * Get the current mine theme from gachaServers.json theme field
  */
+/**
+ * Get the current mine theme from gachaServers.json theme or image field
+ */
 function getMineTheme(dbEntry) {
     // Get the server type ID from the database entry
     const typeId = dbEntry?.typeId;
@@ -130,11 +133,19 @@ function getMineTheme(dbEntry) {
         return serverConfig.theme;
     }
     
-    // Fallback: Try to infer from server name
+    // NEW: Use the image field as the theme if no theme field exists
+    // This handles deeper and ultra mines which use image names like:
+    // coalMineDeep, coalMineUltra, diamondMineDeep, etc.
+    if (serverConfig.image) {
+        console.log(`Using image field as theme: ${serverConfig.image} for ${serverConfig.name}`);
+        return serverConfig.image;
+    }
+    
+    // Fallback: Try to infer from server name (mostly for backwards compatibility)
     const serverName = serverConfig.name || '';
     const cleanName = serverName.replace(/⛏️|️/g, '').trim().toLowerCase();
     
-    console.log(`No theme field found, inferring from server name: ${serverName}`);
+    console.log(`No theme or image field found, inferring from server name: ${serverName}`);
     
     if (cleanName.includes('coal')) return MINE_THEMES.COAL;
     if (cleanName.includes('copper')) return MINE_THEMES.COPPER;

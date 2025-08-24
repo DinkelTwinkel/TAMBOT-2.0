@@ -157,34 +157,51 @@ class DigDeeperListener {
                     bitrate: currentChannel.bitrate
                 });
                 
-                // Create new database entry for the deeper mine
+                // Create new database entry for the deeper mine (fresh entry like gachaMachine.js)
                 const newEntry = new ActiveVCS({
                     channelId: newChannel.id,
                     guildId: interaction.guild.id,
                     typeId: parseInt(deeperMine.id),
                     nextTrigger: new Date(Date.now() + 1000 * 30),
-                    nextShopRefresh: dbEntry.nextShopRefresh, // Keep the same shop refresh time
-                    nextLongBreak: dbEntry.nextLongBreak, // Keep the same long break time
+                    nextShopRefresh: new Date(Date.now() + 1000 * 60 * 25), // Fresh shop refresh time
+                    nextLongBreak: new Date(Date.now() + 60 * 1000 * 100), // Fresh long break time
                     gameData: {
-                        ...dbEntry.gameData,
                         miningMode: true,
                         powerLevel: deeperMine.power,
                         parentChannelId: channelId,
                         isDeeperMine: true,
-                        // Reset some stats for the new level
+                        deeperLevel: dbEntry.gameData.isDeeperMine ? 3 : 2, // Track if this is level 2 or 3
+                        // Initialize fresh mining data for the deeper level
                         map: undefined, // Will be regenerated
-                        minecart: dbEntry.gameData.minecart || { items: {}, contributors: {} }, // Keep minecart
+                        minecart: { items: {}, contributors: {} }, // Fresh minecart
                         miningStats: {
-                            ...dbEntry.gameData.miningStats,
+                            wallsBroken: 0,
+                            oresFound: 0,
+                            treasuresFound: 0,
+                            fossilsFound: 0,
+                            rareOresFound: 0,
+                            totalValue: 0,
                             deeperLevelReached: true,
-                            deeperLevelTime: Date.now()
-                        }
+                            deeperLevelTime: Date.now(),
+                            parentChannelStats: {
+                                // Store parent channel stats for reference
+                                wallsBroken: dbEntry.gameData.miningStats?.wallsBroken || 0,
+                                oresFound: dbEntry.gameData.miningStats?.oresFound || 0,
+                                treasuresFound: dbEntry.gameData.miningStats?.treasuresFound || 0
+                            }
+                        },
+                        // Don't copy any player-specific data, start fresh
+                        players: {},
+                        speedActions: new Map(),
+                        speedCooldowns: new Map()
                     }
                 });
                 
                 await newEntry.save();
                 
-                // Update the current channel's gameData to store the deeper mine channel ID
+                // Store the deeper mine channel ID in parent's gameData for reuse
+                // This allows multiple players to use the same deeper mine channel
+                // instead of creating duplicate channels for the same deeper level
                 dbEntry.gameData.deeperMineChannelId = newChannel.id;
                 await dbEntry.save();
                 
@@ -231,27 +248,70 @@ class DigDeeperListener {
             
             // Only send welcome message and generate shop if this is a new channel
             if (isNewChannel) {
+                // Determine the deeper level for better image selection
+                const deeperLevel = dbEntry.gameData.isDeeperMine ? 3 : 2;
+                
                 // Send welcome message in the new channel with image
-                let imagePath = path.join(__dirname, '../assets/gachaLocations', deeperMine.image + '.png');
+                let imagePath = path.join(__dirname, '../assets/game/tiles', deeperMine.image + '.png');
                 let imageFileName = deeperMine.image + '.png';
+                
+                console.log(`[DIG_DEEPER] Looking for image: ${imagePath}`);
                 
                 // Check if image exists, fallback to parent mine image or placeholder
                 if (!fs.existsSync(imagePath)) {
-                    // Try parent mine image with "Deep" suffix
-                    const parentImageName = currentMine.image + 'Deep';
-                    imagePath = path.join(__dirname, '../assets/gachaLocations', parentImageName + '.png');
-                    imageFileName = parentImageName + '.png';
+                    console.log(`[DIG_DEEPER] Image not found: ${deeperMine.image}.png`);
                     
-                    if (!fs.existsSync(imagePath)) {
-                        // Fallback to original mine image
-                        imagePath = path.join(__dirname, '../assets/gachaLocations', currentMine.image + '.png');
-                        imageFileName = currentMine.image + '.png';
+                    // For level 3, try "Ultra" suffix first, then "Deep"
+                    if (deeperLevel === 3) {
+                        const ultraImageName = currentMine.image.replace('Deep', '') + 'Ultra';
+                        imagePath = path.join(__dirname, '../assets/game/tiles', ultraImageName + '.png');
+                        imageFileName = ultraImageName + '.png';
+                        console.log(`[DIG_DEEPER] Trying level 3 ultra image: ${ultraImageName}.png`);
                         
                         if (!fs.existsSync(imagePath)) {
-                            // Final fallback to placeholder
-                            imagePath = path.join(__dirname, '../assets/gachaLocations', 'placeHolder.png');
-                            imageFileName = 'placeHolder.png';
+                            // Try base mine name + Ultra
+                            const baseMineName = currentMine.image.replace('MineDeep', 'Mine').replace('Deep', '');
+                            const ultraBaseName = baseMineName + 'Ultra';
+                            imagePath = path.join(__dirname, '../assets/game/tiles', ultraBaseName + '.png');
+                            imageFileName = ultraBaseName + '.png';
+                            console.log(`[DIG_DEEPER] Trying level 3 base ultra: ${ultraBaseName}.png`);
                         }
+                    }
+                    
+                    // Try parent mine image with "Deep" suffix for level 2
+                    if (!fs.existsSync(imagePath) && deeperLevel === 2) {
+                        const parentImageName = currentMine.image + 'Deep';
+                        imagePath = path.join(__dirname, '../assets/game/tiles', parentImageName + '.png');
+                        imageFileName = parentImageName + '.png';
+                        console.log(`[DIG_DEEPER] Trying level 2 deep image: ${parentImageName}.png`);
+                    }
+                    
+                    // Try the current mine's image (parent of this deeper mine)
+                    if (!fs.existsSync(imagePath)) {
+                        imagePath = path.join(__dirname, '../assets/game/tiles', currentMine.image + '.png');
+                        imageFileName = currentMine.image + '.png';
+                        console.log(`[DIG_DEEPER] Trying parent mine image: ${currentMine.image}.png`);
+                    }
+                    
+                    // Try to extract base mine name and use that
+                    if (!fs.existsSync(imagePath)) {
+                        // Extract base name (remove Deep/Ultra suffixes)
+                        let baseName = deeperMine.image
+                            .replace('Deep', '')
+                            .replace('Ultra', '')
+                            .replace('MineDeep', 'Mine')
+                            .replace('MineUltra', 'Mine');
+                        
+                        imagePath = path.join(__dirname, '../assets/game/tiles', baseName + '.png');
+                        imageFileName = baseName + '.png';
+                        console.log(`[DIG_DEEPER] Trying base mine name: ${baseName}.png`);
+                    }
+                    
+                    // Final fallback to placeholder
+                    if (!fs.existsSync(imagePath)) {
+                        console.log(`[DIG_DEEPER] All image attempts failed, using placeholder`);
+                        imagePath = path.join(__dirname, '../assets/game/tiles', 'placeHolder.png');
+                        imageFileName = 'placeHolder.png';
                     }
                 }
                 

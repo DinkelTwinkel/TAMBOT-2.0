@@ -652,53 +652,8 @@ function getRandomFloorTile(mapData) {
 }
 
 // Enhanced mining system with power level filtering and error handling
-async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency, isDeeperMine = false, mineTypeId = null) {
+async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency) {
     try {
-        // Import the unified mining system for gullet support
-        const { findItemUnified, calculateItemQuantity } = require('./mining/miningConstants_unified');
-        
-        // Check if we should use the unified system (for gullet and other special mines)
-        const isGullet = mineTypeId === 16 || mineTypeId === '16';
-        if (isGullet || mineTypeId) {
-            // Use unified item system for special mines
-            let context = 'mining_wall';
-            if (tileType === TILE_TYPES.TREASURE_CHEST) {
-                context = 'treasure_chest';
-            } else if (tileType === TILE_TYPES.RARE_ORE) {
-                context = 'rare_ore';
-            }
-            
-            const item = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine, mineTypeId);
-            const quantity = calculateItemQuantity(item, context, miningPower, luckStat, powerLevel, isDeeperMine);
-            
-            const enhancedValue = Math.floor(item.value * efficiency.valueMultiplier);
-            
-            return { 
-                item: { ...item, value: enhancedValue }, 
-                quantity 
-            };
-        }
-        
-        // Validate availableItems parameter
-        if (!availableItems || !Array.isArray(availableItems) || availableItems.length === 0) {
-            console.warn('[MINING] Invalid or empty availableItems, loading defaults for power level', powerLevel);
-            const { getAvailableItems } = require('./mining/miningConstants_unified');
-            availableItems = getAvailableItems(powerLevel);
-            
-            // Emergency fallback
-            if (!availableItems || availableItems.length === 0) {
-                console.error('[MINING] Still no items available, using coal ore fallback');
-                return {
-                    item: {
-                        itemId: '1',
-                        name: 'Coal Ore',
-                        value: 2,
-                        tier: 'common'
-                    },
-                    quantity: 1
-                };
-            }
-        }
         // Tier weight multipliers - makes legendaries much rarer
         const tierMultipliers = {
             common: 1.0,
@@ -765,25 +720,6 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
                 selectedItem = item;
                 break;
             }
-        }
-        
-        
-        
-        // Safety check: ensure selectedItem exists
-        if (!selectedItem || !selectedItem.itemId) {
-            console.error('[MINING] No item selected from pool, using first available item');
-            selectedItem = eligibleItems[0] || availableItems[0] || {
-                itemId: '1',
-                name: 'Coal Ore',
-                value: 2,
-                tier: 'common',
-                baseWeight: 100
-            };
-        }
-        
-        // Ensure tier property exists
-        if (!selectedItem.tier) {
-            selectedItem.tier = 'common';
         }
         
         let quantity = 1;
@@ -863,7 +799,7 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
 }
 
 // Enhanced treasure generation with power level requirements and rarity weights
-async function generateTreasure(powerLevel, efficiency, isDeeperMine = false, mineTypeId = null) {
+async function generateTreasure(powerLevel, efficiency) {
     try {
         const availableTreasures = getAvailableTreasures(powerLevel);
         
@@ -1927,19 +1863,6 @@ module.exports = async (channel, dbEntry, json, client) => {
 
         // Enhanced power level detection with error handling
         const serverPowerLevel = json?.power || 1;
-        
-        // Get mine type ID for special mine handling (e.g., gullet meat items)
-        const mineTypeId = dbEntry.typeId;
-        
-        
-        // Check if this is a deeper mine
-        const { isDeeperMine: checkDeeperMine } = require('./mining/miningConstants_unified');
-        const isDeeperMine = checkDeeperMine ? checkDeeperMine(mineTypeId) : false;
-        
-        // Debug logging for special mines
-        if (mineTypeId === 16 || mineTypeId === '16') {
-            console.log('[MINING] ???\'s Gullet detected - will generate meat items instead of ores');
-        }
         const serverName = json?.name || 'Unknown Mine';
         const serverModifiers = getServerModifiers(serverName, serverPowerLevel);
         
@@ -2576,23 +2499,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     const miningPower = playerData?.stats?.mining || 0;
     const luckStat = playerData?.stats?.luck || 0;
     const speedStat = Math.min(playerData?.stats?.speed || 1, MAX_SPEED_ACTIONS);
-
-    
-    // Get deeper mine status
-    const mineTypeId = dbEntry?.typeId || null;
-    let isDeeperMine = false;
-
-    // Check if this is a deeper mine
-    if (mineTypeId) {
-    try {
-        const { isDeeperMine: checkDeeperMine } = require('./mining/miningConstants_unified');
-        isDeeperMine = checkDeeperMine ? checkDeeperMine(mineTypeId) : false;
-    } catch (error) {
-        console.error('[MINING] Could not determine deeper mine status:', error);
-        isDeeperMine = false;
-    }
-    }
-
     
     let uniqueBonuses;
     try {
@@ -2657,7 +2563,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             if (position.stuck || position.trapped) {
                 break;
             }
-
             
             // Reduced random treasure generation while mining
             if (Math.random() < efficiency.treasureChance * 0.2) { // Only 20% of original chance
@@ -2707,7 +2612,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             if (adjacentTarget) {
                 const tile = adjacentTarget.tile;
                 if (await canBreakTile(member.id, miningPower, tile)) {
-                    const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, tile.type, availableItems, efficiency, isDeeperMine, mineTypeId);
+                    const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, tile.type, availableItems, efficiency);
                     
                     let finalQuantity = quantity;
                     let finalValue = item.value;
@@ -2870,7 +2775,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                                 const { item: chainItem, quantity: chainQty } = await mineFromTile(
                                     member, miningPower, luckStat, powerLevel, 
                                     chainTile.type, availableItems, efficiency
-                                , isDeeperMine, mineTypeId);
+                                );
                                 await addItemToMinecart(dbEntry, member.id, chainItem.itemId, chainQty);
                                 mapData.tiles[chainTarget.y][chainTarget.x] = { 
                                     type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 
@@ -2990,7 +2895,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         continue;
                     }
                     if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
-                        const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, targetTile.type, availableItems, efficiency, isDeeperMine, mineTypeId);
+                        const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, targetTile.type, availableItems, efficiency);
                         
                         let finalQuantity = quantity;
                         if (serverModifiers.itemBonuses && serverModifiers.itemBonuses[item.itemId]) {
@@ -3136,7 +3041,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         
                         for (let i = 0; i < itemCount; i++) {
                             // Use RARE_ORE type since treasure chests no longer spawn
-                            const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, TILE_TYPES.RARE_ORE, availableItems, efficiency, isDeeperMine, mineTypeId);
+                            const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, TILE_TYPES.RARE_ORE, availableItems, efficiency);
                             await addItemToMinecart(dbEntry, member.id, item.itemId, quantity);
                             foundItems.push(`${item.name} x${quantity}`);
                             totalValue += item.value * quantity;
