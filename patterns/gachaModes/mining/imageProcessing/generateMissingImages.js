@@ -114,6 +114,7 @@ const ENCOUNTER_TYPES = {
     bomb_trap: { generator: 'generateBombTrap' },
     toxic_fog: { generator: 'generateToxicFog' },
     wall_trap: { generator: 'generateWallTrap' },
+    fire_blast: { generator: 'generateFireBlast' },  // Add fire blast
     treasure_chest: { generator: 'generateTreasureChest' },
     rare_treasure: { generator: 'generateRareTreasure' }
 };
@@ -995,6 +996,142 @@ function generateTreasureChest(canvas, ctx, theme) {
         ctx.closePath();
         ctx.fill();
     }
+    ctx.globalAlpha = 1.0;
+}
+
+/**
+ * Generate fire blast hazard
+ */
+function generateFireBlast(canvas, ctx, theme) {
+    const size = 64;
+    const themeConfig = THEMES[theme];
+    
+    // Clear background
+    ctx.clearRect(0, 0, size, size);
+    
+    // Draw fire base (hot coals)
+    ctx.fillStyle = '#2F1F0F';
+    ctx.beginPath();
+    ctx.ellipse(size/2, size*0.7, size/3, size/5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add glowing coals
+    const coalGradient = ctx.createRadialGradient(size/2, size*0.7, 0, size/2, size*0.7, size/3);
+    coalGradient.addColorStop(0, '#FF4500');
+    coalGradient.addColorStop(0.5, '#8B0000');
+    coalGradient.addColorStop(1, '#2F1F0F');
+    
+    ctx.fillStyle = coalGradient;
+    ctx.beginPath();
+    ctx.ellipse(size/2, size*0.7, size/3.5, size/6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw main flame with multiple layers
+    const flameHeight = size * 0.7;
+    const flameWidth = size * 0.5;
+    
+    // Outer flame (red)
+    const outerFlameGradient = ctx.createRadialGradient(
+        size/2, size*0.6, 0,
+        size/2, size*0.4, flameWidth/2
+    );
+    outerFlameGradient.addColorStop(0, 'rgba(255, 107, 53, 0.8)');
+    outerFlameGradient.addColorStop(0.5, 'rgba(255, 69, 0, 0.6)');
+    outerFlameGradient.addColorStop(1, 'rgba(139, 0, 0, 0.2)');
+    
+    ctx.fillStyle = outerFlameGradient;
+    ctx.beginPath();
+    ctx.moveTo(size/2, size*0.7);
+    ctx.quadraticCurveTo(size/2 - flameWidth/2, size*0.5, size/2 - flameWidth/3, size*0.3);
+    ctx.quadraticCurveTo(size/2 - flameWidth/4, size*0.2, size/2, size*0.15);
+    ctx.quadraticCurveTo(size/2 + flameWidth/4, size*0.2, size/2 + flameWidth/3, size*0.3);
+    ctx.quadraticCurveTo(size/2 + flameWidth/2, size*0.5, size/2, size*0.7);
+    ctx.fill();
+    
+    // Middle flame (orange)
+    const middleFlameGradient = ctx.createRadialGradient(
+        size/2, size*0.55, 0,
+        size/2, size*0.35, flameWidth/3
+    );
+    middleFlameGradient.addColorStop(0, 'rgba(255, 165, 0, 0.9)');
+    middleFlameGradient.addColorStop(0.5, 'rgba(255, 140, 0, 0.7)');
+    middleFlameGradient.addColorStop(1, 'rgba(255, 107, 53, 0.3)');
+    
+    ctx.fillStyle = middleFlameGradient;
+    ctx.beginPath();
+    ctx.moveTo(size/2, size*0.65);
+    ctx.quadraticCurveTo(size/2 - flameWidth/3, size*0.5, size/2 - flameWidth/4, size*0.35);
+    ctx.quadraticCurveTo(size/2 - flameWidth/5, size*0.25, size/2, size*0.2);
+    ctx.quadraticCurveTo(size/2 + flameWidth/5, size*0.25, size/2 + flameWidth/4, size*0.35);
+    ctx.quadraticCurveTo(size/2 + flameWidth/3, size*0.5, size/2, size*0.65);
+    ctx.fill();
+    
+    // Inner flame (yellow/white)
+    const innerFlameGradient = ctx.createRadialGradient(
+        size/2, size*0.5, 0,
+        size/2, size*0.35, flameWidth/4
+    );
+    innerFlameGradient.addColorStop(0, 'rgba(255, 255, 200, 1)');
+    innerFlameGradient.addColorStop(0.3, 'rgba(255, 255, 0, 0.9)');
+    innerFlameGradient.addColorStop(0.6, 'rgba(255, 215, 0, 0.7)');
+    innerFlameGradient.addColorStop(1, 'rgba(255, 165, 0, 0.4)');
+    
+    ctx.fillStyle = innerFlameGradient;
+    ctx.beginPath();
+    ctx.moveTo(size/2, size*0.6);
+    ctx.quadraticCurveTo(size/2 - flameWidth/4, size*0.48, size/2 - flameWidth/5, size*0.38);
+    ctx.quadraticCurveTo(size/2 - flameWidth/6, size*0.3, size/2, size*0.25);
+    ctx.quadraticCurveTo(size/2 + flameWidth/6, size*0.3, size/2 + flameWidth/5, size*0.38);
+    ctx.quadraticCurveTo(size/2 + flameWidth/4, size*0.48, size/2, size*0.6);
+    ctx.fill();
+    
+    // Add flickering effect with small flame particles
+    ctx.globalAlpha = 0.7;
+    for (let i = 0; i < 5; i++) {
+        const particleX = size/2 + (Math.random() - 0.5) * flameWidth/2;
+        const particleY = size*0.4 + Math.random() * size*0.3;
+        const particleSize = 2 + Math.random() * 4;
+        
+        const particleGradient = ctx.createRadialGradient(
+            particleX, particleY, 0,
+            particleX, particleY, particleSize
+        );
+        particleGradient.addColorStop(0, 'rgba(255, 255, 0, 0.8)');
+        particleGradient.addColorStop(0.5, 'rgba(255, 165, 0, 0.5)');
+        particleGradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
+        
+        ctx.fillStyle = particleGradient;
+        ctx.beginPath();
+        ctx.arc(particleX, particleY, particleSize, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Add glow effect around the entire fire
+    ctx.globalAlpha = 0.3;
+    const glowGradient = ctx.createRadialGradient(
+        size/2, size/2, 0,
+        size/2, size/2, size/2
+    );
+    glowGradient.addColorStop(0, '#FF6B35');
+    glowGradient.addColorStop(0.5, 'rgba(255, 107, 53, 0.5)');
+    glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = glowGradient;
+    ctx.beginPath();
+    ctx.arc(size/2, size/2, size/2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add ember particles floating up
+    ctx.globalAlpha = 0.8;
+    for (let i = 0; i < 3; i++) {
+        const emberX = size/2 + (Math.random() - 0.5) * size/3;
+        const emberY = size*0.2 + Math.random() * size*0.2;
+        const emberSize = 1 + Math.random() * 2;
+        
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(emberX, emberY, emberSize, emberSize);
+    }
+    
     ctx.globalAlpha = 1.0;
 }
 

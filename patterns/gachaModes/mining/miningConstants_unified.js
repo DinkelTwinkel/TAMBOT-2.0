@@ -130,6 +130,7 @@ const ENCOUNTER_TYPES = {
     BOMB_TRAP: 'bomb_trap',
     GREEN_FOG: 'green_fog',
     WALL_TRAP: 'wall_trap',
+    FIRE_BLAST: 'fire_blast',
     TREASURE: 'treasure',
     RARE_TREASURE: 'rare_treasure'
 };
@@ -139,7 +140,8 @@ const HAZARD_TYPES = {
     PORTAL_TRAP: 'portal_trap',
     BOMB_TRAP: 'bomb_trap',
     GREEN_FOG: 'green_fog',
-    WALL_TRAP: 'wall_trap'
+    WALL_TRAP: 'wall_trap',
+    FIRE_BLAST: 'fire_blast'
 };
 
 // Encounter Configurations (includes hazards and treasures)
@@ -187,6 +189,18 @@ const ENCOUNTER_CONFIG = {
         weight: 15,
         isHazard: true
     },
+    [ENCOUNTER_TYPES.FIRE_BLAST]: {
+        name: 'Fire Blast',
+        symbol: '🔥',
+        color: '#FF6B35',
+        image: 'fire_blast',
+        description: 'Burns minecart contents',
+        powerRequirement: 2,
+        weight: 20,
+        isHazard: true,
+        burnPercentageBase: 10,  // Base 10% burn at power level 1
+        burnPercentagePerLevel: 5  // +5% per power level
+    },
     [ENCOUNTER_TYPES.TREASURE]: {
         name: 'Treasure Chest',
         symbol: '💰',
@@ -218,7 +232,8 @@ const HAZARD_CONFIG = {
     [HAZARD_TYPES.PORTAL_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.PORTAL_TRAP],
     [HAZARD_TYPES.BOMB_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.BOMB_TRAP],
     [HAZARD_TYPES.GREEN_FOG]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.GREEN_FOG],
-    [HAZARD_TYPES.WALL_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.WALL_TRAP]
+    [HAZARD_TYPES.WALL_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.WALL_TRAP],
+    [HAZARD_TYPES.FIRE_BLAST]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.FIRE_BLAST]
 };
 
 // Power level encounter spawn configurations
@@ -229,15 +244,15 @@ const ENCOUNTER_SPAWN_CONFIG = {
     },
     2: { 
         spawnChance: 0.025, 
-        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.TREASURE] 
+        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.FIRE_BLAST, ENCOUNTER_TYPES.TREASURE] 
     },
     3: { 
         spawnChance: 0.03, 
-        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
+        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.FIRE_BLAST, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
     },
     4: { 
         spawnChance: 0.035, 
-        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.WALL_TRAP, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
+        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.WALL_TRAP, ENCOUNTER_TYPES.FIRE_BLAST, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
     },
     5: { 
         spawnChance: 0.04, 
@@ -269,9 +284,9 @@ const ENCOUNTER_SPAWN_CONFIG = {
 // Keep legacy HAZARD_SPAWN_CONFIG for backward compatibility
 const HAZARD_SPAWN_CONFIG = {
     1: { spawnChance: 0.01, availableTypes: [HAZARD_TYPES.PORTAL_TRAP] },
-    2: { spawnChance: 0.015, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP] },
-    3: { spawnChance: 0.02, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP, HAZARD_TYPES.GREEN_FOG] },
-    4: { spawnChance: 0.025, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP, HAZARD_TYPES.GREEN_FOG, HAZARD_TYPES.WALL_TRAP] },
+    2: { spawnChance: 0.015, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP, HAZARD_TYPES.FIRE_BLAST] },
+    3: { spawnChance: 0.02, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP, HAZARD_TYPES.GREEN_FOG, HAZARD_TYPES.FIRE_BLAST] },
+    4: { spawnChance: 0.025, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP, HAZARD_TYPES.GREEN_FOG, HAZARD_TYPES.WALL_TRAP, HAZARD_TYPES.FIRE_BLAST] },
     5: { spawnChance: 0.03, availableTypes: Object.values(HAZARD_TYPES) },
     6: { spawnChance: 0.035, availableTypes: Object.values(HAZARD_TYPES) },
     7: { spawnChance: 0.04, availableTypes: Object.values(HAZARD_TYPES) },

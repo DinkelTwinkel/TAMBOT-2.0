@@ -21,24 +21,35 @@ try {
     // Fall back to hazard modules if encounter modules don't exist yet
     try {
         encounterStorage = require('../hazardStorage');
-        const constants = require('../miningConstants');
-        ENCOUNTER_TYPES = constants.HAZARD_TYPES;
-        ENCOUNTER_CONFIG = constants.HAZARD_CONFIG;
+        const constants = require('../miningConstants_unified');
+        ENCOUNTER_TYPES = constants.HAZARD_TYPES || constants.ENCOUNTER_TYPES;
+        ENCOUNTER_CONFIG = constants.HAZARD_CONFIG || constants.ENCOUNTER_CONFIG;
     } catch (e2) {
         console.warn('Neither encounter nor hazard modules found, using defaults');
-        // Provide defaults if neither exists
+        // Provide defaults if neither exists - INCLUDING FIRE_BLAST
         ENCOUNTER_TYPES = {
             PORTAL_TRAP: 'portal_trap',
             BOMB_TRAP: 'bomb_trap',
             GREEN_FOG: 'green_fog',
             WALL_TRAP: 'wall_trap',
+            FIRE_BLAST: 'fire_blast',  // Add fire blast
             TREASURE: 'treasure'
         };
-        ENCOUNTER_CONFIG = {};
+        ENCOUNTER_CONFIG = {
+            fire_blast: {
+                name: 'Fire Blast',
+                symbol: '🔥',
+                color: '#FF6B35',
+                image: 'fire_blast'
+            }
+        };
         encounterStorage = {
             getEncountersData: async () => ({}),
+            getHazardsData: async () => ({}),
             getEncounter: () => null,
-            hasEncounter: () => false
+            getHazard: () => null,
+            hasEncounter: () => false,
+            hasHazard: () => false
         };
     }
 }
@@ -901,21 +912,65 @@ function drawEncounterFallback(ctx, encounter, centerX, centerY, tileSize, isVis
             ctx.fillText('!', centerX, centerY);
         }
     } else {
-        // Revealed encounter - show specific type with darkening
-        const baseColor = config?.color || '#FF0000';
-        const darkColor = config ? `rgba(${parseInt(baseColor.slice(1,3),16)/2},${parseInt(baseColor.slice(3,5),16)/2},${parseInt(baseColor.slice(5,7),16)/2},1)` : '#7F0000';
-        
-        ctx.fillStyle = isVisible ? baseColor : darkColor;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, encounterSize / 2, 0, Math.PI * 2);
-        ctx.fill();
-        
-        if (tileSize >= 20 && config?.symbol) {
-            ctx.fillStyle = isVisible ? '#FFFFFF' : '#7F7F7F';
-            ctx.font = `bold ${Math.floor(encounterSize * 0.6)}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(config.symbol, centerX, centerY);
+        // Special rendering for fire_blast
+        if (encounter.type === 'fire_blast' || encounter.type === ENCOUNTER_TYPES?.FIRE_BLAST) {
+            // Draw fire effect
+            const fireGradient = ctx.createRadialGradient(
+                centerX, centerY, 0,
+                centerX, centerY, encounterSize / 2
+            );
+            fireGradient.addColorStop(0, isVisible ? '#FFFF00' : '#7F7F00');
+            fireGradient.addColorStop(0.3, isVisible ? '#FFA500' : '#7F5200');
+            fireGradient.addColorStop(0.6, isVisible ? '#FF6B35' : '#7F351A');
+            fireGradient.addColorStop(1, isVisible ? 'rgba(255, 107, 53, 0.3)' : 'rgba(127, 53, 26, 0.3)');
+            
+            ctx.fillStyle = fireGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, encounterSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw fire symbol
+            if (tileSize >= 20) {
+                ctx.fillStyle = isVisible ? '#FFFFFF' : '#7F7F7F';
+                ctx.font = `bold ${Math.floor(encounterSize * 0.5)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🔥', centerX, centerY);
+            }
+            
+            // Add flickering glow effect
+            ctx.save();
+            ctx.globalAlpha = 0.3;
+            const glowSize = encounterSize * (1 + Math.random() * 0.2);
+            const glowGradient = ctx.createRadialGradient(
+                centerX, centerY, 0,
+                centerX, centerY, glowSize
+            );
+            glowGradient.addColorStop(0, isVisible ? '#FF6B35' : '#7F351A');
+            glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = glowGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, glowSize, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            
+        } else {
+            // Default rendering for other hazards
+            const baseColor = config?.color || '#FF0000';
+            const darkColor = config ? `rgba(${parseInt(baseColor.slice(1,3),16)/2},${parseInt(baseColor.slice(3,5),16)/2},${parseInt(baseColor.slice(5,7),16)/2},1)` : '#7F0000';
+            
+            ctx.fillStyle = isVisible ? baseColor : darkColor;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, encounterSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            if (tileSize >= 20 && config?.symbol) {
+                ctx.fillStyle = isVisible ? '#FFFFFF' : '#7F7F7F';
+                ctx.font = `bold ${Math.floor(encounterSize * 0.6)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(config.symbol, centerX, centerY);
+            }
         }
     }
 }

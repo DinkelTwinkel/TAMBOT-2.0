@@ -40,6 +40,10 @@ async function processHazardTrigger(member, position, mapData, hazardsData, dbEn
         case HAZARD_TYPES.WALL_TRAP:
             result = await handleWallTrap(member, position, mapData, eventLogs);
             break;
+            
+        case HAZARD_TYPES.FIRE_BLAST:
+            result = await handleFireBlast(member, position, dbEntry, eventLogs);
+            break;
     }
     
     // Add hazard trigger message
@@ -384,6 +388,99 @@ async function handleWallTrap(member, position, mapData, eventLogs) {
 }
 
 /**
+ * Handle Fire Blast - Burns items in minecart
+ */
+async function handleFireBlast(member, position, dbEntry, eventLogs) {
+    const config = HAZARD_CONFIG[HAZARD_TYPES.FIRE_BLAST];
+    const powerLevel = dbEntry.gameData?.powerLevel || 1;
+    
+    // Calculate burn percentage based on power level
+    const burnPercentageBase = config.burnPercentageBase || 10;
+    const burnPercentagePerLevel = config.burnPercentagePerLevel || 5;
+    const burnPercentage = Math.min(50, burnPercentageBase + (burnPercentagePerLevel * (powerLevel - 1))); // Cap at 50%
+    
+    // Get minecart contents
+    const minecart = dbEntry.gameData?.minecart;
+    if (!minecart || !minecart.items || Object.keys(minecart.items).length === 0) {
+        return {
+            mapChanged: false,
+            playerMoved: false,
+            message: "No items to burn!"
+        };
+    }
+    
+    let totalValueBurned = 0;
+    let itemsBurned = [];
+    const itemsToReduce = {};
+    
+    // Process each item in minecart
+    for (const [itemId, itemData] of Object.entries(minecart.items)) {
+        if (itemData.quantity > 0) {
+            // Calculate how many to burn
+            const toBurn = Math.ceil(itemData.quantity * (burnPercentage / 100));
+            const actualBurn = Math.min(toBurn, itemData.quantity);
+            
+            if (actualBurn > 0) {
+                const itemValue = itemData.value || 0;
+                totalValueBurned += actualBurn * itemValue;
+                
+                // Track what was burned
+                itemsBurned.push(`${actualBurn}x ${itemData.name || 'Unknown Item'}`);
+                
+                // Store the reduction
+                itemsToReduce[itemId] = actualBurn;
+            }
+        }
+    }
+    
+    // Apply the burns to minecart
+    if (Object.keys(itemsToReduce).length > 0) {
+        for (const [itemId, burnAmount] of Object.entries(itemsToReduce)) {
+            const currentQuantity = minecart.items[itemId].quantity;
+            const newQuantity = currentQuantity - burnAmount;
+            
+            if (newQuantity <= 0) {
+                // Remove item completely
+                delete minecart.items[itemId];
+            } else {
+                // Reduce quantity
+                minecart.items[itemId].quantity = newQuantity;
+            }
+        }
+        
+        // Update contributors to reflect the loss
+        if (minecart.contributors) {
+            const contributorIds = Object.keys(minecart.contributors);
+            const lossPerContributor = Math.floor(totalValueBurned / contributorIds.length);
+            
+            for (const contributorId of contributorIds) {
+                const currentValue = minecart.contributors[contributorId] || 0;
+                minecart.contributors[contributorId] = Math.max(0, currentValue - lossPerContributor);
+            }
+        }
+        
+        // Mark as modified and save
+        dbEntry.markModified('gameData.minecart');
+        await dbEntry.save();
+    }
+    
+    let message = `🔥 BURNED ${burnPercentage}% of minecart!`;
+    if (itemsBurned.length > 0) {
+        const burnedList = itemsBurned.slice(0, 3).join(', ');
+        const moreCount = itemsBurned.length > 3 ? ` and ${itemsBurned.length - 3} more` : '';
+        message += ` Lost: ${burnedList}${moreCount} (${totalValueBurned} value)`;
+    } else {
+        message = "Fire blast fizzled - no damage!";
+    }
+    
+    return {
+        mapChanged: false,
+        playerMoved: false,
+        message: message
+    };
+}
+
+/**
  * Check if player is stuck (trapped in wall or by walls)
  */
 function isPlayerStuck(position, mapData) {
@@ -501,6 +598,7 @@ module.exports = {
     handleBombTrap,
     handleGreenFog,
     handleWallTrap,
+    handleFireBlast,
     isPlayerStuck,
     isPlayerDisabled,
     enablePlayersAfterBreak,
