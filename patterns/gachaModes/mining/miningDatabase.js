@@ -408,17 +408,20 @@ async function breakPickaxe(playerId, playerTag, pickaxe) {
         const maxDurability = itemData?.durability || 100;
         
         if (currentQuantity > 1) {
-            // Reduce quantity by 1 and RESET durability to max
-            console.log(`Decrementing quantity from ${currentQuantity} to ${currentQuantity - 1}, resetting durability to ${maxDurability}`);
+            // IMPORTANT: Reset durability to max FIRST, then reduce quantity
+            console.log(`Resetting durability to ${maxDurability} BEFORE reducing quantity from ${currentQuantity} to ${currentQuantity - 1}`);
             
-            inventory.items[itemIndex].quantity = currentQuantity - 1;
+            // Step 1: Reset durability to maximum first
             inventory.items[itemIndex].currentDurability = maxDurability;
+            
+            // Step 2: Then reduce the quantity by 1
+            inventory.items[itemIndex].quantity = currentQuantity - 1;
             
             // Mark as modified and save
             inventory.markModified('items');
             await inventory.save();
             
-            console.log(`SUCCESS: Reduced ${pickaxe.name || 'pickaxe'} quantity and reset durability`);
+            console.log(`SUCCESS: Reset durability to ${maxDurability}, then reduced ${pickaxe.name || 'pickaxe'} quantity to ${currentQuantity - 1}`);
             return true;
         } else {
             // Remove the item entirely
