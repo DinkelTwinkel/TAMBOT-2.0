@@ -351,8 +351,40 @@ class ShopHandler {
         const remainingMs = buffResult.expiresAt.getTime() - Date.now();
         const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
 
+        // Create varied response messages based on subtype
+        const foodActions = ['ate', 'devoured', 'enjoyed', 'consumed', 'feasted on', 'munched on', 'savored'];
+        const drinkActions = ['drank', 'gulped down', 'sipped', 'enjoyed', 'consumed', 'downed', 'quaffed'];
+        const genericActions = ['used', 'consumed'];
+        
+        let actionVerbs;
+        if (item.subtype === 'food') {
+            actionVerbs = foodActions;
+        } else if (item.subtype === 'drink') {
+            actionVerbs = drinkActions;
+        } else {
+            actionVerbs = genericActions;
+        }
+        
+        const selectedAction = actionVerbs[Math.floor(Math.random() * actionVerbs.length)];
+        
+        // Food and drink emojis for variety
+        const foodEmojis = ['🍖', '🍗', '🍕', '🥘', '🍲', '🍱', '🍞', '🧀'];
+        const drinkEmojis = ['🍺', '🍷', '🥤', '🍹', '☕', '🥃', '🍶', '🧃'];
+        const genericEmojis = ['✨', '💫', '⭐', '🌟'];
+        
+        let emojiArray;
+        if (item.subtype === 'food') {
+            emojiArray = foodEmojis;
+        } else if (item.subtype === 'drink') {
+            emojiArray = drinkEmojis;
+        } else {
+            emojiArray = genericEmojis;
+        }
+        
+        const selectedEmoji = emojiArray[Math.floor(Math.random() * emojiArray.length)];
+        
         // Create response message
-        let responseMessage = `${interaction.member} ✅ **Used ${item.name}!**\n`;
+        let responseMessage = `${interaction.member} ${selectedEmoji} **${selectedAction.charAt(0).toUpperCase() + selectedAction.slice(1)} ${item.name}!**\n`;
         
         if (buffResult.refreshed) {
             responseMessage += `🔄 **Buff Refreshed:** ${buffEffects.join(', ')}\n`;

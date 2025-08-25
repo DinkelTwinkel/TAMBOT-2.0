@@ -43,8 +43,11 @@ module.exports = async function consume(context) {
         // Consume the item (remove 1 from inventory)
         const remainingQuantity = await consumeItem(1);
 
-        // Build the success message
-        let description = `**${user.username}** consumed **${item.name}**!\n\n`;
+        // Build the success message with food/drink appropriate verb
+        const actionVerb = item.subtype === 'drink' ? 'drank' : item.subtype === 'food' ? 'ate' : 'consumed';
+        const actionVerbPast = item.subtype === 'drink' ? 'Drank' : item.subtype === 'food' ? 'Ate' : 'Consumed';
+        
+        let description = `**${user.username}** ${actionVerb} **${item.name}**!\n\n`;
         
         // Add item description
         if (item.description) {
@@ -76,8 +79,60 @@ module.exports = async function consume(context) {
             if (item.value >= 1000) embedColor = 0xE74C3C; // Red for very valuable items
         }
 
+        // Special messages for Gullet/flesh foods (disturbing items)
+        const isGulletFood = parseInt(item.id) >= 200 && parseInt(item.id) <= 219;
+        
+        const gulletFoodMessages = [
+            `${user} reluctantly consumed **${item.name}**`,
+            `${user} forced down **${item.name}**`,
+            `${user} hesitantly ingested **${item.name}**`,
+            `${user} choked down **${item.name}**`,
+            `${user} grimaced while eating **${item.name}**`,
+            `${user} nervously consumed **${item.name}**`,
+            `${user} swallowed **${item.name}** with difficulty`
+        ];
+        
+        // Array of varied message templates for food and drinks
+        const foodMessages = isGulletFood ? gulletFoodMessages : [
+            `${user} ate **${item.name}**`,
+            `${user} devoured **${item.name}**`,
+            `${user} munched on **${item.name}**`,
+            `${user} enjoyed **${item.name}**`,
+            `${user} feasted on **${item.name}**`,
+            `${user} consumed **${item.name}**`,
+            `${user} wolfed down **${item.name}**`,
+            `${user} savored **${item.name}**`
+        ];
+        
+        const drinkMessages = [
+            `${user} drank **${item.name}**`,
+            `${user} sipped **${item.name}**`,
+            `${user} chugged **${item.name}**`,
+            `${user} gulped down **${item.name}**`,
+            `${user} enjoyed **${item.name}**`,
+            `${user} consumed **${item.name}**`,
+            `${user} downed **${item.name}**`,
+            `${user} quaffed **${item.name}**`
+        ];
+        
+        const genericMessages = [
+            `${user} consumed **${item.name}**`,
+            `${user} used **${item.name}**`,
+            `${user} ingested **${item.name}**`
+        ];
+        
+        // Select appropriate message based on subtype
+        let messageArray;
+        if (item.subtype === 'food') {
+            messageArray = foodMessages;
+        } else if (item.subtype === 'drink') {
+            messageArray = drinkMessages;
+        } else {
+            messageArray = genericMessages;
+        }
+        
         // Send a short public message about the consumption as the main reply
-        let publicMessage = `${user} consumed **${item.name}**`;
+        let publicMessage = messageArray[Math.floor(Math.random() * messageArray.length)];
         if (item.abilities && item.abilities.length > 0) {
             const mainAbility = item.abilities[0];
             publicMessage += ` • ${mainAbility.name.charAt(0).toUpperCase() + mainAbility.name.slice(1)} +${mainAbility.powerlevel}`;
@@ -85,7 +140,22 @@ module.exports = async function consume(context) {
         if (item.duration) {
             publicMessage += ` (${item.duration}m)`;
         }
-        publicMessage += `! ${item.type === 'consumable' && item.subtype === 'food' ? '🍖' : item.type === 'consumable' && item.subtype === 'drink' ? '🍺' : '✨'}`;
+        // Add emoji based on subtype with variety
+        const gulletEmojis = ['🤢', '😵', '🤮', '😷', '🥴', '😰'];
+        const foodEmojis = isGulletFood ? gulletEmojis : ['🍖', '🍗', '🍕', '🥘', '🍲', '🍱', '🍞', '🧀'];
+        const drinkEmojis = ['🍺', '🍷', '🥤', '🍹', '☕', '🥃', '🍶', '🧃'];
+        const genericEmojis = ['✨', '💫', '⭐', '🌟'];
+        
+        let emojiArray;
+        if (item.subtype === 'food') {
+            emojiArray = foodEmojis;
+        } else if (item.subtype === 'drink') {
+            emojiArray = drinkEmojis;
+        } else {
+            emojiArray = genericEmojis;
+        }
+        
+        publicMessage += `! ${emojiArray[Math.floor(Math.random() * emojiArray.length)]}`;
         
         // Send public message as the main interaction reply
         const replyMsg = await channel.send({ 
@@ -97,7 +167,7 @@ module.exports = async function consume(context) {
         // Send detailed info as ephemeral follow-up
         await interaction.editReply({ 
             embeds: [new EmbedBuilder()
-                .setTitle('✅ Item Consumed')
+                .setTitle(item.subtype === 'drink' ? '🍺 Drink Consumed' : item.subtype === 'food' ? '🍖 Food Consumed' : '✅ Item Consumed')
                 .setDescription(description)
                 .setColor(embedColor)
                 .setThumbnail(item.image ? `https://example.com/images/${item.image}.png` : null)
@@ -145,8 +215,17 @@ module.exports = async function consume(context) {
         else if (item.id === '13') { // Banana Axe special case
             // The Banana Axe is both a tool and consumable
             // It's a slippery, unreliable tool that can be eaten for power!
+            // Varied messages for eating the Banana Axe
+            const bananaMessages = [
+                `🍌 *${user.username} takes a bite out of the Banana Axe! It's surprisingly nutritious and grants temporary mining power! The axe handle dissolves into sweet banana flavor...*`,
+                `🍌 *${user.username} chomps down on the Banana Axe! The tropical flavor bursts with mining energy as the tool transforms into a delicious snack!*`,
+                `🍌 *${user.username} devours the Banana Axe! Who knew tools could be so tasty? The banana essence floods them with mining prowess!*`,
+                `🍌 *${user.username} munches on the Banana Axe! It's both a tool AND a meal - revolutionary! Sweet banana power courses through their veins!*`,
+                `🍌 *${user.username} consumes the entire Banana Axe! The potassium-powered pickaxe melts into a burst of mining energy!*`
+            ];
+            
             const bananaMsg = await channel.send({
-                content: `🍌 *${user.username} takes a bite out of the Banana Axe! It's surprisingly nutritious and grants temporary mining power! The axe handle dissolves into sweet banana flavor...*`,
+                content: bananaMessages[Math.floor(Math.random() * bananaMessages.length)],
                 ephemeral: false
             });
             // Register for auto-cleanup (5 minute expiry)
