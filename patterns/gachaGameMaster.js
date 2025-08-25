@@ -352,8 +352,8 @@ module.exports = async (guild) => {
                             // Try to fetch and delete the actual Discord channel
                             const gulletChannel = await guild.channels.fetch(gulletEntry.channelId).catch(() => null);
                             if (gulletChannel) {
-                                await gulletChannel.delete('Sacrifice ended - cleaning up gullet channels');
-                                console.log(`🗑️ Deleted gullet channel: ${gulletChannel.name}`);
+                                //await gulletChannel.delete('Sacrifice ended - cleaning up gullet channels');
+                                //console.log(`🗑️ Deleted gullet channel: ${gulletChannel.name}`);
                             }
                             
                             // Remove from database
