@@ -68,6 +68,7 @@ module.exports = {
                     id: itemData.id,
                     name: itemData.name,
                     type: itemData.type,
+                    subtype: itemData.subtype, // Add subtype field for food/drink
                     description: itemData.description,
                     value: itemData.value,
                     script: itemData.script,
@@ -136,7 +137,6 @@ module.exports = {
         });
     },
 
-
 // ============================================
 // PAGINATION METHOD
 // ============================================
@@ -175,28 +175,11 @@ module.exports = {
             let typeItemsText = '';
             
             for (const item of typeItems) {
-                let line = `『${item.name}』 (x${item.owned})`;
+                let line = `x${item.owned} 『${item.name}』`;
                 
-                // Add script type indicator
-                line += ` [${item.script}]`;
-                
-                // Add value if exists
-                if (item.value) {
-                    line += ` - ${item.value}`;
-                }
-                
-                // Add duration if exists (for consumables)
-                if (item.duration) {
-                    line += ` BUFF ${item.duration}m`;
-                }
-                
-                // Add abilities if exists
-                if (item.abilities && item.abilities.length > 0) {
-                    const abilityList = item.abilities.map(a => {
-                        const sign = a.powerlevel >= 0 ? '+' : '';
-                        return `${a.name}${sign}${a.powerlevel}`;
-                    }).join(', ');
-                    line += ` (${abilityList})`;
+                // Add subtype for consumables (food/drink)
+                if (item.type === 'consumable' && item.subtype) {
+                    line += ` ${item.subtype}`;
                 }
                 
                 line += '\n';
@@ -242,11 +225,9 @@ module.exports = {
         return pages.length > 0 ? pages : [[]];
     },
 
-
 // ============================================
 // EMBED CREATION METHOD
 // ============================================
-
 
     // Create embed showing usable items
     createUsableItemsEmbed(pageItems, page, user, totalPages) {
@@ -270,28 +251,11 @@ module.exports = {
             description += '```\n';
             
             for (const item of typeItems) {
-                let line = `『${item.name}』 (x${item.owned})`;
+                let line = `x${item.owned} 『${item.name}』`;
                 
-                // Add script type indicator
-                line += ` [${item.script}]`;
-                
-                // Add value if exists
-                if (item.value) {
-                    line += ` - ${item.value}`;
-                }
-                
-                // Add duration if exists (for consumables)
-                if (item.duration) {
-                    line += ` BUFF ${item.duration}m`;
-                }
-                
-                // Add abilities if exists
-                if (item.abilities && item.abilities.length > 0) {
-                    const abilityList = item.abilities.map(a => {
-                        const sign = a.powerlevel >= 0 ? '+' : '';
-                        return `${a.name}${sign}${a.powerlevel}`;
-                    }).join(', ');
-                    line += ` (${abilityList})`;
+                // Add subtype for consumables (food/drink)
+                if (item.type === 'consumable' && item.subtype) {
+                    line += ` ${item.subtype}`;
                 }
                 
                 description += line + '\n';
@@ -326,15 +290,31 @@ module.exports = {
 
         // Create select menu with items on current page
         const selectOptions = pageItems.map(item => {
-            let label = `${item.name} (x${item.owned})`;
+            let label = `x${item.owned} ${item.name}`;
             if (label.length > 100) {
                 label = label.substring(0, 97) + '...';
             }
 
-            let description = `Use: ${item.script}`;
-            if (item.description && item.description.length < 50) {
+            let description = '';
+            
+            // Build description with BUFF info if available
+            if (item.abilities && item.abilities.length > 0) {
+                const abilityList = item.abilities.map(a => {
+                    const sign = a.powerlevel >= 0 ? '+' : '';
+                    return `${a.name}${sign}${a.powerlevel}`;
+                }).join(', ');
+                description = `BUFF (${abilityList})`;
+                
+                // Add duration if exists
+                if (item.duration) {
+                    description += ` 🕐 ${item.duration} minutes`;
+                }
+            } else if (item.description && item.description.length < 50) {
                 description = item.description;
+            } else {
+                description = `Use: ${item.script}`;
             }
+            
             if (description.length > 100) {
                 description = description.substring(0, 97) + '...';
             }
@@ -404,6 +384,7 @@ module.exports = {
 // ============================================
 // UTILITY METHODS
 // ============================================
+
 
     getTypeEmoji(type) {
         const emojis = {
