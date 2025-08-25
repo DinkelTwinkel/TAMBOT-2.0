@@ -1459,7 +1459,7 @@
         "power": 5.5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
-            "spawnChance": 0.040,
+            "spawnChance": 0.1,
             "allowedTypes": ["fire_blast"],
             "modifiers": {
                 "bombRadius": 2
@@ -1484,7 +1484,7 @@
         "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
-            "spawnChance": 0.04,
+            "spawnChance": 0.15,
             "allowedTypes": ["fire_blast"],
             "modifiers": {
                 "bombRadius": 3
@@ -1510,7 +1510,7 @@
         "power": 6.5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
-            "spawnChance": 0.045,
+            "spawnChance": 0.15,
             "allowedTypes": ["fire_blast"],
             "modifiers": {
                 "bombRadius": 3
@@ -1535,7 +1535,7 @@
         "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
-            "spawnChance": 0.050,
+            "spawnChance": 0.17,
             "allowedTypes": ["fire_blast"],
             "modifiers": {
                 "bombRadius": 3
@@ -1560,7 +1560,7 @@
         "power": 7.5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
-            "spawnChance": 0.055,
+            "spawnChance": 0.18,
             "allowedTypes": ["fire_blast"],
             "modifiers": {
                 "bombRadius": 4
@@ -1585,7 +1585,7 @@
         "power": 8,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
-            "spawnChance": 0.060,
+            "spawnChance": 0.20,
             "allowedTypes": ["fire_blast"],
             "modifiers": {
                 "bombRadius": 4
@@ -1610,7 +1610,7 @@
         "power": 8.5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
-            "spawnChance": 0.065,
+            "spawnChance": 0.25,
             "allowedTypes": ["fire_blast"],
             "modifiers": {
                 "bombRadius": 4,
@@ -1636,7 +1636,7 @@
         "power": 10,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
-            "spawnChance": 0.18,
+            "spawnChance": 0.50,
             "allowedTypes": ["fire_blast"],
             "modifiers": {
                 "bombRadius": 5,
