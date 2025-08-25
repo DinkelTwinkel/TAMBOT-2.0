@@ -327,6 +327,26 @@ async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
         // DEEPER MINE INTEGRATION: Track persistent value
         const totalValue = itemValue * amount;
         await deeperMineChecker.updatePersistentRunValue(dbEntry, totalValue);
+        
+        // Track persistent rare ores
+        const rareTiers = ['rare', 'epic', 'legendary', 'unique', 'mythic'];
+        if (rareTiers.includes(poolItem.tier)) {
+            // Update rare ore count in stats
+            await gachaVC.updateOne(
+                { channelId: channelId },
+                { 
+                    $inc: { 
+                        'gameData.stats.lifetimeRareOres': amount 
+                    }
+                }
+            );
+            
+            if (Math.random() < 0.05) { // Log 5% of the time
+                const currentRareOres = dbEntry.gameData?.stats?.lifetimeRareOres || 0;
+                console.log(`[DEEPER MINE] Lifetime rare ores: ${currentRareOres + amount} (+${amount} ${poolItem.tier})`);
+            }
+        }
+        
         if (Math.random() < 0.05) { // Log 5% of the time
             const currentLifetime = deeperMineChecker.calculatePersistentRunValue(dbEntry);
             console.log(`[DEEPER MINE] Lifetime value: ${currentLifetime} (+${totalValue})`);
@@ -586,7 +606,8 @@ function initializeGameData(dbEntry, channelId) {
             stats: {
                 totalOreFound: 0,
                 wallsBroken: 0,
-                treasuresFound: 0
+                treasuresFound: 0,
+                lifetimeRareOres: 0  // Track rare ores persistently
             },
             cycleCount: 0  // CRITICAL: Initialize cycle count for break pattern
         };
@@ -615,7 +636,8 @@ function initializeGameData(dbEntry, channelId) {
             dbEntry.gameData.stats = {
                 totalOreFound: 0,
                 wallsBroken: 0,
-                treasuresFound: 0
+                treasuresFound: 0,
+                lifetimeRareOres: 0  // Track rare ores persistently
             };
             modified = true;
         }

@@ -224,6 +224,23 @@ async function markExitTileFound(dbEntry, exitTileData) {
 }
 
 /**
+ * Reset persistent rare ore counter (for when entering new mine level)
+ * @param {string} channelId - The channel ID
+ */
+async function resetPersistentRareOres(channelId) {
+    console.log('[DEBUG-DEEPER] Resetting persistent rare ore counter');
+    
+    await gachaVC.updateOne(
+        { channelId: channelId },
+        { 
+            $set: { 
+                'gameData.stats.lifetimeRareOres': 0 
+            }
+        }
+    );
+}
+
+/**
  * Reset exit tile status (for when entering a new mine level)
  * @param {Object} dbEntry - The database entry
  */
@@ -376,10 +393,10 @@ function checkConditions(dbEntry, mineConfig) {
             return exitFound;
             
         case 'rareOresFound':
-            // Count rare, epic, and legendary ores in minecart
-            const rareCount = countRareOres(minecart);
-            console.log(`[DEBUG-DEEPER] Rare ores: ${rareCount} / ${conditionCost}`);
-            return rareCount >= conditionCost;
+            // Use persistent rare ore count from stats
+            const persistentRareCount = dbEntry.gameData?.stats?.lifetimeRareOres || 0;
+            console.log(`[DEBUG-DEEPER] Persistent rare ores: ${persistentRareCount} / ${conditionCost}`);
+            return persistentRareCount >= conditionCost;
             
         case 'fossilsFound':
             // Count fossils in minecart
@@ -435,7 +452,7 @@ function getProgress(dbEntry, mineConfig) {
             current = checkExitTileFound(dbEntry) ? 1 : 0;
             break;
         case 'rareOresFound':
-            current = countRareOres(minecart);
+            current = dbEntry.gameData?.stats?.lifetimeRareOres || 0;
             break;
         case 'fossilsFound':
             current = countFossils(minecart);
@@ -503,7 +520,7 @@ function getConditionDescription(mineConfig) {
         case 'exitTile':
             return `Find and break the Exit Tile (1/1000 chance)`;
         case 'rareOresFound':
-            return `Find ${conditionCost} rare or better ores`;
+            return `Find ${conditionCost} rare or better ores (total this run)`;
         case 'fossilsFound':
             return `Excavate ${conditionCost} fossils`;
         default:
@@ -898,6 +915,7 @@ module.exports = {
     checkExitTileFound,
     markExitTileFound,
     resetExitTileStatus,
+    resetPersistentRareOres,  // Added reset function
     checkForExitTileSpawn,
     createExitTileVisual,
     getExitTileData,
