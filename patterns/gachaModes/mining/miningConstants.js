@@ -91,6 +91,7 @@ const ENCOUNTER_TYPES = {
     BOMB_TRAP: 'bomb_trap',
     GREEN_FOG: 'green_fog',
     WALL_TRAP: 'wall_trap',
+    FIRE_BLAST: 'fire_blast',  // Added for Ruby mines
     TREASURE: 'treasure',
     RARE_TREASURE: 'rare_treasure'
 };
@@ -100,7 +101,8 @@ const HAZARD_TYPES = {
     PORTAL_TRAP: 'portal_trap',
     BOMB_TRAP: 'bomb_trap',
     GREEN_FOG: 'green_fog',
-    WALL_TRAP: 'wall_trap'
+    WALL_TRAP: 'wall_trap',
+    FIRE_BLAST: 'fire_blast'  // Added for Ruby mines
 };
 
 // Encounter Configurations (includes hazards and treasures)
@@ -148,6 +150,19 @@ const ENCOUNTER_CONFIG = {
         weight: 15,
         isHazard: true
     },
+    [ENCOUNTER_TYPES.FIRE_BLAST]: {
+        name: 'Fire Blast',
+        symbol: '🔥',
+        color: '#FF4500',  // Orange Red
+        image: 'fire_blast',  // Image filename without extension
+        description: 'Erupts in flames, damaging equipment and knocking out players',
+        powerRequirement: 4,
+        weight: 20,
+        damageRadius: 2,
+        knockoutDuration: 3 * 60 * 1000,  // 3 minutes
+        durabilityDamage: 2,  // Damages equipment durability
+        isHazard: true
+    },
     [ENCOUNTER_TYPES.TREASURE]: {
         name: 'Treasure Chest',
         symbol: '💰',
@@ -179,7 +194,8 @@ const HAZARD_CONFIG = {
     [HAZARD_TYPES.PORTAL_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.PORTAL_TRAP],
     [HAZARD_TYPES.BOMB_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.BOMB_TRAP],
     [HAZARD_TYPES.GREEN_FOG]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.GREEN_FOG],
-    [HAZARD_TYPES.WALL_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.WALL_TRAP]
+    [HAZARD_TYPES.WALL_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.WALL_TRAP],
+    [HAZARD_TYPES.FIRE_BLAST]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.FIRE_BLAST]
 };
 
 // Power level encounter spawn configurations (includes hazards and treasures)
@@ -198,7 +214,7 @@ const ENCOUNTER_SPAWN_CONFIG = {
     },
     4: { 
         spawnChance: 0.035, 
-        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.WALL_TRAP, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
+        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.WALL_TRAP, ENCOUNTER_TYPES.FIRE_BLAST, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
     },
     5: { 
         spawnChance: 0.04, 
@@ -219,7 +235,7 @@ const HAZARD_SPAWN_CONFIG = {
     1: { spawnChance: 0.01, availableTypes: [HAZARD_TYPES.PORTAL_TRAP] },
     2: { spawnChance: 0.015, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP] },
     3: { spawnChance: 0.02, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP, HAZARD_TYPES.GREEN_FOG] },
-    4: { spawnChance: 0.025, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP, HAZARD_TYPES.GREEN_FOG, HAZARD_TYPES.WALL_TRAP] },
+    4: { spawnChance: 0.025, availableTypes: [HAZARD_TYPES.PORTAL_TRAP, HAZARD_TYPES.BOMB_TRAP, HAZARD_TYPES.GREEN_FOG, HAZARD_TYPES.WALL_TRAP, HAZARD_TYPES.FIRE_BLAST] },
     5: { spawnChance: 0.03, availableTypes: Object.values(HAZARD_TYPES) },
     6: { spawnChance: 0.035, availableTypes: Object.values(HAZARD_TYPES) },
     7: { spawnChance: 0.04, availableTypes: Object.values(HAZARD_TYPES) }

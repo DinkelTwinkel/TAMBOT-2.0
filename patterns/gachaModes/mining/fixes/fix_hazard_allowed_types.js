@@ -150,7 +150,10 @@ function generateFilteredHazards(hazardsData, startX, startY, width, height, spa
     
     // Log allowed types for this server
     if (serverConfig && serverConfig.hazardConfig && serverConfig.hazardConfig.allowedTypes) {
-        console.log(`[HAZARD FIX] ${serverConfig.name} allows: ${serverConfig.hazardConfig.allowedTypes.join(', ')}`);
+        console.log(`[HAZARD FIX] ${serverConfig.name} (ID: ${mineTypeId}) allows: ${serverConfig.hazardConfig.allowedTypes.join(', ')}`);
+        console.log(`[HAZARD FIX] Power level: ${powerLevel}, Spawn chance: ${spawnChance}`);
+    } else {
+        console.log(`[HAZARD FIX] No hazard config for mine ${mineTypeId}, using default spawning`);
     }
     
     let hazardsAdded = 0;
@@ -168,6 +171,10 @@ function generateFilteredHazards(hazardsData, startX, startY, width, height, spa
                 const encounterType = getFilteredEncounterType(powerLevel, mineTypeId);
                 
                 if (encounterType) {
+                    // Log what type was selected (only occasionally to avoid spam)
+                    if (Math.random() < 0.1) { // 10% chance to log
+                        console.log(`[HAZARD FIX] Selected ${encounterType} for position (${x},${y})`);
+                    }
                     hazardStorage.addHazard(hazardsData, x, y, encounterType, {
                         powerLevel: powerLevel,
                         serverId: mineTypeId
