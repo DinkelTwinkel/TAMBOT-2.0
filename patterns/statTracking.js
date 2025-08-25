@@ -63,13 +63,18 @@ class StatTracker {
 
             // Update user stats for join count
             await UserStats.findOneAndUpdate(
-                { userId, guildId },
+                { userId, guildId },  // Always use both userId and guildId as the query
                 { 
                     $inc: { totalVoiceJoins: 1 },
                     $set: { 
                         username: username || 'Unknown',
                         lastSeen: new Date(),
                         lastUpdated: new Date()
+                    },
+                    $setOnInsert: {  // Only set these on first insert
+                        userId,
+                        guildId,
+                        firstSeen: new Date()
                     }
                 },
                 { upsert: true, new: true }
@@ -78,11 +83,16 @@ class StatTracker {
             // Update daily stats for joins
             const today = new Date().toISOString().split('T')[0];
             await DailyStats.findOneAndUpdate(
-                { userId, guildId, date: today },
+                { userId, guildId, date: today },  // Compound unique key
                 { 
                     $inc: { voiceJoins: 1 },
                     $set: { username: username || 'Unknown' },
-                    $addToSet: { 'channels.voice': channelId }
+                    $addToSet: { 'channels.voice': channelId },
+                    $setOnInsert: {  // Only set these on first insert
+                        userId,
+                        guildId,
+                        date: today
+                    }
                 },
                 { upsert: true, new: true }
             );
@@ -195,12 +205,17 @@ class StatTracker {
             
             // Update total stats
             await UserStats.findOneAndUpdate(
-                { userId, guildId },
+                { userId, guildId },  // Always use compound key
                 {
                     $inc: { totalVoiceTime: duration },
                     $set: { 
                         lastSeen: new Date(),
                         lastUpdated: new Date()
+                    },
+                    $setOnInsert: {  // Only set these on first insert
+                        userId,
+                        guildId,
+                        firstSeen: new Date()
                     }
                 },
                 { upsert: true }
@@ -209,7 +224,14 @@ class StatTracker {
             // Update daily stats
             await DailyStats.findOneAndUpdate(
                 { userId, guildId, date: today },
-                { $inc: { voiceTime: duration } },
+                { 
+                    $inc: { voiceTime: duration },
+                    $setOnInsert: {  // Only set these on first insert
+                        userId,
+                        guildId,
+                        date: today
+                    }
+                },
                 { upsert: true }
             );
 
@@ -251,13 +273,18 @@ class StatTracker {
             
             // Update user stats
             await UserStats.findOneAndUpdate(
-                { userId, guildId },
+                { userId, guildId },  // Always use compound key
                 {
                     $inc: { totalMessages: 1 },
                     $set: { 
                         username: username || 'Unknown',
                         lastSeen: new Date(),
                         lastUpdated: new Date()
+                    },
+                    $setOnInsert: {  // Only set these on first insert
+                        userId,
+                        guildId,
+                        firstSeen: new Date()
                     }
                 },
                 { upsert: true }
@@ -269,7 +296,12 @@ class StatTracker {
                 {
                     $inc: { messagesCount: 1 },
                     $set: { username: username || 'Unknown' },
-                    $addToSet: { 'channels.text': channelId }
+                    $addToSet: { 'channels.text': channelId },
+                    $setOnInsert: {  // Only set these on first insert
+                        userId,
+                        guildId,
+                        date: today
+                    }
                 },
                 { upsert: true }
             );
@@ -305,13 +337,18 @@ class StatTracker {
             
             // Update user stats
             await UserStats.findOneAndUpdate(
-                { userId, guildId },
+                { userId, guildId },  // Always use compound key
                 {
                     $inc: { totalCommandsUsed: 1 },
                     $set: { 
                         username: username || 'Unknown',
                         lastSeen: new Date(),
                         lastUpdated: new Date()
+                    },
+                    $setOnInsert: {  // Only set these on first insert
+                        userId,
+                        guildId,
+                        firstSeen: new Date()
                     }
                 },
                 { upsert: true }
@@ -322,7 +359,12 @@ class StatTracker {
                 { userId, guildId, date: today },
                 {
                     $inc: { commandsUsed: 1 },
-                    $set: { username: username || 'Unknown' }
+                    $set: { username: username || 'Unknown' },
+                    $setOnInsert: {  // Only set these on first insert
+                        userId,
+                        guildId,
+                        date: today
+                    }
                 },
                 { upsert: true }
             );

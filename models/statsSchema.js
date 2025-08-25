@@ -5,8 +5,7 @@ const userStatsSchema = new mongoose.Schema({
     userId: {
         type: String,
         required: true,
-        unique: true,
-        index: true
+        index: true  // Removed unique: true because users can be in multiple guilds
     },
     username: {
         type: String,
@@ -47,6 +46,9 @@ const userStatsSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
+
+// Create compound unique index for userId + guildId combination
+userStatsSchema.index({ userId: 1, guildId: 1 }, { unique: true });
 
 // Daily Statistics Schema
 const dailyStatsSchema = new mongoose.Schema({
@@ -90,7 +92,8 @@ const dailyStatsSchema = new mongoose.Schema({
 });
 
 // Create compound index for efficient queries
-dailyStatsSchema.index({ userId: 1, date: 1 }, { unique: true });
+// Fixed: Should be userId + guildId + date for unique constraint
+dailyStatsSchema.index({ userId: 1, guildId: 1, date: 1 }, { unique: true });
 
 // Voice Session Schema (for tracking active sessions and crash recovery)
 const voiceSessionSchema = new mongoose.Schema({
