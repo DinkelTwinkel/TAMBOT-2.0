@@ -329,49 +329,96 @@ async function startThiefGame(channel, dbEntry) {
             }
         );
     } else {
-        // Fallback: Create a fake minecart pool based on 10% of poorest player's money
-        console.log('[THIEF EVENT] No pending minecart value, creating fake pool based on poorest player');
+        // Fallback: Create a fake minecart pool based on server power level scaling
+        console.log('[THIEF EVENT] No pending minecart value, creating scaled pool based on server power');
         const Currency = require('../../../models/currency');
+        const gachaInfo = require('../../../data/gachaServers.json');
         
-        // Find the poorest player in the voice channel
-        let poorestPlayerMoney = Infinity;
-        let poorestPlayer = null;
+        // Get server power level
+        const gachaVCInfo = gachaInfo.find(s => s.id === dbEntry.typeId);
+        const serverPowerLevel = gachaVCInfo?.power || 1;
+        console.log(`[THIEF EVENT] Server power level: ${serverPowerLevel}`);
         
+        // Get all player balances
+        const playerBalances = [];
         for (const user of humansArray) {
             const playerMoney = await Currency.findOne({ userId: user.id });
             const balance = playerMoney ? playerMoney.money : 0;
-            
-            if (balance < poorestPlayerMoney) {
-                poorestPlayerMoney = balance;
-                poorestPlayer = user;
-            }
+            playerBalances.push({ user, balance });
         }
         
-        // Calculate theft pool as 10% of poorest player's money
-        if (poorestPlayerMoney > 0) {
-            stealAmount = Math.floor(poorestPlayerMoney * 0.1);
+        // Sort balances to find poorest and calculate median
+        playerBalances.sort((a, b) => a.balance - b.balance);
+        const poorestBalance = playerBalances[0].balance;
+        const medianBalance = playerBalances[Math.floor(playerBalances.length / 2)].balance;
+        
+        // Calculate theft amount based on power level
+        if (serverPowerLevel <= 1) {
+            // Level 1: 10% of poorest user's wealth
+            stealAmount = Math.floor(poorestBalance * 0.1);
             
-            // If the amount is too small, set a minimum
+            // Minimum threshold
             if (stealAmount < 50) {
-                stealAmount = Math.min(50, poorestPlayerMoney); // At least 50 or their full balance if less
+                stealAmount = Math.min(50, poorestBalance);
             }
             
-            // Distribute the "loss" evenly among all players
+            // Distribute evenly as "at risk" amount
             const lossPerPlayer = Math.floor(stealAmount / humansArray.length);
             const remainder = stealAmount - (lossPerPlayer * humansArray.length);
             
-            for (let i = 0; i < humansArray.length; i++) {
-                const user = humansArray[i];
-                // First player gets the remainder to ensure total matches
+            for (let i = 0; i < playerBalances.length; i++) {
+                const { user } = playerBalances[i];
                 const playerLoss = lossPerPlayer + (i === 0 ? remainder : 0);
                 stolenFromPlayers[user.id] = playerLoss;
                 lossDescriptions.push(`${user.user.username}'s share: ${playerLoss} coins at risk`);
             }
             
-            console.log(`[THIEF EVENT] Poorest player has ${poorestPlayerMoney} coins, theft pool is ${stealAmount} coins`);
+            console.log(`[THIEF EVENT] Level 1: Poorest has ${poorestBalance}, theft pool is ${stealAmount}`);
+            
+        } else if (serverPowerLevel >= 2 && serverPowerLevel <= 7) {
+            // Levels 2-7: Scale from 10% to 20% of wealth, with increasing cap
+            // Level 2: 12%, Level 3: 14%, Level 4: 16%, Level 5: 18%, Level 6-7: 20%
+            const percentageStolen = 0.1 + (Math.min(serverPowerLevel - 1, 5) * 0.02);
+            const capPercentage = 0.2; // Cap at 20% of median wealth
+            const maxPerPlayer = Math.floor(medianBalance * capPercentage);
+            
+            stealAmount = 0;
+            for (const { user, balance } of playerBalances) {
+                const potentialLoss = Math.floor(balance * percentageStolen);
+                const actualLoss = Math.min(potentialLoss, maxPerPlayer);
+                
+                // Ensure minimum loss if player has money
+                const finalLoss = balance > 0 ? Math.max(actualLoss, 10) : 0;
+                
+                stolenFromPlayers[user.id] = finalLoss;
+                stealAmount += finalLoss;
+                lossDescriptions.push(`${user.user.username} lost ${finalLoss} coins (${(percentageStolen * 100).toFixed(0)}% of ${balance}, capped at ${maxPerPlayer})`);
+            }
+            
+            console.log(`[THIEF EVENT] Level ${serverPowerLevel}: ${(percentageStolen * 100).toFixed(0)}% theft, capped at ${maxPerPlayer} per player, total pool: ${stealAmount}`);
+            
         } else {
-            // If everyone has 0 coins, create a minimal pool
-            stealAmount = 50 * humansArray.length; // 50 coins per player minimum
+            // Level 8+: 25% of everyone's wealth, no cap
+            const percentageStolen = 0.25;
+            
+            stealAmount = 0;
+            for (const { user, balance } of playerBalances) {
+                const loss = Math.floor(balance * percentageStolen);
+                
+                // Ensure minimum loss if player has money
+                const finalLoss = balance > 0 ? Math.max(loss, 25) : 0;
+                
+                stolenFromPlayers[user.id] = finalLoss;
+                stealAmount += finalLoss;
+                lossDescriptions.push(`${user.user.username} lost ${finalLoss} coins (25% of ${balance})`);
+            }
+            
+            console.log(`[THIEF EVENT] Level ${serverPowerLevel}: 25% theft with no cap, total pool: ${stealAmount}`);
+        }
+        
+        // If the total pool is still 0, create a minimal pool
+        if (stealAmount === 0) {
+            stealAmount = 50 * humansArray.length;
             for (const user of humansArray) {
                 stolenFromPlayers[user.id] = 50;
                 lossDescriptions.push(`${user.user.username}'s share: 50 coins at risk`);
@@ -823,27 +870,59 @@ async function endThiefGame(channel, dbEntry) {
             // Give thief their share
             await rewardThief(thiefId, thiefKeeps);
             
-            // Distribute remaining 50% to victims based on their original contribution
-            await distributeMinecartRewards(stolenFromPlayers, 0.5);
+            // Check if this was a fallback theft (not from minecart)
+            const wasMinecartTheft = dbEntry.gameData?.pendingMinecartValue > 0;
+            if (!wasMinecartTheft && stolenFromPlayers) {
+                // For fallback theft: deduct 50% from victims, return 50%
+                for (const [userId, amount] of Object.entries(stolenFromPlayers)) {
+                    if (userId !== thiefId && amount > 0) {
+                        const halfAmount = Math.floor(amount / 2);
+                        try {
+                            let victimMoney = await Currency.findOne({ userId });
+                            if (victimMoney && victimMoney.money >= halfAmount) {
+                                victimMoney.money -= halfAmount;
+                                await victimMoney.save();
+                                console.log(`[THIEF PARTIAL] Deducted ${halfAmount} coins from victim ${userId} (50% loss)`);
+                            }
+                        } catch (error) {
+                            console.error(`Error deducting from victim ${userId}:`, error);
+                        }
+                    }
+                }
+            } else {
+                // Distribute remaining 50% to victims based on their original contribution
+                await distributeMinecartRewards(stolenFromPlayers, 0.5);
+            }
             
             embed.setTitle('📰 THIEF CAUGHT (Partial Success)');
             embed.addFields(
-                { name: 'Result', value: `Some players identified the thief!\n\nThief keeps ${thiefKeeps} coins\n${toDistribute} coins distributed to miners` },
+                { name: 'Result', value: `Some players identified the thief!\n\nThief keeps ${thiefKeeps} coins\n${toDistribute} coins returned to victims` },
                 { name: 'Winners', value: winners.map(w => `<@${w.userId}> correctly identified the thief`).join('\n') }
             );
 
         } else if (winners.length === totalPlayers && totalPlayers > 1) {
-            // Complete success - distribute all minecart money to contributors
+            // Complete success - no money stolen
             embed.setColor(0x00FF00);
             
-            // Distribute all money to original contributors
-            await distributeMinecartRewards(stolenFromPlayers, 1.0);
-            
-            embed.setTitle('📰 THIEF CAUGHT (Complete Success)');
-            embed.addFields({
-                name: 'Result',
-                value: `Everyone identified the thief! All ${totalStolen} coins from the minecart sale have been distributed to the miners.`
-            });
+            // Check if this was a fallback theft (not from minecart)
+            const wasMinecartTheft = dbEntry.gameData?.pendingMinecartValue > 0;
+            if (!wasMinecartTheft) {
+                // For fallback theft: no money is deducted from anyone
+                embed.setTitle('📰 THIEF CAUGHT (Complete Success)');
+                embed.addFields({
+                    name: 'Result',
+                    value: `Everyone identified the thief! No coins were stolen - the ${totalStolen} coins remain safe with their owners.`
+                });
+            } else {
+                // Distribute all money to original contributors
+                await distributeMinecartRewards(stolenFromPlayers, 1.0);
+                
+                embed.setTitle('📰 THIEF CAUGHT (Complete Success)');
+                embed.addFields({
+                    name: 'Result',
+                    value: `Everyone identified the thief! All ${totalStolen} coins from the minecart sale have been distributed to the miners.`
+                });
+            }
 
         } else {
             // Thief escapes - keeps everything
@@ -851,13 +930,38 @@ async function endThiefGame(channel, dbEntry) {
             
             embed.setTitle('🏃‍♂️ THIEF ESCAPED');
             
-            // Give thief all the minecart money
+            // Give thief all the money
             await rewardThief(thiefId, totalStolen);
             
-            embed.addFields({
-                name: 'Result',
-                value: `No one guessed correctly. The thief stole the entire minecart sale of ${totalStolen} coins!`
-            });
+            // Actually deduct money from victims (only if this wasn't from a minecart sale)
+            // Check if this was a fallback theft (not from minecart)
+            const wasMinecartTheft = dbEntry.gameData?.pendingMinecartValue > 0;
+            if (!wasMinecartTheft && stolenFromPlayers) {
+                // Actually deduct the money from victims
+                for (const [userId, amount] of Object.entries(stolenFromPlayers)) {
+                    if (userId !== thiefId && amount > 0) { // Don't deduct from the thief
+                        try {
+                            let victimMoney = await Currency.findOne({ userId });
+                            if (victimMoney && victimMoney.money >= amount) {
+                                victimMoney.money -= amount;
+                                await victimMoney.save();
+                                console.log(`[THIEF ESCAPED] Deducted ${amount} coins from victim ${userId}`);
+                            }
+                        } catch (error) {
+                            console.error(`Error deducting from victim ${userId}:`, error);
+                        }
+                    }
+                }
+                embed.addFields({
+                    name: 'Result',
+                    value: `No one guessed correctly. The thief escaped with ${totalStolen} coins stolen from the players!`
+                });
+            } else {
+                embed.addFields({
+                    name: 'Result',
+                    value: `No one guessed correctly. The thief stole the entire minecart sale of ${totalStolen} coins!`
+                });
+            }
         }
     }
 
