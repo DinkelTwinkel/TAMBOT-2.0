@@ -1242,7 +1242,7 @@
     ],
     "image": "essence_hunger",
     "script": "consume",
-    "duration": 80
+    "duration": 800
   },
   {
   "id": "63",
