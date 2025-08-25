@@ -1645,7 +1645,7 @@ const SERVER_POWER_MODIFIERS = {
         powerLevel: 7,
         specialBonus: "Abyssal depth mastery - Maximum ore extraction",
         itemBonuses: { 
-            "27": 5.0,  // Increased from 3.5 to 5.0 for better Adamantite yields
+            "27": 2.5,  // Increased from 3.5 to 5.0 for better Adamantite yields
             "26": 2.0,  // Also spawn some Mythril as secondary ore
             "25": 1.5   // Occasional Obsidian
         }

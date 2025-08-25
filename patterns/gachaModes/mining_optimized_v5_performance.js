@@ -89,7 +89,7 @@ const {
 // Import hazard systems
 const hazardStorage = require('./mining/hazardStorage');
 const hazardEffects = require('./mining/hazardEffects');
-const { getHazardSpawnChance } = require('./mining/miningConstants');
+const { getHazardSpawnChance } = require('./mining/miningConstants_unified');
 // Import the geological scanner for hazard detection
 const { 
     performGeologicalScan, 
@@ -3086,7 +3086,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         for (let i = 0; i < itemCount; i++) {
                             // Use RARE_ORE type since treasure chests no longer spawn
                             const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, TILE_TYPES.RARE_ORE, availableItems, efficiency, isDeeperMine, mineTypeId);
-                            await addItemToWithDestination(dbEntry, member.id, item.itemId, quantity, destination);
+                            await addItemWithDestination(dbEntry, member.id, item.itemId, quantity, destination);
                             foundItems.push(`${item.name} x${quantity}`);
                             totalValue += item.value * quantity;
                         }

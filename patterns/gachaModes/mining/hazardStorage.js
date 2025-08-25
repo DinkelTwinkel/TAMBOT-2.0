@@ -209,7 +209,7 @@ async function saveHazardsData(channelId, hazardsData) {
  * Generate hazards and treasures for a new map area
  */
 function generateHazardsForArea(hazardsData, startX, startY, width, height, spawnChance, powerLevel) {
-    const { ENCOUNTER_TYPES, getEncounterTypeForPowerLevel } = require('./miningConstants');
+    const { ENCOUNTER_TYPES, getEncounterTypeForPowerLevel } = require('./miningConstants_unified');
     
     for (let y = startY; y < startY + height; y++) {
         for (let x = startX; x < startX + width; x++) {
