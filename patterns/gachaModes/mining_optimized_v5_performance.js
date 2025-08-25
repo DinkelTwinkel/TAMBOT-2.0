@@ -1073,7 +1073,7 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
 
         // CRITICAL FIX: Get fresh minecart data from database instead of cache
         //const minecartSummary = await getMinecartSummaryFresh(channel.id);
-        const minecartSummary = await getMinecartSummary(channel.id);
+        const minecartSummary = await getMinecartSummary(dbEntry);
         
         // Debug: Verify minecart data structure (only log occasionally)
         if (Math.random() < 0.05) { // 5% chance to log
