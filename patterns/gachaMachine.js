@@ -123,6 +123,18 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                             if (existingGulletVC) {
                                 try {
                                     const existingGullet = await guild.channels.fetch(existingGulletVC.channelId);
+                                    
+                                    // Grant permissions to the user for the existing gullet channel
+                                    await existingGullet.permissionOverwrites.edit(rollerMember, {
+                                        ViewChannel: true,        // Can see the channel
+                                        Connect: true,            // Can connect
+                                        Speak: true,             // Can speak
+                                        UseVAD: true,            // Can use voice activity
+                                        Stream: true,            // Can stream
+                                        SendMessages: true,      // Can send messages in chat
+                                        ReadMessageHistory: true // Can read message history
+                                    });
+                                    
                                     // Move to existing gullet instead
                                     await roller.setChannel(existingGullet);
                                     
@@ -206,13 +218,23 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                         
                         // If this is a gullet channel, set special permissions
                         if (chosenChannelType.id == 16) {
+                            // Set base permissions: everyone can see but cannot connect or interact with text
                             await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
-                                ViewChannel: true,
-                                Connect: false,
-                                Speak: true,
-                                UseVAD: true,
-                                Stream: true,
-                                SendMessages: true
+                                ViewChannel: true,        // Can see the channel exists
+                                Connect: false,           // Cannot connect directly
+                                SendMessages: false,      // Cannot send messages
+                                ReadMessageHistory: false // Cannot read message history
+                            });
+                            
+                            // Grant specific permissions to the user who rolled the gullet
+                            await newGachaChannel.permissionOverwrites.edit(rollerMember, {
+                                ViewChannel: true,        // Can see the channel
+                                Connect: true,            // Can connect
+                                Speak: true,             // Can speak
+                                UseVAD: true,            // Can use voice activity
+                                Stream: true,            // Can stream
+                                SendMessages: true,      // Can send messages in chat
+                                ReadMessageHistory: true // Can read message history
                             });
                         }
 
@@ -387,6 +409,28 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             }
         } else {
             chosenChannelType = pickRandomChannelWeighted(channelData);
+            
+            // Check if this is a gullet roll from normal weighted selection
+            if (chosenChannelType.id == 16) {
+                console.log(`🎲 Normal roll resulted in ???'s gullet for ${rollerMember.user.tag}`);
+                
+                // Check if a gullet channel already exists
+                const existingGulletVC = await ActiveVCS.findOne({ 
+                    guildId: guild.id, 
+                    typeId: 16 
+                });
+                
+                if (existingGulletVC) {
+                    try {
+                        existingGulletChannel = await guild.channels.fetch(existingGulletVC.channelId);
+                        console.log(`🔥 Found existing gullet channel: ${existingGulletChannel.name}`);
+                    } catch (err) {
+                        console.log(`🔥 Previous gullet channel no longer exists, will create new one`);
+                        // Delete the stale database entry
+                        await ActiveVCS.deleteOne({ channelId: existingGulletVC.channelId });
+                    }
+                }
+            }
         }
 
         // If we have an existing gullet channel, move player there instead of creating new
@@ -394,6 +438,17 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             // Delete the temporary channel we just created
             await newGachaChannel.delete();
             await ActiveVCS.deleteOne({ channelId: newGachaChannel.id });
+            
+            // Grant permissions to the user for the existing gullet channel
+            await existingGulletChannel.permissionOverwrites.edit(rollerMember, {
+                ViewChannel: true,        // Can see the channel
+                Connect: true,            // Can connect
+                Speak: true,             // Can speak
+                UseVAD: true,            // Can use voice activity
+                Stream: true,            // Can stream
+                SendMessages: true,      // Can send messages in chat
+                ReadMessageHistory: true // Can read message history
+            });
             
             // Move player to existing gullet
             await roller.setChannel(existingGulletChannel);
@@ -436,7 +491,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                     `🧠💀 ${rollerMember} **A BROKEN MIND JOINS THE GULLET!** 🧠💀\n` +
                     `Your sanity (${playerSanity}) has led you here. The whispers welcome you...`
                 );
-            } else {
+            } else if (sacrificeData && sacrificeData.isSacrificing) {
                 await gachaRollChannel.send(
                     `🔥 **SACRIFICE OVERRIDE** 🔥\n` +
                     `**${rollerMember.user.tag}** The sacrifice ritual compels you! You've been drawn into the existing **???'s gullet**!\n` +
@@ -446,6 +501,18 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                 await existingGulletChannel.send(
                     `🔥 ${rollerMember} **ANOTHER SOUL JOINS THE GULLET!** 🔥\n` +
                     `Welcome to the collective feast within ???'s digestive system!`
+                );
+            } else {
+                // Normal roll that resulted in gullet
+                await gachaRollChannel.send(
+                    `🌀 **MYTHIC ROLL** 🌀\n` +
+                    `**${rollerMember.user.tag}** You've rolled into the existing **???'s gullet**!\n` +
+                    `⏰ Next roll available in **60 minutes**.`
+                );
+                
+                await existingGulletChannel.send(
+                    `🌀 ${rollerMember} **JOINS THE GULLET!** 🌀\n` +
+                    `Welcome to the depths of ???'s digestive system!`
                 );
             }
             
@@ -470,17 +537,26 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
         // If this is a gullet channel, set special permissions
         if (chosenChannelType.id == 16) {
-            // Set permissions: everyone can view, but can't connect
+            // Set base permissions: everyone can see but cannot connect or interact with text
             await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
-                ViewChannel: true,        // Can see the channel
+                ViewChannel: true,        // Can see the channel exists
                 Connect: false,           // Cannot connect directly
-                Speak: true,             // Can speak if moved there
-                UseVAD: true,            // Can use voice activity
-                Stream: true,            // Can stream
-                SendMessages: true       // Can send messages in chat
+                SendMessages: false,      // Cannot send messages
+                ReadMessageHistory: false // Cannot read message history
             });
             
-            console.log(`🔥 Created new gullet channel with restricted access`);
+            // Grant specific permissions to the user who rolled the gullet
+            await newGachaChannel.permissionOverwrites.edit(rollerMember, {
+                ViewChannel: true,        // Can see the channel
+                Connect: true,            // Can connect (they're being moved there)
+                Speak: true,             // Can speak
+                UseVAD: true,            // Can use voice activity
+                Stream: true,            // Can stream
+                SendMessages: true,      // Can send messages in chat
+                ReadMessageHistory: true // Can read message history
+            });
+            
+            console.log(`🔥 Created new gullet channel with permissions for ${rollerMember.user.tag}`);
         }
 
         // Update VC name to the selected VC and create the intro message

@@ -356,9 +356,9 @@ module.exports = async (guild) => {
                                 //console.log(`🗑️ Deleted gullet channel: ${gulletChannel.name}`);
                             }
                             
-                            // Remove from database
-                            await ActiveVCS.deleteOne({ channelId: gulletEntry.channelId });
-                            console.log(`📝 Removed gullet channel from database: ${gulletEntry.channelId}`);
+                            // // Remove from database
+                            // await ActiveVCS.deleteOne({ channelId: gulletEntry.channelId });
+                            // console.log(`📝 Removed gullet channel from database: ${gulletEntry.channelId}`);
                         } catch (err) {
                             console.error(`Error cleaning up gullet channel ${gulletEntry.channelId}:`, err);
                         }
