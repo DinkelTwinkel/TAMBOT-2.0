@@ -2979,222 +2979,214 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     mapChanged = true;
                     wallsBroken++;
                 }
-            } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
-                // Track movement for maintenance
-                const oldX = position.x;
-                const oldY = position.y;
-                position.x = newX;
-                position.y = newY;
-                mapChanged = true;
+} else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
+    // Track movement for maintenance
+    const oldX = position.x;
+    const oldY = position.y;
+    position.x = newX;
+    position.y = newY;
+    mapChanged = true;
+    
+    // Check for Shadowstep Boots random teleportation
+    if (uniqueBonuses.shadowTeleportChance > 0) {
+        const teleportDestination = checkShadowstepTeleport(
+            position,
+            mapData,
+            uniqueBonuses.shadowTeleportChance,
+            member,
+            eventLogs
+        );
+        
+        if (teleportDestination) {
+            // Update player position to teleport destination
+            position.x = teleportDestination.x;
+            position.y = teleportDestination.y;
+            mapChanged = true;
+            
+            // Track this as movement for maintenance (teleport counts as 10 tiles)
+            await updateMovementActivity(member.id, 10);
+            
+            // Mark tiles around new position as discovered
+            const teleportRadius = 2;
+            for (let dy = -teleportRadius; dy <= teleportRadius; dy++) {
+                for (let dx = -teleportRadius; dx <= teleportRadius; dx++) {
+                    const checkX = teleportDestination.x + dx;
+                    const checkY = teleportDestination.y + dy;
+                    
+                    if (checkX >= 0 && checkX < mapData.width &&
+                        checkY >= 0 && checkY < mapData.height) {
+                        if (mapData.tiles[checkY][checkX] && !mapData.tiles[checkY][checkX].discovered) {
+                            mapData.tiles[checkY][checkX].discovered = true;
+                            mapChanged = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Only count as movement if actually moved to a different tile
+    if (oldX !== newX || oldY !== newY) {
+        await updateMovementActivity(member.id, 1);
+        
+        // Show progress for movement-based maintenance items (like Shadowstep Boots)
+        // Only show occasionally to avoid spam
+        if (Math.random() < 0.02) { // 2% chance to show progress
+            const hasMovementItem = uniqueBonuses.uniqueItems.some(item => 
+                item.name && item.name.includes('Shadowstep')
+            );
+            if (hasMovementItem) {
+                eventLogs.push(`👟 ${member.displayName}'s boots whisper through the shadows...`);
+            }
+        }
+    }
+    
+    // Check for hazards at new position
+    if (hazardStorage.hasHazard(hazardsData, newX, newY)) {
+        const hazard = hazardStorage.getHazard(hazardsData, newX, newY);
+        
+        // Check if it's a treasure - treasures bypass avoidance mechanics
+        if (hazard && (hazard.type === 'treasure' || hazard.type === 'rare_treasure' || 
+                       hazard.type === 'legendary_treasure' || hazard.type === 'mythic_treasure')) {
+            console.log('[TREASURE ENCOUNTERED]');
+            
+            // Use the proper treasure handling system
+            const treasureResult = await hazardEffects.processEncounterTrigger(
+                member,
+                position,
+                mapData,
+                hazardsData,
+                dbEntry,
+                transaction,
+                eventLogs,
+                powerLevel,  // Fixed typo
+                mineTypeId
+            );
+            
+            if (treasureResult) {
+                if (treasureResult.treasureFound) {
+                    treasuresFound++;
+                    // The processEncounterTrigger already adds a message to eventLogs
+                }
+                if (treasureResult.mapChanged) {
+                    mapChanged = true;
+                }
                 
-                // Check for Shadowstep Boots random teleportation
-                if (uniqueBonuses.shadowTeleportChance > 0) {
-                    const teleportDestination = checkShadowstepTeleport(
-                        position,
-                        mapData,
-                        uniqueBonuses.shadowTeleportChance,
+                // Slightly higher chance for unique/legendary finds from treasure hazards
+                if (Math.random() < 0.005) { // 0.5% chance for treasure hazards
+                    const treasureFind = await processUniqueItemFinding(
                         member,
-                        eventLogs
+                        'treasure',
+                        powerLevel,
+                        luckStat,
+                        null
                     );
                     
-                    if (teleportDestination) {
-                        // Update player position to teleport destination
-                        position.x = teleportDestination.x;
-                        position.y = teleportDestination.y;
-                        mapChanged = true;
+                    if (treasureFind) {
+                        eventLogs.push(treasureFind.message);
                         
-                        // Track this as movement for maintenance (teleport counts as 10 tiles)
-                        await updateMovementActivity(member.id, 10);
-                        
-                        // Mark tiles around new position as discovered
-                        const teleportRadius = 2;
-                        for (let dy = -teleportRadius; dy <= teleportRadius; dy++) {
-                            for (let dx = -teleportRadius; dx <= teleportRadius; dx++) {
-                                const checkX = teleportDestination.x + dx;
-                                const checkY = teleportDestination.y + dy;
-                                
-                                if (checkX >= 0 && checkX < mapData.width &&
-                                    checkY >= 0 && checkY < mapData.height) {
-                                    if (mapData.tiles[checkY][checkX] && !mapData.tiles[checkY][checkX].discovered) {
-                                        mapData.tiles[checkY][checkX].discovered = true;
-                                        mapChanged = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Only count as movement if actually moved to a different tile
-                if (oldX !== newX || oldY !== newY) {
-                    await updateMovementActivity(member.id, 1);
-                    
-                    // Show progress for movement-based maintenance items (like Shadowstep Boots)
-                    // Only show occasionally to avoid spam
-                    if (Math.random() < 0.02) { // 2% chance to show progress
-                        const hasMovementItem = uniqueBonuses.uniqueItems.some(item => 
-                            item.name && item.name.includes('Shadowstep')
-                        );
-                        if (hasMovementItem) {
-                            eventLogs.push(`👟 ${member.displayName}'s boots whisper through the shadows...`);
-                        }
-                    }
-                }
-                
-                if (hazardStorage.hasHazard(hazardsData, newX, newY)) {
-                    // Check sight stat first - removes hazard without triggering
-                    const sightStat = playerData?.stats?.sight || 0;
-                    const sightAvoidChance = Math.min(0.5, sightStat * 0.05); // 5% per sight point, max 50%
-                    
-                    if (Math.random() < sightAvoidChance) {
-                        const hazard = hazardStorage.getHazard(hazardsData, newX, newY);
-                        if (hazard && !(hazard.type === 'treasure' || hazard.type === 'rare_treasure' || hazard.type === 'legendary_treasure' || hazard.type === 'mythic_treasure')) {
-                            eventLogs.push(`👁️ ${member.displayName}'s keen sight spotted and avoided a ${hazard.type || 'hazard'}!`);
-                            hazardStorage.removeHazard(hazardsData, newX, newY);
-                            hazardsChanged = true;
-                            continue;
-                        }
-                    }
-                    
-                    // Check luck stat - avoids triggering but keeps hazard on map
-                    const luckAvoidChance = Math.min(0.4, luckStat * 0.04); // 4% per luck point, max 40%
-                    
-                    if (Math.random() < luckAvoidChance) {
-                        const hazard = hazardStorage.getHazard(hazardsData, newX, newY);
-                        if (hazard && !(hazard.type === 'treasure' || hazard.type === 'rare_treasure' || hazard.type === 'legendary_treasure' || hazard.type === 'mythic_treasure')) {
-                            eventLogs.push(`🍀 ${member.displayName}'s luck helped them narrowly avoid a ${hazard.type || 'hazard'}!`);
-                            // Don't remove the hazard, just skip triggering it
-                            continue;
-                        }
-                    }
-                    
-                    // Check hazard resistance from unique items
-                    if (checkHazardResistance(uniqueBonuses.hazardResistance, member, eventLogs)) {
-                        hazardStorage.removeHazard(hazardsData, newX, newY);
-                        hazardsChanged = true;
-                        continue;
-                    }
-                    
-                    const hazard = hazardStorage.getHazard(hazardsData, newX, newY);
-                    
-                    if (hazard && (hazard.type === 'treasure' || hazard.type === 'rare_treasure' || hazard.type === 'legendary_treasure' || hazard.type === 'mythic_treasure')) {
-                        // Use the proper treasure handling system
-                        const treasureResult = await hazardEffects.processEncounterTrigger(
-                            member,
-                            position,
-                            mapData,
-                            hazardsData,
-                            dbEntry,
-                            transaction,
-                            eventLogs,
-                            serverPowerLevel || powerLevel,
-                            mineTypeId
-                        );
-                        
-                        if (treasureResult) {
-                            if (treasureResult.treasureFound) {
-                                treasuresFound++;
-                                // The processEncounterTrigger already adds a message to eventLogs
-                            }
-                            if (treasureResult.mapChanged) {
-                                mapChanged = true;
-                            }
-                            
-                            // Slightly higher chance for unique/legendary finds from treasure hazards
-                            if (Math.random() < 0.005) { // 0.5% chance for treasure hazards
-                                const treasureFind = await processUniqueItemFinding(
-                                    member,
-                                    'treasure',
-                                    powerLevel,
-                                    luckStat,
-                                    null
+                        // Check for legendary announcement for treasure finds too
+                        if (treasureFind.systemAnnouncement && treasureFind.systemAnnouncement.enabled) {
+                            try {
+                                await sendLegendaryAnnouncement(
+                                    client,
+                                    channel.guild.id,
+                                    treasureFind,
+                                    member.displayName
                                 );
-                                
-                                if (treasureFind) {
-                                    eventLogs.push(treasureFind.message);
-                                    
-                                    // Check for legendary announcement for treasure finds too
-                                    if (treasureFind.systemAnnouncement && treasureFind.systemAnnouncement.enabled) {
-                                        try {
-                                            await sendLegendaryAnnouncement(
-                                                client,
-                                                channel.guild.id,
-                                                treasureFind,
-                                                member.displayName
-                                            );
-                                            console.log(`[LEGENDARY] Treasure announcement sent for ${treasureFind.item.name}`);
-                                        } catch (err) {
-                                            console.error('[LEGENDARY] Failed to send treasure announcement:', err);
-                                        }
-                                    }
-                                }
+                                console.log(`[LEGENDARY] Treasure announcement sent for ${treasureFind.item.name}`);
+                            } catch (err) {
+                                console.error('[LEGENDARY] Failed to send treasure announcement:', err);
                             }
-                        
-                        // Note: processEncounterTrigger already removes the hazard, but we can be explicit
-                        hazardsChanged = true;
-                    } else {
-                        // Handle other hazards
-                        const hazardResult = await hazardEffects.processHazardTrigger(
-                            member,
-                            position,
-                            mapData,
-                            hazardsData,
-                            dbEntry,
-                            transaction,
-                            eventLogs
-                        );
-                        
-                        if (hazardResult) {
-                            if (hazardResult.mapChanged) {
-                                mapChanged = true;
-                            }
-                            if (hazardResult.playerMoved) {
-                                // Position already updated by hazard
-                            }
-                            if (hazardResult.playerDisabled) {
-                                // Player knocked out
-                                break; // or continue depending on context
-                            }
-                        }
-                        
-                        hazardsChanged = true;
-                    }
-                     
-                        // Always remove the hazard after triggering it (unless it's a special persistent type)
-                        if (hazard && hazard.type !== 'persistent') {
-                            hazardStorage.removeHazard(hazardsData, newX, newY);
-                            hazardsChanged = true;
                         }
                     }
                 }
-                
-                // Exploration bonus - made much rarer and limited to common items
-                const explorationChance = (EXPLORATION_BONUS_CHANCE * efficiency.speedMultiplier) * 0.1; // 10% of original chance
-                if (Math.random() < explorationChance) {
-                    const bonusItems = availableItems.filter(item => item.tier === 'common' || item.tier === 'uncommon');
-                    if (bonusItems.length > 0) {
-                        // Weight towards common items even for exploration
-                        const weights = bonusItems.map(item => item.tier === 'common' ? 10 : 1);
-                        const totalWeight = weights.reduce((a, b) => a + b, 0);
-                        let random = Math.random() * totalWeight;
-                        
-                        let bonusItem = bonusItems[0];
-                        for (let i = 0; i < bonusItems.length; i++) {
-                            random -= weights[i];
-                            if (random <= 0) {
-                                bonusItem = bonusItems[i];
-                                break;
-                            }
-                        }
-                        
-                        // Show different icon and text based on destination
-                        if (destination === 'inventory') {
-                            eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring! (Added to inventory)`);;
-                        } else {
-                            eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
-                        }
-                        await addItemWithDestination(dbEntry, member.id, bonusItem.itemId, 1, destination);
-                    }
+            }
+            
+            hazardsChanged = true;
+        } else if (hazard) {
+            // For non-treasure hazards, check avoidance mechanics first
+            const sightStat = playerData?.stats?.sight || 0;
+            const sightAvoidChance = Math.min(0.5, sightStat * 0.05); // 5% per sight point, max 50%
+            
+            // Check sight stat - removes hazard without triggering
+            if (Math.random() < sightAvoidChance) {
+                eventLogs.push(`👁️ ${member.displayName}'s keen sight spotted and avoided a ${hazard.type || 'hazard'}!`);
+                hazardStorage.removeHazard(hazardsData, newX, newY);
+                hazardsChanged = true;
+                continue;
+            }
+            
+            // Check luck stat - avoids triggering but keeps hazard on map
+            const luckAvoidChance = Math.min(0.4, luckStat * 0.04); // 4% per luck point, max 40%
+            if (Math.random() < luckAvoidChance) {
+                eventLogs.push(`🍀 ${member.displayName}'s luck helped them narrowly avoid a ${hazard.type || 'hazard'}!`);
+                // Don't remove the hazard, just skip triggering it
+                continue;
+            }
+            
+            // Check hazard resistance from unique items
+            if (checkHazardResistance(uniqueBonuses.hazardResistance, member, eventLogs)) {
+                hazardStorage.removeHazard(hazardsData, newX, newY);
+                hazardsChanged = true;
+                continue;
+            }
+            
+            // Process the hazard
+            const hazardResult = await hazardEffects.processHazardTrigger(
+                member,
+                position,
+                mapData,
+                hazardsData,
+                dbEntry,
+                transaction,
+                eventLogs
+            );
+            
+            if (hazardResult) {
+                if (hazardResult.mapChanged) {
+                    mapChanged = true;
+                }
+                if (hazardResult.playerMoved) {
+                    // Position already updated by hazard
+                }
+                if (hazardResult.playerDisabled) {
+                    // Player knocked out
+                    break; // or continue depending on context
+                }
+            }
+            
+            hazardsChanged = true;
+        }
+    }
+    
+    // Exploration bonus - made much rarer and limited to common items
+    const explorationChance = (EXPLORATION_BONUS_CHANCE * efficiency.speedMultiplier) * 0.1; // 10% of original chance
+    if (Math.random() < explorationChance) {
+        const bonusItems = availableItems.filter(item => item.tier === 'common' || item.tier === 'uncommon');
+        if (bonusItems.length > 0) {
+            // Weight towards common items even for exploration
+            const weights = bonusItems.map(item => item.tier === 'common' ? 10 : 1);
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            let random = Math.random() * totalWeight;
+            
+            let bonusItem = bonusItems[0];
+            for (let i = 0; i < bonusItems.length; i++) {
+                random -= weights[i];
+                if (random <= 0) {
+                    bonusItem = bonusItems[i];
+                    break;
+                }
+            }
+            
+            // Show different icon and text based on destination
+            if (destination === 'inventory') {
+                eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring! (Added to inventory)`);
+            } else {
+                eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
+            }
+            await addItemWithDestination(dbEntry, member.id, bonusItem.itemId, 1, destination);
+        }
                 }
             }
         } catch (actionError) {
