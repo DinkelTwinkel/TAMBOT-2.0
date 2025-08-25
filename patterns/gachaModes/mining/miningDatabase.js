@@ -398,7 +398,15 @@ async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
                 $set: {
                     'gameData.minecart.items': existingItems,
                     'gameData.minecart.contributors': existingContributors,
-                    'gameData.stats': existingStats
+                    'gameData.stats': {
+                    totalOreFound: parseInt(existingStats.totalOreFound) || 0,
+                    wallsBroken: parseInt(existingStats.wallsBroken) || 0,
+                    treasuresFound: parseInt(existingStats.treasuresFound) || 0,
+                    lifetimeValue: existingStats.lifetimeValue || 0,
+                    lifetimeRareOres: existingStats.lifetimeRareOres || 0,
+                    exitTileFound: existingStats.exitTileFound || false,
+                    exitTileFoundAt: existingStats.exitTileFoundAt
+                }
                 }
             },
             { upsert: true }
