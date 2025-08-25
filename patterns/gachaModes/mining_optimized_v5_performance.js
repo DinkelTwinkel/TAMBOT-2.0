@@ -1818,6 +1818,11 @@ module.exports = async (channel, dbEntry, json, client) => {
         // Set mining context for this processing cycle
         miningContext.setMiningContext(mineTypeId, channel.id, serverPowerLevel);
         
+        // Debug hazard configuration for this mine (only for Ruby mines or when there's an issue)
+        if (mineTypeId && (String(mineTypeId).startsWith('5') || String(mineTypeId).startsWith('10'))) {
+            hazardAllowedTypesFix.debugHazardConfig(mineTypeId);
+        }
+        
         
         // Check if this is a deeper mine
         const { isDeeperMine: checkDeeperMine } = require('./mining/miningConstants_unified');

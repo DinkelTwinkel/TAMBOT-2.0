@@ -64,6 +64,8 @@ class DigDeeperListener {
     }
     
     async handleDigDeeper(interaction) {
+        let processingKey = null; // Track the key for cleanup
+        
         try {
             // Parse the custom ID: dig_deeper_channelId_gachaServerId
             const parts = interaction.customId.split('_');
@@ -108,7 +110,7 @@ class DigDeeperListener {
             }
             
             // Create a unique processing key for this guild and deeper mine type
-            const processingKey = `${interaction.guild.id}_${deeperMine.id}`;
+            processingKey = `${interaction.guild.id}_${deeperMine.id}`;
             
             // Check if already processing this type of deeper mine in this guild
             if (this.processingRequests.get(processingKey)) {
@@ -562,9 +564,6 @@ class DigDeeperListener {
                 } catch (e) {
                     console.error('[DIG_DEEPER] Failed to send error response:', e);
                 }
-            } finally {
-                // Always clear the processing flag
-                this.processingRequests.delete(processingKey);
             }
         } catch (error) {
             console.error('[DIG_DEEPER] Error handling interaction:', error);
@@ -579,6 +578,12 @@ class DigDeeperListener {
                 }
             } catch (e) {
                 console.error('[DIG_DEEPER] Failed to send error message:', e);
+            }
+        } finally {
+            // Always clear the processing flag if it was set
+            if (processingKey) {
+                this.processingRequests.delete(processingKey);
+                console.log(`[DIG_DEEPER] Cleared processing flag for ${processingKey}`);
             }
         }
     }

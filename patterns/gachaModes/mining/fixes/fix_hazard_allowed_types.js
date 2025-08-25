@@ -222,10 +222,51 @@ function patchHazardStorage() {
     console.log('[HAZARD FIX] Hazard storage patched to respect allowed types');
 }
 
+/**
+ * Debug function to check hazard configuration for a specific mine
+ * @param {string|number} mineTypeId - The mine ID to check
+ */
+function debugHazardConfig(mineTypeId) {
+    console.log(`\n[HAZARD DEBUG] Checking configuration for mine ID: ${mineTypeId}`);
+    
+    const serverConfig = getServerConfig(mineTypeId);
+    if (!serverConfig) {
+        console.log(`[HAZARD DEBUG] No server configuration found for mine ${mineTypeId}`);
+        return;
+    }
+    
+    console.log(`[HAZARD DEBUG] Mine name: ${serverConfig.name}`);
+    console.log(`[HAZARD DEBUG] Mine type: ${serverConfig.type}`);
+    console.log(`[HAZARD DEBUG] Power level: ${serverConfig.power}`);
+    
+    if (serverConfig.hazardConfig) {
+        console.log(`[HAZARD DEBUG] Hazard configuration found:`);
+        console.log(`  - Spawn chance: ${serverConfig.hazardConfig.spawnChance}`);
+        console.log(`  - Allowed types: ${serverConfig.hazardConfig.allowedTypes ? serverConfig.hazardConfig.allowedTypes.join(', ') : 'none'}`);
+        
+        // Check if the allowed types exist in ENCOUNTER_CONFIG
+        if (serverConfig.hazardConfig.allowedTypes) {
+            const { ENCOUNTER_CONFIG } = require('../miningConstants');
+            for (const type of serverConfig.hazardConfig.allowedTypes) {
+                if (ENCOUNTER_CONFIG[type]) {
+                    console.log(`  ✓ ${type} is valid (${ENCOUNTER_CONFIG[type].name})`);
+                } else {
+                    console.log(`  ✗ ${type} is INVALID - not found in ENCOUNTER_CONFIG!`);
+                }
+            }
+        }
+    } else {
+        console.log(`[HAZARD DEBUG] No hazard configuration for this mine`);
+    }
+    
+    console.log(`[HAZARD DEBUG] End of debug for mine ${mineTypeId}\n`);
+}
+
 module.exports = {
     getServerConfig,
     filterAllowedTypes,
     getFilteredEncounterType,
     generateFilteredHazards,
-    patchHazardStorage
+    patchHazardStorage,
+    debugHazardConfig  // Export debug function
 };
