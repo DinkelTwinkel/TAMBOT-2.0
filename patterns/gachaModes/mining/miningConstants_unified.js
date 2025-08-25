@@ -1746,7 +1746,7 @@ function calculateMiningEfficiency(serverPowerLevel, playerLevel = 1, isDeeperMi
         effectivePowerLevel = Math.min(10, serverPowerLevel + 2);
     }
     
-    const config = POWER_LEVEL_CONFIG[effectivePowerLevel] || POWER_LEVEL_CONFIG[7];
+    const config = POWER_LEVEL_CONFIG[Math.round(effectivePowerLevel)] || POWER_LEVEL_CONFIG[7];
     const levelBonus = Math.floor(playerLevel / 10) * 0.1;
     
     // Apply deeper mine multipliers

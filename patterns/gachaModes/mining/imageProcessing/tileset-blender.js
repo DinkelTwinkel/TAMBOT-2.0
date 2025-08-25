@@ -51,7 +51,7 @@ const TIER_GROUPS = {
     
     // Adamantite progression: adamantiteMine -> adamantiteMineDeep -> adamantiteMineUltra
     ADAMANTITE: {
-        tiers: ['adamantiteMine', 'adamantiteMineDeep', 'adamantiteMineUltra'],
+        tiers: ['adamantiteMine', 'abyssalAdamantiteMine', 'abyssalAdamantiteMine'],
         baseId: '8'
     },
     

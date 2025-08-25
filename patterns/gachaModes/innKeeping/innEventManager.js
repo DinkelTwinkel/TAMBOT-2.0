@@ -647,6 +647,7 @@ class InnEventManager {
     async generateRumorAtomic(channel, dbEntry) {
         try {
             const channelId = dbEntry.channelId;
+            const guildId = dbEntry.guildId;
             
             // Check for recent rumor
             if (this.isRecentDuplicate(channelId, 'rumor')) {
@@ -672,10 +673,15 @@ class InnEventManager {
             // Generate unique event ID
             const eventId = this.generateEventId(channelId, 'rumor');
             
-            // Generate rumor
+            // Generate rumor with full context
             const rumor = await this.aiManager.generateEventDialogue('rumor', {
                 npc1: npc1.name,
-                npc2: npc2.name
+                npc2: npc2.name,
+                npc1Data: npc1,  // Pass full NPC data
+                npc2Data: npc2,  // Pass full NPC data
+                guildId: guildId, // Pass guild ID for server context
+                channelPower: channelPower,
+                innType: serverData?.name || 'Unknown Inn'
             });
             
             return {

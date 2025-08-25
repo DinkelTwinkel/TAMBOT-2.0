@@ -170,10 +170,11 @@ module.exports = async function consume(context) {
             } catch (buffError) {
                 console.error('[CONSUME] Failed to apply Banana Axe buff:', buffError);
             }
+            return; // Exit early for Banana Axe to prevent duplicate tool-consumable message
         }
         
-        // Handle other tool-consumables
-        if (item.type === 'tool' && item.script === 'consume') {
+        // Handle other tool-consumables (excluding Banana Axe which is already handled)
+        if (item.type === 'tool' && item.script === 'consume' && item.id !== '13') {
             // This is a tool that can be consumed
             description += '\n\n⚠️ *You consumed a tool! Hope it was worth it!*';
             
