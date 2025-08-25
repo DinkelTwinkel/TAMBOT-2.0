@@ -2881,6 +2881,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             let newX = position.x + direction.dx;
             let newY = position.y + direction.dy;
             
+            
             // Enhanced hazard generation for map expansion at high danger levels
             let expandHazardChance = getHazardSpawnChance(powerLevel);
             if (powerLevel >= 6) expandHazardChance *= 3;
@@ -3077,56 +3078,62 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     const hazard = hazardStorage.getHazard(hazardsData, newX, newY);
                     
                     if (hazard && (hazard.type === 'treasure' || hazard.type === 'rare_treasure' || hazard.type === 'legendary_treasure' || hazard.type === 'mythic_treasure')) {
-                        const treasureConfig = hazardEffects.ENCOUNTER_CONFIG?.[hazard.type] || { name: 'Treasure', minItems: 1, maxItems: 3 };
-                        const itemCount = Math.floor(Math.random() * (treasureConfig.maxItems - treasureConfig.minItems + 1)) + treasureConfig.minItems;
+                        // Use the proper treasure handling system
+                        const treasureResult = await hazardEffects.processEncounterTrigger(
+                            member,
+                            position,
+                            mapData,
+                            hazardsData,
+                            dbEntry,
+                            transaction,
+                            eventLogs,
+                            serverPowerLevel || powerLevel,
+                            mineTypeId
+                        );
                         
-                        let totalValue = 0;
-                        const foundItems = [];
-                        
-                        for (let i = 0; i < itemCount; i++) {
-                            // Use RARE_ORE type since treasure chests no longer spawn
-                            const { item, quantity } = await mineFromTile(member, miningPower, luckStat, powerLevel, TILE_TYPES.RARE_ORE, availableItems, efficiency, isDeeperMine, mineTypeId);
-                            await addItemWithDestination(dbEntry, member.id, item.itemId, quantity, destination);
-                            foundItems.push(`${item.name} x${quantity}`);
-                            totalValue += item.value * quantity;
-                        }
-                        
-                        eventLogs.push(`💎 ${member.displayName} found ${hazard.type.replace('_', ' ')}! Got: ${foundItems.join(', ')}`);
-                        treasuresFound++;
-                        
-                        // Slightly higher chance for treasure finds, but still rare
-                        if (Math.random() < 0.005) { // 0.5% chance for treasure hazards
-                            const treasureFind = await processUniqueItemFinding(
-                                member,
-                                'treasure',
-                                powerLevel,
-                                luckStat,
-                                null
-                            );
+                        if (treasureResult) {
+                            if (treasureResult.treasureFound) {
+                                treasuresFound++;
+                                // The processEncounterTrigger already adds a message to eventLogs
+                            }
+                            if (treasureResult.mapChanged) {
+                                mapChanged = true;
+                            }
                             
-                            if (treasureFind) {
-                                eventLogs.push(treasureFind.message);
+                            // Slightly higher chance for unique/legendary finds from treasure hazards
+                            if (Math.random() < 0.005) { // 0.5% chance for treasure hazards
+                                const treasureFind = await processUniqueItemFinding(
+                                    member,
+                                    'treasure',
+                                    powerLevel,
+                                    luckStat,
+                                    null
+                                );
                                 
-                                // Check for legendary announcement for treasure finds too
-                                if (treasureFind.systemAnnouncement && treasureFind.systemAnnouncement.enabled) {
-                                    try {
-                                        await sendLegendaryAnnouncement(
-                                            client,
-                                            channel.guild.id,
-                                            treasureFind,
-                                            member.displayName
-                                        );
-                                        console.log(`[LEGENDARY] Treasure announcement sent for ${treasureFind.item.name}`);
-                                    } catch (err) {
-                                        console.error('[LEGENDARY] Failed to send treasure announcement:', err);
+                                if (treasureFind) {
+                                    eventLogs.push(treasureFind.message);
+                                    
+                                    // Check for legendary announcement for treasure finds too
+                                    if (treasureFind.systemAnnouncement && treasureFind.systemAnnouncement.enabled) {
+                                        try {
+                                            await sendLegendaryAnnouncement(
+                                                client,
+                                                channel.guild.id,
+                                                treasureFind,
+                                                member.displayName
+                                            );
+                                            console.log(`[LEGENDARY] Treasure announcement sent for ${treasureFind.item.name}`);
+                                        } catch (err) {
+                                            console.error('[LEGENDARY] Failed to send treasure announcement:', err);
+                                        }
                                     }
                                 }
                             }
-                        }
                         
-                        hazardStorage.removeHazard(hazardsData, newX, newY);
+                        // Note: processEncounterTrigger already removes the hazard, but we can be explicit
                         hazardsChanged = true;
                     } else {
+                        // Handle other hazards
                         const hazardResult = await hazardEffects.processHazardTrigger(
                             member,
                             position,
@@ -3138,13 +3145,21 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         );
                         
                         if (hazardResult) {
-                            if (hazardResult.mapChanged) mapChanged = true;
-                            if (hazardResult.playerDisabled) {
-                                break;
+                            if (hazardResult.mapChanged) {
+                                mapChanged = true;
                             }
-                            hazardsChanged = true;
+                            if (hazardResult.playerMoved) {
+                                // Position already updated by hazard
+                            }
+                            if (hazardResult.playerDisabled) {
+                                // Player knocked out
+                                break; // or continue depending on context
+                            }
                         }
                         
+                        hazardsChanged = true;
+                    }
+                     
                         // Always remove the hazard after triggering it (unless it's a special persistent type)
                         if (hazard && hazard.type !== 'persistent') {
                             hazardStorage.removeHazard(hazardsData, newX, newY);
