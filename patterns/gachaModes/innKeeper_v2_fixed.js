@@ -942,7 +942,7 @@ class InnKeeperController {
             let employeeOfTheDay = null;
             if (membersInVC.length > 1 && this.config.EMPLOYEE_OF_DAY.ENABLED) {
                 employeeOfTheDay = membersInVC[Math.floor(Math.random() * membersInVC.length)];
-                earnings[employeeOfTheDay.id].total *= this.config.EMPLOYEE_OF_DAY.BONUS_MULTIPLIER;
+                earnings[employeeOfTheDay.id].total = Math.floor(earnings[employeeOfTheDay.id].total * this.config.EMPLOYEE_OF_DAY.BONUS_MULTIPLIER);
                 earnings[employeeOfTheDay.id].isEmployeeOfDay = true;
             }
 

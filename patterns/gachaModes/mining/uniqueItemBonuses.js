@@ -247,11 +247,11 @@ function checkUniquePickaxeBreak(pickaxe, isUnique) {
  * @param {Object} dbEntry - Database entry for adding rewards
  * @param {Function} mineFromTile - Function to generate ore rewards
  * @param {Object} miningParams - Mining parameters (miningPower, luckStat, powerLevel, availableItems, efficiency)
- * @returns {Object} Result with walls broken and ore rewards
+ * @returns {number} Number of walls broken (always returns an integer)
  */
 async function applyAreaDamage(position, mapData, areaDamageChance, member, eventLogs, dbEntry = null, mineFromTile = null, miningParams = {}) {
     if (areaDamageChance <= 0 || Math.random() > areaDamageChance) {
-        return { wallsBroken: 0, oreRewarded: [] };
+        return 0; // Always return integer for wallsBroken
     }
     
     const { TILE_TYPES } = require('./miningConstants_unified');
@@ -348,8 +348,9 @@ async function applyAreaDamage(position, mapData, areaDamageChance, member, even
         eventLogs.push(message);
     }
     
-    // Return both for backwards compatibility and new functionality
-    return wallsBroken; // Keep returning number for old code
+    // Always return integer for wallsBroken count
+    // Ensure it's an integer even if calculation somehow produces non-integer
+    return parseInt(wallsBroken) || 0;
 }
 
 /**
