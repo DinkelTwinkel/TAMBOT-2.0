@@ -1,59 +1,220 @@
 // hazardEffects.js - Handle hazard triggering and effects
-const { HAZARD_TYPES, HAZARD_CONFIG, TILE_TYPES, ENCOUNTER_CONFIG } = require('./miningConstants_unified');
+const { HAZARD_TYPES, HAZARD_CONFIG, TILE_TYPES, ENCOUNTER_CONFIG, ENCOUNTER_TYPES } = require('./miningConstants_unified');
 const hazardStorage = require('./hazardStorage');
 
 /**
- * Process hazard trigger when player steps on it
+ * Process encounter trigger when player steps on it (hazards and treasures)
  */
-async function processHazardTrigger(member, position, mapData, hazardsData, dbEntry, transaction, eventLogs) {
+async function processEncounterTrigger(member, position, mapData, hazardsData, dbEntry, transaction, eventLogs, powerLevel = 1, mineTypeId = null) {
     const hazard = hazardStorage.getHazard(hazardsData, position.x, position.y);
     if (!hazard || hazard.triggered) return null;
     
-    // Trigger and reveal the hazard
-    const triggeredHazard = hazardStorage.triggerHazard(hazardsData, position.x, position.y);
-    if (!triggeredHazard) return null;
+    // Trigger and reveal the hazard/encounter
+    const triggeredEncounter = hazardStorage.triggerHazard(hazardsData, position.x, position.y);
+    if (!triggeredEncounter) return null;
     
-    // Remove the hazard after triggering (one-time use)
+    // Remove the encounter after triggering (one-time use)
     hazardStorage.removeHazard(hazardsData, position.x, position.y);
     
-    const config = HAZARD_CONFIG[triggeredHazard.type];
+    const config = ENCOUNTER_CONFIG[triggeredEncounter.type] || HAZARD_CONFIG[triggeredEncounter.type];
+    if (!config) {
+        console.error(`[ENCOUNTER] Unknown encounter type: ${triggeredEncounter.type}`);
+        return null;
+    }
+    
     let result = {
         mapChanged: false,
         playerMoved: false,
         playerDisabled: false,
-        message: null
+        message: null,
+        treasureFound: false,
+        itemsFound: []
     };
     
-    switch (triggeredHazard.type) {
-        case HAZARD_TYPES.PORTAL_TRAP:
-            result = await handlePortalTrap(member, position, mapData, eventLogs);
-            break;
-            
-        case HAZARD_TYPES.BOMB_TRAP:
-            result = await handleBombTrap(member, position, mapData, dbEntry, eventLogs);
-            break;
-            
-        case HAZARD_TYPES.GREEN_FOG:
-            result = await handleGreenFog(member, position, transaction, eventLogs);
-            break;
-            
-        case HAZARD_TYPES.WALL_TRAP:
-            result = await handleWallTrap(member, position, mapData, eventLogs);
-            break;
-            
-        case HAZARD_TYPES.FIRE_BLAST:
-            result = await handleFireBlast(member, position, dbEntry, eventLogs);
-            break;
+    // Check if this is a treasure or hazard
+    if (triggeredEncounter.type === ENCOUNTER_TYPES.TREASURE || 
+        triggeredEncounter.type === ENCOUNTER_TYPES.RARE_TREASURE) {
+        // Handle treasure
+        result = await handleTreasureChest(member, position, dbEntry, eventLogs, triggeredEncounter.type, powerLevel, mineTypeId);
+    } else {
+        // Handle hazards
+        switch (triggeredEncounter.type) {
+            case HAZARD_TYPES.PORTAL_TRAP:
+                result = await handlePortalTrap(member, position, mapData, eventLogs);
+                break;
+                
+            case HAZARD_TYPES.BOMB_TRAP:
+                result = await handleBombTrap(member, position, mapData, dbEntry, eventLogs);
+                break;
+                
+            case HAZARD_TYPES.GREEN_FOG:
+                result = await handleGreenFog(member, position, transaction, eventLogs);
+                break;
+                
+            case HAZARD_TYPES.WALL_TRAP:
+                result = await handleWallTrap(member, position, mapData, eventLogs);
+                break;
+                
+            case HAZARD_TYPES.FIRE_BLAST:
+                result = await handleFireBlast(member, position, dbEntry, eventLogs);
+                break;
+        }
     }
     
-    // Add hazard trigger message
+    // Add trigger message
     if (result.message) {
-        eventLogs.push(`⚠️ ${member.displayName} triggered ${config.name}! ${result.message}`);
+        eventLogs.push(`${config.isHazard ? '⚠️' : '💰'} ${member.displayName} triggered ${config.name}! ${result.message}`);
     } else {
-        eventLogs.push(`⚠️ ${member.displayName} triggered ${config.name}!`);
+        eventLogs.push(`${config.isHazard ? '⚠️' : '💰'} ${member.displayName} triggered ${config.name}!`);
     }
     
     return result;
+}
+
+/**
+ * Legacy function for backward compatibility
+ */
+async function processHazardTrigger(member, position, mapData, hazardsData, dbEntry, transaction, eventLogs) {
+    return processEncounterTrigger(member, position, mapData, hazardsData, dbEntry, transaction, eventLogs);
+}
+
+/**
+ * Handle Treasure Chest - Give items to player
+ */
+async function handleTreasureChest(member, position, dbEntry, eventLogs, treasureType, powerLevel = 1, mineTypeId = null) {
+    const { findItemUnified, calculateItemQuantity, getItemDestination } = require('./miningConstants_unified');
+    const PlayerInventory = require('../../../models/inventory');
+    const getPlayerStats = require('../../calculatePlayerStat');
+    
+    // Determine context and number of items based on treasure type
+    const isRare = treasureType === ENCOUNTER_TYPES.RARE_TREASURE;
+    const context = isRare ? 'rare_treasure' : 'treasure_chest';
+    const config = ENCOUNTER_CONFIG[treasureType];
+    const minItems = config.minItems || 1;
+    const maxItems = config.maxItems || 3;
+    const numItems = Math.floor(Math.random() * (maxItems - minItems + 1)) + minItems;
+    
+    // Get player stats for luck bonus
+    const playerData = await getPlayerStats(member.id);
+    const luckStat = playerData.totalStats?.luck || 0;
+    const miningPower = playerData.totalStats?.mining || 0;
+    
+    const itemsFound = [];
+    const minecartItems = [];
+    const inventoryItems = [];
+    let totalValue = 0;
+    
+    // Generate items
+    for (let i = 0; i < numItems; i++) {
+        const item = findItemUnified(context, powerLevel, luckStat, isRare, false, mineTypeId);
+        const quantity = calculateItemQuantity(item, context, miningPower, luckStat, powerLevel, false);
+        const destination = getItemDestination(item, mineTypeId);
+        
+        const itemInfo = {
+            ...item,
+            quantity,
+            destination
+        };
+        
+        itemsFound.push(itemInfo);
+        totalValue += item.value * quantity;
+        
+        if (destination === 'inventory') {
+            inventoryItems.push(itemInfo);
+        } else {
+            minecartItems.push(itemInfo);
+        }
+    }
+    
+    // Add items to player inventory
+    if (inventoryItems.length > 0) {
+        try {
+            let playerInv = await PlayerInventory.findOne({ playerId: member.id });
+            if (!playerInv) {
+                playerInv = await PlayerInventory.create({
+                    playerId: member.id,
+                    items: []
+                });
+            }
+            
+            for (const itemInfo of inventoryItems) {
+                // Check if player already has this item
+                const existingItemIndex = playerInv.items.findIndex(
+                    invItem => String(invItem.itemId) === String(itemInfo.itemId)
+                );
+                
+                if (existingItemIndex >= 0) {
+                    // Add to existing quantity
+                    playerInv.items[existingItemIndex].quantity = 
+                        (playerInv.items[existingItemIndex].quantity || 1) + itemInfo.quantity;
+                } else {
+                    // Add new item
+                    playerInv.items.push({
+                        itemId: String(itemInfo.itemId),
+                        quantity: itemInfo.quantity,
+                        obtainedAt: new Date()
+                    });
+                }
+            }
+            
+            await playerInv.save();
+        } catch (error) {
+            console.error('[TREASURE] Error adding items to inventory:', error);
+        }
+    }
+    
+    // Add items to minecart
+    if (minecartItems.length > 0 && dbEntry.gameData?.minecart) {
+        const minecart = dbEntry.gameData.minecart;
+        
+        for (const itemInfo of minecartItems) {
+            const itemId = String(itemInfo.itemId);
+            
+            if (!minecart.items[itemId]) {
+                minecart.items[itemId] = {
+                    quantity: 0,
+                    contributors: {},
+                    name: itemInfo.name,
+                    value: itemInfo.value
+                };
+            }
+            
+            minecart.items[itemId].quantity += itemInfo.quantity;
+            
+            // Track contributor
+            if (!minecart.items[itemId].contributors[member.id]) {
+                minecart.items[itemId].contributors[member.id] = 0;
+            }
+            minecart.items[itemId].contributors[member.id] += itemInfo.quantity;
+        }
+        
+        // Mark as modified and save
+        dbEntry.markModified('gameData.minecart');
+        await dbEntry.save();
+    }
+    
+    // Build message
+    let message = `Found ${numItems} item${numItems > 1 ? 's' : ''}! `;
+    const itemDescriptions = itemsFound.map(item => 
+        `${item.quantity}x ${item.name} (→ ${item.destination})`
+    );
+    
+    if (itemDescriptions.length <= 3) {
+        message += itemDescriptions.join(', ');
+    } else {
+        message += itemDescriptions.slice(0, 2).join(', ') + ` and ${itemDescriptions.length - 2} more`;
+    }
+    
+    message += ` (Total value: ${totalValue})`;
+    
+    return {
+        mapChanged: false,
+        playerMoved: false,
+        playerDisabled: false,
+        message: message,
+        treasureFound: true,
+        itemsFound: itemsFound
+    };
 }
 
 /**
@@ -653,6 +814,8 @@ function cleanupExpiredDisables(dbEntry) {
 
 module.exports = {
     processHazardTrigger,
+    processEncounterTrigger,
+    handleTreasureChest,
     handlePortalTrap,
     handleBombTrap,
     handleGreenFog,
