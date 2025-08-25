@@ -1,4 +1,5 @@
 // miningUtils.js - Utility functions for mining operations
+const gachaVC = require('../../../models/activevcs');
 const { TILE_TYPES, miningItemPool, treasureItems } = require('./miningConstants_unified');
 
 // Enhanced RNG System
@@ -257,10 +258,16 @@ function checkPickaxeBreak(pickaxe, tileHardness = 1) {
 }
 
 // Minecart Summary Helper
-function getMinecartSummary(dbEntry) {
-    const minecart = dbEntry.gameData?.minecart;
-    if (!minecart || !minecart.items) return { totalValue: 0, itemCount: 0, summary: "Empty" };
+async function getMinecartSummary(channelId) {
+    // Fetch only minecart data
+    const freshEntry = await gachaVC.findOne(
+        { channelId }, 
+        { 'gameData.minecart': 1 }
+    ).lean();
     
+    const minecart = freshEntry?.gameData?.minecart;
+    
+    if (!minecart || !minecart.items) return { totalValue: 0, itemCount: 0, summary: "Empty" };
 
     const showAmount = 10;
     let totalValue = 0;
