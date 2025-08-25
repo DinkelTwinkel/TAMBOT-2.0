@@ -249,7 +249,7 @@ function cleanupPlayerPositions(mapData, currentPlayerIds) {
  * @param {number} serverPowerLevel - Optional server power level for hazard generation
  * @param {number} hazardSpawnChanceOverride - Optional override for hazard spawn chance (for danger 6-7)
  */
-async function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = null, serverPowerLevel = 1, hazardSpawnChanceOverride = null) {
+async function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = null, serverPowerLevel = 1, hazardSpawnChanceOverride = null, mineTypeId = null) {
     // Note: serverPowerLevel is already passed in, use it for map expansion
     let needsExpansion = false;
     let expansionDirection = '';
@@ -341,7 +341,8 @@ async function checkMapExpansion(mapData, newX, newY, channelId, hazardsData = n
                 width,
                 height,
                 hazardSpawnChance,
-                serverPowerLevel
+                serverPowerLevel,
+                mineTypeId  // Pass mine type ID for filtering allowed hazards
             );
         }
         

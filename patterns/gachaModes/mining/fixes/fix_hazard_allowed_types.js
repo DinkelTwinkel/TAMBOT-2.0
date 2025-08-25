@@ -188,20 +188,28 @@ function generateFilteredHazards(hazardsData, startX, startY, width, height, spa
  */
 function patchHazardStorage() {
     const hazardStorage = require('../hazardStorage');
+    const miningContext = require('../miningContext');
     
     // Store original function
     const originalGenerateHazardsForArea = hazardStorage.generateHazardsForArea;
     
     // Replace with filtered version
     hazardStorage.generateHazardsForArea = function(hazardsData, startX, startY, width, height, spawnChance, powerLevel, mineTypeId) {
-        // If mineTypeId is provided, use filtered generation
-        if (mineTypeId !== undefined && mineTypeId !== null) {
-            return generateFilteredHazards(hazardsData, startX, startY, width, height, spawnChance, powerLevel, mineTypeId);
+        // Try to get mineTypeId from context if not provided
+        if (mineTypeId === undefined || mineTypeId === null) {
+            const context = miningContext.getMiningContext();
+            if (context && context.mineTypeId) {
+                mineTypeId = context.mineTypeId;
+                console.log(`[HAZARD FIX] Using mineTypeId ${mineTypeId} from mining context`);
+            } else {
+                console.warn('[HAZARD FIX] No mineTypeId provided and no context available, using unfiltered hazard generation');
+                console.warn('[HAZARD FIX] This may result in incorrect hazard types spawning!');
+                return originalGenerateHazardsForArea.call(this, hazardsData, startX, startY, width, height, spawnChance, powerLevel);
+            }
         }
         
-        // Otherwise fall back to original (for backward compatibility)
-        console.warn('[HAZARD FIX] No mineTypeId provided, using unfiltered hazard generation');
-        return originalGenerateHazardsForArea.call(this, hazardsData, startX, startY, width, height, spawnChance, powerLevel);
+        // If mineTypeId is provided or retrieved from context, use filtered generation
+        return generateFilteredHazards(hazardsData, startX, startY, width, height, spawnChance, powerLevel, mineTypeId);
     };
     
     console.log('[HAZARD FIX] Hazard storage patched to respect allowed types');

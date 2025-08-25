@@ -119,6 +119,9 @@ const hazardAllowedTypesFix = require('./mining/fixes/fix_hazard_allowed_types')
 // Apply the hazard fix patch
 hazardAllowedTypesFix.patchHazardStorage();
 
+// Import mining context manager
+const miningContext = require('./mining/miningContext');
+
 // Import maintenance display
 const {
     getMaintenanceWarnings,
@@ -1812,6 +1815,9 @@ module.exports = async (channel, dbEntry, json, client) => {
         // Get mine type ID for special mine handling (e.g., gullet meat items)
         const mineTypeId = dbEntry.typeId;
         
+        // Set mining context for this processing cycle
+        miningContext.setMiningContext(mineTypeId, channel.id, serverPowerLevel);
+        
         
         // Check if this is a deeper mine
         const { isDeeperMine: checkDeeperMine } = require('./mining/miningConstants_unified');
@@ -2466,6 +2472,8 @@ if (shouldStartBreak) {
             await attemptAutoRecovery(channel);
         }
     } finally {
+        // Clear mining context
+        miningContext.clearMiningContext();
         concurrencyManager.releaseLock(channelId);
     }
 };
