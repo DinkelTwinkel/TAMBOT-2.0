@@ -117,7 +117,7 @@
         "rarity": "common",
         "spawnWeight": 0,
         "description": "Deeper coal tunnels where the seams grow richer. The darkness presses closer, but the rewards increase.",
-        "power": 1.2,
+        "power": 1,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.012,
@@ -140,7 +140,7 @@
         "rarity": "common",
         "spawnWeight": 0,
         "description": "The coal here gleams with a darker sheen. Ancient carbon compressed by ages of pressure.",
-        "power": 1.4,
+        "power": 1,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.014,
@@ -163,7 +163,7 @@
         "rarity": "common",
         "spawnWeight": 0,
         "description": "The pressure increases here, creating harder, more valuable coal deposits.",
-        "power": 1.6,
+        "power": 2,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.016,
@@ -186,7 +186,7 @@
         "rarity": "common",
         "spawnWeight": 0,
         "description": "Near the transition zone, the coal begins to show traces of rare minerals.",
-        "power": 1.8,
+        "power": 2,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.018,
@@ -256,7 +256,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Deeper into the pits where coal transforms into something more precious.",
-        "power": 3.5,
+        "power": 4,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.030,
@@ -302,7 +302,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Black diamonds form naturally here. The darkness itself has value.",
-        "power": 4.5,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.040,
@@ -348,7 +348,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The final descent before the absolute depths. Coal here burns with dark fire.",
-        "power": 5.5,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.050,
@@ -418,7 +418,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "Deeper topaz chambers where crystals grow larger and more luminous.",
-        "power": 2.3,
+        "power": 2,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.017,
@@ -441,7 +441,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "The topaz here pulses with inner light. Golden rays dance across the walls.",
-        "power": 2.6,
+        "power": 3,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.019,
@@ -464,7 +464,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "Imperial topaz begins to form here, worth fortunes to collectors.",
-        "power": 2.9,
+        "power": 3,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.021,
@@ -487,7 +487,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "The heat increases as solar energy concentrates in the crystals.",
-        "power": 3.2,
+        "power": 3,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.023,
@@ -510,7 +510,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "The gateway to the legendary topaz core. Light becomes almost blinding.",
-        "power": 3.5,
+        "power": 4,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.025,
@@ -557,7 +557,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Deeper into the core where topaz crystals grow to enormous sizes.",
-        "power": 4.6,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.035,
@@ -580,7 +580,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Solar energy crystallizes into solid form here. The heat is overwhelming.",
-        "power": 5.2,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.040,
@@ -603,7 +603,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The crystals here contain captured sunlight from the dawn of time.",
-        "power": 5.8,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.045,
@@ -626,7 +626,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Light becomes solid here. Each crystal is a captured star.",
-        "power": 6.4,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.050,
@@ -1039,7 +1039,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Deeper caverns where emerald veins pulse with life energy.",
-        "power": 3.3,
+        "power": 3,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.020,
@@ -1064,7 +1064,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "The verdant energy here accelerates all life forms.",
-        "power": 3.6,
+        "power": 4,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.022,
@@ -1089,7 +1089,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Plants grow spontaneously from the emerald-rich walls.",
-        "power": 3.9,
+        "power": 4,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.024,
@@ -1114,7 +1114,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "The Mother Crystal's influence grows stronger here.",
-        "power": 4.2,
+        "power": 4,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.026,
@@ -1139,7 +1139,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "The gateway to the legendary emerald sanctum.",
-        "power": 4.5,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.028,
@@ -1190,7 +1190,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The sacred chambers where emerald crystals achieve sentience.",
-        "power": 5.6,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.036,
@@ -1215,7 +1215,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Life force crystallizes into pure emerald here.",
-        "power": 6.2,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.040,
@@ -1240,7 +1240,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The Mother Crystal's roots extend through all dimensions.",
-        "power": 6.8,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.044,
@@ -1265,7 +1265,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The walls regenerate faster than they can be mined.",
-        "power": 7.4,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.048,
@@ -1364,7 +1364,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The heat intensifies as ruby veins grow thicker.",
-        "power": 4.3,
+        "power": 4,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.028,
@@ -1387,7 +1387,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Blood-red crystals pulse with elemental fire.",
-        "power": 4.6,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.031,
@@ -1410,7 +1410,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The walls themselves burn with ruby fire.",
-        "power": 4.9,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.034,
@@ -1433,7 +1433,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Eternal flames dance within the ruby formations.",
-        "power": 5.2,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.037,
@@ -1456,7 +1456,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The gateway to the molten ruby tunnels.",
-        "power": 5.5,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.1,
@@ -1507,7 +1507,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Molten ruby flows like lava through these tunnels.",
-        "power": 6.5,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.15,
@@ -1682,7 +1682,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Deeper forges where obsidian forms razor-sharp edges.",
-        "power": 5.3,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.033,
@@ -1707,7 +1707,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Volcanic glass here cuts through reality itself.",
-        "power": 5.6,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.036,
@@ -1732,7 +1732,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The darkness here is tangible, formed from pure void.",
-        "power": 5.9,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.039,
@@ -1757,7 +1757,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Fragments of creation are trapped within the glass.",
-        "power": 6.2,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.042,
@@ -1782,7 +1782,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The gateway to the primordial obsidian corridors.",
-        "power": 6.5,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.045,
@@ -1835,7 +1835,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The corridors where space bends around obsidian shards.",
-        "power": 7.4,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.050,
@@ -1861,7 +1861,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The void seeps through every crack in the obsidian.",
-        "power": 7.8,
+        "power": 8,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.055,
@@ -1887,7 +1887,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "Pure darkness crystallizes into obsidian here.",
-        "power": 8.2,
+        "power": 8,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.060,
@@ -1913,7 +1913,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "Mining here risks corrupting one's soul with void energy.",
-        "power": 8.6,
+        "power": 9,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.065,
@@ -2017,7 +2017,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "Deeper sanctums where mythril ore transcends physical matter.",
-        "power": 6.3,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.038,
@@ -2043,7 +2043,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The ore here exists partially in other dimensions.",
-        "power": 6.6,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.041,
@@ -2069,7 +2069,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "Concentrated magic crystallizes into pure mythril.",
-        "power": 6.9,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.044,
@@ -2095,7 +2095,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The boundaries between worlds blur near these deposits.",
-        "power": 7.2,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.047,
@@ -2121,7 +2121,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The gateway to Mythril's eternal rest.",
-        "power": 7.5,
+        "power": 8,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.050,
@@ -2176,7 +2176,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The rest where mythril achieves its ultimate form.",
-        "power": 8.3,
+        "power": 8,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.055,
@@ -2203,7 +2203,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "Dimensional rifts open around concentrated mythril veins.",
-        "power": 8.6,
+        "power": 8,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.060,
@@ -2230,7 +2230,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The ore here shimmers with cosmic energy from all dimensions.",
-        "power": 8.9,
+        "power": 9,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.065,
@@ -2257,7 +2257,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "Reality warps and bends around these sacred deposits.",
-        "power": 9.2,
+        "power": 9,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.070,
@@ -2284,7 +2284,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The final approach to the blue cosmos.",
-        "power": 9.5,
+        "power": 9,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.075,
@@ -2363,7 +2363,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "Deeper into the abyss where adamantite grows denser.",
-        "power": 7.3,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.044,
@@ -2390,7 +2390,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The void bleeds through adamantite veins here.",
-        "power": 7.6,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.048,
@@ -2417,7 +2417,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "Gravity shifts without warning in these unstable depths.",
-        "power": 7.9,
+        "power": 8,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.052,
@@ -2444,7 +2444,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The darkness is alive and hungry in these depths.",
-        "power": 8.2,
+        "power": 8,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.056,
@@ -2471,7 +2471,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The gateway to the true abyssal depths.",
-        "power": 8.5,
+        "power": 9,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.060,
@@ -2548,7 +2548,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "Deeper into the industrial complex where iron veins grow thicker.",
-        "power": 2.3,
+        "power": 2,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.017,
@@ -2571,7 +2571,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "The iron here shows traces of meteoric origin.",
-        "power": 2.6,
+        "power": 3,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.019,
@@ -2594,7 +2594,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "Magnetic fields begin to affect equipment here.",
-        "power": 2.9,
+        "power": 3,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.021,
@@ -2617,7 +2617,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "The iron deposits here are unusually pure.",
-        "power": 3.2,
+        "power": 3,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.023,
@@ -2640,7 +2640,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "The gateway to the legendary Iron Fortress.",
-        "power": 3.5,
+        "power": 4,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.025,
@@ -2687,7 +2687,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Deeper into the fortress where iron forms living armor.",
-        "power": 4.6,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.035,
@@ -2710,7 +2710,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Magnetic storms tear through these metallic halls.",
-        "power": 5.2,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.040,
@@ -2733,7 +2733,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The iron here can hold impossible enchantments.",
-        "power": 5.8,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.045,
@@ -2758,7 +2758,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Reality warps around the magnetic core.",
-        "power": 6.4,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.050,
@@ -2854,7 +2854,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Deeper grottos where crystals sing with harmonic resonance.",
-        "power": 4.3,
+        "power": 4,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.028,
@@ -2877,7 +2877,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "The crystals here contain memories of the earth's formation.",
-        "power": 4.6,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.031,
@@ -2900,7 +2900,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Reality bends through the crystalline prisms.",
-        "power": 4.9,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.034,
@@ -2923,7 +2923,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Every crystal reflects infinite versions of reality.",
-        "power": 5.2,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.037,
@@ -2946,7 +2946,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "The gateway to the legendary Crystal Paradise.",
-        "power": 5.5,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.040,
@@ -2997,7 +2997,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The paradise where crystals achieve perfect harmony.",
-        "power": 6.5,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.045,
@@ -3047,7 +3047,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "Time has no meaning in these eternal crystal gardens.",
-        "power": 7.5,
+        "power": 8,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.055,
@@ -3097,7 +3097,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The final approach to Crystal Eternity.",
-        "power": 8.5,
+        "power": 9,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.065,
@@ -3170,7 +3170,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "Deeper layers reveal creatures from forgotten eras.",
-        "power": 2.3,
+        "power": 2,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.014,
@@ -3193,7 +3193,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "Amber deposits contain perfectly preserved specimens.",
-        "power": 2.6,
+        "power": 3,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.016,
@@ -3216,7 +3216,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "DNA fragments can still be extracted from these ancient remains.",
-        "power": 2.9,
+        "power": 3,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.018,
@@ -3239,7 +3239,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "Fossils of creatures that shouldn't have existed begin to appear.",
-        "power": 3.2,
+        "power": 3,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.020,
@@ -3262,7 +3262,7 @@
         "rarity": "uncommon",
         "spawnWeight": 0,
         "description": "The gateway to the primordial vault.",
-        "power": 3.5,
+        "power": 3,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.022,
@@ -3309,7 +3309,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "The vault where evolution's secrets are stored.",
-        "power": 4.6,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.030,
@@ -3332,7 +3332,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Fossils here predate known life on Earth.",
-        "power": 5.2,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.035,
@@ -3355,7 +3355,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The DNA of gods is preserved in these ancient bones.",
-        "power": 5.8,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.040,
@@ -3380,7 +3380,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "Memories of creation itself are fossilized here.",
-        "power": 6.4,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.045,
@@ -3476,7 +3476,7 @@
         "rarity": "common",
         "spawnWeight": 0,
         "description": "Deeper quarries where copper ore shows traces of malachite formation.",
-        "power": 1.2,
+        "power": 1,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.012,
@@ -3499,7 +3499,7 @@
         "rarity": "common",
         "spawnWeight": 0,
         "description": "The copper here gleams with a distinctive green patina from ancient oxidation.",
-        "power": 1.4,
+        "power": 1,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.014,
@@ -3522,7 +3522,7 @@
         "rarity": "common",
         "spawnWeight": 0,
         "description": "Electrical currents begin to flow through the copper veins naturally.",
-        "power": 1.6,
+        "power": 2,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.016,
@@ -3545,7 +3545,7 @@
         "rarity": "common",
         "spawnWeight": 0,
         "description": "Native copper formations appear, pure and untarnished by time.",
-        "power": 1.8,
+        "power": 2,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.018,
@@ -3615,7 +3615,7 @@
         "rarity": "rare",
         "spawnWeight": 0,
         "description": "Deeper wells where copper flows like liquid metal through ancient channels.",
-        "power": 3.5,
+        "power": 4,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.030,
@@ -3661,7 +3661,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The copper here conducts thoughts and memories through electrical impulses.",
-        "power": 4.5,
+        "power": 5,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.040,
@@ -3707,7 +3707,7 @@
         "rarity": "epic",
         "spawnWeight": 0,
         "description": "The final descent before the throne of eternal lightning.",
-        "power": 5.5,
+        "power": 6,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.050,

@@ -61,11 +61,14 @@ async function processEncounterTrigger(member, position, mapData, hazardsData, d
         }
     }
     
-    // Add trigger message
+    // Add trigger message - use "opened" for treasures, "triggered" for hazards
+    const actionVerb = (triggeredEncounter.type === ENCOUNTER_TYPES.TREASURE || 
+                       triggeredEncounter.type === ENCOUNTER_TYPES.RARE_TREASURE) ? 'opened' : 'triggered';
+    
     if (result.message) {
-        eventLogs.push(`${config.isHazard ? '⚠️' : '💰'} ${member.displayName} triggered ${config.name}! ${result.message}`);
+        eventLogs.push(`${config.isHazard ? '⚠️' : '💰'} ${member.displayName} ${actionVerb} ${config.name}! ${result.message}`);
     } else {
-        eventLogs.push(`${config.isHazard ? '⚠️' : '💰'} ${member.displayName} triggered ${config.name}!`);
+        eventLogs.push(`${config.isHazard ? '⚠️' : '💰'} ${member.displayName} ${actionVerb} ${config.name}!`);
     }
     
     return result;
