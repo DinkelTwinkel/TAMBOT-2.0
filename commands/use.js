@@ -144,7 +144,7 @@ module.exports = {
 ```javascript
     // Paginate items based on Discord's description limit
     paginateItems(items) {
-        const maxDescriptionLength = 4096 - 7; // Account for ```\n at start and ``` at end
+        const maxDescriptionLength = 4096; // Discord's embed description limit
         const pages = [];
         let currentPageItems = [];
         let currentDescription = '';
@@ -161,16 +161,19 @@ module.exports = {
         // Build description and split into pages
         for (const [type, typeItems] of Object.entries(itemsByType)) {
             const typeEmoji = this.getTypeEmoji(type);
-            const typeHeader = `\n**${typeEmoji} ${this.formatTypeName(type)}**\n`;
+            // Category header (outside code block) + code block markers
+            const typeHeader = `**${typeEmoji} ${this.formatTypeName(type)}**\n` + '```\n';
+            const codeBlockEnd = '```\n';
             
             // Check if we need to start a new page for this type header
-            if (currentDescription.length + typeHeader.length > maxDescriptionLength && currentPageItems.length > 0) {
+            if (currentDescription.length + typeHeader.length + codeBlockEnd.length > maxDescriptionLength && currentPageItems.length > 0) {
                 pages.push(currentPageItems);
                 currentPageItems = [];
                 currentDescription = '';
             }
             
             let typeStartedOnPage = false;
+            let typeItemsText = '';
             
             for (const item of typeItems) {
                 let line = `『${item.name}』 (x${item.owned})`;
@@ -199,11 +202,16 @@ module.exports = {
                 
                 line += '\n';
                 
-                // Calculate what would be added
-                const toAdd = (!typeStartedOnPage ? typeHeader : '') + line;
+                // Calculate what would be added (including code block end if not started)
+                const toAdd = (!typeStartedOnPage ? typeHeader : '') + line + (!typeStartedOnPage ? '' : '');
+                const futureLength = currentDescription.length + toAdd.length + (typeStartedOnPage ? 0 : codeBlockEnd.length);
                 
                 // Check if adding this item would exceed the limit
-                if (currentDescription.length + toAdd.length > maxDescriptionLength && currentPageItems.length > 0) {
+                if (futureLength > maxDescriptionLength && currentPageItems.length > 0) {
+                    // Close current type's code block if started
+                    if (typeStartedOnPage) {
+                        currentDescription += codeBlockEnd;
+                    }
                     // Start a new page
                     pages.push(currentPageItems);
                     currentPageItems = [];
@@ -219,6 +227,11 @@ module.exports = {
                 }
                 
                 currentPageItems.push(item);
+            }
+            
+            // Close the code block for this type
+            if (typeStartedOnPage) {
+                currentDescription += codeBlockEnd;
             }
         }
         
@@ -239,7 +252,7 @@ module.exports = {
     // Create embed showing usable items
     createUsableItemsEmbed(pageItems, page, user, totalPages) {
         // Build description from page items
-        let description = '```\n';
+        let description = '';
         const itemsByType = {};
         
         // Group items by type
@@ -250,10 +263,12 @@ module.exports = {
             itemsByType[item.type].push(item);
         }
         
-        // Build description
+        // Build description with categories outside code blocks
         for (const [type, typeItems] of Object.entries(itemsByType)) {
             const typeEmoji = this.getTypeEmoji(type);
-            description += `\n**${typeEmoji} ${this.formatTypeName(type)}**\n`;
+            // Category header outside code block
+            description += `**${typeEmoji} ${this.formatTypeName(type)}**\n`;
+            description += '```\n';
             
             for (const item of typeItems) {
                 let line = `『${item.name}』 (x${item.owned})`;
@@ -282,13 +297,13 @@ module.exports = {
                 
                 description += line + '\n';
             }
+            
+            description += '```\n';
         }
         
         // If no items, show a message
-        if (description === '```\n') {
+        if (description === '') {
             description = '```\nNo items available on this page.\n```';
-        } else {
-            description += '```';
         }
 
         const embed = new EmbedBuilder()
