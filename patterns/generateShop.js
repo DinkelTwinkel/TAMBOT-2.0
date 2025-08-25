@@ -9,7 +9,7 @@ const registerBotMessage = require('./registerBotMessage');
 const generateShopImage = require('./generateShopImage');
 const path = require('path');
 const fs = require('fs');
-const AIShopDialogueGenerator = require('./aiShopDialogueGenerator');
+const AIShopDialogueGenerator = require('./aiShopDialogueGenerator_fixed');
 
 // Initialize AI dialogue generator
 let aiShopDialogue = null;
