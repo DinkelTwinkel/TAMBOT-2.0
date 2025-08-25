@@ -2,7 +2,7 @@
 const gachaVC = require('../../../models/activevcs');
 const PlayerInventory = require('../../../models/inventory');
 const Currency = require('../../../models/currency');
-const { miningItemPool, treasureItems } = require('./miningConstants_unified');
+const { miningItemPool, treasureItems, UNIFIED_ITEM_POOL } = require('./miningConstants_unified');
 const deeperMineChecker = require('../../mining/deeperMineChecker');
 
 // Enhanced Database System
@@ -278,21 +278,74 @@ async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
         console.log(`[MINECART] Adding ${amount}x item ${itemId} for player ${playerId} to channel ${channelId}`);
     }
     
-    // DEEPER MINE INTEGRATION: Track persistent value
-    const poolItem = miningItemPool.find(item => item.itemId === itemId) || 
-                    treasureItems.find(item => item.itemId === itemId);
+    // Helper function to find item data (similar to fire blast)
+    function findItemData(itemId) {
+        // Check mining item pool first
+        let found = miningItemPool.find(item => item.itemId === String(itemId));
+        if (found) return found;
+        
+        // Check treasure items
+        found = treasureItems.find(item => item.itemId === String(itemId));
+        if (found) return found;
+        
+        // Check unified item pool
+        if (UNIFIED_ITEM_POOL) {
+            // Check ores
+            if (UNIFIED_ITEM_POOL.ores) {
+                found = UNIFIED_ITEM_POOL.ores.find(item => item.itemId === String(itemId));
+                if (found) return found;
+            }
+            // Check equipment
+            if (UNIFIED_ITEM_POOL.equipment) {
+                found = UNIFIED_ITEM_POOL.equipment.find(item => item.itemId === String(itemId));
+                if (found) return found;
+            }
+            // Check consumables
+            if (UNIFIED_ITEM_POOL.consumables) {
+                found = UNIFIED_ITEM_POOL.consumables.find(item => item.itemId === String(itemId));
+                if (found) return found;
+            }
+            // Check treasures
+            if (UNIFIED_ITEM_POOL.treasures) {
+                found = UNIFIED_ITEM_POOL.treasures.find(item => item.itemId === String(itemId));
+                if (found) return found;
+            }
+        }
+        
+        return null;
+    }
     
-    if (poolItem && poolItem.value) {
-        const itemValue = poolItem.value * amount;
-        // Update persistent lifetime value for deeper mine conditions
-        await deeperMineChecker.updatePersistentRunValue(dbEntry, itemValue);
+    // Find item information from pools
+    const poolItem = findItemData(itemId);
+    
+    // Get item name and value
+    let itemName = poolItem?.name || `Item #${itemId}`;
+    let itemValue = poolItem?.value || 1;
+    
+    if (poolItem) {
+        
+        // DEEPER MINE INTEGRATION: Track persistent value
+        const totalValue = itemValue * amount;
+        await deeperMineChecker.updatePersistentRunValue(dbEntry, totalValue);
         if (Math.random() < 0.05) { // Log 5% of the time
             const currentLifetime = deeperMineChecker.calculatePersistentRunValue(dbEntry);
-            console.log(`[DEEPER MINE] Lifetime value: ${currentLifetime} (+${itemValue})`);
+            console.log(`[DEEPER MINE] Lifetime value: ${currentLifetime} (+${totalValue})`);
         }
     }
     
     try {
+        // First update to ensure the item structure exists with name and value
+        await gachaVC.updateOne(
+            { channelId: channelId },
+            {
+                $set: {
+                    [`gameData.minecart.items.${itemId}.name`]: itemName,
+                    [`gameData.minecart.items.${itemId}.value`]: itemValue
+                }
+            }
+        );
+        
+        // Then increment the quantities
         await gachaVC.updateOne(
             { channelId: channelId },
             {
@@ -311,9 +364,11 @@ async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
         const existingContributors = currentDoc?.gameData?.minecart?.contributors || {};
         const existingStats = currentDoc?.gameData?.stats || { totalOreFound: 0, wallsBroken: 0, treasuresFound: 0 };
         
-        existingItems[itemId] = existingItems[itemId] || { quantity: 0, contributors: {} };
+        existingItems[itemId] = existingItems[itemId] || { quantity: 0, contributors: {}, name: itemName, value: itemValue };
         existingItems[itemId].quantity = (existingItems[itemId].quantity || 0) + amount;
         existingItems[itemId].contributors[playerId] = (existingItems[itemId].contributors[playerId] || 0) + amount;
+        existingItems[itemId].name = existingItems[itemId].name || itemName;  // Ensure name is set
+        existingItems[itemId].value = existingItems[itemId].value || itemValue;  // Ensure value is set
         existingContributors[playerId] = (existingContributors[playerId] || 0) + amount;
         existingStats.totalOreFound = (existingStats.totalOreFound || 0) + amount;
         

@@ -671,8 +671,8 @@ const UNIFIED_ITEM_POOL = {
         { 
             itemId: "27", 
             name: "Adamantite Ore", 
-            value: 300,
-            baseWeight: 1,
+            value: 500,  // Increased from 300 to 500 for better rewards
+            baseWeight: 3,  // Increased from 1 to 3 for slightly better spawn chance
             tier: 'legendary',
             minPowerLevel: 7,
             maxPowerLevel: 10,
@@ -1229,13 +1229,13 @@ const MINE_ORE_CORRESPONDENCE = {
     '7015': { oreId: '26', boost: 12.0, guarantee: 0.95 },
     '119': { oreId: '26', boost: 999, guarantee: 1.00 },   // Blue Cosmos -> 100%
     
-    // Adamantite Abyss
-    '8': { oreId: '27', boost: 2.5, guarantee: 0.40 },     // Adamantite Abyss L0 -> 40% guaranteed
-    '8001': { oreId: '27', boost: 3.0, guarantee: 0.45 },
-    '8002': { oreId: '27', boost: 3.5, guarantee: 0.50 },
-    '8003': { oreId: '27', boost: 4.0, guarantee: 0.55 },
-    '8004': { oreId: '27', boost: 4.5, guarantee: 0.60 },
-    '8005': { oreId: '27', boost: 5.0, guarantee: 0.65 },
+    // Adamantite Abyss - ENHANCED YIELDS FOR TIER 7
+    '8': { oreId: '27', boost: 4.0, guarantee: 0.55 },     // Adamantite Abyss L0 -> 55% guaranteed (increased from 40%)
+    '8001': { oreId: '27', boost: 4.5, guarantee: 0.60 },
+    '8002': { oreId: '27', boost: 5.0, guarantee: 0.65 },
+    '8003': { oreId: '27', boost: 5.5, guarantee: 0.70 },
+    '8004': { oreId: '27', boost: 6.0, guarantee: 0.75 },
+    '8005': { oreId: '27', boost: 6.5, guarantee: 0.80 },
     '18': { oreId: '27', boost: 999, guarantee: 1.00 },    // Abyssal Adamantite Depths -> 100%
     
     // Iron Town
@@ -1643,8 +1643,12 @@ const SERVER_POWER_MODIFIERS = {
     },
     "adamantiteAbyss": {
         powerLevel: 7,
-        specialBonus: "Abyssal depth mastery",
-        itemBonuses: { "27": 3.5 }
+        specialBonus: "Abyssal depth mastery - Maximum ore extraction",
+        itemBonuses: { 
+            "27": 5.0,  // Increased from 3.5 to 5.0 for better Adamantite yields
+            "26": 2.0,  // Also spawn some Mythril as secondary ore
+            "25": 1.5   // Occasional Obsidian
+        }
     },
     // Special ???'s gullet configuration
     "gulletsGullet": {

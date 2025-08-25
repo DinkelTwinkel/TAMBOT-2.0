@@ -1,5 +1,5 @@
 // hazardEffects.js - Handle hazard triggering and effects
-const { HAZARD_TYPES, HAZARD_CONFIG, TILE_TYPES, ENCOUNTER_CONFIG } = require('./miningConstants');
+const { HAZARD_TYPES, HAZARD_CONFIG, TILE_TYPES, ENCOUNTER_CONFIG } = require('./miningConstants_unified');
 const hazardStorage = require('./hazardStorage');
 
 /**
@@ -394,6 +394,9 @@ async function handleFireBlast(member, position, dbEntry, eventLogs) {
     const config = HAZARD_CONFIG[HAZARD_TYPES.FIRE_BLAST];
     const powerLevel = dbEntry.gameData?.powerLevel || 1;
     
+    // Import item pools to look up item information
+    const { miningItemPool, treasureItems, UNIFIED_ITEM_POOL } = require('./miningConstants_unified');
+    
     // Calculate burn percentage based on power level
     const burnPercentageBase = config.burnPercentageBase || 10;
     const burnPercentagePerLevel = config.burnPercentagePerLevel || 5;
@@ -413,6 +416,58 @@ async function handleFireBlast(member, position, dbEntry, eventLogs) {
     let itemsBurned = [];
     const itemsToReduce = {};
     
+    // Helper function to find item data
+    function findItemData(itemId) {
+        // Check mining item pool first
+        let found = miningItemPool.find(item => item.itemId === String(itemId));
+        if (found) return found;
+        
+        // Check treasure items
+        found = treasureItems.find(item => item.itemId === String(itemId));
+        if (found) return found;
+        
+        // Check unified item pool
+        if (UNIFIED_ITEM_POOL) {
+            // Check ores
+            if (UNIFIED_ITEM_POOL.ores) {
+                found = UNIFIED_ITEM_POOL.ores.find(item => item.itemId === String(itemId));
+                if (found) return found;
+            }
+            // Check equipment
+            if (UNIFIED_ITEM_POOL.equipment) {
+                found = UNIFIED_ITEM_POOL.equipment.find(item => item.itemId === String(itemId));
+                if (found) return found;
+            }
+            // Check consumables
+            if (UNIFIED_ITEM_POOL.consumables) {
+                found = UNIFIED_ITEM_POOL.consumables.find(item => item.itemId === String(itemId));
+                if (found) return found;
+            }
+            // Check treasures
+            if (UNIFIED_ITEM_POOL.treasures) {
+                found = UNIFIED_ITEM_POOL.treasures.find(item => item.itemId === String(itemId));
+                if (found) return found;
+            }
+        }
+        
+        // Fallback to itemSheet.json
+        try {
+            const itemSheet = require('../../../data/itemSheet.json');
+            found = itemSheet.find(item => String(item.id) === String(itemId));
+            if (found) {
+                return {
+                    itemId: found.id,
+                    name: found.name,
+                    value: found.value || 1
+                };
+            }
+        } catch (error) {
+            console.error('[FIRE BLAST] Error loading itemSheet.json:', error);
+        }
+        
+        return null;
+    }
+    
     // Process each item in minecart
     for (const [itemId, itemData] of Object.entries(minecart.items)) {
         if (itemData.quantity > 0) {
@@ -421,11 +476,15 @@ async function handleFireBlast(member, position, dbEntry, eventLogs) {
             const actualBurn = Math.min(toBurn, itemData.quantity);
             
             if (actualBurn > 0) {
-                const itemValue = itemData.value || 0;
+                // Look up item information if not stored
+                const itemInfo = findItemData(itemId);
+                const itemName = itemData.name || itemInfo?.name || `Item #${itemId}`;
+                const itemValue = itemData.value || itemInfo?.value || 1;
+                
                 totalValueBurned += actualBurn * itemValue;
                 
                 // Track what was burned
-                itemsBurned.push(`${actualBurn}x ${itemData.name || 'Unknown Item'}`);
+                itemsBurned.push(`${actualBurn}x ${itemName}`);
                 
                 // Store the reduction
                 itemsToReduce[itemId] = actualBurn;

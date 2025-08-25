@@ -46,7 +46,8 @@ const {
     getAvailableItems,
     getAvailableTreasures,
     miningItemPool,
-    treasureItems
+    treasureItems,
+    ITEM_CATEGORY  // Import ITEM_CATEGORY for ore detection
 } = require('./mining/miningConstants_unified');
 
 const {
@@ -756,9 +757,9 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
                     // Enhanced value
                     const enhancedValue = Math.floor(specializedOre.value * efficiency.valueMultiplier);
                     
-                    // Determine destination
-                    destination = (specializedOre.tier === 'legendary' || specializedOre.tier === 'unique' || specializedOre.tier === 'mythic') 
-                        ? 'inventory' : 'minecart';
+                    // Determine destination - all ores go to minecart regardless of tier
+                    // Only non-ore items (equipment, consumables, etc.) go to inventory
+                    destination = 'minecart';  // Specialized ores always go to minecart
                     
                     return {
                         item: { ...specializedOre, value: enhancedValue },
@@ -890,12 +891,14 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         // Determine destination based on the selected item
         if (isGullet) {
             destination = 'inventory'; // All gullet items → inventory
+        } else if (selectedItem.category === ITEM_CATEGORY.ORE || selectedItem.itemId === '27') {
+            destination = 'minecart'; // ALL ores go to minecart, including legendary ones like Adamantite
         } else if (selectedItem.tier === 'legendary' || selectedItem.tier === 'unique' || selectedItem.tier === 'mythic') {
-            destination = 'inventory'; // Rare items → inventory
+            destination = 'inventory'; // Rare non-ore items → inventory
         } else if (tileType === TILE_TYPES.TREASURE_CHEST) {
             destination = 'inventory'; // Treasures → inventory
         } else {
-            // Regular ores go to minecart
+            // Default to minecart for anything else
             destination = 'minecart';
         }
         

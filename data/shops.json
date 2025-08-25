@@ -444,7 +444,7 @@
     "cost": 0,
     "staticItems": [63,5],
     "rotationalAmount": 5,
-    "itemPool": [4, 15, 19, 9, 12, 36, 40, 41, 46],
+    "itemPool": [4, 15, 19, 9, 12, 36, 40, 41, 46, 27],
     "image": "adamantiteMineShop",
     "priceChangeFactor": 0.15,
     "itemDisplayScale": 1
@@ -474,7 +474,7 @@
     "cost": 0,
     "staticItems": [5, 31],
     "rotationalAmount": 5,
-    "itemPool": [4, 12, 15, 19, 9, 36, 40, 41, 46],
+    "itemPool": [4, 12, 15, 19, 9, 36, 40, 41, 46, 27],
     "image": "adamantiteMineDeepShop",
     "priceChangeFactor": 0.05,
     "itemDisplayScale": 1
