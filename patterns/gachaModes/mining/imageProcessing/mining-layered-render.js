@@ -888,26 +888,13 @@ async function drawEncounter(ctx, pixelX, pixelY, tileSize, encountersData, tile
         
         ctx.drawImage(encounterImage, imageX, imageY, encounterSize, encounterSize);
         
-        // Darken if not visible
+        // Darken if not visible but was discovered
         if (!isVisible && wasDiscovered) {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             ctx.fillRect(imageX, imageY, encounterSize, encounterSize);
         }
         
-        // Add reveal state overlay if not revealed
-        if (!encounter.revealed) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            ctx.fillRect(imageX, imageY, encounterSize, encounterSize);
-            
-            // Add question mark
-            if (tileSize >= 20) {
-                ctx.fillStyle = '#FFD700';
-                ctx.font = `bold ${Math.floor(encounterSize * 0.4)}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('?', centerX, centerY);
-            }
-        }
+        // Removed question mark and reveal overlay for clearer visibility
     } else {
         // Fallback to programmatic rendering
         drawEncounterFallback(ctx, encounter, centerX, centerY, tileSize, isVisible, wasDiscovered);
@@ -1054,22 +1041,8 @@ function drawEncounterFallback(ctx, encounter, centerX, centerY, tileSize, isVis
     const encounterSize = Math.max(10, tileSize * 0.7);
     const config = ENCOUNTER_CONFIG[encounter.type];
     
-    if (!encounter.revealed) {
-        // Unrevealed encounter - show generic danger/mystery indicator
-        ctx.fillStyle = isVisible ? '#8B0000' : '#2A0000';
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, encounterSize / 2, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Draw exclamation or question mark
-        if (tileSize >= 16) {
-            ctx.fillStyle = isVisible ? '#FFD700' : '#7F6B00';
-            ctx.font = `bold ${Math.floor(encounterSize * 0.8)}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('!', centerX, centerY);
-        }
-    } else {
+    // Removed unrevealed state handling - always show actual encounter
+    {
         // Special rendering for fire_blast
         if (encounter.type === 'fire_blast' || encounter.type === ENCOUNTER_TYPES?.FIRE_BLAST) {
             // Use the enhanced fire trap rendering
