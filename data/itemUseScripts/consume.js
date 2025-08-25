@@ -134,8 +134,11 @@ module.exports = async function consume(context) {
         // Send a short public message about the consumption as the main reply
         let publicMessage = messageArray[Math.floor(Math.random() * messageArray.length)];
         if (item.abilities && item.abilities.length > 0) {
-            const mainAbility = item.abilities[0];
-            publicMessage += ` • ${mainAbility.name.charAt(0).toUpperCase() + mainAbility.name.slice(1)} +${mainAbility.powerlevel}`;
+            const abilityList = item.abilities.map(ability => {
+                const sign = ability.powerlevel >= 0 ? '+' : '';
+                return `${ability.name.charAt(0).toUpperCase() + ability.name.slice(1)} ${sign}${ability.powerlevel}`;
+            }).join(', ');
+            publicMessage += ` • ${abilityList}`;
         }
         if (item.duration) {
             publicMessage += ` (${item.duration}m)`;
@@ -238,10 +241,22 @@ module.exports = async function consume(context) {
                 
                 const remainingMs = buffResult.expiresAt.getTime() - Date.now();
                 const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
-                const miningPower = item.abilities.find(a => a.name === 'mining')?.powerlevel || 2;
+                
+                // Get all abilities for Banana Axe
+                let abilityText = '';
+                if (item.abilities && item.abilities.length > 0) {
+                    const abilityList = item.abilities.map(ability => {
+                        const sign = ability.powerlevel >= 0 ? '+' : '';
+                        return `${ability.name.charAt(0).toUpperCase() + ability.name.slice(1)} ${sign}${ability.powerlevel}`;
+                    }).join(', ');
+                    abilityText = abilityList;
+                } else {
+                    // Fallback if no abilities defined
+                    abilityText = 'Mining +2';
+                }
                 
                 const buffMsg = await channel.send({
-                    content: `⛏️ **Banana Power Active!** Mining +${miningPower} for ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}! 🍌`,
+                    content: `⛏️ **Banana Power Active!** ${abilityText} for ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}! 🍌`,
                     ephemeral: false
                 });
                 // Register for auto-cleanup (5 minute expiry)
@@ -260,8 +275,11 @@ module.exports = async function consume(context) {
             // Send short public message for tool consumption
             let toolMessage = `${user} consumed their **${item.name}** (tool)`;
             if (item.abilities && item.abilities.length > 0) {
-            const mainAbility = item.abilities[0];
-            toolMessage += ` • ${mainAbility.name.charAt(0).toUpperCase() + mainAbility.name.slice(1)} +${mainAbility.powerlevel}`;
+                const abilityList = item.abilities.map(ability => {
+                    const sign = ability.powerlevel >= 0 ? '+' : '';
+                    return `${ability.name.charAt(0).toUpperCase() + ability.name.slice(1)} ${sign}${ability.powerlevel}`;
+                }).join(', ');
+                toolMessage += ` • ${abilityList}`;
             }
             if (item.duration) {
             toolMessage += ` (${item.duration}m)`;

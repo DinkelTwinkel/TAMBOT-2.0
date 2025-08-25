@@ -826,23 +826,37 @@ async function createMiningSummary(channel, dbEntry) {
         .map(([tier, count]) => `${tier}: ${count}`)
         .join(' | ');
 
+    // Build description with contributors in code block
+    let description = 'The minecart has been sold to the shop!\n\n';
+    
+    // Add total value line
+    if (playerCount > 1) {
+        description += `**Total Value:** ${finalValue} coins (${totalValue} + ${teamBonus} team bonus [${playerCount}p × ${Math.round(teamBonusPercent * 100)}%])\n\n`;
+    } else {
+        description += `**Total Value:** ${finalValue} coins\n\n`;
+    }
+    
+    // Add contributors and rewards in code block
+    description += '**Contributors & Rewards:**\n';
+    description += '```\n';
+    if (contributorLines.length > 0) {
+        description += contributorLines.slice(0, 8).join('\n');
+        if (contributorLines.length > 8) {
+            description += '\n...and more contributors!';
+        }
+    } else {
+        description += 'No contributors';
+    }
+    description += '\n```';
+
     const { EmbedBuilder } = require('discord.js');
     const embed = new EmbedBuilder()
         .setTitle('🛒 Mining Session Complete')
-        .setDescription(
-            playerCount > 1 
-                ? `The minecart has been sold to the shop!\n\n**Total Value:** ${finalValue} coins (${totalValue} + ${teamBonus} team bonus [${playerCount}p × ${Math.round(teamBonusPercent * 100)}%])`
-                : `The minecart has been sold to the shop!\n\n**Total Value:** ${finalValue} coins`
-        )
+        .setDescription(description)
         .addFields(
             {
                 name: '📦 Items Sold',
                 value: itemBreakdown.slice(0, 10).join('\n') + (itemBreakdown.length > 10 ? '\n...and more!' : ''),
-                inline: false
-            },
-            {
-                name: '👥 Contributors & Rewards',
-                value: contributorLines.slice(0, 8).join('\n') || 'None',
                 inline: false
             },
             {

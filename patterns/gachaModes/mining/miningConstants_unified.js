@@ -671,7 +671,7 @@ const UNIFIED_ITEM_POOL = {
         { 
             itemId: "27", 
             name: "Adamantite Ore", 
-            value: 500,  // Increased from 300 to 500 for better rewards
+            value: 300,  // Increased from 300 to 500 for better rewards
             baseWeight: 3,  // Increased from 1 to 3 for slightly better spawn chance
             tier: 'legendary',
             minPowerLevel: 7,
