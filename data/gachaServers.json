@@ -2381,7 +2381,7 @@
         "conditionCost": 1800,
         "deeperMineId": "8002",
         "parentMineId": "8",
-        "isLocked": false
+        "isLocked": true
     },
     {
         "id": "8002",
@@ -2408,7 +2408,7 @@
         "conditionCost": 2100,
         "deeperMineId": "8003",
         "parentMineId": "8001",
-        "isLocked": false
+        "isLocked": true
     },
     {
         "id": "8003",

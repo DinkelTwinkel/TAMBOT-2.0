@@ -1073,8 +1073,7 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
 
         // CRITICAL FIX: Get fresh minecart data from database instead of cache
         //const minecartSummary = await getMinecartSummaryFresh(channel.id);
-        const freshEntry = await gachaVC.findOne({ channelId: result.channelId }).lean();
-        const minecartSummary = getMinecartSummary(freshEntry);
+        const minecartSummary = await getMinecartSummary(dbEntry.channelId);
         
         // Debug: Verify minecart data structure (only log occasionally)
         if (Math.random() < 0.05) { // 5% chance to log
