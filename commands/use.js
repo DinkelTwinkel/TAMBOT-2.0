@@ -2,7 +2,7 @@
 // IMPORTS AND DEPENDENCIES
 // ============================================
 
-```javascript
+
 const { 
     SlashCommandBuilder, 
     EmbedBuilder, 
@@ -13,37 +13,37 @@ const {
 } = require('discord.js');
 const PlayerInventory = require('../models/inventory');
 const itemSheet = require('../data/itemSheet.json');
-```
+
 
 // ============================================
 // ITEM MAP INITIALIZATION
 // ============================================
 
-```javascript
+
 // Create item map for O(1) lookups
 const itemMap = new Map(itemSheet.map(item => [item.id, item]));
 
 // Filter items that have scripts
 const usableItems = itemSheet.filter(item => item.script);
 const usableItemMap = new Map(usableItems.map(item => [item.id, item]));
-```
+
 
 // ============================================
 // MODULE EXPORT AND COMMAND DEFINITION
 // ============================================
 
-```javascript
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('use')
         .setDescription('Use an item from your inventory'),
-```
+
 
 // ============================================
 // MAIN EXECUTE METHOD
 // ============================================
 
-```javascript
+
     async execute(interaction) {
         // Defer with ephemeral reply
         await interaction.deferReply({ ephemeral: true });
@@ -135,13 +135,12 @@ module.exports = {
             }).catch(() => {}); // Ignore errors if message was deleted
         });
     },
-```
+
 
 // ============================================
 // PAGINATION METHOD
 // ============================================
 
-```javascript
     // Paginate items based on Discord's description limit
     paginateItems(items) {
         const maxDescriptionLength = 4096; // Discord's embed description limit
@@ -242,13 +241,13 @@ module.exports = {
         
         return pages.length > 0 ? pages : [[]];
     },
-```
+
 
 // ============================================
 // EMBED CREATION METHOD
 // ============================================
 
-```javascript
+
     // Create embed showing usable items
     createUsableItemsEmbed(pageItems, page, user, totalPages) {
         // Build description from page items
@@ -315,13 +314,13 @@ module.exports = {
 
         return embed;
     },
-```
+
 
 // ============================================
 // COMPONENT CREATION METHOD
 // ============================================
 
-```javascript
+
     createComponents(pageItems, page, totalPages, userId, channelId) {
         const components = [];
 
@@ -400,13 +399,12 @@ module.exports = {
 
         return components;
     },
-```
+
 
 // ============================================
 // UTILITY METHODS
 // ============================================
 
-```javascript
     getTypeEmoji(type) {
         const emojis = {
             'mineLoot': '⛏️',
@@ -435,4 +433,3 @@ module.exports = {
         return names[type] || type.charAt(0).toUpperCase() + type.slice(1);
     }
 };
-```
