@@ -2,6 +2,7 @@
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const generateShop = require('../generateShop');
 const getPlayerStats = require('../calculatePlayerStat');
+const simpleHazardScanner = require('./mining/hazards/simpleHazardScanner');
 const { canStartBreak, emergencyBreakReset } = require('./mining/mining_break_hotfix');
 // Import improved durability handling for pickaxe breaking
 const { handlePickaxeDurability } = require('./mining/improvedDurabilityHandling');
@@ -1249,6 +1250,10 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
 // Enhanced break start with instance management
 async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1, preSelectedEvent = null) {
     try {
+        // In startBreak() or endMiningSession()
+        dbEntry.gameData.hazardScanDone = false;
+        await dbEntry.save();
+
         const channelId = channel.id;
         const now = Date.now();
         const members = channel.members.filter(m => !m.user.bot);
@@ -1844,9 +1849,19 @@ module.exports = async (channel, dbEntry, json, client) => {
             // Refresh dbEntry to get the updated flag
             dbEntry = await getCachedDBEntry(channel.id, true);
         }
-        
-        // Perform geological scan (2-hour cooldown per channel)
-        await performGeologicalScan(channel, dbEntry, serverPowerLevel, serverName);
+
+        // Perform simple hazard scan
+        if (!dbEntry.gameData?.hazardScanDone) {
+            await simpleHazardScanner.performSimpleHazardScan(
+                channel,
+                hazardsData,
+                serverPowerLevel,
+                serverName,
+                mineTypeId
+            );
+            dbEntry.gameData.hazardScanDone = true;
+            await dbEntry.save();
+        }
         
         // Check if we're in a break period with proper time validation
         const inBreak = isBreakPeriod(dbEntry);
