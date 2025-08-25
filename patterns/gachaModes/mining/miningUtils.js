@@ -258,9 +258,12 @@ function checkPickaxeBreak(pickaxe, tileHardness = 1) {
 }
 
 // Minecart Summary Helper
-async function getMinecartSummary(dbEntry) {
+async function getMinecartSummary(channelId) {
     // Fetch only minecart data
-    const freshEntry = await gachaVC.findOne({ channelId:dbEntry.channelId }).lean();
+    const freshEntry = await gachaVC.findOne(
+        { channelId }, 
+        { 'gameData.minecart': 1 }
+    ).lean();
 
     const minecart = freshEntry?.gameData?.minecart;
     
