@@ -14,7 +14,7 @@ const {
     ITEM_FINDING_CONFIG,
     calculateItemFindChance,
     getAvailableRegularItems 
-} = require('./gachaModes/mining/miningConstants');
+} = require('./gachaModes/mining/miningConstants_unified');
 const { 
     tryConditionalDrop,
     isConditionalItem 

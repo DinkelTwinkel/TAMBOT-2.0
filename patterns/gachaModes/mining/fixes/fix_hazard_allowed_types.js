@@ -1,7 +1,7 @@
 // Fix for hazard spawning to respect server-specific allowed types
 // This module ensures that only hazards listed in the server's allowedTypes configuration will spawn
 
-const { ENCOUNTER_CONFIG, ENCOUNTER_TYPES } = require('../miningConstants');
+const { ENCOUNTER_CONFIG, ENCOUNTER_TYPES } = require('../miningConstants_unified');
 
 /**
  * Get the server configuration for a specific mine
@@ -75,7 +75,7 @@ function filterAllowedTypes(availableTypes, serverConfig) {
  * @returns {string|null} The selected encounter type or null
  */
 function getFilteredEncounterType(powerLevel, mineTypeId) {
-    const { ENCOUNTER_SPAWN_CONFIG } = require('../miningConstants');
+    const { ENCOUNTER_SPAWN_CONFIG } = require('../miningConstants_unified');
     
     // Get base configuration for power level
     const config = ENCOUNTER_SPAWN_CONFIG[powerLevel] || ENCOUNTER_SPAWN_CONFIG[1];
@@ -246,7 +246,7 @@ function debugHazardConfig(mineTypeId) {
         
         // Check if the allowed types exist in ENCOUNTER_CONFIG
         if (serverConfig.hazardConfig.allowedTypes) {
-            const { ENCOUNTER_CONFIG } = require('../miningConstants');
+            const { ENCOUNTER_CONFIG } = require('../miningConstants_unified');
             for (const type of serverConfig.hazardConfig.allowedTypes) {
                 if (ENCOUNTER_CONFIG[type]) {
                     console.log(`  ✓ ${type} is valid (${ENCOUNTER_CONFIG[type].name})`);

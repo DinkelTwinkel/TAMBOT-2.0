@@ -27,7 +27,7 @@ let encounterStorage, ENCOUNTER_TYPES, ENCOUNTER_CONFIG;
 try {
     // Try loading as encounter modules first
     encounterStorage = require('../encounterStorage');
-    const constants = require('../miningConstants');
+    const constants = require('../miningConstants_unified');
     ENCOUNTER_TYPES = constants.ENCOUNTER_TYPES;
     ENCOUNTER_CONFIG = constants.ENCOUNTER_CONFIG;
 } catch (e) {

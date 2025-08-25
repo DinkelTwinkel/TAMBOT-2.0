@@ -7,7 +7,7 @@ const {
     TILE_TYPES,
     POWER_LEVEL_CONFIG,
     getHazardSpawnChance
-} = require('./miningConstants');
+} = require('./miningConstants_unified');
 const hazardStorage = require('./hazardStorage');
 const { createMapSeed, seededRandom } = require('./miningUtils');
 const coordinateManager = require('./coordinateManager');

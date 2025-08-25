@@ -1,6 +1,6 @@
 // hazardScanner.js - Geological Anomaly Detection System
 const { EmbedBuilder } = require('discord.js');
-const { getHazardSpawnChance } = require('../miningConstants');
+const { getHazardSpawnChance } = require('../miningConstants_unified');
 
 // Server geological profiles based on gachaServers.json
 const GEOLOGICAL_PROFILES = {
