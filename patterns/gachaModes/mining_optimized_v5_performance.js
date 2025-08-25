@@ -1811,7 +1811,7 @@ module.exports = async (channel, dbEntry, json, client) => {
 
         // Enhanced power level detection with error handling
         let serverPowerLevel = 1; // Default to level 1
-        if (json && typeof json.power === 'number' && json.power >= 1 && json.power <= 7) {
+        if (json && typeof json.power === 'number' && json.power >= 1 && json.power <= 10) {
             serverPowerLevel = json.power;
         } else if (json && json.power) {
             console.warn(`[MINING] Invalid power level in json: ${json.power}, using default 1`);
@@ -1850,18 +1850,7 @@ module.exports = async (channel, dbEntry, json, client) => {
             dbEntry = await getCachedDBEntry(channel.id, true);
         }
 
-        // Perform simple hazard scan
-        if (!dbEntry.gameData?.hazardScanDone) {
-            await simpleHazardScanner.performSimpleHazardScan(
-                channel,
-                hazardsData,
-                serverPowerLevel,
-                serverName,
-                mineTypeId
-            );
-            dbEntry.gameData.hazardScanDone = true;
-            await dbEntry.save();
-        }
+        // Remove this scan from here - it's in the wrong place
         
         // Check if we're in a break period with proper time validation
         const inBreak = isBreakPeriod(dbEntry);
@@ -2148,6 +2137,16 @@ if (shouldStartBreak) {
                 mineTypeId  // Pass mine type ID to filter allowed hazards
             );
             hazardsChanged = true;
+            
+            // Perform simple hazard scan at session start
+            console.log(`[HAZARD SCAN] Performing initial scan for new mining session`);
+            await simpleHazardScanner.performSimpleHazardScan(
+                channel,
+                hazardsData,
+                serverPowerLevel,
+                serverName,
+                mineTypeId
+            );
         }
 
         // Check for new players

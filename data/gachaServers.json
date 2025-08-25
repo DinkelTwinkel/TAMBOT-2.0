@@ -1557,7 +1557,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "Rubies here contain the essence of primordial fire.",
-        "power": 7.5,
+        "power": 7,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.18,
@@ -1607,7 +1607,7 @@
         "rarity": "legendary",
         "spawnWeight": 0,
         "description": "The final descent into the volcanic heart.",
-        "power": 8.5,
+        "power": 8,
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.25,
