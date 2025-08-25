@@ -26,6 +26,166 @@ try {
     aiShopDialogue = null;
 }
 
+// Rate limiting for shop updates (3 updates per player every 10 seconds)
+const shopUpdateRateLimit = new Map(); // playerId -> { count: number, resetTime: timestamp }
+const RATE_LIMIT_COUNT = 3;
+const RATE_LIMIT_WINDOW = 10000; // 10 seconds in milliseconds
+
+// Memory for recent purchases (kept for 20 seconds)
+const recentPurchasesMemory = new Map(); // playerId -> Array of { item, price, timestamp }
+const PURCHASE_MEMORY_DURATION = 20000; // 20 seconds in milliseconds
+
+/**
+ * Check if a player can use AI for shop updates (rate limiting)
+ * Returns true if AI can be used, false if should fall back to non-AI
+ * @param {string} playerId - The player's ID
+ * @returns {boolean} - Whether the player can use AI for shop updates
+ */
+function canUseAIForShop(playerId) {
+    const now = Date.now();
+    const playerLimit = shopUpdateRateLimit.get(playerId);
+    
+    if (!playerLimit || now > playerLimit.resetTime) {
+        // No limit or limit expired, reset
+        shopUpdateRateLimit.set(playerId, {
+            count: 1,
+            resetTime: now + RATE_LIMIT_WINDOW
+        });
+        return true;
+    }
+    
+    if (playerLimit.count < RATE_LIMIT_COUNT) {
+        // Still under limit
+        playerLimit.count++;
+        return true;
+    }
+    
+    // Rate limited - return false to use fallback dialogue
+    console.log(`[GenerateShop] Player ${playerId} rate limited, using fallback dialogue`);
+    return false;
+}
+
+/**
+ * Add a purchase to memory
+ * @param {string} playerId - The player's ID
+ * @param {Object} item - The item purchased
+ * @param {number} price - The price paid
+ */
+function rememberPurchase(playerId, item, price) {
+    const now = Date.now();
+    
+    // Get or create purchase history for player
+    let purchases = recentPurchasesMemory.get(playerId) || [];
+    
+    // Add new purchase
+    purchases.push({
+        item: item,
+        price: price,
+        timestamp: now
+    });
+    
+    // Clean up old purchases (older than 20 seconds)
+    purchases = purchases.filter(p => now - p.timestamp < PURCHASE_MEMORY_DURATION);
+    
+    // Update memory
+    recentPurchasesMemory.set(playerId, purchases);
+    
+    // Schedule cleanup if this is the only purchase
+    if (purchases.length === 1) {
+        setTimeout(() => {
+            const currentPurchases = recentPurchasesMemory.get(playerId) || [];
+            const filteredPurchases = currentPurchases.filter(p => Date.now() - p.timestamp < PURCHASE_MEMORY_DURATION);
+            if (filteredPurchases.length === 0) {
+                recentPurchasesMemory.delete(playerId);
+            } else {
+                recentPurchasesMemory.set(playerId, filteredPurchases);
+            }
+        }, PURCHASE_MEMORY_DURATION);
+    }
+}
+
+/**
+ * Get recent purchases for a player
+ * @param {string} playerId - The player's ID
+ * @returns {Array} - Array of recent purchases
+ */
+function getRecentPurchases(playerId) {
+    const now = Date.now();
+    let purchases = recentPurchasesMemory.get(playerId) || [];
+    
+    // Filter out expired purchases
+    purchases = purchases.filter(p => now - p.timestamp < PURCHASE_MEMORY_DURATION);
+    
+    if (purchases.length === 0) {
+        recentPurchasesMemory.delete(playerId);
+        return [];
+    }
+    
+    recentPurchasesMemory.set(playerId, purchases);
+    return purchases;
+}
+
+/**
+ * Get information about other active VCs the player is connected to
+ * @param {string} playerId - The player's ID
+ * @param {string} currentChannelId - The current channel ID to exclude
+ * @returns {Object|null} - Information about other VC or null
+ */
+async function getPlayerOtherVCInfo(playerId, currentChannelId) {
+    try {
+        // Find all active VCs where the user might be connected
+        const activeVCs = await GachaVC.find({ 
+            connectedUsers: { $in: [playerId] } 
+        }).lean();
+        
+        // Filter out the current channel
+        const otherVCs = activeVCs.filter(vc => vc.channelId !== currentChannelId);
+        
+        if (otherVCs.length === 0) return null;
+        
+        // Get the first other VC they're connected to
+        const otherVC = otherVCs[0];
+        
+        // Find the gacha server info
+        const vcInfo = gachaData.find(g => g.id === otherVC.typeId);
+        
+        return {
+            name: vcInfo?.name || 'Unknown location',
+            type: vcInfo?.type || 'unknown',
+            description: vcInfo?.description || '',
+            power: vcInfo?.power || 1,
+            shop: vcInfo?.shop || null
+        };
+    } catch (error) {
+        console.error('[GenerateShop] Error getting player VC info:', error);
+        return null;
+    }
+}
+
+/**
+ * Clean up expired rate limits and purchase memory periodically
+ */
+setInterval(() => {
+    const now = Date.now();
+    
+    // Clean up rate limits
+    for (const [playerId, limit] of shopUpdateRateLimit.entries()) {
+        if (now > limit.resetTime) {
+            shopUpdateRateLimit.delete(playerId);
+        }
+    }
+    
+    // Clean up purchase memory
+    for (const [playerId, purchases] of recentPurchasesMemory.entries()) {
+        const validPurchases = purchases.filter(p => now - p.timestamp < PURCHASE_MEMORY_DURATION);
+        if (validPurchases.length === 0) {
+            recentPurchasesMemory.delete(playerId);
+        } else {
+            recentPurchasesMemory.set(playerId, validPurchases);
+        }
+    }
+}, 30000); // Run every 30 seconds
+
 function seededRandom(seed) {
     let x = Math.sin(seed++) * 10000;
     return x - Math.floor(x);
@@ -558,7 +718,7 @@ function getAIShopDialogue() {
 }
 
 /**
- * Generate purchase dialogue using AI
+ * Generate purchase dialogue using AI with rate limiting and VC awareness
  * @param {Object} shop - Shop data
  * @param {Object} item - Item being purchased
  * @param {number} price - Purchase price
@@ -567,20 +727,48 @@ function getAIShopDialogue() {
  * @returns {Promise<string>} - Generated dialogue or fallback
  */
 async function generatePurchaseDialogue(shop, item, price, buyer, quantity = 1, playerContext = null) {
-    if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
-        return shop.successBuy?.[0] || "A pleasure doing business!";
+    // Check rate limit first
+    const useAI = canUseAIForShop(buyer?.id || 'unknown');
+    
+    if (!useAI || !aiShopDialogue || !aiShopDialogue.isAvailable()) {
+        // Use fallback dialogue when rate limited or AI unavailable
+        const fallbacks = shop.successBuy || ["A pleasure doing business!"];
+        return fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
     
     try {
-        return await aiShopDialogue.generatePurchaseDialogue(shop, item, price, buyer, quantity, playerContext);
+        // Remember this purchase
+        if (buyer?.id) {
+            rememberPurchase(buyer.id, item, price);
+        }
+        
+        // Get recent purchases for context
+        const recentPurchases = buyer?.id ? getRecentPurchases(buyer.id) : [];
+        
+        // Get other VC info if available
+        const otherVCInfo = buyer?.id && playerContext?.currentChannelId 
+            ? await getPlayerOtherVCInfo(buyer.id, playerContext.currentChannelId)
+            : null;
+        
+        // Enhance player context with VC info and recent purchases
+        const enhancedContext = {
+            ...playerContext,
+            recentPurchases: recentPurchases,
+            connectedToOtherVC: !!otherVCInfo,
+            otherVCName: otherVCInfo?.name,
+            otherVCType: otherVCInfo?.type
+        };
+        
+        return await aiShopDialogue.generatePurchaseDialogue(shop, item, price, buyer, quantity, enhancedContext);
     } catch (error) {
         console.error('[GenerateShop] Purchase dialogue generation failed:', error);
-        return shop.successBuy?.[0] || "A pleasure doing business!";
+        const fallbacks = shop.successBuy || ["A pleasure doing business!"];
+        return fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
 }
 
 /**
- * Generate sell dialogue using AI
+ * Generate sell dialogue using AI with rate limiting and VC awareness
  * @param {Object} shop - Shop data
  * @param {Object} item - Item being sold
  * @param {number} price - Sell price
@@ -588,15 +776,38 @@ async function generatePurchaseDialogue(shop, item, price, buyer, quantity = 1, 
  * @returns {Promise<string>} - Generated dialogue or fallback
  */
 async function generateSellDialogue(shop, item, price, quantity = 1, playerContext = null, seller = null) {
-    if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
-        return shop.successSell?.[0] || "I'll take that off your hands.";
+    // Check rate limit first
+    const useAI = canUseAIForShop(seller?.id || 'unknown');
+    
+    if (!useAI || !aiShopDialogue || !aiShopDialogue.isAvailable()) {
+        // Use fallback dialogue when rate limited or AI unavailable
+        const fallbacks = shop.successSell || ["I'll take that off your hands."];
+        return fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
     
     try {
-        return await aiShopDialogue.generateSellDialogue(shop, item, price, quantity, playerContext, seller);
+        // Get recent purchases for context
+        const recentPurchases = seller?.id ? getRecentPurchases(seller.id) : [];
+        
+        // Get other VC info if available
+        const otherVCInfo = seller?.id && playerContext?.currentChannelId 
+            ? await getPlayerOtherVCInfo(seller.id, playerContext.currentChannelId)
+            : null;
+        
+        // Enhance player context with VC info and recent purchases
+        const enhancedContext = {
+            ...playerContext,
+            recentPurchases: recentPurchases,
+            connectedToOtherVC: !!otherVCInfo,
+            otherVCName: otherVCInfo?.name,
+            otherVCType: otherVCInfo?.type
+        };
+        
+        return await aiShopDialogue.generateSellDialogue(shop, item, price, quantity, enhancedContext, seller);
     } catch (error) {
         console.error('[GenerateShop] Sell dialogue generation failed:', error);
-        return shop.successSell?.[0] || "I'll take that off your hands.";
+        const fallbacks = shop.successSell || ["I'll take that off your hands."];
+        return fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
 }
 
@@ -609,14 +820,16 @@ async function generateSellDialogue(shop, item, price, quantity = 1, playerConte
  */
 async function generatePoorDialogue(shop, item, shortBy) {
     if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
-        return shop.failureTooPoor?.[0] || "You need more coins!";
+        const fallbacks = shop.failureTooPoor || ["You need more coins!"];
+        return fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
     
     try {
         return await aiShopDialogue.generatePoorDialogue(shop, item, shortBy);
     } catch (error) {
         console.error('[GenerateShop] Poor dialogue generation failed:', error);
-        return shop.failureTooPoor?.[0] || "You need more coins!";
+        const fallbacks = shop.failureTooPoor || ["You need more coins!"];
+        return fallbacks[Math.floor(Math.random() * fallbacks.length)];
     }
 }
 
@@ -630,20 +843,22 @@ async function generatePoorDialogue(shop, item, shortBy) {
  */
 async function generateNoItemDialogue(shop, item, quantity, available) {
     if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
+        const fallbacks = shop.failureOther || ["You don't seem to have that item."];
         if (available === 0) {
-            return shop.failureOther?.[0] || "You don't seem to have that item.";
+            return fallbacks[Math.floor(Math.random() * fallbacks.length)];
         }
-        return shop.failureOther?.[0] || `You only have ${available} of those.`;
+        return `You only have ${available} of those.`;
     }
     
     try {
         return await aiShopDialogue.generateNoItemDialogue(shop, item, quantity, available);
     } catch (error) {
         console.error('[GenerateShop] No item dialogue generation failed:', error);
+        const fallbacks = shop.failureOther || ["You don't seem to have that item."];
         if (available === 0) {
-            return shop.failureOther?.[0] || "You don't seem to have that item.";
+            return fallbacks[Math.floor(Math.random() * fallbacks.length)];
         }
-        return shop.failureOther?.[0] || `You only have ${available} of those.`;
+        return `You only have ${available} of those.`;
     }
 }
 
@@ -656,3 +871,6 @@ module.exports.generatePurchaseDialogue = generatePurchaseDialogue;
 module.exports.generateSellDialogue = generateSellDialogue;
 module.exports.generatePoorDialogue = generatePoorDialogue;
 module.exports.generateNoItemDialogue = generateNoItemDialogue;
+module.exports.rememberPurchase = rememberPurchase;
+module.exports.getRecentPurchases = getRecentPurchases;
+module.exports.canUseAIForShop = canUseAIForShop;

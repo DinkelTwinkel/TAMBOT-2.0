@@ -3,6 +3,8 @@
 
 const OpenAI = require('openai');
 const InnConfig = require('./innConfig');
+const gachaServers = require('../../../data/gachaServers.json');
+const GachaVC = require('../../../models/activevcs');
 
 class InnAIManager {
     constructor() {
@@ -27,6 +29,49 @@ class InnAIManager {
      */
     isAvailable() {
         return this.openai !== null;
+    }
+
+    /**
+     * Capitalize first letter of each word in a name
+     */
+    capitalizePlayerName(name) {
+        if (!name) return 'Traveler';
+        return name.split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    }
+
+    /**
+     * Get active VC info for a user
+     */
+    async getUserActiveVCInfo(userId, currentChannelId) {
+        try {
+            // Find all active VCs where the user might be connected
+            const activeVCs = await GachaVC.find({ 
+                connectedUsers: { $in: [userId] } 
+            }).lean();
+            
+            // Filter out the current channel
+            const otherVCs = activeVCs.filter(vc => vc.channelId !== currentChannelId);
+            
+            if (otherVCs.length === 0) return null;
+            
+            // Get the first other VC they're connected to
+            const otherVC = otherVCs[0];
+            
+            // Find the gacha server info
+            const vcInfo = gachaServers.find(g => g.id === otherVC.typeId);
+            
+            return {
+                name: vcInfo?.name || 'Unknown location',
+                type: vcInfo?.type || 'unknown',
+                description: vcInfo?.description || '',
+                power: vcInfo?.power || 1
+            };
+        } catch (error) {
+            console.error('[InnAI] Error getting user VC info:', error);
+            return null;
+        }
     }
 
     /**
@@ -69,6 +114,29 @@ class InnAIManager {
                 "This hits the spot!",
                 "I needed this today."
             ],
+            playerWithVC: {
+                fromMining: [
+                    "Need a quick bite before heading back to the mines!",
+                    "Taking a break from all that digging.",
+                    "Coal dust makes me thirsty, perfect timing!",
+                    "My pickaxe can wait, food first!",
+                    "The mines are calling but I need sustenance!"
+                ],
+                fromOtherInn: [
+                    "Just stopping by from another tavern!",
+                    "Thought I'd check out the competition!",
+                    "The other place was too crowded.",
+                    "Heard this place has better food!",
+                    "Making the rounds of all the inns today!"
+                ],
+                general: [
+                    "Quick stop before I head back!",
+                    "Can't stay long, just passing through!",
+                    "Grabbing supplies before returning!",
+                    "Just need a quick refill!",
+                    "I'll be back to my work soon!"
+                ]
+            },
             events: {
                 barFight: {
                     start: [
@@ -154,26 +222,60 @@ class InnAIManager {
     }
 
     /**
-     * Generate player dialogue
+     * Generate player dialogue with VC awareness
      */
     async generatePlayerDialogue(player, item, price, context = {}) {
-        if (!this.isAvailable()) {
-            return this.selectFallback(this.fallbackDialogue.player);
+        // Get player's other active VC if any
+        const otherVCInfo = await this.getUserActiveVCInfo(
+            context.playerId || player.id, 
+            context.currentChannelId
+        );
+        
+        // Select appropriate fallbacks based on VC info
+        let fallbacks = this.fallbackDialogue.player;
+        if (otherVCInfo) {
+            if (otherVCInfo.type === 'mining') {
+                fallbacks = this.fallbackDialogue.playerWithVC.fromMining;
+            } else if (otherVCInfo.type === 'innkeeper') {
+                fallbacks = this.fallbackDialogue.playerWithVC.fromOtherInn;
+            } else {
+                fallbacks = this.fallbackDialogue.playerWithVC.general;
+            }
         }
 
-        // Handle both string names and player objects
-        // Use display name (nickname) if available, otherwise username
-        const playerName = typeof player === 'string' 
+        if (!this.isAvailable()) {
+            return this.selectFallback(fallbacks);
+        }
+
+        // Handle both string names and player objects, and capitalize
+        let playerName = typeof player === 'string' 
             ? player 
             : (player.displayName || player.username || 'Customer');
         
+        // Capitalize player name properly
+        playerName = this.capitalizePlayerName(playerName);
+        
+        // Build context about where they're coming from/going
+        let vcContext = '';
+        if (otherVCInfo) {
+            if (otherVCInfo.type === 'mining') {
+                vcContext = `They are taking a break from mining at ${otherVCInfo.name}.`;
+            } else if (otherVCInfo.type === 'innkeeper') {
+                vcContext = `They are visiting from ${otherVCInfo.name}, another inn.`;
+            } else {
+                vcContext = `They are connected to ${otherVCInfo.name} and will return there soon.`;
+            }
+        }
+        
         const prompt = `Generate a brief customer comment for ${playerName} 
         buying ${item.name} for ${price} coins at an inn.
+        ${vcContext}
         ${context.previousPurchases > 3 ? 'They are a regular customer.' : 'They are a new customer.'}
-        Keep it natural and under 15 words.
-        Do not include quotation marks in the dialogue.`;
+        Keep it natural and under 15 words. If they're connected elsewhere, they might mention needing to get back.
+        Do not include quotation marks in the dialogue.
+        IMPORTANT: Always capitalize the first letter of each word in the player's name when mentioning them.`;
 
-        return await this.generate(prompt, this.fallbackDialogue.player);
+        return await this.generate(prompt, fallbacks);
     }
 
     /**

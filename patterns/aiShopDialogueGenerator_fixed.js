@@ -424,6 +424,16 @@ Respond with ONLY the dialogue or action, UNDER 100 CHARACTERS.`;
     }
 
     /**
+     * Capitalize first letter of each word in a name
+     */
+    capitalizePlayerName(name) {
+        if (!name) return 'Traveler';
+        return name.split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    }
+
+    /**
      * Generate dialogue for successful purchase
      * @param {Object} shop - Shop data
      * @param {Object} item - Item being purchased
@@ -510,7 +520,7 @@ Context: HELLUNGI is a dimensional abyss where everyone is trapped. No sky, no g
 ${customerProfile}
 
 A customer just purchased: ${quantity}x ${item.name} for ${price} coins total (${pricePerItem} each)
-${buyer?.displayName ? `Customer name: "${buyer.displayName}"` : ''}
+${buyer?.displayName ? `Customer name: "${this.capitalizePlayerName(buyer.displayName)}"` : ''}
 ${buyer?.username && buyer?.username !== buyer?.displayName ? `(username: ${buyer.username})` : ''}
 ${playerContext ? `Customer wealth: ${playerContext.money} coins (${playerContext.wealthTier})` : ''}
 ${playerContext && playerContext.totalSpent > 0 ? `Total spent in your shop: ${playerContext.totalSpent} coins` : ''}
@@ -523,7 +533,8 @@ Generate SHORT success dialogue:
 - React to quantity (${quantity} items)
 - Stay in character
 - MAXIMUM 80 CHARACTERS (keep it concise but complete)
-${buyer?.displayName ? `- You MAY address the customer by name ("${buyer.displayName}") when it feels natural` : ''}
+${buyer?.displayName ? `- You MAY address the customer by name ("${this.capitalizePlayerName(buyer.displayName)}") when it feels natural` : ''}
+${playerContext?.connectedToOtherVC ? `- Customer is also connected to ${playerContext.otherVCName} (${playerContext.otherVCType === 'mining' ? 'mining' : playerContext.otherVCType === 'innkeeper' ? 'another inn' : 'another location'})` : ''}
 ${playerContext?.hasLegendary ? '- BE IN AWE of their legendary item(s) - they might help escape HELLUNGI!' : ''}
 ${playerContext?.hasMidasBurden ? '- Reference their cursed/blessed Midas item if appropriate' : ''}
 ${playerContext?.hasMultipleLegendaries ? '- Express hope that their legendaries might be the key to escape' : ''}
@@ -665,7 +676,7 @@ Context: HELLUNGI is a dimensional void where lost souls trade to survive.
 ${customerProfile}
 
 A customer just sold you: ${quantity}x ${item.name} for ${price} coins total (${pricePerItem} each)
-${seller?.displayName ? `Seller name: "${seller.displayName}"` : ''}
+${seller?.displayName ? `Seller name: "${this.capitalizePlayerName(seller.displayName)}"` : ''}
 ${seller?.username && seller?.username !== seller?.displayName ? `(username: ${seller.username})` : ''}
 ${playerContext ? `Customer current wealth: ${playerContext.money} coins` : ''}
 ${this.isGoodBuy(item, pricePerItem) ? 'This was a great deal for your shop!' : 'This was a fair price.'}
@@ -677,7 +688,8 @@ Generate SHORT sell acceptance:
 - React to quantity (${quantity} items)
 - Stay in character
 - MAXIMUM 80 CHARACTERS (keep it concise but complete)
-${seller?.displayName ? `- You MAY address the seller by name ("${seller.displayName}") when it feels natural` : ''}
+${seller?.displayName ? `- You MAY address the seller by name ("${this.capitalizePlayerName(seller.displayName)}") when it feels natural` : ''}
+${playerContext?.connectedToOtherVC ? `- Seller just came from ${playerContext.otherVCName} (${playerContext.otherVCType === 'mining' ? 'the mines' : playerContext.otherVCType === 'innkeeper' ? 'another tavern' : 'another place'})` : ''}
 ${playerContext?.hasLegendary ? '- REACT to a legendary hero selling items - show awe, suspicion, or opportunism' : ''}
 ${playerContext?.hasMultipleLegendaries ? '- Express shock that someone with multiple legendaries needs to sell' : ''}
 ${playerContext?.hasMidasBurden && playerContext?.midasBlessing === 0 ? '- Maybe reference their cursed luck' : ''}
