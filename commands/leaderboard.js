@@ -46,7 +46,7 @@ module.exports = {
       .setLabel('donate to jalito [1 coin]')
       .setStyle(ButtonStyle.Success);
 
-    const row = new ActionRowBuilder().addComponents(eatButton, donateJairus);
+    const row = new ActionRowBuilder().addComponents(eatButton);
 
     const reply = await interaction.editReply({
       embeds: [embed],
