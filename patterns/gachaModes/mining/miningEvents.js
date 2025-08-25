@@ -146,8 +146,7 @@ async function startRailBuildingEvent(channel, dbEntry) {
             `\n\n` +
             `🛤️ **New Rails:** ${totalNewRails} segments\n` +
             `📊 **Total Rails:** ${totalRailCount} segments\n\n` +
-            `⚡ **Rail Boost:** Players within 3 blocks of rails get **2x speed boost** for more actions per round!\n` +
-            `💡 **Persistence:** Rails are permanently stored and won't move when the map expands!`
+            `⚡ **Rail Boost:** Players within 3 blocks of rails get **2x speed boost** for more actions per round!\n`
         )
         .setColor(0x4169E1)
         .setTimestamp()

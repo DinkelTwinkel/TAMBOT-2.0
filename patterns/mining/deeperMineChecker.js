@@ -688,13 +688,23 @@ async function checkAndAddDeeperMineButton(embed, dbEntry, channelId) {
         
         if (!mineConfig) {
             console.log('[DEBUG-DEEPER] WARNING: No deeper level config for mine type:', mineTypeId);
-            // Show that this mine doesn't have deeper levels
+            // Show empty progress bar with unknown values
+            const emptyBar = '░'.repeat(10);
             embed.addFields({
                 name: '🔓 Deeper Level Progress',
-                value: 'This mine type does not have deeper levels available.',
+                value: `?????????????\n${emptyBar} ???/??? (?%)`,
                 inline: false
             });
-            return { embed, components: [] };
+            
+            // Create red dig deeper button that uses mystery narration
+            const button = new ButtonBuilder()
+                .setCustomId(`dig_mystery_${channelId}`)
+                .setLabel('⛏️ Dig Deeper')
+                .setStyle(ButtonStyle.Danger)
+                .setDisabled(false);
+            
+            const buttonRow = new ActionRowBuilder().addComponents(button);
+            return { embed, components: [buttonRow] };
         }
         
         // Check if already in a deeper mine
@@ -754,9 +764,9 @@ async function checkAndAddDeeperMineButton(embed, dbEntry, channelId) {
             });
         }
         
-        // Create button (enabled only if conditions are met)
+        // Always create button, but change style based on conditions
         if (conditionsMet) {
-            console.log('[DEBUG-DEEPER] CONDITIONS MET! Creating button...');
+            console.log('[DEBUG-DEEPER] CONDITIONS MET! Creating green button...');
             const buttonRow = createDigDeeperButton(channelId, mineTypeId, true);
             console.log('[DEBUG-DEEPER] Button created successfully');
             
@@ -770,11 +780,21 @@ async function checkAndAddDeeperMineButton(embed, dbEntry, channelId) {
             console.log('[DEBUG-DEEPER] Returning embed with components');
             console.log('[DEBUG-DEEPER] ====== END checkAndAddDeeperMineButton (SUCCESS) ======');
             return { embed, components: [buttonRow] };
+        } else {
+            // Create red button that uses the mystery narration
+            console.log('[DEBUG-DEEPER] Conditions NOT met, creating red button...');
+            const button = new ButtonBuilder()
+                .setCustomId(`dig_mystery_${channelId}`)
+                .setLabel('⛏️ Dig Deeper')
+                .setStyle(ButtonStyle.Danger)
+                .setDisabled(false);
+            
+            const buttonRow = new ActionRowBuilder().addComponents(button);
+            
+            console.log(`[DEBUG-DEEPER] Red button created for channel ${channelId}`);
+            console.log('[DEBUG-DEEPER] ====== END checkAndAddDeeperMineButton (RED BUTTON) ======');
+            return { embed, components: [buttonRow] };
         }
-        
-        console.log(`[DEBUG-DEEPER] Progress shown but conditions NOT met for channel ${channelId}`);
-        console.log('[DEBUG-DEEPER] ====== END checkAndAddDeeperMineButton (NO BUTTON) ======');
-        return { embed, components: [] };
         
     } catch (error) {
         console.error('[DEBUG-DEEPER] ERROR in checkAndAddDeeperMineButton:', error);

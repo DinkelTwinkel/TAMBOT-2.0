@@ -124,8 +124,13 @@ class InnPurchaseHandler {
         const shopData = shops.find(s => s.id === serverData.shop);
         if (!shopData) return null;
         
-        // Search in static items
+        // Combine static items with current rotational items from database
         const allItems = [...shopData.staticItems];
+        
+        // Add rotational items if they exist in the database
+        if (dbEntry.gameData?.currentRotationalItems && Array.isArray(dbEntry.gameData.currentRotationalItems)) {
+            allItems.push(...dbEntry.gameData.currentRotationalItems);
+        }
         
         // Find matching item
         const searchTerm = itemName.toLowerCase();

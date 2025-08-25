@@ -204,6 +204,12 @@ async function checkAndSetGeologicalCooldown(channelId) {
 // Main geological scan function
 async function performGeologicalScan(channel, dbEntry, powerLevel, serverName) {
     try {
+        // Validate powerLevel parameter
+        if (!powerLevel || powerLevel < 1 || powerLevel > 7 || isNaN(powerLevel)) {
+            console.error(`[GEOLOGICAL] Invalid power level received: ${powerLevel}`);
+            powerLevel = 1; // Default to level 1 if invalid
+        }
+        
         // Check cooldown first (2 hour cooldown per channel)
         const cooldownStatus = await checkAndSetGeologicalCooldown(channel.id);
         
@@ -323,6 +329,13 @@ function getColorByPowerLevel(level) {
         0x8B0000, // 6 - Dark Red
         0x4B0082  // 7 - Indigo
     ];
+    
+    // Handle undefined or invalid levels
+    if (!level || level < 1 || isNaN(level)) {
+        console.warn(`[GEOLOGICAL] Invalid power level: ${level}, using default color`);
+        return 0x808080; // Default to gray
+    }
+    
     return colors[Math.min(level - 1, 6)];
 }
 

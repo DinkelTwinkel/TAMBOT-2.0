@@ -316,6 +316,16 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         let chosenChannelType;
         let existingGulletChannel = null;
         let sanityOverride = false;
+        let debugOverride = false;
+        
+        // DEBUG: Check if this is the debug user
+        const DEBUG_USER_ID = "ewew";
+        const DEBUG_CHANNEL_ID = 5004; // Change this to the channel ID you want for debugging (e.g., 16 for gullet)
+        
+        if (roller.id === DEBUG_USER_ID) {
+            debugOverride = true;
+            console.log(`🔧 DEBUG MODE: User ${roller.id} detected - forcing channel type ${DEBUG_CHANNEL_ID}`);
+        }
         
         // Check player's sanity for gluttony roll chance
         const playerStats = await getPlayerStats(roller.id);
@@ -335,8 +345,18 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             }
         }
         
+        // DEBUG OVERRIDE: Force specific channel for debug user
+        if (debugOverride) {
+            chosenChannelType = channelData.find(ch => ch.id == DEBUG_CHANNEL_ID);
+            if (!chosenChannelType) {
+                console.error(`⚠️ DEBUG WARNING: Channel ID ${DEBUG_CHANNEL_ID} not found in gachaServers.json!`);
+                chosenChannelType = pickRandomChannelWeighted(channelData); // Fallback to normal roll
+            } else {
+                console.log(`🔧 DEBUG: Forcing channel type: ${chosenChannelType.name} for debug user`);
+            }
+        }
         // If sacrificing is active OR sanity override triggered, force roll to ???'s gullet (id: 16)
-        if (sacrificeData && sacrificeData.isSacrificing || sanityOverride) {
+        else if (sacrificeData && sacrificeData.isSacrificing || sanityOverride) {
             chosenChannelType = channelData.find(ch => ch.id == 16);
             if (!chosenChannelType) {
                 console.error("⚠️ Warning: ???'s gullet (id: 16) not found in gachaServers.json!");
@@ -496,7 +516,13 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         await userCooldown.save();
 
         // Send special message based on override type
-        if (sanityOverride && chosenChannelType.id == 16) {
+        if (debugOverride) {
+            await gachaRollChannel.send(
+                `🔧 **DEBUG MODE** 🔧\n` +
+                `**${rollerMember.user.tag}** Debug override active! Spawned in **${chosenChannelType.name}**\n` +
+                `⏰ Next roll available in **60 minutes**.`
+            );
+        } else if (sanityOverride && chosenChannelType.id == 16) {
             await gachaRollChannel.send(
                 `🧠💀 **MADNESS CONSUMES YOU** 🧠💀\n` +
                 `**${rollerMember.user.tag}** Your deteriorating sanity (${playerSanity}) draws you into **???'s gullet**!\n` +
@@ -516,7 +542,13 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         }
 
         // Send special message in the VC based on override type
-        if (sanityOverride && chosenChannelType.id == 16) {
+        if (debugOverride) {
+            await newGachaChannel.send(
+                `🔧 ${rollerMember} **DEBUG MODE ACTIVE** 🔧\n` +
+                `You've been spawned in ${chosenChannelType.name} for debugging purposes!\n` +
+                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+            );
+        } else if (sanityOverride && chosenChannelType.id == 16) {
             await newGachaChannel.send(
                 `🧠💀 ${rollerMember} **YOUR MIND UNRAVELS!** 🧠💀\n` +
                 `Your sanity (${playerSanity}) has led you to ${chosenChannelType.name}! The whispers grow louder...\n` +

@@ -127,6 +127,7 @@ class InnKeeperController {
                         'gameData.profitsDistributed': false,
                         'gameData.lastActivity': new Date(),
                         'gameData.stateVersion': (dbEntry.gameData.stateVersion || 0) + 1,
+                        'gameData.nextShopRefresh': dbEntry.gameData?.nextShopRefresh || new Date(now + 25 * 60 * 1000),
                         nextTrigger: new Date(now + 5000)
                     },
                     $unset: {
@@ -215,6 +216,9 @@ class InnKeeperController {
                 }
             }
 
+            // Check and refresh shop if needed
+            await this.checkAndRefreshShop(channelId, dbEntry, now);
+
             // Check work/break state with atomic operations
             const workState = await this.checkWorkStateAtomic(channel, channelId, now);
             if (workState.shouldReturn) {
@@ -286,13 +290,16 @@ class InnKeeperController {
     async initializeGameDataAtomic(channelId) {
         console.log('[InnKeeperV2] Initializing new game data atomically');
         
+        const now = Date.now();
         const initialData = {
             gamemode: 'innkeeper',
             sales: [],
             events: [],
             lastProfitDistribution: new Date(),
             lastActivity: new Date(),
-            lastShopGeneration: new Date(Date.now() - 5 * 60 * 1000),
+            lastShopGeneration: new Date(now - 5 * 60 * 1000),
+            nextShopRefresh: new Date(now + 25 * 60 * 1000), // Shop refresh in 25 minutes
+            currentRotationalItems: [], // Track current rotational items
             workState: 'working',
             workStartTime: new Date(),
             workPeriodId: `work-${channelId}-${Date.now()}`, // Add unique work period ID
@@ -395,6 +402,7 @@ class InnKeeperController {
                         'gameData.stateVersion': currentVersion + 1,
                         'gameData.sales': [],
                         'gameData.events': [],
+                        'gameData.nextShopRefresh': new Date(now + 25 * 60 * 1000), // Reset shop refresh timer
                         nextTrigger: new Date(now + 10000)
                     }
                 },
@@ -1005,6 +1013,74 @@ class InnKeeperController {
                     }
                 }
             );
+        }
+    }
+
+    /**
+     * Check and refresh shop inventory if needed
+     */
+    async checkAndRefreshShop(channelId, dbEntry, now) {
+        try {
+            // Check if nextShopRefresh exists and if it's time to refresh
+            const nextShopRefresh = dbEntry.gameData?.nextShopRefresh;
+            
+            if (!nextShopRefresh || new Date(nextShopRefresh).getTime() <= now) {
+                console.log('[InnKeeperV2] Shop refresh needed - generating new inventory');
+                
+                // Get server and shop data
+                const serverData = gachaServers.find(s => s.id === String(dbEntry.typeId));
+                if (!serverData) {
+                    console.error('[InnKeeperV2] No server data found for shop refresh');
+                    return;
+                }
+                
+                const shopData = shops.find(s => s.id === serverData.shop);
+                if (!shopData) {
+                    console.error('[InnKeeperV2] No shop data found for shop refresh');
+                    return;
+                }
+                
+                // Generate new rotational items from the item pool
+                const rotationalItems = [];
+                const itemPoolCopy = [...shopData.itemPool];
+                const rotationalAmount = shopData.rotationalAmount || 3;
+                
+                // Randomly select items from the pool
+                for (let i = 0; i < rotationalAmount && itemPoolCopy.length > 0; i++) {
+                    const randomIndex = Math.floor(Math.random() * itemPoolCopy.length);
+                    const selectedItem = itemPoolCopy.splice(randomIndex, 1)[0];
+                    rotationalItems.push(selectedItem);
+                }
+                
+                // Update database with new shop inventory and next refresh time
+                const nextRefreshTime = new Date(now + 25 * 60 * 1000); // 25 minutes from now
+                
+                const updated = await ActiveVCs.findOneAndUpdate(
+                    { channelId: channelId },
+                    {
+                        $set: {
+                            'gameData.nextShopRefresh': nextRefreshTime,
+                            'gameData.currentRotationalItems': rotationalItems,
+                            'gameData.lastShopGeneration': new Date()
+                        }
+                    },
+                    { new: true }
+                );
+                
+                if (updated) {
+                    console.log(`[InnKeeperV2] Shop refreshed with ${rotationalItems.length} new items. Next refresh at ${nextRefreshTime.toISOString()}`);
+                    console.log(`[InnKeeperV2] New rotational items: ${rotationalItems.join(', ')}`);
+                } else {
+                    console.error('[InnKeeperV2] Failed to update shop inventory');
+                }
+            } else {
+                // Log time until next refresh
+                const timeUntilRefresh = new Date(nextShopRefresh).getTime() - now;
+                const minutesUntilRefresh = Math.ceil(timeUntilRefresh / 60000);
+                console.log(`[InnKeeperV2] Shop refresh in ${minutesUntilRefresh} minutes`);
+            }
+        } catch (error) {
+            console.error('[InnKeeperV2] Error checking/refreshing shop:', error);
         }
     }
 

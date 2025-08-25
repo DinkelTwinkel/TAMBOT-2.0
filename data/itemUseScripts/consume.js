@@ -88,14 +88,14 @@ module.exports = async function consume(context) {
         publicMessage += `! ${item.type === 'consumable' && item.subtype === 'food' ? '🍖' : item.type === 'consumable' && item.subtype === 'drink' ? '🍺' : '✨'}`;
         
         // Send public message as the main interaction reply
-        const replyMsg = await interaction.editReply({ 
+        const replyMsg = await channel.send({ 
             content: publicMessage
         });
         // Register for auto-cleanup
-        await registerBotMessage(interaction.guild.id, interaction.channel.id, replyMsg.id, 5);
+        //await registerBotMessage(interaction.guild.id, interaction.channel.id, replyMsg.id, 5);
         
         // Send detailed info as ephemeral follow-up
-        await interaction.followUp({ 
+        await interaction.editReply({ 
             embeds: [new EmbedBuilder()
                 .setTitle('✅ Item Consumed')
                 .setDescription(description)
@@ -189,14 +189,14 @@ module.exports = async function consume(context) {
             toolMessage += `! 🔧💥`;
             
             // Send public message as the main interaction reply
-            const toolReplyMsg = await interaction.editReply({
+            const toolReplyMsg = await channel.send({
             content: toolMessage
             });
             // Register for auto-cleanup
             await registerBotMessage(interaction.guild.id, interaction.channel.id, toolReplyMsg.id, 5);
             
             // Send private embed as follow-up for tool consumption
-            await interaction.followUp({ 
+            await interaction.editReply({ 
             embeds: [new EmbedBuilder()
             .setTitle('🔧➡️🍴 Tool Consumed!')
             .setDescription(description)

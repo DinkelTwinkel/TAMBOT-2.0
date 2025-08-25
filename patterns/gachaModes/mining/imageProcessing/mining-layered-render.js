@@ -9,6 +9,18 @@ const fs = require('fs').promises;
 const { generateThemeImages } = require('./generateMissingImages');
 const railStorage = require('../railStorage');
 
+// Import the tileset blending functionality
+const {
+    analyzeMineProgression,
+    calculateBlendingPercentage,
+    getBlendedTileTheme,
+    debugMineProgression,
+    shouldUseNextTierTile,
+    createTileSeed,
+    seededRandom,
+    TIER_GROUPS
+} = require('./tileset-blender');
+
 // Import the proper modules - check if they exist as encounter or hazard
 let encounterStorage, ENCOUNTER_TYPES, ENCOUNTER_CONFIG;
 try {
@@ -116,12 +128,9 @@ const TILE_COLORS = {
 };
 
 /**
- * Get the current mine theme from gachaServers.json theme field
+ * Get the current mine theme from gachaServers.json - ENHANCED with blending support
  */
-/**
- * Get the current mine theme from gachaServers.json theme or image field
- */
-function getMineTheme(dbEntry) {
+function getMineTheme(dbEntry, tileX = undefined, tileY = undefined, tileType = 'floor', channelId = '') {
     // Get the server type ID from the database entry
     const typeId = dbEntry?.typeId;
     if (!typeId) {
@@ -131,6 +140,19 @@ function getMineTheme(dbEntry) {
     
     // Load gachaServers.json to get the theme
     const gachaServers = require('../../../../data/gachaServers.json');
+    
+    // ENHANCED: Use blended tile theme if position is provided
+    if (tileX !== undefined && tileY !== undefined && channelId) {
+        const blendedTheme = getBlendedTileTheme(String(typeId), tileX, tileY, tileType, channelId, gachaServers);
+        if (blendedTheme) {
+            // Only log occasionally to avoid spam
+            if ((tileX + tileY) % 20 === 0) {
+                console.log(`Using blended theme: ${blendedTheme} for tile (${tileX}, ${tileY}) type ${tileType}`);
+            }
+            return blendedTheme;
+        }
+    }
+    
     const serverConfig = gachaServers.find(s => s.id === String(typeId));
     
     if (!serverConfig) {
@@ -144,7 +166,7 @@ function getMineTheme(dbEntry) {
         return serverConfig.theme;
     }
     
-    // NEW: Use the image field as the theme if no theme field exists
+    // Use the image field as the theme if no theme field exists
     // This handles deeper and ultra mines which use image names like:
     // coalMineDeep, coalMineUltra, diamondMineDeep, etc.
     if (serverConfig.image) {
@@ -176,12 +198,17 @@ function getMineTheme(dbEntry) {
 }
 
 /**
- * Load a random variation of a tile image
- * Tries to load variations like: coalMine_floor_1.png, coalMine_floor_2.png, etc.
- * If not found, generates the image programmatically and saves it
+ * ENHANCED: Load a random variation of a tile image with position-aware theming
+ * Now supports blended themes based on tile position
  */
-async function loadTileImageVariation(tileType, theme = MINE_THEMES.GENERIC, variationSeed = 0) {
-    const cacheKey = `${theme}_${tileType}_${variationSeed}`;
+async function loadTileImageVariation(tileType, theme = MINE_THEMES.GENERIC, variationSeed = 0, dbEntry = null, tileX = undefined, tileY = undefined, channelId = '') {
+    // ENHANCED: Get position-specific theme if context is provided
+    let actualTheme = theme;
+    if (dbEntry && channelId && tileX !== undefined && tileY !== undefined) {
+        actualTheme = getMineTheme(dbEntry, tileX, tileY, tileType, channelId);
+    }
+    
+    const cacheKey = `${actualTheme}_${tileType}_${variationSeed}_${tileX}_${tileY}`;
     
     if (tileImageCache.has(cacheKey)) {
         return tileImageCache.get(cacheKey);
@@ -218,22 +245,22 @@ async function loadTileImageVariation(tileType, theme = MINE_THEMES.GENERIC, var
     
     // Try theme-specific image first
     const primaryPath = variation > 1 ?
-        path.join(__dirname, '../../../../assets/game/tiles', `${theme}_${baseName}_${variation}.png`) :
-        path.join(__dirname, '../../../../assets/game/tiles', `${theme}_${baseName}.png`);
+        path.join(__dirname, '../../../../assets/game/tiles', `${actualTheme}_${baseName}_${variation}.png`) :
+        path.join(__dirname, '../../../../assets/game/tiles', `${actualTheme}_${baseName}.png`);
     
     try {
         const image = await loadImage(primaryPath);
         tileImageCache.set(cacheKey, image);
-        console.log(`Successfully loaded: ${primaryPath}`);
+        console.log(`Successfully loaded blended tile: ${primaryPath}`);
         return image;
     } catch (error) {
         // Image doesn't exist, try to generate it
-        console.log(`Image not found: ${primaryPath}, attempting to generate theme images...`);
+        console.log(`Blended image not found: ${primaryPath}, attempting to generate theme images...`);
         
         try {
             // Generate missing images for this theme
-            await generateThemeImages(theme);
-            console.log(`Generated images for theme: ${theme}`);
+            await generateThemeImages(actualTheme);
+            console.log(`Generated images for theme: ${actualTheme}`);
             
             // Try loading again after generation
             const image = await loadImage(primaryPath);
@@ -241,7 +268,7 @@ async function loadTileImageVariation(tileType, theme = MINE_THEMES.GENERIC, var
             console.log(`Successfully loaded after generation: ${primaryPath}`);
             return image;
         } catch (genError) {
-            console.warn(`Failed to generate or load tile image for theme ${theme}: ${primaryPath}`);
+            console.warn(`Failed to generate or load tile image for theme ${actualTheme}: ${primaryPath}`);
             console.warn(`Error details:`, genError.message);
             
             // Try fallback to generic theme
@@ -495,13 +522,13 @@ function calculateVisibleTiles(position, sightRadius, tiles, imageSettings) {
     return visible;
 }
 
-/**
- * Simple seeded random number generator
- */
-function seededRandom(seed) {
-    const x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
-}
+// /**
+//  * Simple seeded random number generator
+//  */
+// function seededRandom(seed) {
+//     const x = Math.sin(seed) * 10000;
+//     return x - Math.floor(x);
+// }
 
 /**
  * Check if a tile is a wall type
@@ -608,7 +635,7 @@ function drawFloorShadowGradients(ctx, tiles, x, y, pixelX, pixelY, tileSize, is
 /**
  * Draw floor layer
  */
-async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap, theme, channelId) {
+async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap, theme, channelId, dbEntry = null) {
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const tile = tiles[y] && tiles[y][x];
@@ -634,7 +661,7 @@ async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap
                 } else {
                     // Regular floor tile with random rotation
                     const variationSeed = (x * 7 + y * 13) % 100;
-                    const floorImage = await loadTileImageVariation(TILE_TYPES.FLOOR, theme, variationSeed);
+                    const floorImage = await loadTileImageVariation(TILE_TYPES.FLOOR, theme, variationSeed, dbEntry, x, y, channelId);
                     
                     // Generate seed for rotation based on channel ID and tile position
                     const channelHash = parseInt(channelId.slice(-6), 10) || 123456;
@@ -687,7 +714,7 @@ async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap
 /**
  * Draw a single wall tile with connection logic
  */
-async function drawWallTile(ctx, tile, x, y, tiles, floorTileSize, wallTileHeight, isVisible, wasDiscovered, theme, visibilityMap, channelId) {
+async function drawWallTile(ctx, tile, x, y, tiles, floorTileSize, wallTileHeight, isVisible, wasDiscovered, theme, visibilityMap, channelId, dbEntry = null) {
     // Check what type of tile is below this wall
     let tileBelow = null;
     let isTileBelowVisible = true;
@@ -751,7 +778,7 @@ async function drawWallTile(ctx, tile, x, y, tiles, floorTileSize, wallTileHeigh
     
     // Choose wall image based on connections
     const variationSeed = (x * 11 + y * 17) % 100;
-    const wallImage = await loadTileImageVariation(tile.type, theme, variationSeed);
+    const wallImage = await loadTileImageVariation(tile.type, theme, variationSeed, dbEntry, x, y, channelId);
     
     // Determine if we should flip horizontally based on channel ID and position
     const channelHash = parseInt(channelId.slice(-6), 10) || 123456;
@@ -1072,7 +1099,7 @@ function drawEncounterFallback(ctx, encounter, centerX, centerY, tileSize, isVis
 /**
  * Draw mine entrance tile
  */
-async function drawMineEntrance(ctx, x, y, floorTileSize, wallTileHeight, isVisible, wasDiscovered, theme, channelId) {
+async function drawMineEntrance(ctx, x, y, floorTileSize, wallTileHeight, isVisible, wasDiscovered, theme, channelId, dbEntry = null) {
     const pixelX = x * floorTileSize;
     const pixelY = y * floorTileSize;
     
@@ -1084,7 +1111,7 @@ async function drawMineEntrance(ctx, x, y, floorTileSize, wallTileHeight, isVisi
     
     // First, draw a themed floor tile underneath the entrance
     const variationSeed = (x * 7 + y * 13) % 100;
-    const floorImage = await loadTileImageVariation(TILE_TYPES.FLOOR, theme, variationSeed);
+    const floorImage = await loadTileImageVariation(TILE_TYPES.FLOOR, theme, variationSeed, dbEntry, x, y, channelId);
     
     if (floorImage) {
         // Generate seed for rotation based on channel ID and tile position
@@ -1195,7 +1222,7 @@ async function drawMineEntrance(ctx, x, y, floorTileSize, wallTileHeight, isVisi
  */
 async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wallTileHeight, 
                                   visibilityMap, theme, members, playerPositions, 
-                                  railsData, encountersData, imageSettings, channelId, inShortBreak = false) {
+                                  railsData, encountersData, imageSettings, channelId, inShortBreak = false, dbEntry = null) {
     
     // Collect all midground objects with their Y positions
     const midgroundObjects = [];
@@ -1355,12 +1382,12 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
             case 'wall':
                 await drawWallTile(ctx, obj.tile, obj.x, obj.y, tiles, 
                                  floorTileSize, wallTileHeight, 
-                                 obj.isVisible, obj.wasDiscovered, theme, visibilityMap, channelId);
+                                 obj.isVisible, obj.wasDiscovered, theme, visibilityMap, channelId, dbEntry);
                 break;
                 
             case 'entrance':
                 await drawMineEntrance(ctx, obj.x, obj.y, floorTileSize, wallTileHeight,
-                                     obj.isVisible, obj.wasDiscovered, theme, channelId);
+                                     obj.isVisible, obj.wasDiscovered, theme, channelId, dbEntry);
                 break;
                 
             case 'encounter':
@@ -2066,13 +2093,13 @@ async function generateTileMapImage(channel) {
     // During long breaks, hide players (they're in shop/event)
     if (inLongBreak) {
         // === LAYER 1: FLOOR LAYER ===
-        await drawFloorLayer(ctx, tiles, width, height, floorTileSize, visibilityMap, theme, channel.id);
+        await drawFloorLayer(ctx, tiles, width, height, floorTileSize, visibilityMap, theme, channel.id, refreshedEntry);
         
         // === LAYER 2: MIDGROUND LAYER (Y-sorted) - pass empty members to hide players ===
         const emptyMembers = new Map(); // Hide all players during long break
         await drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wallTileHeight,
                                 visibilityMap, theme, emptyMembers, {},
-                                railsData, encountersData, imageSettings, channel.id, false);
+                                railsData, encountersData, imageSettings, channel.id, false, refreshedEntry);
         
         // === LAYER 3: TOP LAYER ===
         await drawTopLayer(ctx, width, height, floorTileSize, theme);
@@ -2099,12 +2126,12 @@ async function generateTileMapImage(channel) {
     }
 
     // === LAYER 1: FLOOR LAYER ===
-    await drawFloorLayer(ctx, tiles, width, height, floorTileSize, visibilityMap, theme, channel.id);
+    await drawFloorLayer(ctx, tiles, width, height, floorTileSize, visibilityMap, theme, channel.id, result);
     
     // === LAYER 2: MIDGROUND LAYER (Y-sorted) ===
     await drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wallTileHeight,
                             visibilityMap, theme, members, playerPositions,
-                            railsData, encountersData, imageSettings, channel.id, inShortBreak);
+                            railsData, encountersData, imageSettings, channel.id, inShortBreak, result);
     
     // === LAYER 3: TOP LAYER ===
     await drawTopLayer(ctx, width, height, floorTileSize, theme);

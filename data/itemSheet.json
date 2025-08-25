@@ -852,6 +852,21 @@
     "duration": 65
   },
   {
+    "id": "63",
+    "name": "Adamantite Breaker",
+    "type": "tool",
+    "slot": "mining",
+    "description": "Forged from pure adamantite, this legendary pickaxe is harder than diamond yet impossibly light. Each swing cuts through stone like butter while moving at supernatural speeds.",
+    "value": 15000,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 13 },
+      { "name": "speed", "powerlevel": 4 }
+    ],
+    "image": "adamantite_pickaxe",
+    "durability": 110
+  },
+  {
     "id": "101",
     "name": "Ancient Coin",
     "type": "mineLoot",
@@ -1228,5 +1243,20 @@
     "image": "essence_hunger",
     "script": "consume",
     "duration": 80
-  }
+  },
+  {
+  "id": "63",
+  "name": "Adamantite Breaker",
+  "type": "tool",
+  "slot": "mining",
+  "description": "Forged from pure adamantite, this legendary pickaxe is harder than diamond yet impossibly light. Each swing cuts through stone like butter while moving at supernatural speeds.",
+  "value": 25000,
+  "vendable": true,
+  "abilities": [
+    { "name": "mining", "powerlevel": 15 },
+    { "name": "speed", "powerlevel": 5 }
+  ],
+  "image": "adamantite_pickaxe",
+  "durability": 250
+}
 ]

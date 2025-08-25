@@ -114,6 +114,11 @@ const {
     updateMovementActivity
 } = require('./mining/uniqueItemIntegration');
 
+// Import hazard allowed types fix
+const hazardAllowedTypesFix = require('./mining/fixes/fix_hazard_allowed_types');
+// Apply the hazard fix patch
+hazardAllowedTypesFix.patchHazardStorage();
+
 // Import maintenance display
 const {
     getMaintenanceWarnings,
@@ -1797,7 +1802,12 @@ module.exports = async (channel, dbEntry, json, client) => {
         }
 
         // Enhanced power level detection with error handling
-        const serverPowerLevel = json?.power || 1;
+        let serverPowerLevel = 1; // Default to level 1
+        if (json && typeof json.power === 'number' && json.power >= 1 && json.power <= 7) {
+            serverPowerLevel = json.power;
+        } else if (json && json.power) {
+            console.warn(`[MINING] Invalid power level in json: ${json.power}, using default 1`);
+        }
         
         // Get mine type ID for special mine handling (e.g., gullet meat items)
         const mineTypeId = dbEntry.typeId;
@@ -2108,7 +2118,8 @@ if (shouldStartBreak) {
                 mapData.width,
                 mapData.height,
                 hazardSpawnChance,
-                serverPowerLevel
+                serverPowerLevel,
+                mineTypeId  // Pass mine type ID to filter allowed hazards
             );
             hazardsChanged = true;
         }

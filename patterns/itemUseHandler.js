@@ -117,7 +117,7 @@ class ItemUseHandler {
         }
 
         // Defer the reply
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply({ ephemeral: true });
 
         // Get item data
         const item = itemMap.get(itemId);
