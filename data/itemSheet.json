@@ -916,7 +916,7 @@
     "vendable": false,
     "abilities": [
       { "name": "mining", "powerlevel": 1 },
-      { "name": "sanity", "powerlevel": -1 }
+      { "name": "sanity", "powerlevel": -10 }
     ],
     "image": "flesh_scrap",
     "script": "consume",
@@ -932,7 +932,7 @@
     "vendable": false,
     "abilities": [
       { "name": "mining", "powerlevel": 2 },
-      { "name": "sanity", "powerlevel": -1 }
+      { "name": "sanity", "powerlevel": -10 }
     ],
     "image": "sinew_strand",
     "script": "consume",
@@ -948,7 +948,7 @@
     "vendable": false,
     "abilities": [
       { "name": "speed", "powerlevel": 2 },
-      { "name": "sanity", "powerlevel": -2 }
+      { "name": "sanity", "powerlevel": -20 }
     ],
     "image": "bile_meat",
     "script": "consume",
@@ -964,7 +964,7 @@
     "vendable": false,
     "abilities": [
       { "name": "mining", "powerlevel": 3 },
-      { "name": "sanity", "powerlevel": -2 }
+      { "name": "sanity", "powerlevel": -20 }
     ],
     "image": "muscle_bundle",
     "script": "consume",
@@ -980,7 +980,7 @@
     "vendable": false,
     "abilities": [
       { "name": "luck", "powerlevel": 3 },
-      { "name": "sanity", "powerlevel": -3 }
+      { "name": "sanity", "powerlevel": -30 }
     ],
     "image": "organ_meat",
     "script": "consume",
@@ -997,7 +997,7 @@
     "abilities": [
       { "name": "mining", "powerlevel": 3 },
       { "name": "speed", "powerlevel": 2 },
-      { "name": "sanity", "powerlevel": -4 }
+      { "name": "sanity", "powerlevel": -40 }
     ],
     "image": "tract_section",
     "script": "consume",
@@ -1014,7 +1014,7 @@
     "abilities": [
       { "name": "mining", "powerlevel": 4 },
       { "name": "sight", "powerlevel": 2 },
-      { "name": "sanity", "powerlevel": -5 }
+      { "name": "sanity", "powerlevel": -50 }
     ],
     "image": "stomach_lining",
     "script": "consume",
@@ -1031,7 +1031,7 @@
     "abilities": [
       { "name": "mining", "powerlevel": 5 },
       { "name": "luck", "powerlevel": 3 },
-      { "name": "sanity", "powerlevel": -6 }
+      { "name": "sanity", "powerlevel": -60 }
     ],
     "image": "gastric_membrane",
     "script": "consume",
@@ -1048,7 +1048,7 @@
     "abilities": [
       { "name": "mining", "powerlevel": 6 },
       { "name": "speed", "powerlevel": 3 },
-      { "name": "sanity", "powerlevel": -8 }
+      { "name": "sanity", "powerlevel": -80 }
     ],
     "image": "esophageal_core",
     "script": "consume",
@@ -1083,7 +1083,7 @@
     "vendable": false,
     "abilities": [
       { "name": "mining", "powerlevel": 3 },
-      { "name": "sanity", "powerlevel": -2 }
+      { "name": "sanity", "powerlevel": -20 }
     ],
     "image": "bone_marrow",
     "script": "consume",
@@ -1099,7 +1099,7 @@
     "vendable": false,
     "abilities": [
       { "name": "speed", "powerlevel": 2 },
-      { "name": "sanity", "powerlevel": -2 }
+      { "name": "sanity", "powerlevel": -20 }
     ],
     "image": "cartilage_chunk",
     "script": "consume",
@@ -1116,7 +1116,7 @@
     "abilities": [
       { "name": "speed", "powerlevel": 4 },
       { "name": "sight", "powerlevel": 2 },
-      { "name": "sanity", "powerlevel": -5 }
+      { "name": "sanity", "powerlevel": -10 }
     ],
     "image": "blood_vessels",
     "script": "consume",
@@ -1133,7 +1133,7 @@
     "abilities": [
       { "name": "luck", "powerlevel": 3 },
       { "name": "mining", "powerlevel": 2 },
-      { "name": "sanity", "powerlevel": -4 }
+      { "name": "sanity", "powerlevel": -40 }
     ],
     "image": "lymph_nodes",
     "script": "consume",
@@ -1150,7 +1150,7 @@
     "abilities": [
       { "name": "sight", "powerlevel": 4 },
       { "name": "speed", "powerlevel": 3 },
-      { "name": "sanity", "powerlevel": -6 }
+      { "name": "sanity", "powerlevel": -60 }
     ],
     "image": "neural_tissue",
     "script": "consume",
@@ -1167,7 +1167,7 @@
     "abilities": [
       { "name": "mining", "powerlevel": 3 },
       { "name": "luck", "powerlevel": 2 },
-      { "name": "sanity", "powerlevel": -3 }
+      { "name": "sanity", "powerlevel": -30 }
     ],
     "image": "adipose_deposit",
     "script": "consume",
@@ -1184,7 +1184,7 @@
     "abilities": [
       { "name": "luck", "powerlevel": 4 },
       { "name": "sight", "powerlevel": 3 },
-      { "name": "sanity", "powerlevel": -5 }
+      { "name": "sanity", "powerlevel": -50 }
     ],
     "image": "glandular_secretion",
     "script": "consume",
@@ -1201,7 +1201,7 @@
     "abilities": [
       { "name": "mining", "powerlevel": 5 },
       { "name": "speed", "powerlevel": 4 },
-      { "name": "sanity", "powerlevel": -7 }
+      { "name": "sanity", "powerlevel": -70 }
     ],
     "image": "muscle_ring",
     "script": "consume",
@@ -1219,7 +1219,7 @@
       { "name": "mining", "powerlevel": 7 },
       { "name": "luck", "powerlevel": 4 },
       { "name": "sight", "powerlevel": 3 },
-      { "name": "sanity", "powerlevel": -10 }
+      { "name": "sanity", "powerlevel": -100 }
     ],
     "image": "void_flesh",
     "script": "consume",
@@ -1238,7 +1238,7 @@
       { "name": "luck", "powerlevel": 5 },
       { "name": "speed", "powerlevel": 4 },
       { "name": "sight", "powerlevel": 4 },
-      { "name": "sanity", "powerlevel": -12 }
+      { "name": "sanity", "powerlevel": -1000 }
     ],
     "image": "essence_hunger",
     "script": "consume",
