@@ -216,12 +216,37 @@ class MapCacheSystem {
         
         // Merge updates while checking for path conflicts
         for (const [key, value] of Object.entries(updates)) {
+            // Check for SET/DELETE conflict
+            const deleteKey = `__delete_${key}`;
+            if (pending[deleteKey]) {
+                // Remove the delete marker since we're now setting the field
+                console.log(`[MAP_CACHE] Removing DELETE for '${key}' because of new SET operation`);
+                delete pending[deleteKey];
+            }
+            
+            // Check if this key is a delete marker
+            if (key.startsWith('__delete_')) {
+                const fieldPath = key.replace('__delete_', '');
+                // Remove any SET operation for the same field
+                if (pending[fieldPath]) {
+                    console.log(`[MAP_CACHE] Removing SET for '${fieldPath}' because of DELETE operation`);
+                    delete pending[fieldPath];
+                }
+                // Also remove any child paths
+                for (const existingKey of Object.keys(pending)) {
+                    if (existingKey.startsWith(fieldPath + '.')) {
+                        console.log(`[MAP_CACHE] Removing child path '${existingKey}' because parent '${fieldPath}' is being deleted`);
+                        delete pending[existingKey];
+                    }
+                }
+            }
+            
             // Check if this update conflicts with existing pending updates
             const conflictingKeys = [];
             
             for (const existingKey of Object.keys(pending)) {
-                // Skip delete markers
-                if (existingKey.startsWith('__delete_')) continue;
+                // Skip delete markers in conflict check
+                if (existingKey.startsWith('__delete_') || key.startsWith('__delete_')) continue;
                 
                 // Check if one path is a parent of the other
                 if (this.isPathConflict(key, existingKey)) {
@@ -346,15 +371,46 @@ class MapCacheSystem {
         // First, remove exact duplicates (shouldn't happen but just in case)
         const uniquePaths = [...new Set(paths)];
         
+        // Separate delete markers from regular updates
+        const deleteMarkers = new Set();
+        const regularPaths = [];
+        
+        for (const path of uniquePaths) {
+            if (path.startsWith('__delete_')) {
+                // Extract the actual field path from delete marker
+                const fieldPath = path.replace('__delete_', '');
+                deleteMarkers.add(fieldPath);
+            } else {
+                regularPaths.push(path);
+            }
+        }
+        
+        // Check for SET/DELETE conflicts
+        const conflictsResolved = [];
+        
         // Group paths by their root and check for conflicts
         const pathGroups = {};
         
-        for (const path of uniquePaths) {
-            // Skip delete markers for now, handle them separately
-            if (path.startsWith('__delete_')) {
-                cleaned[path] = updates[path];
-                continue;
+        for (const path of regularPaths) {
+            // Check if this path is marked for deletion
+            if (deleteMarkers.has(path)) {
+                // DELETE takes precedence over SET
+                console.log(`[MAP_CACHE] Conflict resolved: DELETE operation takes precedence for '${path}'`);
+                conflictsResolved.push(path);
+                continue; // Skip the SET operation
             }
+            
+            // Check if any parent path is marked for deletion
+            let skipPath = false;
+            for (const deletePath of deleteMarkers) {
+                if (path.startsWith(deletePath + '.')) {
+                    console.log(`[MAP_CACHE] Skipping '${path}' because parent '${deletePath}' is being deleted`);
+                    skipPath = true;
+                    break;
+                }
+            }
+            
+            if (skipPath) continue;
             
             // Get the root of the path (e.g., 'gameData.map' from 'gameData.map.field')
             const parts = path.split('.');
@@ -367,6 +423,14 @@ class MapCacheSystem {
                 pathGroups[root] = [];
             }
             pathGroups[root].push(path);
+        }
+        
+        // Add delete markers that don't conflict
+        for (const deletePath of deleteMarkers) {
+            // Only add if we're not also trying to SET the same path
+            if (!conflictsResolved.includes(deletePath)) {
+                cleaned[`__delete_${deletePath}`] = true;
+            }
         }
         
         // Process each group to resolve conflicts
@@ -713,6 +777,15 @@ class MapCacheSystem {
         
         // Queue for DB deletion
         const dbField = field.startsWith('gameData.') ? field : `gameData.${field}`;
+        
+        // Clear any pending SET operations for this field before adding DELETE
+        const pending = this.pendingWrites.get(channelId) || {};
+        if (pending[dbField]) {
+            console.log(`[MAP_CACHE] Clearing pending SET for '${dbField}' before DELETE`);
+            delete pending[dbField];
+        }
+        
+        // Now queue the delete
         this.queueDelete(channelId, dbField);
         
         return true;
