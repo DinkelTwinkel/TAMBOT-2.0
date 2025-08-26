@@ -88,9 +88,9 @@ client.once(Events.ClientReady, async c => {
     // testPick.testPickaxeDurability();
 
     // Now initialize stat tracking:
-    // await initializeStatTracking(client);
-    // setupVoiceTracking(client);
-    // setupMessageTracking(client);
+    await initializeStatTracking(client);
+    setupVoiceTracking(client);
+    setupMessageTracking(client);
 
     client.user.setActivity('SUPER HELLUNGI', { type: ActivityType.Playing });
     console.log(`Ready! Logged in as ${c.user.tag}`);

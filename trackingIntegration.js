@@ -1,10 +1,14 @@
 // Simple integration code to add to your existing index.js
 // This version uses your existing MongoDB connection
+// CONFIGURED TO ONLY TRACK GUILD ID: 1221772148385910835
 
 const StatTracker = require('./patterns/statTracking');
 
 // Initialize tracker (no connection needed since you already have one)
 const tracker = new StatTracker();
+
+// Only track for this specific guild
+const ALLOWED_GUILD_ID = '1221772148385910835';
 
 // Call this AFTER your MongoDB is connected in index.js
 async function initializeStatTracking(client) {
@@ -19,6 +23,9 @@ async function initializeStatTracking(client) {
     
     // Recover any users already in voice channels after restart
     client.guilds.cache.forEach(guild => {
+        // Skip if not the allowed guild
+        if (guild.id !== ALLOWED_GUILD_ID) return;
+        
         guild.channels.cache.forEach(channel => {
             if (channel.type === 2) { // Voice channel
                 channel.members.forEach(member => {
@@ -37,13 +44,16 @@ async function initializeStatTracking(client) {
         });
     });
     
-    console.log('✅ Stat tracking system initialized with unique items integration');
+    console.log(`✅ Stat tracking system initialized for guild ${ALLOWED_GUILD_ID} with unique items integration`);
 }
 
 // Voice tracking event handler
 function setupVoiceTracking(client) {
     client.on('voiceStateUpdate', async (oldState, newState) => {
         if (newState.member.user.bot) return;
+        
+        // Skip if not the allowed guild
+        if (newState.guild.id !== ALLOWED_GUILD_ID) return;
         
         const userId = newState.member.user.id;
         const username = newState.member.user.username;
@@ -82,6 +92,9 @@ function setupVoiceTracking(client) {
 function setupMessageTracking(client) {
     client.on('messageCreate', async (message) => {
         if (message.author.bot || !message.guild) return;
+        
+        // Skip if not the allowed guild
+        if (message.guild.id !== ALLOWED_GUILD_ID) return;
         
         await tracker.trackMessage(
             message.author.id,
@@ -164,6 +177,9 @@ module.exports = {
 
 /* 
 ═══════════════════════════════════════════════════════════════
+IMPORTANT: This tracking is configured to ONLY work for guild ID: 1221772148385910835
+To change the tracked guild, modify the ALLOWED_GUILD_ID constant at the top of this file.
+
 ADD TO YOUR INDEX.JS:
 ═══════════════════════════════════════════════════════════════
 
