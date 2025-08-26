@@ -2,7 +2,7 @@
 // Enhanced with atomic operations and concurrency protection for event generation
 
 const InnConfig = require('./innConfig');
-const InnAIManager = require('./innAIManager');
+const InnAIManager = require('./innAIManagerIntegrated');
 const AIBarFightGenerator = require('./innAIBarFightGenerator');
 const Money = require('../../../models/currency');
 const ActiveVCs = require('../../../models/activevcs');

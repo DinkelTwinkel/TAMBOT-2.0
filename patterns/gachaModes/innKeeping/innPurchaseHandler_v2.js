@@ -8,7 +8,7 @@ const InnConfig = require('./innConfig');
 const gachaServers = require('../../../data/gachaServers.json');
 const shops = require('../../../data/shops.json');
 const itemSheet = require('../../../data/itemSheet.json');
-const InnAIManager = require('./innAIManager');
+const InnAIManager = require('./innAIManagerIntegrated');
 
 class InnPurchaseHandler {
     constructor() {

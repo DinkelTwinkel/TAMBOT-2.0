@@ -2,7 +2,7 @@
   "system": "shop",
   "category": "idle",
   "version": "1.0",
-  "savedAt": 1756047339821,
+  "savedAt": 1756188365028,
   "pools": {
     "8694992759c5": [
       {
@@ -73,6 +73,81 @@
           "shopType": "coal",
           "mood": "tired",
           "createdAt": 1756047339810,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "shop",
+          "category": "idle"
+        }
+      },
+      {
+        "id": "b86c7e1e4a80123f",
+        "dialogue": "Test shop dialogue 0: Another day in the coal mines...",
+        "contextKey": "8694992759c5",
+        "metadata": {
+          "shopType": "coal",
+          "mood": "tired",
+          "createdAt": 1756188365016,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "shop",
+          "category": "idle"
+        }
+      },
+      {
+        "id": "efc0b8ce4dcc5f43",
+        "dialogue": "Test shop dialogue 1: Another day in the coal mines...",
+        "contextKey": "8694992759c5",
+        "metadata": {
+          "shopType": "coal",
+          "mood": "tired",
+          "createdAt": 1756188365017,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "shop",
+          "category": "idle"
+        }
+      },
+      {
+        "id": "7414f60f37ae2ead",
+        "dialogue": "Test shop dialogue 2: Another day in the coal mines...",
+        "contextKey": "8694992759c5",
+        "metadata": {
+          "shopType": "coal",
+          "mood": "tired",
+          "createdAt": 1756188365017,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "shop",
+          "category": "idle"
+        }
+      },
+      {
+        "id": "9a010350b6430819",
+        "dialogue": "Test shop dialogue 3: Another day in the coal mines...",
+        "contextKey": "8694992759c5",
+        "metadata": {
+          "shopType": "coal",
+          "mood": "tired",
+          "createdAt": 1756188365018,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "shop",
+          "category": "idle"
+        }
+      },
+      {
+        "id": "f6fd3e983dca027b",
+        "dialogue": "Test shop dialogue 4: Another day in the coal mines...",
+        "contextKey": "8694992759c5",
+        "metadata": {
+          "shopType": "coal",
+          "mood": "tired",
+          "createdAt": 1756188365018,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",

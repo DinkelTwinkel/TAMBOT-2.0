@@ -2,7 +2,7 @@
   "system": "inn",
   "category": "npc",
   "version": "1.0",
-  "savedAt": 1756047339821,
+  "savedAt": 1756188365028,
   "pools": {
     "f24b9fbf48f9": [
       {
@@ -28,8 +28,8 @@
           "mood": "grumpy",
           "wealth": 2,
           "createdAt": 1756047339805,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1756188365026,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -43,8 +43,8 @@
           "mood": "grumpy",
           "wealth": 2,
           "createdAt": 1756047339805,
-          "usageCount": 1,
-          "lastUsed": 1756047339817,
+          "usageCount": 2,
+          "lastUsed": 1756188365024,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -58,8 +58,8 @@
           "mood": "grumpy",
           "wealth": 2,
           "createdAt": 1756047339806,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1756188365024,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -73,8 +73,8 @@
           "mood": "grumpy",
           "wealth": 2,
           "createdAt": 1756047339806,
-          "usageCount": 1,
-          "lastUsed": 1756047339819,
+          "usageCount": 2,
+          "lastUsed": 1756188365024,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -118,8 +118,8 @@
           "mood": "grumpy",
           "wealth": 2,
           "createdAt": 1756047339812,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1756188365026,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -148,8 +148,8 @@
           "mood": "grumpy",
           "wealth": 2,
           "createdAt": 1756047339813,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1756188365025,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -178,8 +178,8 @@
           "mood": "grumpy",
           "wealth": 2,
           "createdAt": 1756047339814,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1756188365021,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -223,8 +223,8 @@
           "mood": "grumpy",
           "wealth": 2,
           "createdAt": 1756047339815,
-          "usageCount": 1,
-          "lastUsed": 1756047339819,
+          "usageCount": 2,
+          "lastUsed": 1756188365027,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -238,8 +238,8 @@
           "mood": "grumpy",
           "wealth": 2,
           "createdAt": 1756047339816,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1756188365027,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -298,6 +298,201 @@
           "mood": "grumpy",
           "wealth": 2,
           "createdAt": 1756047339819,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "20e2155f5f27ac58",
+        "dialogue": "Test inn dialogue 0: Grumpy miner wants stew.",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365012,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "15c88dff30c36d81",
+        "dialogue": "Test inn dialogue 1: Grumpy miner wants stew.",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365013,
+          "usageCount": 1,
+          "lastUsed": 1756188365021,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d006e21afa8a5de3",
+        "dialogue": "Test inn dialogue 2: Grumpy miner wants stew.",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365013,
+          "usageCount": 1,
+          "lastUsed": 1756188365021,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "174c18dc76f385f2",
+        "dialogue": "Test inn dialogue 3: Grumpy miner wants stew.",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365014,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "2a2f18d3c2009ddb",
+        "dialogue": "Test inn dialogue 4: Grumpy miner wants stew.",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365014,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "fb8558a801613662",
+        "dialogue": "New dialogue 1",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365021,
+          "usageCount": 1,
+          "lastUsed": 1756188365022,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "090bfc4c90451638",
+        "dialogue": "New dialogue 2",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365022,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "140476300f7fa112",
+        "dialogue": "New dialogue 3",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365022,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0f49de18f2a5f115",
+        "dialogue": "New dialogue 4",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365023,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f72edf5927c98daf",
+        "dialogue": "New dialogue 5",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365023,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "9fa9e7e90762f6fb",
+        "dialogue": "New dialogue 6",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365025,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "e379593190213307",
+        "dialogue": "New dialogue 7",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365026,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "cdf85283e021e77e",
+        "dialogue": "New dialogue 8",
+        "contextKey": "f24b9fbf48f9",
+        "metadata": {
+          "mood": "grumpy",
+          "wealth": 2,
+          "createdAt": 1756188365026,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",

@@ -3,7 +3,7 @@
 
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const InnConfig = require('./innConfig');
-const InnAIManager = require('./innAIManager');
+const InnAIManager = require('./innAIManagerIntegrated');
 const itemSheet = require('../../../data/itemSheet.json');
 const npcs = require('../../../data/npcs.json');
 const path = require('path');
