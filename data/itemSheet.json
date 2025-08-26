@@ -860,7 +860,7 @@
     "value": 150000,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 20 },
+      { "name": "mining", "powerlevel": 25 },
       { "name": "speed", "powerlevel": 10 }
     ],
     "image": "adamantite_pickaxe",
