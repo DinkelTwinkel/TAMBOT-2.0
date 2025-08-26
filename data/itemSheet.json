@@ -857,14 +857,14 @@
     "type": "tool",
     "slot": "mining",
     "description": "Forged from pure adamantite, this legendary pickaxe is harder than diamond yet impossibly light. Each swing cuts through stone like butter while moving at supernatural speeds.",
-    "value": 15000,
+    "value": 150000,
     "vendable": true,
     "abilities": [
-      { "name": "mining", "powerlevel": 13 },
-      { "name": "speed", "powerlevel": 4 }
+      { "name": "mining", "powerlevel": 20 },
+      { "name": "speed", "powerlevel": 10 }
     ],
     "image": "adamantite_pickaxe",
-    "durability": 110
+    "durability": 300
   },
   {
     "id": "101",

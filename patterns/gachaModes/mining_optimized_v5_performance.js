@@ -677,9 +677,11 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         // Import the unified mining system and mine correspondence
         const { findItemUnified, calculateItemQuantity, MINE_ORE_CORRESPONDENCE } = require('./mining/miningConstants_unified');
         
+        let destination = 'minecart'; // Default
+
         // Check if we should use the unified system (for gullet and other special mines)
         const isGullet = mineTypeId === 16 || mineTypeId === '16';
-        let destination = 'minecart'; // Default
+
         if (isGullet) {
             // Use unified item system for special mines
             let context = 'mining_wall';
