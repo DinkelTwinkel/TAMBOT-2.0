@@ -901,7 +901,7 @@
     "name": "Abyssal Relic",
     "type": "mineLoot",
     "description": "A dark artifact from the deepest depths, radiating otherworldly energy.",
-    "value": 200,
+    "value": 500,
     "vendable": false,
     "abilities": [],
     "image": "abyssal_relic"

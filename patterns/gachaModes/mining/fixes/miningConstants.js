@@ -68,7 +68,7 @@ const POWER_LEVEL_CONFIG = {
         name: "Abyssal Expedition",
         description: "Master of the deepest depths",
         oreSpawnMultiplier: 2.8,
-        rareOreBonus: 0.10,
+        rareOreBonus: 0.5,
         treasureChance: 0.12,
         speedBonus: 2.0,
         valueMultiplier: 4.0
