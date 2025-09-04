@@ -137,12 +137,47 @@ const { getMinecartSummaryFresh } = require('./mining_fixes/fix_minecart_display
 const { clearTentFlags, verifyAndFixPlayerPositions } = require('./mining/fix_tent_display');
 const { verifyCycleCount, initializeCycleCount } = require('./mining/fix_long_break_cycle');
 
+// Performance monitoring utilities
+class PerformanceMonitor {
+    constructor() {
+        this.metrics = new Map();
+        this.thresholds = {
+            slowProcessing: 5000, // 5 seconds
+            verySlowProcessing: 10000 // 10 seconds
+        };
+    }
+    
+    startTiming(operation, channelId) {
+        const key = `${operation}_${channelId}`;
+        this.metrics.set(key, Date.now());
+    }
+    
+    endTiming(operation, channelId) {
+        const key = `${operation}_${channelId}`;
+        const startTime = this.metrics.get(key);
+        if (startTime) {
+            const duration = Date.now() - startTime;
+            this.metrics.delete(key);
+            
+            if (duration > this.thresholds.verySlowProcessing) {
+                console.warn(`[PERFORMANCE] Very slow ${operation} for channel ${channelId}: ${duration}ms`);
+            } else if (duration > this.thresholds.slowProcessing) {
+                console.log(`[PERFORMANCE] Slow ${operation} for channel ${channelId}: ${duration}ms`);
+            }
+            
+            return duration;
+        }
+        return 0;
+    }
+}
+
 // Enhanced Concurrency Manager with Instance Management
 class EnhancedConcurrencyManager {
     constructor() {
         this.locks = new Map();
         this.intervals = new Map();
         this.processing = new Map();
+        this.performanceMonitor = new PerformanceMonitor();
     }
     
     async acquireLock(channelId, timeout = 5000) {
@@ -321,10 +356,25 @@ const UNIQUE_COOLDOWN = 45 * 60 * 1000; // 45 minutes
 
 // Enhanced cache management with size limits
 function addToCache(cache, key, value, maxSize = MAX_CACHE_SIZE) {
-    if (cache.size >= maxSize) {
-        const firstKey = cache.keys().next().value;
-        cache.delete(firstKey);
+    // Input validation
+    if (!cache || typeof cache.set !== 'function') {
+        console.warn('[MINING] Invalid cache object provided to addToCache');
+        return;
     }
+    
+    if (typeof key !== 'string' && typeof key !== 'number') {
+        console.warn('[MINING] Invalid cache key type:', typeof key);
+        return;
+    }
+    
+    // Use LRU eviction strategy for better performance
+    if (cache.size >= maxSize) {
+        // Remove oldest entries (first 25% of cache)
+        const entriesToRemove = Math.floor(maxSize * 0.25);
+        const keysToRemove = Array.from(cache.keys()).slice(0, entriesToRemove);
+        keysToRemove.forEach(key => cache.delete(key));
+    }
+    
     cache.set(key, value);
 }
 
@@ -553,6 +603,16 @@ function getServerModifiers(serverName, serverPower) {
 
 // Enhanced mining efficiency calculation with caching and error handling
 function getCachedMiningEfficiency(serverPowerLevel, playerLevel = 1, serverModifiers = null) {
+    // Input validation
+    if (typeof serverPowerLevel !== 'number' || serverPowerLevel < 1) {
+        console.warn('[MINING] Invalid serverPowerLevel, using default');
+        serverPowerLevel = 1;
+    }
+    if (typeof playerLevel !== 'number' || playerLevel < 1) {
+        console.warn('[MINING] Invalid playerLevel, using default');
+        playerLevel = 1;
+    }
+
     try {
         const cacheKey = `${serverPowerLevel}-${playerLevel}`;
         
@@ -562,17 +622,26 @@ function getCachedMiningEfficiency(serverPowerLevel, playerLevel = 1, serverModi
         }
         
         const efficiency = calculateMiningEfficiency(serverPowerLevel, playerLevel);
+        
+        // Validate efficiency object before caching
+        if (!efficiency || typeof efficiency !== 'object') {
+            throw new Error('Invalid efficiency object returned from calculateMiningEfficiency');
+        }
+        
         addToCache(efficiencyCache, cacheKey, efficiency, EFFICIENCY_CACHE_SIZE);
         
         return applyServerModifiers(efficiency, serverModifiers);
     } catch (error) {
         console.error('[MINING] Error calculating efficiency:', error);
+        // Return safe default with proper structure
         return {
             oreSpawnChance: 0.3,
             rareOreChance: 0.05,
             treasureChance: 0.02,
             speedMultiplier: 1,
-            valueMultiplier: 1
+            valueMultiplier: 1,
+            hazardResistance: 0,
+            explorationBonus: 0
         };
     }
 }
@@ -1662,6 +1731,9 @@ module.exports = async (channel, dbEntry, json, client) => {
     const channelId = channel.id;
     const processingStartTime = Date.now();
     
+    // Start performance monitoring
+    concurrencyManager.performanceMonitor.startTiming('mining_cycle', channelId);
+    
     // === CRITICAL HOTFIX START ===
     try {
         const now = Date.now();
@@ -2301,8 +2373,8 @@ if (shouldStartBreak) {
             await dbEntry.save();
         }
         
-        // Process actions for each player
-        for (const member of members.values()) {
+        // Process actions for each player with improved error handling and performance
+        const playerProcessingPromises = Array.from(members.values()).map(async (member) => {
             try {
                 const wasDisabled = dbEntry.gameData?.disabledPlayers?.[member.id];
                 const isDisabled = hazardEffects.isPlayerDisabled(member.id, dbEntry);
@@ -2328,7 +2400,7 @@ if (shouldStartBreak) {
                             eventLogs.push(`💤 ${member.displayName} is knocked out (${remainingMinutes} min remaining)`);
                         }
                     }
-                    continue;
+                    return null; // Skip processing but don't throw error
                 }
                 
                 const playerData = playerStatsMap.get(member.id) || { stats: {}, level: 1 };
@@ -2353,14 +2425,30 @@ if (shouldStartBreak) {
                     teamLuckBonus  // Pass team luck bonus
                 );
                 
-                if (result.hazardsChanged) {
+                return result;
+            } catch (playerError) {
+                console.error(`[MINING] Error processing player ${member.displayName}:`, playerError);
+                // Return null to indicate processing failed but don't crash the entire loop
+                return null;
+            }
+        });
+
+        // Wait for all player processing to complete
+        const playerResults = await Promise.allSettled(playerProcessingPromises);
+        
+        // Aggregate results from all players
+        for (const result of playerResults) {
+            if (result.status === 'fulfilled' && result.value) {
+                const data = result.value;
+                
+                if (data.hazardsChanged) {
                     hazardsChanged = true;
                 }
                 
-                if (result.mapChanged) {
+                if (data.mapChanged) {
                     mapChanged = true;
-                    if (result.mapData) {
-                        mapData = result.mapData;
+                    if (data.mapData) {
+                        mapData = data.mapData;
                         teamVisibleTiles = visibilityCalculator.calculateTeamVisibility(
                             mapData.playerPositions, 
                             teamSightRadius, 
@@ -2368,10 +2456,8 @@ if (shouldStartBreak) {
                         );
                     }
                 }
-                wallsBroken += result.wallsBroken;
-                treasuresFound += result.treasuresFound;
-            } catch (playerError) {
-                console.error(`[MINING] Error processing player ${member.displayName}:`, playerError);
+                wallsBroken += data.wallsBroken;
+                treasuresFound += data.treasuresFound;
             }
         }
 
@@ -2458,6 +2544,24 @@ if (shouldStartBreak) {
             }
         } catch (commitError) {
             console.error(`[MINING] Error committing transaction for channel ${channel.id}:`, commitError);
+            
+            // Attempt rollback and retry once
+            try {
+                await transaction.rollback();
+                console.log(`[MINING] Transaction rolled back for channel ${channel.id}, retrying...`);
+                
+                // Create new transaction and retry critical operations
+                const retryTransaction = new DatabaseTransaction();
+                if (mapChanged) {
+                    retryTransaction.setMapUpdate(channel.id, mapData);
+                }
+                await retryTransaction.commit();
+                console.log(`[MINING] Retry transaction successful for channel ${channel.id}`);
+            } catch (retryError) {
+                console.error(`[MINING] Retry transaction failed for channel ${channel.id}:`, retryError);
+                // Mark channel for manual intervention
+                healthMetrics.processingErrors.set(channel.id, 999);
+            }
         }
         
         await batchDB.flush();
@@ -2489,43 +2593,80 @@ if (shouldStartBreak) {
     } catch (error) {
         console.error(`[MINING] Error processing channel ${channelId}:`, error);
         
-        healthMetrics.processingErrors.set(channelId, 
-            (healthMetrics.processingErrors.get(channelId) || 0) + 1);
+        // Enhanced error tracking with context
+        const errorCount = (healthMetrics.processingErrors.get(channelId) || 0) + 1;
+        healthMetrics.processingErrors.set(channelId, errorCount);
         
-        if (healthMetrics.processingErrors.get(channelId) > 3) {
+        // Log error details for debugging
+        console.error(`[MINING] Error details for ${channelId}:`, {
+            error: error.message,
+            stack: error.stack?.split('\n').slice(0, 5).join('\n'),
+            errorCount,
+            processingTime: Date.now() - processingStartTime
+        });
+        
+        // Progressive error handling
+        if (errorCount > 3) {
             console.warn(`[MINING] Too many errors for channel ${channelId}, attempting recovery...`);
-            await attemptAutoRecovery(channel);
+            try {
+                await attemptAutoRecovery(channel);
+            } catch (recoveryError) {
+                console.error(`[MINING] Recovery failed for channel ${channelId}:`, recoveryError);
+                // Force cleanup on recovery failure
+                concurrencyManager.forceUnlock(channelId);
+            }
+        } else if (errorCount > 1) {
+            // Add delay for repeated errors to prevent rapid failure loops
+            await new Promise(resolve => setTimeout(resolve, 1000 * errorCount));
         }
     } finally {
-        // Clear mining context
-        miningContext.clearMiningContext();
-        concurrencyManager.releaseLock(channelId);
+        // End performance monitoring
+        const processingTime = concurrencyManager.performanceMonitor.endTiming('mining_cycle', channelId);
+        
+        // Ensure cleanup always happens
+        try {
+            miningContext.clearMiningContext();
+            concurrencyManager.releaseLock(channelId);
+        } catch (cleanupError) {
+            console.error(`[MINING] Cleanup error for channel ${channelId}:`, cleanupError);
+        }
+        
+        // Log performance metrics if processing was slow
+        if (processingTime > 3000) {
+            console.log(`[PERFORMANCE] Mining cycle completed for channel ${channelId} in ${processingTime}ms`);
+        }
     }
 };
 
-// Enhanced player action processing
+// Enhanced player action processing with improved error handling and performance
 async function processPlayerActionsEnhanced(member, playerData, mapData, teamVisibleTiles, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0) {
-    const miningPower = playerData?.stats?.mining || 0;
-    const luckStat = playerData?.stats?.luck || 0;
-    const speedStat = Math.min(playerData?.stats?.speed || 1, MAX_SPEED_ACTIONS);
+    // Input validation
+    if (!member || !playerData || !mapData) {
+        console.warn('[MINING] Invalid parameters passed to processPlayerActionsEnhanced');
+        return { mapChanged: false, wallsBroken: 0, treasuresFound: 0, mapData, hazardsChanged: false };
+    }
 
-    
-    // Get deeper mine status
+    const miningPower = Math.max(0, playerData?.stats?.mining || 0);
+    const luckStat = Math.max(0, playerData?.stats?.luck || 0);
+    const speedStat = Math.min(Math.max(1, playerData?.stats?.speed || 1), MAX_SPEED_ACTIONS);
+
+    // Get deeper mine status with caching
     const mineTypeId = dbEntry?.typeId || null;
     let isDeeperMine = false;
 
-    // Check if this is a deeper mine
+    // Check if this is a deeper mine with improved error handling
     if (mineTypeId) {
-    try {
-        const { isDeeperMine: checkDeeperMine } = require('./mining/miningConstants_unified');
-        isDeeperMine = checkDeeperMine ? checkDeeperMine(mineTypeId) : false;
-    } catch (error) {
-        console.error('[MINING] Could not determine deeper mine status:', error);
-        isDeeperMine = false;
-    }
+        try {
+            const { isDeeperMine: checkDeeperMine } = require('./mining/miningConstants_unified');
+            isDeeperMine = checkDeeperMine ? checkDeeperMine(mineTypeId) : false;
+        } catch (error) {
+            console.error('[MINING] Could not determine deeper mine status:', error);
+            isDeeperMine = false;
+        }
     }
 
     
+    // Parse unique bonuses with error handling
     let uniqueBonuses;
     try {
         uniqueBonuses = parseUniqueItemBonuses(playerData?.equippedItems);
