@@ -62,7 +62,15 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             
             if (existingVC) {
                 // Move user to their existing VC
-                await roller.setChannel(existingVC);
+                try {
+                    await roller.setChannel(existingVC);
+                } catch (error) {
+                    if (error.code === 40032) {
+                        console.log(`⚠️ Cannot move ${rollerMember.user.tag} to existing VC - user not in voice`);
+                    } else {
+                        console.error(`Error moving ${rollerMember.user.tag} to existing VC:`, error);
+                    }
+                }
                 
                 // Send cooldown message
                 await gachaRollChannel.send(
@@ -136,7 +144,15 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                                     });
                                     
                                     // Move to existing gullet instead
-                                    await roller.setChannel(existingGullet);
+                                    try {
+                                        await roller.setChannel(existingGullet);
+                                    } catch (error) {
+                                        if (error.code === 40032) {
+                                            console.log(`⚠️ Cannot move ${rollerMember.user.tag} to existing gullet - user not in voice`);
+                                        } else {
+                                            console.error(`Error moving ${rollerMember.user.tag} to existing gullet:`, error);
+                                        }
+                                    }
                                     
                                     // Update cooldown
                                     userCooldown.gachaRollData.channelId = existingGullet.id;
@@ -192,7 +208,15 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                             position: 0, // Place at the top of the channel list
                         });
 
-                        await roller.setChannel(newGachaChannel);
+                        try {
+                            await roller.setChannel(newGachaChannel);
+                        } catch (error) {
+                            if (error.code === 40032) {
+                                console.log(`⚠️ Cannot move ${rollerMember.user.tag} to new gacha channel - user not in voice`);
+                            } else {
+                                console.error(`Error moving ${rollerMember.user.tag} to new gacha channel:`, error);
+                            }
+                        }
 
                         // Store the new VC in database
                         const storeVC = new ActiveVCS({
@@ -320,7 +344,15 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             position: 0, // Place at the top of the channel list
         });
 
-        await roller.setChannel(newGachaChannel);
+        try {
+            await roller.setChannel(newGachaChannel);
+        } catch (error) {
+            if (error.code === 40032) {
+                console.log(`⚠️ Cannot move ${rollerMember.user.tag} to new gacha channel - user not in voice`);
+            } else {
+                console.error(`Error moving ${rollerMember.user.tag} to new gacha channel:`, error);
+            }
+        }
 
         // Now store VC data on the mongodb
         const storeVC = new ActiveVCS ({
@@ -451,9 +483,24 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             });
             
             // Move player to existing gullet
-            await roller.setChannel(existingGulletChannel);
-            
-            console.log(`🔥 Moved ${rollerMember.user.tag} to existing gullet channel`);
+            try {
+                await roller.setChannel(existingGulletChannel);
+                console.log(`🔥 Moved ${rollerMember.user.tag} to existing gullet channel`);
+            } catch (error) {
+                if (error.code === 40032) {
+                    console.log(`⚠️ Cannot move ${rollerMember.user.tag} to gullet channel - user not in voice`);
+                    // Send a message to the user explaining they need to be in voice
+                    try {
+                        await gachaRollChannel.send(
+                            `⚠️ **${rollerMember.user.tag}** You need to be in a voice channel to be moved to the gullet! Please join a voice channel and try again.`
+                        );
+                    } catch (msgError) {
+                        console.error('Failed to send voice channel message:', msgError);
+                    }
+                } else {
+                    console.error(`Error moving ${rollerMember.user.tag} to gullet channel:`, error);
+                }
+            }
             
             // Update the cooldown to reference the existing gullet channel
             const cooldownExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
