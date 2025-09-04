@@ -1327,7 +1327,11 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
     try {
         // In startBreak() or endMiningSession()
         dbEntry.gameData.hazardScanDone = false;
-        await dbEntry.save();
+        // Update database directly since dbEntry is a lean document
+        await gachaVC.updateOne(
+            { channelId: channel.id },
+            { $set: { 'gameData.hazardScanDone': false } }
+        );
 
         const channelId = channel.id;
         const now = Date.now();
@@ -1742,8 +1746,11 @@ module.exports = async (channel, dbEntry, json, client) => {
         if (!dbEntry.gameData) dbEntry.gameData = {};
         if (!dbEntry.gameData.minecart) {
             dbEntry.gameData.minecart = { items: {}, contributors: {} };
-            dbEntry.markModified('gameData.minecart');
-            await dbEntry.save();
+            // Update database directly since dbEntry is a lean document
+            await gachaVC.updateOne(
+                { channelId },
+                { $set: { 'gameData.minecart': dbEntry.gameData.minecart } }
+            );
             console.log(`[HOTFIX] Fixed minecart structure for ${channelId}`);
         }
         if (!dbEntry.gameData.minecart.items) dbEntry.gameData.minecart.items = {};
@@ -1855,13 +1862,20 @@ module.exports = async (channel, dbEntry, json, client) => {
         // Initialize game data if needed
         if (!dbEntry.gameData) {
             initializeGameData(dbEntry, channel.id);
-            await dbEntry.save();
+            // Update database directly since dbEntry is a lean document
+            await gachaVC.updateOne(
+                { channelId: channel.id },
+                { $set: { gameData: dbEntry.gameData } }
+            );
         } else {
             if (!dbEntry.gameData.gamemode) {
                 console.log(`[MINING] Fixing missing gamemode for channel ${channel.id}`);
                 dbEntry.gameData.gamemode = 'mining';
-                dbEntry.markModified('gameData');
-                await dbEntry.save();
+                // Update database directly since dbEntry is a lean document
+                await gachaVC.updateOne(
+                    { channelId: channel.id },
+                    { $set: { 'gameData.gamemode': 'mining' } }
+                );
             }
         }
         
@@ -1869,13 +1883,19 @@ module.exports = async (channel, dbEntry, json, client) => {
         if (json && json.id && dbEntry.typeId !== json.id) {
             console.log(`[MINING] Setting typeId to ${json.id} for channel ${channel.id}`);
             dbEntry.typeId = json.id;
-            dbEntry.markModified('typeId');
-            await dbEntry.save();
+            // Update database directly since dbEntry is a lean document
+            await gachaVC.updateOne(
+                { channelId: channel.id },
+                { $set: { typeId: json.id } }
+            );
         } else if (!dbEntry.typeId && json && json.id) {
             console.log(`[MINING] Initial typeId set to ${json.id} for channel ${channel.id}`);
             dbEntry.typeId = json.id;
-            dbEntry.markModified('typeId');
-            await dbEntry.save();
+            // Update database directly since dbEntry is a lean document
+            await gachaVC.updateOne(
+                { channelId: channel.id },
+                { $set: { typeId: json.id } }
+            );
         }
 
         if (!channel?.isVoiceBased()) {
@@ -2365,12 +2385,20 @@ if (shouldStartBreak) {
         if (dbEntry.gameData?.breakInfo?.justEnded) {
             hazardEffects.enablePlayersAfterBreak(dbEntry);
             delete dbEntry.gameData.breakInfo.justEnded;
-            await dbEntry.save();
+            // Update database directly since dbEntry is a lean document
+            await gachaVC.updateOne(
+                { channelId: channel.id },
+                { $unset: { 'gameData.breakInfo.justEnded': 1 } }
+            );
         }
         
         const hadExpiredDisables = hazardEffects.cleanupExpiredDisables(dbEntry);
         if (hadExpiredDisables) {
-            await dbEntry.save();
+            // Update database directly since dbEntry is a lean document
+            await gachaVC.updateOne(
+                { channelId: channel.id },
+                { $set: { gameData: dbEntry.gameData } }
+            );
         }
         
         // Process actions for each player with improved error handling and performance
