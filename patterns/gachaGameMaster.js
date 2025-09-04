@@ -622,9 +622,11 @@ async function processSingleVC(guild, vc, now, gachaServers) {
 
             console.log(`Running ${serverData.name} script for VC ${vc.channelId}`);
 
-            // Update next trigger time
-            vc.nextTrigger = new Date(now + 500);
-            await vc.save();
+            // Update next trigger time using database update (since vc is a lean document)
+            await ActiveVCS.updateOne(
+                { channelId: vc.channelId },
+                { $set: { nextTrigger: new Date(now + 500) } }
+            );
 
             // Run script with timeout protection
             let timeoutId;
