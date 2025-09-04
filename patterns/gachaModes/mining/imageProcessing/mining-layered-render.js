@@ -139,6 +139,20 @@ class TileImageCache {
         return item.image;
     }
     
+    has(key) {
+        const item = this.cache.get(key);
+        if (!item) return false;
+        
+        // Check if expired
+        if (Date.now() - item.timestamp > this.ttl) {
+            this.cache.delete(key);
+            this.accessTimes.delete(key);
+            return false;
+        }
+        
+        return true;
+    }
+    
     set(key, image) {
         // Remove oldest items if cache is full
         if (this.cache.size >= this.maxSize) {

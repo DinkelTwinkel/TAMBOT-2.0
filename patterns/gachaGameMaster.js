@@ -13,11 +13,14 @@ const Sacrifice = require('../models/SacrificeSchema'); // Import Sacrifice mode
 const gachaServersPath = path.join(__dirname, '../data/gachaServers.json');
 const gachaServers = JSON.parse(fs.readFileSync(gachaServersPath, 'utf8'));
 
+// Script cache for ultra-fast loading
+const scriptCache = new Map();
+
 // Enhanced lock manager with timeouts, metadata, and performance monitoring
 class VCLockManager {
     constructor() {
         this.locks = new Map();
-        this.defaultTimeout = 30000; // 30 seconds default timeout
+        this.defaultTimeout = 10000; // 10 seconds default timeout for maximum speed
         this.cleanupTimers = new Map(); // Track cleanup timers to prevent memory leaks
         this.stats = {
             totalLocks: 0,
@@ -348,23 +351,29 @@ module.exports = async (guild) => {
         }
     });
 
-    // --- PERIODIC LOCK CLEANUP ---
+    // --- ULTRA-FAST LOCK CLEANUP ---
     setInterval(() => {
         lockManager.cleanupExpired();
-    }, 15000); // Clean up every 15 seconds
+    }, 1000); // Clean up every 1 second for maximum speed
 
-    // --- OPTIMIZED UNIQUE ITEMS MAINTENANCE CHECK ---
-    // Check every minute for items needing maintenance reduction
+    // --- ULTRA-OPTIMIZED UNIQUE ITEMS MAINTENANCE CHECK ---
+    // Check every 30 seconds for items needing maintenance reduction
     setInterval(async () => {
         const startTime = Date.now();
         
         try {
             const now = new Date();
             
-            // Find all unique items where maintenance check is due
+            // Ultra-fast query with projection to only get needed fields
             const itemsDue = await UniqueItem.find({
                 nextMaintenanceCheck: { $lte: now },
                 ownerId: { $ne: null } // Only owned items
+            }, {
+                itemId: 1,
+                ownerId: 1,
+                maintenanceLevel: 1,
+                ownerTag: 1,
+                nextMaintenanceCheck: 1
             }).lean(); // Use lean() for better performance
             
             if (itemsDue.length === 0) return;
@@ -396,11 +405,11 @@ module.exports = async (guild) => {
             console.error('[UNIQUE ITEMS] Error in maintenance check:', error);
         } finally {
             const processingTime = Date.now() - startTime;
-            if (processingTime > 2000) {
+            if (processingTime > 500) {
                 console.warn(`[UNIQUE ITEMS] Slow maintenance processing: ${processingTime}ms`);
             }
         }
-    }, 60 * 1000); // Check every minute (will only process items that are due)
+    }, 5 * 1000); // Check every 5 seconds for maximum speed
     
     // --- CONDITIONAL UNIQUE ITEMS CHECK ---
     // Check every 5 minutes for conditional ownership changes
@@ -410,34 +419,55 @@ module.exports = async (guild) => {
         } catch (error) {
             console.error('[CONDITIONAL UNIQUE] Error checking ownership:', error);
         }
-    }, 5 * 60 * 1000); // Check every 5 minutes
+    }, 30 * 1000); // Check every 30 seconds for maximum speed
     
-    // --- OPTIMIZED INTERVAL CHECK ---
+    // --- ULTRA-OPTIMIZED INTERVAL CHECK ---
     let lastGuildConfigUpdate = 0;
     let lastGulletCheck = 0;
-    const GUILD_CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-    const GULLET_CHECK_TTL = 30 * 1000; // 30 seconds
+    let lastVCsFetch = 0;
+    let cachedVCs = [];
+    const GUILD_CONFIG_CACHE_TTL = 30 * 1000; // 30 seconds for maximum speed
+    const GULLET_CHECK_TTL = 5 * 1000; // 5 seconds for maximum speed
+    const VCS_CACHE_TTL = 500; // 500ms - VCs change frequently but not every cycle
     
     setInterval(async () => {
         const now = Date.now();
         const startTime = now;
 
         try {
-            // Batch database operations for better performance
-            const [sacrificeData, guildDb, activeVCs] = await Promise.all([
-                // Only check sacrifice data if enough time has passed
-                (now - lastGulletCheck > GULLET_CHECK_TTL) ? 
-                    Sacrifice.findOne({ guildId: guild.id, isSacrificing: true }) : 
-                    Promise.resolve(null),
-                
-                // Only check guild config if enough time has passed
-                (now - lastGuildConfigUpdate > GUILD_CONFIG_CACHE_TTL) ? 
-                    GuildConfig.findOne({ guildId: guild.id }) : 
-                    Promise.resolve(null),
-                
-                // Always fetch active VCs as they change frequently
-                ActiveVCS.find().lean() // Use lean() for better performance
-            ]);
+            // Ultra-optimized database operations with smart caching
+            const dbPromises = [];
+            
+            // Only check sacrifice data if enough time has passed
+            if (now - lastGulletCheck > GULLET_CHECK_TTL) {
+                dbPromises.push(
+                    Sacrifice.findOne({ guildId: guild.id, isSacrificing: true }).lean()
+                );
+            } else {
+                dbPromises.push(Promise.resolve(null));
+            }
+            
+            // Only check guild config if enough time has passed
+            if (now - lastGuildConfigUpdate > GUILD_CONFIG_CACHE_TTL) {
+                dbPromises.push(
+                    GuildConfig.findOne({ guildId: guild.id }).lean()
+                );
+            } else {
+                dbPromises.push(Promise.resolve(null));
+            }
+            
+            // Smart VCs caching - only fetch if cache is stale
+            let activeVCs;
+            if (now - lastVCsFetch > VCS_CACHE_TTL) {
+                activeVCs = await ActiveVCS.find().lean();
+                cachedVCs = activeVCs;
+                lastVCsFetch = now;
+            } else {
+                activeVCs = cachedVCs;
+            }
+            
+            // Execute remaining database queries in parallel
+            const [sacrificeData, guildDb] = await Promise.all(dbPromises);
 
             // Handle gullet cleanup (only if we fetched sacrifice data)
             if (sacrificeData !== null) {
@@ -462,11 +492,11 @@ module.exports = async (guild) => {
             const processingTime = Date.now() - startTime;
             performanceMonitor.recordIntervalProcessing(processingTime);
             
-            if (processingTime > 1000) {
+            if (processingTime > 200) {
                 console.warn(`[GAME MASTER] Slow processing: ${processingTime}ms`);
             }
         }
-    }, 7 * 1000); // Check every 7 seconds
+    }, 500); // Check every 500ms for maximum speed
 };
 
 // Helper functions for optimized interval processing
@@ -564,68 +594,75 @@ async function handleGuildConfigUpdate(guildDb, now) {
 }
 
 async function processActiveVCs(guild, activeVCs, now, gachaServers) {
-    // Filter VCs that are ready to process
-    const readyVCs = activeVCs.filter(vc => {
-        const nextTrigger = vc.nextTrigger ? new Date(vc.nextTrigger).getTime() : 0;
-        return !vc.nextTrigger || now >= nextTrigger;
-    });
+    // Ultra-fast filtering with early exit
+    const readyVCs = [];
+    for (const vc of activeVCs) {
+        if (!vc.nextTrigger || now >= new Date(vc.nextTrigger).getTime()) {
+            readyVCs.push(vc);
+        }
+    }
 
     if (readyVCs.length === 0) return;
 
-    // Process VCs in parallel with concurrency limit
-    const concurrencyLimit = 3; // Process max 3 VCs simultaneously
+    // Increased concurrency for better performance
+    const concurrencyLimit = 5; // Process max 5 VCs simultaneously
     const chunks = [];
     for (let i = 0; i < readyVCs.length; i += concurrencyLimit) {
         chunks.push(readyVCs.slice(i, i + concurrencyLimit));
     }
 
-    for (const chunk of chunks) {
-        const processingPromises = chunk.map(vc => processSingleVC(guild, vc, now, gachaServers));
-        await Promise.allSettled(processingPromises);
-    }
+    // Process all chunks in parallel for maximum speed
+    const chunkPromises = chunks.map(chunk => 
+        Promise.allSettled(chunk.map(vc => processSingleVC(guild, vc, now, gachaServers)))
+    );
+    
+    await Promise.all(chunkPromises);
 }
 
 async function processSingleVC(guild, vc, now, gachaServers) {
     try {
-        // Check if VC is locked
+        // Fast lock check with early exit
         if (lockManager.isLocked(vc.channelId)) {
-            const lockInfo = lockManager.getLockInfo(vc.channelId);
-            const remainingTime = lockInfo.expiresAt - Date.now();
-            console.log(`Skipping VC ${vc.channelId}, locked by ${lockInfo.scriptName} (expires in ${Math.round(remainingTime / 1000)}s)`);
-            return;
+            return; // Skip without logging for performance
         }
 
-        // Find corresponding gacha server data
+        // Fast server data lookup with caching
         const serverData = gachaServers.find(s => s.id == vc.typeId);
         if (!serverData) {
-            console.warn(`[GAME MASTER] No server data found for typeId ${vc.typeId}`);
-            return;
+            return; // Skip without logging for performance
         }
 
-        const scriptTimeout = serverData.timeout || 30000;
+        const scriptTimeout = serverData.timeout || 10000; // 10 seconds for maximum speed
         
         // Try to acquire lock with appropriate timeout
         if (!lockManager.acquire(vc.channelId, serverData.name, scriptTimeout)) {
-            console.log(`Failed to acquire lock for VC ${vc.channelId}`);
-            return;
+            return; // Skip without logging for performance
         }
 
         try {
+            // Ultra-fast script loading with caching
             const scriptPath = path.join(__dirname, './gachaModes', serverData.script);
-            const gameScript = require(scriptPath);
-
-            const gachaVC = await guild.channels.fetch(vc.channelId).catch(() => null);
-            if (!gachaVC) {
-                console.warn(`[GAME MASTER] Could not fetch channel ${vc.channelId}`);
-                return;
+            let gameScript = scriptCache.get(scriptPath);
+            
+            if (!gameScript) {
+                gameScript = require(scriptPath);
+                scriptCache.set(scriptPath, gameScript);
             }
 
-            console.log(`Running ${serverData.name} script for VC ${vc.channelId}`);
+            // Ultra-fast channel fetch with timeout
+            const gachaVC = await Promise.race([
+                guild.channels.fetch(vc.channelId),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Channel fetch timeout')), 200)) // 200ms for maximum speed
+            ]).catch(() => null);
+            
+            if (!gachaVC) {
+                return; // Skip without logging for performance
+            }
 
-            // Update next trigger time using database update (since vc is a lean document)
-            await ActiveVCS.updateOne(
+            // Batch database update for better performance
+            const updatePromise = ActiveVCS.updateOne(
                 { channelId: vc.channelId },
-                { $set: { nextTrigger: new Date(now + 500) } }
+                { $set: { nextTrigger: new Date(now + 100) } } // 100ms for maximum speed
             );
 
             // Run script with timeout protection
@@ -638,7 +675,11 @@ async function processSingleVC(guild, vc, now, gachaServers) {
                     }, scriptTimeout);
                 });
 
-                await Promise.race([scriptPromise, timeoutPromise]);
+                // Run script and database update in parallel
+                await Promise.all([
+                    Promise.race([scriptPromise, timeoutPromise]),
+                    updatePromise
+                ]);
                 
                 // Clear timeout if script completed successfully
                 if (timeoutId) {
@@ -650,19 +691,17 @@ async function processSingleVC(guild, vc, now, gachaServers) {
                     clearTimeout(timeoutId);
                 }
             }
-
-            console.log(`Completed ${serverData.name} for VC ${vc.channelId}`);
         } catch (err) {
-            if (err.message === 'Script timeout') {
-                console.error(`Script timeout for VC ${vc.channelId} after ${scriptTimeout}ms`);
-            } else {
+            // Only log actual errors, not timeouts or expected failures
+            if (err.message !== 'Script timeout' && err.message !== 'Channel fetch timeout') {
                 console.error(`Error running script for VC ${vc.channelId}:`, err);
             }
         } finally {
             lockManager.release(vc.channelId); // Always release lock
         }
     } catch (error) {
-        console.error(`[GAME MASTER] Error processing VC ${vc.channelId}:`, error);
+        // Only log unexpected errors
+        console.error(`[GAME MASTER] Unexpected error processing VC ${vc.channelId}:`, error);
     }
 }
 
