@@ -358,6 +358,70 @@ function isConditionalItem(itemId) {
     return itemId === 10;
 }
 
+/**
+ * Check and update conditional ownership for all guilds
+ * This function is called periodically to ensure conditional items
+ * are owned by the correct players based on their conditions
+ */
+async function checkConditionalOwnership() {
+    try {
+        console.log('[CONDITIONAL] Starting conditional ownership check...');
+        
+        // Get all conditional unique items
+        const conditionalItems = await UniqueItem.find({ 
+            itemId: { $in: [10] } // Currently only Midas' Burden
+        });
+        
+        if (conditionalItems.length === 0) {
+            console.log('[CONDITIONAL] No conditional items found');
+            return;
+        }
+        
+        // Get all unique guild IDs from active voice channels
+        const ActiveVCS = require('../models/activevcs');
+        const activeChannels = await ActiveVCS.find({}).distinct('guildId');
+        
+        if (activeChannels.length === 0) {
+            console.log('[CONDITIONAL] No active guilds found');
+            return;
+        }
+        
+        let totalChecks = 0;
+        let totalUpdates = 0;
+        
+        // Check each guild
+        for (const guildId of activeChannels) {
+            try {
+                // Get guild members
+                const guild = require('discord.js').Client.guilds?.cache?.get(guildId);
+                if (!guild) continue;
+                
+                const members = await guild.members.fetch();
+                const memberIds = members.map(m => m.id);
+                
+                if (memberIds.length === 0) continue;
+                
+                // Check Midas' Burden for this guild
+                const midasResult = await updateMidasBurdenOwnership(guildId, memberIds);
+                totalChecks++;
+                
+                if (midasResult && midasResult.success) {
+                    totalUpdates++;
+                    console.log(`[CONDITIONAL] Midas' Burden updated in guild ${guildId}:`, midasResult.message);
+                }
+                
+            } catch (guildError) {
+                console.error(`[CONDITIONAL] Error checking guild ${guildId}:`, guildError);
+            }
+        }
+        
+        console.log(`[CONDITIONAL] Ownership check complete: ${totalChecks} guilds checked, ${totalUpdates} updates made`);
+        
+    } catch (error) {
+        console.error('[CONDITIONAL] Error in checkConditionalOwnership:', error);
+    }
+}
+
 module.exports = {
     checkRichestPlayer,
     getMidasLuckMultiplier,
@@ -367,5 +431,6 @@ module.exports = {
     meetsConditionalRequirements,
     tryConditionalDrop,
     isConditionalItem,
-    calculateMidasDropChance
+    calculateMidasDropChance,
+    checkConditionalOwnership
 };

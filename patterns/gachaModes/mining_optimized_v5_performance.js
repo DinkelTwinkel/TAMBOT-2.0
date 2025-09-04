@@ -1415,7 +1415,17 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
                 }
             }
             
-            mapCacheSystem.updateMultiple(channel.id, { 'map.playerPositions': updatedPositions });
+            // CRITICAL FIX: Update cache with break info and positions for long breaks
+            mapCacheSystem.updateMultiple(channel.id, { 
+                'map.playerPositions': updatedPositions,
+                'breakInfo': {
+                    inBreak: true,
+                    isLongBreak: true,
+                    breakStartTime: now,
+                    breakEndTime: breakEndTime,
+                    eventEndTime: eventEndTime
+                }
+            });
             await batchDB.flush();
             
             const updatedDbEntry = await getCachedDBEntry(channel.id, true);
@@ -1507,6 +1517,18 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
                 'gameData.map.playerPositions': scatteredPositions,
                 nextTrigger: new Date(breakEndTime),
                 nextShopRefresh: new Date(breakEndTime + MINING_DURATION)
+            });
+            
+            // CRITICAL FIX: Update cache with tent positions so rendering works immediately
+            mapCacheSystem.updateMultiple(channel.id, { 
+                'map.playerPositions': scatteredPositions,
+                'breakInfo': {
+                    inBreak: true,
+                    isLongBreak: false,
+                    breakStartTime: now,
+                    breakEndTime: breakEndTime,
+                    gatherPoint: gatherPoint
+                }
             });
             
             await batchDB.flush();
