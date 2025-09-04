@@ -114,8 +114,128 @@ const MINE_THEMES = {
     GENERIC: 'generic'
 };
 
-// Cache for loaded tile images
-const tileImageCache = new Map();
+// Enhanced cache for loaded tile images with TTL and memory management
+class TileImageCache {
+    constructor() {
+        this.cache = new Map();
+        this.maxSize = 500; // Limit cache size to prevent memory issues
+        this.ttl = 5 * 60 * 1000; // 5 minutes TTL
+        this.accessTimes = new Map(); // Track last access for LRU
+    }
+    
+    get(key) {
+        const item = this.cache.get(key);
+        if (!item) return null;
+        
+        // Check if expired
+        if (Date.now() - item.timestamp > this.ttl) {
+            this.cache.delete(key);
+            this.accessTimes.delete(key);
+            return null;
+        }
+        
+        // Update access time for LRU
+        this.accessTimes.set(key, Date.now());
+        return item.image;
+    }
+    
+    set(key, image) {
+        // Remove oldest items if cache is full
+        if (this.cache.size >= this.maxSize) {
+            this.evictOldest();
+        }
+        
+        this.cache.set(key, {
+            image,
+            timestamp: Date.now()
+        });
+        this.accessTimes.set(key, Date.now());
+    }
+    
+    evictOldest() {
+        let oldestKey = null;
+        let oldestTime = Date.now();
+        
+        for (const [key, time] of this.accessTimes.entries()) {
+            if (time < oldestTime) {
+                oldestTime = time;
+                oldestKey = key;
+            }
+        }
+        
+        if (oldestKey) {
+            this.cache.delete(oldestKey);
+            this.accessTimes.delete(oldestKey);
+        }
+    }
+    
+    clear() {
+        this.cache.clear();
+        this.accessTimes.clear();
+    }
+    
+    getStats() {
+        return {
+            size: this.cache.size,
+            maxSize: this.maxSize,
+            hitRate: this.cache.size / this.maxSize
+        };
+    }
+}
+
+const tileImageCache = new TileImageCache();
+
+// Performance monitoring for rendering operations
+class RenderPerformanceMonitor {
+    constructor() {
+        this.metrics = {
+            totalRenders: 0,
+            slowRenders: 0,
+            averageRenderTime: 0,
+            layerTimes: {
+                floor: [],
+                midground: [],
+                top: []
+            },
+            cacheHits: 0,
+            cacheMisses: 0
+        };
+    }
+    
+    recordRender(totalTime) {
+        this.metrics.totalRenders++;
+        this.metrics.averageRenderTime = (this.metrics.averageRenderTime + totalTime) / 2;
+        
+        if (totalTime > 2000) {
+            this.metrics.slowRenders++;
+        }
+    }
+    
+    recordLayerTime(layer, time) {
+        this.metrics.layerTimes[layer].push(time);
+        if (this.metrics.layerTimes[layer].length > 100) {
+            this.metrics.layerTimes[layer].shift();
+        }
+    }
+    
+    recordCacheHit() {
+        this.metrics.cacheHits++;
+    }
+    
+    recordCacheMiss() {
+        this.metrics.cacheMisses++;
+    }
+    
+    getStats() {
+        return {
+            ...this.metrics,
+            cacheHitRate: this.metrics.cacheHits / (this.metrics.cacheHits + this.metrics.cacheMisses) || 0,
+            slowRenderRate: this.metrics.slowRenders / this.metrics.totalRenders || 0
+        };
+    }
+}
+
+const renderMonitor = new RenderPerformanceMonitor();
 
 // Fallback colors when images aren't available
 const TILE_COLORS = {
@@ -202,16 +322,28 @@ function getMineTheme(dbEntry, tileX = undefined, tileY = undefined, tileType = 
  * Now supports blended themes based on tile position
  */
 async function loadTileImageVariation(tileType, theme = MINE_THEMES.GENERIC, variationSeed = 0, dbEntry = null, tileX = undefined, tileY = undefined, channelId = '') {
+    // Input validation
+    if (!tileType || typeof tileType !== 'string') {
+        console.warn('[IMAGE LOADER] Invalid tileType provided');
+        return null;
+    }
+    
     // ENHANCED: Get position-specific theme if context is provided
     let actualTheme = theme;
     if (dbEntry && channelId && tileX !== undefined && tileY !== undefined) {
-        actualTheme = getMineTheme(dbEntry, tileX, tileY, tileType, channelId);
+        try {
+            actualTheme = getMineTheme(dbEntry, tileX, tileY, tileType, channelId);
+        } catch (error) {
+            console.warn('[IMAGE LOADER] Error getting position theme:', error);
+        }
     }
     
     const cacheKey = `${actualTheme}_${tileType}_${variationSeed}_${tileX}_${tileY}`;
     
-    if (tileImageCache.has(cacheKey)) {
-        return tileImageCache.get(cacheKey);
+    // Check cache first using the new cache system
+    const cachedImage = tileImageCache.get(cacheKey);
+    if (cachedImage) {
+        return cachedImage;
     }
     
     // Determine base name for tile type
@@ -636,6 +768,12 @@ function drawFloorShadowGradients(ctx, tiles, x, y, pixelX, pixelY, tileSize, is
  * Draw floor layer
  */
 async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap, theme, channelId, dbEntry = null) {
+    const startTime = Date.now();
+    let tilesDrawn = 0;
+    
+    // Pre-calculate common values
+    const channelHash = parseInt(channelId.slice(-6), 10) || 123456;
+    
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const tile = tiles[y] && tiles[y][x];
@@ -646,6 +784,8 @@ async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap
             const wasDiscovered = tile.discovered;
             
             if (!isVisible && !wasDiscovered) continue;
+            
+            tilesDrawn++;
             
             const pixelX = x * tileSize;
             const pixelY = y * tileSize;
@@ -709,6 +849,12 @@ async function drawFloorLayer(ctx, tiles, width, height, tileSize, visibilityMap
     }
     
     ctx.globalAlpha = 1.0;
+    
+    // Performance monitoring
+    const layerTime = Date.now() - startTime;
+    if (layerTime > 500) {
+        console.warn(`[FLOOR LAYER] Slow rendering: ${layerTime}ms for ${tilesDrawn} tiles`);
+    }
 }
 
 /**
@@ -1994,7 +2140,16 @@ function applyFinalPassShader(ctx, width, height, replaceChance = 0.3, blackThre
  * Main function to generate enhanced layered mining map
  */
 async function generateTileMapImage(channel) {
-    if (!channel?.isVoiceBased()) throw new Error('Channel must be a voice channel');
+    const startTime = Date.now();
+    
+    // Input validation
+    if (!channel?.isVoiceBased()) {
+        throw new Error('Channel must be a voice channel');
+    }
+    
+    if (!channel.id) {
+        throw new Error('Channel ID is required');
+    }
 
     const result = await gachaVC.findOne({ channelId: channel.id });
     if (!result || !result.gameData || !result.gameData.map) {
@@ -2009,9 +2164,21 @@ async function generateTileMapImage(channel) {
     console.log(`Using theme: ${theme} for channel ${channel.id}`);
     
     // Get rails and encounters data - always fetch fresh to ensure we have latest state
-    const railsData = await railStorage.getRailsData(channel.id);
-    // Force a fresh fetch of hazards data to ensure triggered hazards are not shown
-    const encountersData = await (encounterStorage.getEncountersData || encounterStorage.getHazardsData)?.call(encounterStorage, channel.id) || {};
+    let railsData, encountersData;
+    try {
+        railsData = await railStorage.getRailsData(channel.id);
+    } catch (error) {
+        console.warn(`[RENDER] Error loading rails data for channel ${channel.id}:`, error);
+        railsData = null;
+    }
+    
+    try {
+        // Force a fresh fetch of hazards data to ensure triggered hazards are not shown
+        encountersData = await (encounterStorage.getEncountersData || encounterStorage.getHazardsData)?.call(encounterStorage, channel.id) || {};
+    } catch (error) {
+        console.warn(`[RENDER] Error loading encounters data for channel ${channel.id}:`, error);
+        encountersData = {};
+    }
     
     // Log hazard count for debugging
     const hazardCount = encountersData.hazards ? encountersData.hazards.size : 0;
@@ -2033,15 +2200,19 @@ async function generateTileMapImage(channel) {
     const allVisibleTiles = new Set();
     
     for (const member of members.values()) {
-        const position = playerPositions[member.id];
-        if (!position) continue;
-        
-        const playerData = await getPlayerStats(member.id);
-        const sightRadius = playerData.stats.sight || 0;
-        
-        const visibleTiles = calculateVisibleTiles(position, sightRadius, tiles, imageSettings);
-        for (const tile of visibleTiles) {
-            allVisibleTiles.add(tile);
+        try {
+            const position = playerPositions[member.id];
+            if (!position) continue;
+            
+            const playerData = await getPlayerStats(member.id);
+            const sightRadius = playerData?.stats?.sight || 0;
+            
+            const visibleTiles = calculateVisibleTiles(position, sightRadius, tiles, imageSettings);
+            for (const tile of visibleTiles) {
+                allVisibleTiles.add(tile);
+            }
+        } catch (error) {
+            console.warn(`[RENDER] Error calculating visibility for member ${member.id}:`, error);
         }
     }
     
@@ -2099,15 +2270,27 @@ async function generateTileMapImage(channel) {
     }
 
     // === LAYER 1: FLOOR LAYER ===
-    await drawFloorLayer(ctx, tiles, width, height, floorTileSize, visibilityMap, theme, channel.id, result);
+    try {
+        await drawFloorLayer(ctx, tiles, width, height, floorTileSize, visibilityMap, theme, channel.id, result);
+    } catch (error) {
+        console.error(`[RENDER] Error drawing floor layer for channel ${channel.id}:`, error);
+    }
     
     // === LAYER 2: MIDGROUND LAYER (Y-sorted) ===
-    await drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wallTileHeight,
-                            visibilityMap, theme, members, playerPositions,
-                            railsData, encountersData, imageSettings, channel.id, inShortBreak, result);
+    try {
+        await drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wallTileHeight,
+                                visibilityMap, theme, members, playerPositions,
+                                railsData, encountersData, imageSettings, channel.id, inShortBreak, result);
+    } catch (error) {
+        console.error(`[RENDER] Error drawing midground layer for channel ${channel.id}:`, error);
+    }
     
     // === LAYER 3: TOP LAYER ===
-    await drawTopLayer(ctx, width, height, floorTileSize, theme);
+    try {
+        await drawTopLayer(ctx, width, height, floorTileSize, theme);
+    } catch (error) {
+        console.error(`[RENDER] Error drawing top layer for channel ${channel.id}:`, error);
+    }
 
     // Restore translation
     ctx.restore();
@@ -2123,6 +2306,26 @@ async function generateTileMapImage(channel) {
     ctx.strokeStyle = '#333333'; // border color
     ctx.strokeRect(0, 0, finalWidth, finalHeight);
     ctx.restore();
+
+    // Performance monitoring
+    const totalTime = Date.now() - startTime;
+    renderMonitor.recordRender(totalTime);
+    
+    if (totalTime > 2000) {
+        console.warn(`[RENDER] Slow image generation: ${totalTime}ms for channel ${channel.id}`);
+    }
+    
+    // Log cache statistics
+    const cacheStats = tileImageCache.getStats();
+    if (cacheStats.size > 0) {
+        console.log(`[RENDER] Cache stats: ${cacheStats.size}/${cacheStats.maxSize} (${Math.round(cacheStats.hitRate * 100)}% full)`);
+    }
+    
+    // Log performance statistics
+    const perfStats = renderMonitor.getStats();
+    if (perfStats.totalRenders % 10 === 0) { // Log every 10 renders
+        console.log(`[RENDER] Performance stats: Avg ${Math.round(perfStats.averageRenderTime)}ms, Cache hit rate: ${Math.round(perfStats.cacheHitRate * 100)}%`);
+    }
 
     // Return optimized buffer
     if (useJPEG) {

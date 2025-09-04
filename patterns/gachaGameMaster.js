@@ -13,12 +13,19 @@ const Sacrifice = require('../models/SacrificeSchema'); // Import Sacrifice mode
 const gachaServersPath = path.join(__dirname, '../data/gachaServers.json');
 const gachaServers = JSON.parse(fs.readFileSync(gachaServersPath, 'utf8'));
 
-// Enhanced lock manager with timeouts and metadata (FIXED)
+// Enhanced lock manager with timeouts, metadata, and performance monitoring
 class VCLockManager {
     constructor() {
         this.locks = new Map();
         this.defaultTimeout = 30000; // 30 seconds default timeout
         this.cleanupTimers = new Map(); // Track cleanup timers to prevent memory leaks
+        this.stats = {
+            totalLocks: 0,
+            activeLocks: 0,
+            expiredLocks: 0,
+            failedAcquisitions: 0
+        };
+        this.performanceMetrics = new Map(); // Track lock performance
     }
 
     /**
@@ -29,50 +36,88 @@ class VCLockManager {
      * @returns {boolean} - Whether the lock was acquired
      */
     acquire(vcId, scriptName, timeout = this.defaultTimeout) {
+        // Input validation
+        if (!vcId || typeof vcId !== 'string') {
+            console.error('[LOCK MANAGER] Invalid vcId provided to acquire');
+            this.stats.failedAcquisitions++;
+            return false;
+        }
+        
+        if (!scriptName || typeof scriptName !== 'string') {
+            console.error('[LOCK MANAGER] Invalid scriptName provided to acquire');
+            this.stats.failedAcquisitions++;
+            return false;
+        }
+        
+        if (typeof timeout !== 'number' || timeout <= 0) {
+            console.warn('[LOCK MANAGER] Invalid timeout provided, using default');
+            timeout = this.defaultTimeout;
+        }
+        
         const now = Date.now();
+        const startTime = now;
         
-        // Check if there's an existing lock
-        if (this.locks.has(vcId)) {
-            const lock = this.locks.get(vcId);
+        try {
+            // Check if there's an existing lock
+            if (this.locks.has(vcId)) {
+                const lock = this.locks.get(vcId);
+                
+                // Check if the lock has expired
+                if (now > lock.expiresAt) {
+                    console.warn(`[LOCK MANAGER] Lock for VC ${vcId} expired, forcefully releasing`);
+                    this.release(vcId);
+                } else {
+                    // Lock is still valid
+                    this.stats.failedAcquisitions++;
+                    return false;
+                }
+            }
             
-            // Check if the lock has expired
-            if (now > lock.expiresAt) {
-                console.warn(`Lock for VC ${vcId} expired, forcefully releasing`);
-                this.release(vcId);
-            } else {
-                // Lock is still valid
-                return false;
+            // Clear any existing cleanup timer for this VC
+            if (this.cleanupTimers.has(vcId)) {
+                clearTimeout(this.cleanupTimers.get(vcId));
+                this.cleanupTimers.delete(vcId);
             }
+            
+            // Acquire the lock with unique ID to prevent race conditions
+            const lockId = `${vcId}-${now}-${Math.random()}`;
+            this.locks.set(vcId, {
+                lockId,
+                scriptName,
+                acquiredAt: now,
+                expiresAt: now + timeout,
+                timeout
+            });
+            
+            // Set automatic cleanup timer with proper reference
+            const timerId = setTimeout(() => {
+                const currentLock = this.locks.get(vcId);
+                if (currentLock && currentLock.lockId === lockId) {
+                    console.warn(`[LOCK MANAGER] Auto-releasing expired lock for VC ${vcId}`);
+                    this.release(vcId);
+                }
+            }, timeout);
+            
+            this.cleanupTimers.set(vcId, timerId);
+            
+            // Update statistics
+            this.stats.totalLocks++;
+            this.stats.activeLocks = this.locks.size;
+            
+            // Track performance
+            const acquisitionTime = Date.now() - startTime;
+            this.performanceMetrics.set(vcId, {
+                lastAcquisitionTime: acquisitionTime,
+                scriptName,
+                acquiredAt: now
+            });
+            
+            return true;
+        } catch (error) {
+            console.error(`[LOCK MANAGER] Error acquiring lock for VC ${vcId}:`, error);
+            this.stats.failedAcquisitions++;
+            return false;
         }
-        
-        // Clear any existing cleanup timer for this VC
-        if (this.cleanupTimers.has(vcId)) {
-            clearTimeout(this.cleanupTimers.get(vcId));
-            this.cleanupTimers.delete(vcId);
-        }
-        
-        // Acquire the lock with unique ID to prevent race conditions
-        const lockId = `${vcId}-${now}-${Math.random()}`;
-        this.locks.set(vcId, {
-            lockId,
-            scriptName,
-            acquiredAt: now,
-            expiresAt: now + timeout,
-            timeout
-        });
-        
-        // Set automatic cleanup timer with proper reference
-        const timerId = setTimeout(() => {
-            const currentLock = this.locks.get(vcId);
-            if (currentLock && currentLock.lockId === lockId) {
-                console.warn(`Auto-releasing expired lock for VC ${vcId}`);
-                this.release(vcId);
-            }
-        }, timeout);
-        
-        this.cleanupTimers.set(vcId, timerId);
-        
-        return true;
     }
 
     /**
@@ -80,13 +125,34 @@ class VCLockManager {
      * @param {string} vcId - The voice channel ID
      */
     release(vcId) {
-        // Clear cleanup timer if exists (prevents memory leak)
-        if (this.cleanupTimers.has(vcId)) {
-            clearTimeout(this.cleanupTimers.get(vcId));
-            this.cleanupTimers.delete(vcId);
+        if (!vcId) {
+            console.error('[LOCK MANAGER] Invalid vcId provided to release');
+            return;
         }
         
-        this.locks.delete(vcId);
+        try {
+            // Clear cleanup timer if exists (prevents memory leak)
+            if (this.cleanupTimers.has(vcId)) {
+                clearTimeout(this.cleanupTimers.get(vcId));
+                this.cleanupTimers.delete(vcId);
+            }
+            
+            // Update performance metrics before releasing
+            const lock = this.locks.get(vcId);
+            if (lock) {
+                const holdTime = Date.now() - lock.acquiredAt;
+                const metrics = this.performanceMetrics.get(vcId);
+                if (metrics) {
+                    metrics.holdTime = holdTime;
+                    metrics.releasedAt = Date.now();
+                }
+            }
+            
+            this.locks.delete(vcId);
+            this.stats.activeLocks = this.locks.size;
+        } catch (error) {
+            console.error(`[LOCK MANAGER] Error releasing lock for VC ${vcId}:`, error);
+        }
     }
 
     /**
@@ -174,16 +240,57 @@ class VCLockManager {
      * Force release all locks (for emergency cleanup)
      */
     releaseAll() {
-        console.warn('Force releasing all locks');
+        console.warn('[LOCK MANAGER] Force releasing all locks');
         
-        // Clear all cleanup timers
-        for (const timerId of this.cleanupTimers.values()) {
-            clearTimeout(timerId);
+        try {
+            // Clear all cleanup timers
+            for (const timerId of this.cleanupTimers.values()) {
+                clearTimeout(timerId);
+            }
+            this.cleanupTimers.clear();
+            
+            // Clear all locks
+            this.locks.clear();
+            this.stats.activeLocks = 0;
+        } catch (error) {
+            console.error('[LOCK MANAGER] Error during force release:', error);
         }
-        this.cleanupTimers.clear();
+    }
+    
+    /**
+     * Get performance statistics
+     * @returns {Object} Performance statistics
+     */
+    getStats() {
+        return {
+            ...this.stats,
+            performanceMetrics: Array.from(this.performanceMetrics.entries()).map(([vcId, metrics]) => ({
+                vcId,
+                ...metrics
+            }))
+        };
+    }
+    
+    /**
+     * Get health status of the lock manager
+     * @returns {Object} Health status
+     */
+    getHealthStatus() {
+        const now = Date.now();
+        const activeLocks = Array.from(this.locks.entries()).map(([vcId, lock]) => ({
+            vcId,
+            scriptName: lock.scriptName,
+            remainingTime: lock.expiresAt - now,
+            isExpired: now > lock.expiresAt
+        }));
         
-        // Clear all locks
-        this.locks.clear();
+        return {
+            isHealthy: this.cleanupTimers.size === this.locks.size,
+            activeLocks: activeLocks.length,
+            expiredLocks: activeLocks.filter(lock => lock.isExpired).length,
+            memoryLeaks: this.cleanupTimers.size !== this.locks.size,
+            stats: this.stats
+        };
     }
 }
 
@@ -246,9 +353,11 @@ module.exports = async (guild) => {
         lockManager.cleanupExpired();
     }, 15000); // Clean up every 15 seconds
 
-    // --- UNIQUE ITEMS MAINTENANCE CHECK ---
+    // --- OPTIMIZED UNIQUE ITEMS MAINTENANCE CHECK ---
     // Check every minute for items needing maintenance reduction
     setInterval(async () => {
+        const startTime = Date.now();
+        
         try {
             const now = new Date();
             
@@ -256,7 +365,9 @@ module.exports = async (guild) => {
             const itemsDue = await UniqueItem.find({
                 nextMaintenanceCheck: { $lte: now },
                 ownerId: { $ne: null } // Only owned items
-            });
+            }).lean(); // Use lean() for better performance
+            
+            if (itemsDue.length === 0) return;
             
             // Filter by items that actually require maintenance according to sheet
             const itemsRequiringMaintenance = [];
@@ -269,50 +380,25 @@ module.exports = async (guild) => {
             
             if (itemsRequiringMaintenance.length > 0) {
                 console.log(`[UNIQUE ITEMS] Processing maintenance for ${itemsRequiringMaintenance.length} items`);
-            }
-            
-            for (const { item, itemData } of itemsRequiringMaintenance) {
-                try {
+                
+                // Process items in batches to avoid overwhelming the database
+                const batchSize = 5;
+                for (let i = 0; i < itemsRequiringMaintenance.length; i += batchSize) {
+                    const batch = itemsRequiringMaintenance.slice(i, i + batchSize);
+                    const batchPromises = batch.map(({ item, itemData }) => 
+                        processItemMaintenance(item, itemData)
+                    );
                     
-                    // Special handling for Midas' Burden (wealthiest maintenance)
-                    let shouldDecay = true;
-                    if (itemData.maintenanceType === 'wealthiest' && item.itemId === 10) {
-                        // Check if player is still the richest
-                        const { checkRichestPlayer } = require('./conditionalUniqueItems');
-                        const isRichest = await checkRichestPlayer(item.ownerId, null);
-                        
-                        if (isRichest) {
-                            // Still richest, don't decay maintenance
-                            shouldDecay = false;
-                            console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner still wealthiest, maintenance preserved at ${item.maintenanceLevel}`);
-                        } else {
-                            console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner no longer wealthiest, maintenance will decay`);
-                        }
-                    }
-                    
-                    // Reduce maintenance by decay rate if applicable
-                    const oldLevel = item.maintenanceLevel;
-                    if (shouldDecay) {
-                        const decayRate = itemData.maintenanceDecayRate || 1;
-                        await item.reduceMaintenance(decayRate);
-                    }
-                    
-                    // Set next maintenance check for 24 hours later
-                    item.nextMaintenanceCheck = new Date(Date.now() + 24 * 60 * 60 * 1000);
-                    await item.save();
-                    
-                    console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance ${oldLevel} -> ${item.maintenanceLevel} (Owner: ${item.ownerTag || 'None'})`);
-                    
-                    // Log if item was lost
-                    if (item.maintenanceLevel <= 0 && !item.ownerId) {
-                        console.log(`[UNIQUE ITEMS] ⚠️ ${itemData.name} was lost due to maintenance failure!`);
-                    }
-                } catch (itemError) {
-                    console.error(`[UNIQUE ITEMS] Error processing item ${item.itemId}:`, itemError);
+                    await Promise.allSettled(batchPromises);
                 }
             }
         } catch (error) {
             console.error('[UNIQUE ITEMS] Error in maintenance check:', error);
+        } finally {
+            const processingTime = Date.now() - startTime;
+            if (processingTime > 2000) {
+                console.warn(`[UNIQUE ITEMS] Slow maintenance processing: ${processingTime}ms`);
+            }
         }
     }, 60 * 1000); // Check every minute (will only process items that are due)
     
@@ -326,142 +412,334 @@ module.exports = async (guild) => {
         }
     }, 5 * 60 * 1000); // Check every 5 minutes
     
-    // --- INTERVAL CHECK ---
+    // --- OPTIMIZED INTERVAL CHECK ---
+    let lastGuildConfigUpdate = 0;
+    let lastGulletCheck = 0;
+    const GUILD_CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+    const GULLET_CHECK_TTL = 30 * 1000; // 30 seconds
+    
     setInterval(async () => {
         const now = Date.now();
+        const startTime = now;
 
-        // Check for gullet cleanup when not sacrificing
         try {
-            const sacrificeData = await Sacrifice.findOne({ 
-                guildId: guild.id,
-                isSacrificing: true 
-            });
-
-            // If not sacrificing (or no sacrifice data), delete any gullet channels
-            if (!sacrificeData || !sacrificeData.isSacrificing) {
-                const existingGullets = await ActiveVCS.find({ 
-                    guildId: guild.id, 
-                    typeId: 16 
-                });
+            // Batch database operations for better performance
+            const [sacrificeData, guildDb, activeVCs] = await Promise.all([
+                // Only check sacrifice data if enough time has passed
+                (now - lastGulletCheck > GULLET_CHECK_TTL) ? 
+                    Sacrifice.findOne({ guildId: guild.id, isSacrificing: true }) : 
+                    Promise.resolve(null),
                 
-                if (existingGullets.length > 0) {
-                    console.log(`🧹 Not sacrificing, cleaning up ${existingGullets.length} gullet channel(s)...`);
-                    
-                    for (const gulletEntry of existingGullets) {
-                        try {
-                            // Try to fetch and delete the actual Discord channel
-                            const gulletChannel = await guild.channels.fetch(gulletEntry.channelId).catch(() => null);
-                            if (gulletChannel) {
-                                //await gulletChannel.delete('Sacrifice ended - cleaning up gullet channels');
-                                //console.log(`🗑️ Deleted gullet channel: ${gulletChannel.name}`);
-                            }
-                            
-                            // // Remove from database
-                            // await ActiveVCS.deleteOne({ channelId: gulletEntry.channelId });
-                            // console.log(`📝 Removed gullet channel from database: ${gulletEntry.channelId}`);
-                        } catch (err) {
-                            console.error(`Error cleaning up gullet channel ${gulletEntry.channelId}:`, err);
-                        }
-                    }
-                }
+                // Only check guild config if enough time has passed
+                (now - lastGuildConfigUpdate > GUILD_CONFIG_CACHE_TTL) ? 
+                    GuildConfig.findOne({ guildId: guild.id }) : 
+                    Promise.resolve(null),
+                
+                // Always fetch active VCs as they change frequently
+                ActiveVCS.find().lean() // Use lean() for better performance
+            ]);
+
+            // Handle gullet cleanup (only if we fetched sacrifice data)
+            if (sacrificeData !== null) {
+                lastGulletCheck = now;
+                await handleGulletCleanup(guild, sacrificeData);
             }
+
+            // Handle guild config update (only if we fetched guild data)
+            if (guildDb !== null) {
+                lastGuildConfigUpdate = now;
+                await handleGuildConfigUpdate(guildDb, now);
+            }
+
+            // Process active VCs with improved error handling
+            await processActiveVCs(guild, activeVCs, now, gachaServers);
+
         } catch (error) {
-            console.error('Error checking/cleaning gullet channels:', error);
-        }
-
-        // global Shop price shift KEY change update.
-        const guildDb = await GuildConfig.findOne({guildId: guild.id});
-        if (now > guildDb.updatedAt) {
-            const msToAdd = 1000 * 60 * 60; // add 60 minutes
-
-            await GuildConfig.updateOne(
-                { guildId: guild.id },
-                { $set: { updatedAt: new Date(guildDb.updatedAt.getTime() + msToAdd) } }
-            );
-        }
-
-        // begin vc check cycle
-        const activeVCs = await ActiveVCS.find(); // Fetch live DB entries
-
-        for (const vc of activeVCs) {
-            const nextTrigger = vc.nextTrigger ? new Date(vc.nextTrigger).getTime() : 0;
-
-            // Skip if not time yet
-            if (vc.nextTrigger && now < nextTrigger) continue;
-
-            // Check if VC is locked
-            if (lockManager.isLocked(vc.channelId)) {
-                const lockInfo = lockManager.getLockInfo(vc.channelId);
-                const remainingTime = lockInfo.expiresAt - Date.now();
-                console.log(`Skipping VC ${vc.channelId}, locked by ${lockInfo.scriptName} (expires in ${Math.round(remainingTime / 1000)}s)`);
-                continue;
-            }
-
-            // Find corresponding gacha server data
-            const serverData = gachaServers.find(s => s.id == vc.typeId); // Use == for type coercion
-            if (!serverData) continue;
-
-            // Define scriptTimeout outside try block so it's accessible in catch
-            const scriptTimeout = serverData.timeout || 30000; // Default 30s (consistent with lock manager)
+            console.error('[GAME MASTER] Error in main interval:', error);
+            performanceMonitor.recordError('main_interval_error');
+        } finally {
+            // Record performance metrics
+            const processingTime = Date.now() - startTime;
+            performanceMonitor.recordIntervalProcessing(processingTime);
             
-            try {
-                // Try to acquire lock with appropriate timeout
-                if (!lockManager.acquire(vc.channelId, serverData.name, scriptTimeout)) {
-                    console.log(`Failed to acquire lock for VC ${vc.channelId}`);
-                    continue;
-                }
-
-                const scriptPath = path.join(__dirname, './gachaModes', serverData.script);
-                const gameScript = require(scriptPath);
-
-                const gachaVC = await guild.channels.fetch(vc.channelId).catch(() => null);
-                if (!gachaVC) {
-                    lockManager.release(vc.channelId);
-                    continue;
-                }
-
-                console.log(`Running ${serverData.name} script for VC ${vc.channelId}`);
-
-                const now = Date.now();
-                vc.nextTrigger = new Date(now + 500);
-                await vc.save();
-
-                // Run script with timeout protection (FIXED: prevents memory leak)
-                let timeoutId;
-                try {
-                    const scriptPromise = gameScript(gachaVC, vc, serverData);
-                    const timeoutPromise = new Promise((_, reject) => {
-                        timeoutId = setTimeout(() => {
-                            reject(new Error('Script timeout'));
-                        }, scriptTimeout);
-                    });
-
-                    await Promise.race([scriptPromise, timeoutPromise]);
-                    
-                    // Clear timeout if script completed successfully
-                    if (timeoutId) {
-                        clearTimeout(timeoutId);
-                    }
-                } finally {
-                    // Ensure timeout is cleared even on error
-                    if (timeoutId) {
-                        clearTimeout(timeoutId);
-                    }
-                }
-
-                console.log(`Completed ${serverData.name} for VC ${vc.channelId}`);
-            } catch (err) {
-                if (err.message === 'Script timeout') {
-                    console.error(`Script timeout for VC ${vc.channelId} after ${scriptTimeout}ms`);
-                } else {
-                    console.error(`Error running script for VC ${vc.channelId}:`, err);
-                }
-            } finally {
-                lockManager.release(vc.channelId); // Always release lock
+            if (processingTime > 1000) {
+                console.warn(`[GAME MASTER] Slow processing: ${processingTime}ms`);
             }
         }
     }, 7 * 1000); // Check every 7 seconds
 };
 
-// Export lock manager for debugging/monitoring
+// Helper functions for optimized interval processing
+async function processItemMaintenance(item, itemData) {
+    try {
+        // Special handling for Midas' Burden (wealthiest maintenance)
+        let shouldDecay = true;
+        if (itemData.maintenanceType === 'wealthiest' && item.itemId === 10) {
+            // Check if player is still the richest
+            const { checkRichestPlayer } = require('./conditionalUniqueItems');
+            const isRichest = await checkRichestPlayer(item.ownerId, null);
+            
+            if (isRichest) {
+                // Still richest, don't decay maintenance
+                shouldDecay = false;
+                console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner still wealthiest, maintenance preserved at ${item.maintenanceLevel}`);
+            } else {
+                console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner no longer wealthiest, maintenance will decay`);
+            }
+        }
+        
+        // Reduce maintenance by decay rate if applicable
+        const oldLevel = item.maintenanceLevel;
+        if (shouldDecay) {
+            const decayRate = itemData.maintenanceDecayRate || 1;
+            await item.reduceMaintenance(decayRate);
+        }
+        
+        // Set next maintenance check for 24 hours later
+        item.nextMaintenanceCheck = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await item.save();
+        
+        console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance ${oldLevel} -> ${item.maintenanceLevel} (Owner: ${item.ownerTag || 'None'})`);
+        
+        // Log if item was lost
+        if (item.maintenanceLevel <= 0 && !item.ownerId) {
+            console.log(`[UNIQUE ITEMS] ⚠️ ${itemData.name} was lost due to maintenance failure!`);
+        }
+    } catch (itemError) {
+        console.error(`[UNIQUE ITEMS] Error processing item ${item.itemId}:`, itemError);
+    }
+}
+
+async function handleGulletCleanup(guild, sacrificeData) {
+    try {
+        // If not sacrificing (or no sacrifice data), delete any gullet channels
+        if (!sacrificeData || !sacrificeData.isSacrificing) {
+            const existingGullets = await ActiveVCS.find({ 
+                guildId: guild.id, 
+                typeId: 16 
+            });
+            
+            if (existingGullets.length > 0) {
+                console.log(`🧹 Not sacrificing, cleaning up ${existingGullets.length} gullet channel(s)...`);
+                
+                // Process gullet cleanup in parallel for better performance
+                const cleanupPromises = existingGullets.map(async (gulletEntry) => {
+                    try {
+                        // Try to fetch and delete the actual Discord channel
+                        const gulletChannel = await guild.channels.fetch(gulletEntry.channelId).catch(() => null);
+                        if (gulletChannel) {
+                            //await gulletChannel.delete('Sacrifice ended - cleaning up gullet channels');
+                            //console.log(`🗑️ Deleted gullet channel: ${gulletChannel.name}`);
+                        }
+                        
+                        // // Remove from database
+                        // await ActiveVCS.deleteOne({ channelId: gulletEntry.channelId });
+                        // console.log(`📝 Removed gullet channel from database: ${gulletEntry.channelId}`);
+                    } catch (err) {
+                        console.error(`Error cleaning up gullet channel ${gulletEntry.channelId}:`, err);
+                    }
+                });
+                
+                await Promise.allSettled(cleanupPromises);
+            }
+        }
+    } catch (error) {
+        console.error('[GAME MASTER] Error in gullet cleanup:', error);
+    }
+}
+
+async function handleGuildConfigUpdate(guildDb, now) {
+    try {
+        if (guildDb && now > guildDb.updatedAt.getTime()) {
+            const msToAdd = 1000 * 60 * 60; // add 60 minutes
+
+            await GuildConfig.updateOne(
+                { guildId: guildDb.guildId },
+                { $set: { updatedAt: new Date(guildDb.updatedAt.getTime() + msToAdd) } }
+            );
+        }
+    } catch (error) {
+        console.error('[GAME MASTER] Error updating guild config:', error);
+    }
+}
+
+async function processActiveVCs(guild, activeVCs, now, gachaServers) {
+    // Filter VCs that are ready to process
+    const readyVCs = activeVCs.filter(vc => {
+        const nextTrigger = vc.nextTrigger ? new Date(vc.nextTrigger).getTime() : 0;
+        return !vc.nextTrigger || now >= nextTrigger;
+    });
+
+    if (readyVCs.length === 0) return;
+
+    // Process VCs in parallel with concurrency limit
+    const concurrencyLimit = 3; // Process max 3 VCs simultaneously
+    const chunks = [];
+    for (let i = 0; i < readyVCs.length; i += concurrencyLimit) {
+        chunks.push(readyVCs.slice(i, i + concurrencyLimit));
+    }
+
+    for (const chunk of chunks) {
+        const processingPromises = chunk.map(vc => processSingleVC(guild, vc, now, gachaServers));
+        await Promise.allSettled(processingPromises);
+    }
+}
+
+async function processSingleVC(guild, vc, now, gachaServers) {
+    try {
+        // Check if VC is locked
+        if (lockManager.isLocked(vc.channelId)) {
+            const lockInfo = lockManager.getLockInfo(vc.channelId);
+            const remainingTime = lockInfo.expiresAt - Date.now();
+            console.log(`Skipping VC ${vc.channelId}, locked by ${lockInfo.scriptName} (expires in ${Math.round(remainingTime / 1000)}s)`);
+            return;
+        }
+
+        // Find corresponding gacha server data
+        const serverData = gachaServers.find(s => s.id == vc.typeId);
+        if (!serverData) {
+            console.warn(`[GAME MASTER] No server data found for typeId ${vc.typeId}`);
+            return;
+        }
+
+        const scriptTimeout = serverData.timeout || 30000;
+        
+        // Try to acquire lock with appropriate timeout
+        if (!lockManager.acquire(vc.channelId, serverData.name, scriptTimeout)) {
+            console.log(`Failed to acquire lock for VC ${vc.channelId}`);
+            return;
+        }
+
+        try {
+            const scriptPath = path.join(__dirname, './gachaModes', serverData.script);
+            const gameScript = require(scriptPath);
+
+            const gachaVC = await guild.channels.fetch(vc.channelId).catch(() => null);
+            if (!gachaVC) {
+                console.warn(`[GAME MASTER] Could not fetch channel ${vc.channelId}`);
+                return;
+            }
+
+            console.log(`Running ${serverData.name} script for VC ${vc.channelId}`);
+
+            // Update next trigger time
+            vc.nextTrigger = new Date(now + 500);
+            await vc.save();
+
+            // Run script with timeout protection
+            let timeoutId;
+            try {
+                const scriptPromise = gameScript(gachaVC, vc, serverData);
+                const timeoutPromise = new Promise((_, reject) => {
+                    timeoutId = setTimeout(() => {
+                        reject(new Error('Script timeout'));
+                    }, scriptTimeout);
+                });
+
+                await Promise.race([scriptPromise, timeoutPromise]);
+                
+                // Clear timeout if script completed successfully
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+            } finally {
+                // Ensure timeout is cleared even on error
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+            }
+
+            console.log(`Completed ${serverData.name} for VC ${vc.channelId}`);
+        } catch (err) {
+            if (err.message === 'Script timeout') {
+                console.error(`Script timeout for VC ${vc.channelId} after ${scriptTimeout}ms`);
+            } else {
+                console.error(`Error running script for VC ${vc.channelId}:`, err);
+            }
+        } finally {
+            lockManager.release(vc.channelId); // Always release lock
+        }
+    } catch (error) {
+        console.error(`[GAME MASTER] Error processing VC ${vc.channelId}:`, error);
+    }
+}
+
+// Performance monitoring and health check system
+class PerformanceMonitor {
+    constructor() {
+        this.metrics = {
+            intervalProcessingTimes: [],
+            databaseQueryTimes: [],
+            scriptExecutionTimes: [],
+            errorCounts: new Map(),
+            lastHealthCheck: Date.now()
+        };
+        this.maxMetricsHistory = 100;
+    }
+    
+    recordIntervalProcessing(time) {
+        this.metrics.intervalProcessingTimes.push(time);
+        if (this.metrics.intervalProcessingTimes.length > this.maxMetricsHistory) {
+            this.metrics.intervalProcessingTimes.shift();
+        }
+    }
+    
+    recordDatabaseQuery(time) {
+        this.metrics.databaseQueryTimes.push(time);
+        if (this.metrics.databaseQueryTimes.length > this.maxMetricsHistory) {
+            this.metrics.databaseQueryTimes.shift();
+        }
+    }
+    
+    recordScriptExecution(time) {
+        this.metrics.scriptExecutionTimes.push(time);
+        if (this.metrics.scriptExecutionTimes.length > this.maxMetricsHistory) {
+            this.metrics.scriptExecutionTimes.shift();
+        }
+    }
+    
+    recordError(errorType) {
+        const count = this.metrics.errorCounts.get(errorType) || 0;
+        this.metrics.errorCounts.set(errorType, count + 1);
+    }
+    
+    getHealthStatus() {
+        const now = Date.now();
+        const avgIntervalTime = this.getAverageTime(this.metrics.intervalProcessingTimes);
+        const avgDbTime = this.getAverageTime(this.metrics.databaseQueryTimes);
+        const avgScriptTime = this.getAverageTime(this.metrics.scriptExecutionTimes);
+        
+        return {
+            isHealthy: avgIntervalTime < 5000 && avgDbTime < 1000 && avgScriptTime < 30000,
+            metrics: {
+                averageIntervalProcessingTime: avgIntervalTime,
+                averageDatabaseQueryTime: avgDbTime,
+                averageScriptExecutionTime: avgScriptTime,
+                totalErrors: Array.from(this.metrics.errorCounts.values()).reduce((a, b) => a + b, 0),
+                errorBreakdown: Object.fromEntries(this.metrics.errorCounts),
+                lastHealthCheck: this.metrics.lastHealthCheck
+            },
+            lockManagerHealth: lockManager.getHealthStatus()
+        };
+    }
+    
+    getAverageTime(times) {
+        if (times.length === 0) return 0;
+        return times.reduce((a, b) => a + b, 0) / times.length;
+    }
+}
+
+const performanceMonitor = new PerformanceMonitor();
+
+// Health check interval
+setInterval(() => {
+    const healthStatus = performanceMonitor.getHealthStatus();
+    if (!healthStatus.isHealthy) {
+        console.warn('[HEALTH CHECK] System health issues detected:', healthStatus.metrics);
+    }
+    performanceMonitor.metrics.lastHealthCheck = Date.now();
+}, 5 * 60 * 1000); // Check every 5 minutes
+
+// Export for debugging/monitoring
 module.exports.lockManager = lockManager;
+module.exports.performanceMonitor = performanceMonitor;
