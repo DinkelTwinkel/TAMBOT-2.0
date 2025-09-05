@@ -4,6 +4,8 @@ const gachaVC = require('../../../../models/activevcs');
 const getPlayerStats = require('../../../calculatePlayerStat');
 const itemSheet = require('../../../../data/itemSheet.json');
 const PlayerInventory = require('../../../../models/inventory');
+const UniqueItem = require('../../../../models/uniqueItems');
+const { getUniqueItemById } = require('../../../../data/uniqueItemsSheet');
 const path = require('path');
 const fs = require('fs').promises;
 const { generateThemeImages } = require('./generateMissingImages');
@@ -1859,33 +1861,74 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
             const bestPickaxe = await getBestMiningPickaxe(member.user.id);
             if (bestPickaxe && bestPickaxe.image && size > 2) {
                 const pickaxeImagePath = `./assets/items/${bestPickaxe.image}.png`;
-                const pickaxeImage = await loadImage(pickaxeImagePath);
                 
-                const pickaxeSize = size * 1;
-                const pickaxeX = centerX - radius * 1.7;
-                const pickaxeY = centerY - pickaxeSize/3;
-                
-                ctx.save();
-                ctx.globalAlpha = 0.9;
-                ctx.drawImage(pickaxeImage, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
-                ctx.restore();
-
-                const miningAbility = bestPickaxe.abilities?.find(a => a.name === 'mining');
-                if (miningAbility && miningAbility.powerlevel && size > 30) {
+                try {
+                    const pickaxeImage = await loadImage(pickaxeImagePath);
+                    
+                    const pickaxeSize = size * 1;
+                    const pickaxeX = centerX - radius * 1.7;
+                    const pickaxeY = centerY - pickaxeSize/3;
+                    
                     ctx.save();
-                    ctx.font = `bold ${Math.floor(size * 0.25)}px Arial`;
-                    ctx.fillStyle = '#FFD700';
-                    ctx.strokeStyle = '#000000';
-                    ctx.lineWidth = 2;
-                    ctx.textAlign = 'center';
-                    
-                    const powerText = `+${miningAbility.powerlevel}`;
-                    const textX = centerX;
-                    const textY = centerY - radius - 8;
-                    
-                    ctx.strokeText(powerText, textX, textY);
-                    ctx.fillText(powerText, textX, textY);
+                    ctx.globalAlpha = 0.9;
+                    ctx.drawImage(pickaxeImage, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
                     ctx.restore();
+
+                    const miningAbility = bestPickaxe.abilities?.find(a => a.name === 'mining');
+                    if (miningAbility && miningAbility.powerlevel && size > 30) {
+                        ctx.save();
+                        ctx.font = `bold ${Math.floor(size * 0.25)}px Arial`;
+                        ctx.fillStyle = '#FFD700';
+                        ctx.strokeStyle = '#000000';
+                        ctx.lineWidth = 2;
+                        ctx.textAlign = 'center';
+                        
+                        const powerText = `+${miningAbility.powerlevel}`;
+                        const textX = centerX;
+                        const textY = centerY - radius - 8;
+                        
+                        ctx.strokeText(powerText, textX, textY);
+                        ctx.fillText(powerText, textX, textY);
+                        ctx.restore();
+                    }
+                } catch (imageError) {
+                    // If the unique pickaxe image doesn't exist, try to use a fallback
+                    console.warn(`Unique pickaxe image not found: ${pickaxeImagePath}, using fallback`);
+                    
+                    // Try to use a regular pickaxe image as fallback
+                    const fallbackImagePath = `./assets/items/ironpickaxe.png`;
+                    try {
+                        const fallbackImage = await loadImage(fallbackImagePath);
+                        
+                        const pickaxeSize = size * 1;
+                        const pickaxeX = centerX - radius * 1.7;
+                        const pickaxeY = centerY - pickaxeSize/3;
+                        
+                        ctx.save();
+                        ctx.globalAlpha = 0.9;
+                        ctx.drawImage(fallbackImage, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
+                        ctx.restore();
+
+                        const miningAbility = bestPickaxe.abilities?.find(a => a.name === 'mining');
+                        if (miningAbility && miningAbility.powerlevel && size > 30) {
+                            ctx.save();
+                            ctx.font = `bold ${Math.floor(size * 0.25)}px Arial`;
+                            ctx.fillStyle = '#FFD700';
+                            ctx.strokeStyle = '#000000';
+                            ctx.lineWidth = 2;
+                            ctx.textAlign = 'center';
+                            
+                            const powerText = `+${miningAbility.powerlevel}`;
+                            const textX = centerX;
+                            const textY = centerY - radius - 8;
+                            
+                            ctx.strokeText(powerText, textX, textY);
+                            ctx.fillText(powerText, textX, textY);
+                            ctx.restore();
+                        }
+                    } catch (fallbackError) {
+                        console.error(`Fallback pickaxe image also failed: ${fallbackImagePath}`, fallbackError);
+                    }
                 }
             }
         } catch (error) {
@@ -2051,31 +2094,54 @@ async function drawTent(ctx, centerX, centerY, tileSize, member, imageSettings) 
 }
 
 /**
- * Get best mining pickaxe for a player (from original)
+ * Get best mining pickaxe for a player (enhanced to include unique items)
  */
 async function getBestMiningPickaxe(userId) {
     try {
-        const inventory = await PlayerInventory.findOne({ playerId: userId });
-        if (!inventory || !inventory.items || inventory.items.length === 0) {
-            return null;
-        }
-
         let bestPickaxe = null;
         let bestMiningPower = 0;
 
-        for (const invItem of inventory.items) {
-            if (invItem.quantity <= 0) continue;
+        // Check regular inventory items first
+        const inventory = await PlayerInventory.findOne({ playerId: userId });
+        if (inventory && inventory.items && inventory.items.length > 0) {
+            for (const invItem of inventory.items) {
+                if (invItem.quantity <= 0) continue;
 
-            const item = itemSheet.find(i => i.id === invItem.itemId);
-            if (!item || item.type !== 'tool' || item.slot !== 'mining') continue;
+                const item = itemSheet.find(i => i.id === invItem.itemId);
+                if (!item || item.type !== 'tool' || item.slot !== 'mining') continue;
 
-            const miningAbility = item.abilities?.find(a => a.name === 'mining');
-            if (!miningAbility || !miningAbility.powerlevel) continue;
+                const miningAbility = item.abilities?.find(a => a.name === 'mining');
+                if (!miningAbility || !miningAbility.powerlevel) continue;
 
-            if (miningAbility.powerlevel > bestMiningPower) {
-                bestMiningPower = miningAbility.powerlevel;
-                bestPickaxe = item;
+                if (miningAbility.powerlevel > bestMiningPower) {
+                    bestMiningPower = miningAbility.powerlevel;
+                    bestPickaxe = item;
+                }
             }
+        }
+
+        // Check unique items owned by the player
+        try {
+            const uniqueItems = await UniqueItem.findPlayerUniqueItems(userId);
+            if (uniqueItems && uniqueItems.length > 0) {
+                for (const uniqueItem of uniqueItems) {
+                    const uniqueItemData = getUniqueItemById(uniqueItem.uniqueItemId);
+                    if (!uniqueItemData || uniqueItemData.type !== 'tool' || uniqueItemData.slot !== 'mining') {
+                        continue;
+                    }
+
+                    const miningAbility = uniqueItemData.abilities?.find(a => a.name === 'mining');
+                    if (!miningAbility || !miningAbility.powerlevel) continue;
+
+                    // If this unique pickaxe is better than the current best, use it
+                    if (miningAbility.powerlevel > bestMiningPower) {
+                        bestMiningPower = miningAbility.powerlevel;
+                        bestPickaxe = uniqueItemData;
+                    }
+                }
+            }
+        } catch (uniqueError) {
+            console.error(`Error checking unique items for user ${userId}:`, uniqueError);
         }
 
         return bestPickaxe;
