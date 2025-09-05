@@ -348,37 +348,54 @@ async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
         dbEntry.gameData.disabledPlayers = {};
     }
     
-    const now = Date.now();
-    dbEntry.gameData.disabledPlayers[member.id] = {
-        reason: 'bomb_trap',
-        timestamp: now,
-        enableAt: now + KNOCKOUT_DURATION,
-        returnAfterBreak: false
-    };
+    // Apply health damage from explosion
+    const explosionDamage = 25; // Bombs deal significant damage
+    const healthResult = await applyHazardDamage(member.id, explosionDamage, 'bomb_trap');
     
-    // Move player to entrance (they're knocked out)
-    position.x = mapData.entranceX;
-    position.y = mapData.entranceY;
-    position.disabled = true;
+    let message = `BOOM! Destroyed ${tilesDestroyed} ore tiles!`;
+    if (healthResult.success) {
+        message += ` (-${explosionDamage} health: ${healthResult.newHealth}/${healthResult.maxHealth})`;
+        
+        // Check if explosion killed the player
+        if (healthResult.newHealth <= 0) {
+            return await handlePlayerDeath(member, position, mapData, eventLogs, 'bomb_trap', dbEntry);
+        }
+    }
     
+    eventLogs.push(`💥 ${member.displayName} was caught in an explosion! ${message}`);
+    
+    // Player survives but continues mining (no more 5-minute knockout)
     return {
         mapChanged: true,
-        playerMoved: true,
-        playerDisabled: true,
-        message: `BOOM! Destroyed ${tilesDestroyed} ore tiles! ${member.displayName} knocked out for 5 minutes!`
+        playerMoved: false, // Don't move player unless they die
+        playerDisabled: false, // Player can continue mining
+        message: message
     };
 }
 
 /**
  * Handle Green Fog - Damage equipment durability
  */
-async function handleGreenFog(member, position, transaction, eventLogs) {
+async function handleGreenFog(member, position, transaction, eventLogs, dbEntry) {
     const durabilityDamage = HAZARD_CONFIG[HAZARD_TYPES.GREEN_FOG].durabilityDamage || 1;
+    const toxicDamage = 8; // Green fog deals toxic damage
     const PlayerInventory = require('../../../models/inventory');
     const getPlayerStats = require('../../calculatePlayerStat');
     const { parseUniqueItemBonuses, applyDurabilityDamageReduction } = require('./uniqueItemBonuses');
     
     try {
+        // Apply health damage from toxic fog
+        const healthResult = await applyHazardDamage(member.id, toxicDamage, 'green_fog');
+        
+        let healthMessage = '';
+        if (healthResult.success) {
+            healthMessage = ` (-${toxicDamage} health: ${healthResult.newHealth}/${healthResult.maxHealth})`;
+            
+            // Check for death
+            if (healthResult.newHealth <= 0) {
+                return await handlePlayerDeath(member, position, mapData, eventLogs, 'green_fog', dbEntry);
+            }
+        }
         // Get player's equipped items using the proper system
         const playerData = await getPlayerStats(member.id);
         const equippedItems = playerData.equippedItems;
@@ -502,7 +519,8 @@ async function handleGreenFog(member, position, transaction, eventLogs) {
         return {
             mapChanged: false,
             playerMoved: false,
-            message: "Toxic fog swirls around you!"
+            playerDisabled: false, // Player can continue mining
+            message: `Toxic fog swirls around you!${healthMessage}`
         };
     }
 }
@@ -510,8 +528,12 @@ async function handleGreenFog(member, position, transaction, eventLogs) {
 /**
  * Handle Wall Trap - Convert surrounding floors to walls
  */
-async function handleWallTrap(member, position, mapData, eventLogs) {
+async function handleWallTrap(member, position, mapData, eventLogs, dbEntry) {
+    const crushingDamage = 12; // Wall traps deal crushing damage
     let tilesConverted = 0;
+    
+    // Apply health damage from being trapped
+    const healthResult = await applyHazardDamage(member.id, crushingDamage, 'wall_trap');
     const adjacentPositions = [
         { x: position.x - 1, y: position.y },
         { x: position.x + 1, y: position.y },
@@ -565,6 +587,18 @@ async function handleWallTrap(member, position, mapData, eventLogs) {
         message += " TRAPPED!";
         position.trapped = true;
     }
+    
+    // Add health damage message
+    if (healthResult.success) {
+        message += ` (-${crushingDamage} health: ${healthResult.newHealth}/${healthResult.maxHealth})`;
+        
+        // Check for death
+        if (healthResult.newHealth <= 0) {
+            return await handlePlayerDeath(member, position, mapData, eventLogs, 'wall_trap', dbEntry);
+        }
+    }
+    
+    eventLogs.push(`🧱 ${member.displayName} ${message}`);
     
     return {
         mapChanged: true,
@@ -841,6 +875,269 @@ function cleanupExpiredDisables(dbEntry) {
 }
 
 /**
+ * Apply health damage from hazards with RNG and armor reduction
+ */
+async function applyHazardDamage(playerId, baseDamageAmount, source) {
+    try {
+        // Add RNG to damage (±25% variation)
+        const damageVariation = 0.25;
+        const minDamage = Math.floor(baseDamageAmount * (1 - damageVariation));
+        const maxDamage = Math.floor(baseDamageAmount * (1 + damageVariation));
+        let actualDamage = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
+        
+        // Apply armor damage reduction and durability
+        let armorUsed = false;
+        try {
+            const calculatePlayerStat = require('../../calculatePlayerStat');
+            
+            const playerStats = await calculatePlayerStat(playerId);
+            if (playerStats && playerStats.totalArmorReduction > 0) {
+                const originalDamage = actualDamage;
+                const reduction = Math.floor(actualDamage * playerStats.totalArmorReduction);
+                actualDamage = Math.max(1, actualDamage - reduction); // Minimum 1 damage
+                armorUsed = true;
+                
+                console.log(`[HEALTH] Armor reduced damage from ${originalDamage} to ${actualDamage} (${Math.round(playerStats.totalArmorReduction * 100)}% reduction)`);
+                
+                // Damage the armor durability
+                if (playerStats.bestArmor) {
+                    await damageArmorDurability(playerId, playerStats.bestArmor, source);
+                }
+            }
+        } catch (armorError) {
+            console.error('[HEALTH] Error calculating armor reduction:', armorError);
+        }
+        
+        const { updatePlayerHealth } = require('./healthSystem');
+        const result = await updatePlayerHealth(playerId, -actualDamage, source);
+        
+        // Add the actual damage dealt to the result
+        if (result.success) {
+            result.actualDamage = actualDamage;
+            result.baseDamage = baseDamageAmount;
+        }
+        
+        return result;
+    } catch (error) {
+        console.error(`[HEALTH] Error applying hazard damage:`, error);
+        return { success: false, newHealth: 100, maxHealth: 100, actualDamage: 0 };
+    }
+}
+
+/**
+ * Damage armor durability when it protects from hazards
+ */
+async function damageArmorDurability(playerId, armorData, source) {
+    try {
+        const PlayerInventory = require('../../../models/inventory');
+        const durabilityDamage = getDurabilityDamageBySource(source);
+        
+        // Get current armor durability
+        const currentDurability = armorData.currentDurability || armorData.itemData.durability || 100;
+        const newDurability = Math.max(0, currentDurability - durabilityDamage);
+        
+        console.log(`[ARMOR] ${armorData.itemData.name} durability: ${currentDurability} -> ${newDurability} (-${durabilityDamage} from ${source})`);
+        
+        // Update armor durability in inventory
+        const updateResult = await PlayerInventory.findOneAndUpdate(
+            { 
+                playerId: playerId,
+                'items.itemId': armorData.itemId
+            },
+            {
+                $set: { 'items.$.currentDurability': newDurability }
+            },
+            { new: true }
+        );
+        
+        if (newDurability <= 0) {
+            // Armor broke
+            console.log(`[ARMOR] ${armorData.itemData.name} broke for player ${playerId}`);
+            
+            // Handle armor breaking (reduce quantity or remove)
+            await handleArmorBreak(playerId, armorData);
+            
+            return {
+                broke: true,
+                newDurability: 0,
+                armorName: armorData.itemData.name
+            };
+        }
+        
+        return {
+            broke: false,
+            newDurability: newDurability,
+            armorName: armorData.itemData.name
+        };
+        
+    } catch (error) {
+        console.error('[ARMOR] Error damaging armor durability:', error);
+        return { broke: false, newDurability: 100, armorName: 'Unknown' };
+    }
+}
+
+/**
+ * Get durability damage amount based on hazard source
+ */
+function getDurabilityDamageBySource(source) {
+    const damageMap = {
+        'bomb_trap': 15,      // Explosions damage armor heavily
+        'lightning_strike': 10, // Electric damage
+        'fire_blast': 12,     // Fire damage
+        'green_fog': 8,       // Acid damage
+        'wall_trap': 6,       // Crushing damage
+        'portal_trap': 4      // Dimensional stress
+    };
+    
+    return damageMap[source] || 5; // Default damage
+}
+
+/**
+ * Handle armor breaking
+ */
+async function handleArmorBreak(playerId, armorData) {
+    try {
+        const PlayerInventory = require('../../../models/inventory');
+        
+        if (armorData.quantity > 1) {
+            // Reduce quantity by 1 and reset durability for remaining items
+            await PlayerInventory.findOneAndUpdate(
+                { 
+                    playerId: playerId,
+                    'items.itemId': armorData.itemId
+                },
+                {
+                    $inc: { 'items.$.quantity': -1 },
+                    $set: { 'items.$.currentDurability': armorData.itemData.durability || 100 }
+                }
+            );
+            
+            console.log(`[ARMOR] Reduced ${armorData.itemData.name} quantity, ${armorData.quantity - 1} remaining`);
+        } else {
+            // Remove the item completely
+            await PlayerInventory.findOneAndUpdate(
+                { playerId: playerId },
+                { $pull: { items: { itemId: armorData.itemId } } }
+            );
+            
+            console.log(`[ARMOR] Removed broken ${armorData.itemData.name} from inventory`);
+        }
+        
+        return true;
+        
+    } catch (error) {
+        console.error('[ARMOR] Error handling armor break:', error);
+        return false;
+    }
+}
+
+/**
+ * Handle player death - move to entrance, make invisible, disable until next break
+ */
+async function handlePlayerDeath(member, position, mapData, eventLogs, source, dbEntry) {
+    try {
+        // Move player to entrance
+        position.x = mapData.entranceX || 0;
+        position.y = mapData.entranceY || 0;
+        position.disabled = true;
+        position.dead = true;
+        position.invisible = true; // Make invisible when dead
+        
+        // Set up revival at next break
+        if (!dbEntry.gameData.deadPlayers) {
+            dbEntry.gameData.deadPlayers = {};
+        }
+        
+        dbEntry.gameData.deadPlayers[member.id] = {
+            deathTime: Date.now(),
+            deathSource: source,
+            reviveAtNextBreak: true
+        };
+        
+        // Check for auto-revive from Phoenix Feather Charm
+        try {
+            const { checkAutoRevive } = require('./healthSystem');
+            const reviveResult = await checkAutoRevive(member.id, source);
+            
+            if (reviveResult.revived) {
+                // Phoenix Feather auto-revive successful
+                position.disabled = false;
+                position.dead = false;
+                position.invisible = false;
+                delete dbEntry.gameData.deadPlayers[member.id];
+                
+                eventLogs.push(`🔥 ${member.displayName} was revived by Phoenix Feather Charm! (${reviveResult.newHealth}/${reviveResult.maxHealth} health)`);
+                
+                return {
+                    mapChanged: true,
+                    playerMoved: true,
+                    playerDisabled: false,
+                    message: `You were revived by your Phoenix Feather Charm!`,
+                    autoRevived: true
+                };
+            }
+        } catch (reviveError) {
+            console.error('[DEATH] Error checking auto-revive:', reviveError);
+        }
+        
+        eventLogs.push(`💀 ${member.displayName} died and will be revived at the next break!`);
+        
+        return {
+            mapChanged: true,
+            playerMoved: true,
+            playerDisabled: true,
+            message: `You died! You will be revived at the entrance when the next break starts.`,
+            playerDied: true
+        };
+        
+    } catch (error) {
+        console.error('[DEATH] Error handling player death:', error);
+        return {
+            mapChanged: false,
+            playerMoved: false,
+            playerDisabled: true,
+            message: 'You were severely injured!',
+            playerDied: false
+        };
+    }
+}
+
+/**
+ * Revive all dead players at break start
+ */
+async function reviveDeadPlayers(dbEntry, eventLogs) {
+    try {
+        const deadPlayers = dbEntry.gameData?.deadPlayers || {};
+        const revivedCount = Object.keys(deadPlayers).length;
+        
+        if (revivedCount > 0) {
+            // Clear all dead players
+            dbEntry.gameData.deadPlayers = {};
+            
+            // Reset player positions (they'll be set to entrance and made visible again)
+            for (const playerId of Object.keys(deadPlayers)) {
+                const position = dbEntry.gameData.mapData?.playerPositions?.[playerId];
+                if (position) {
+                    position.disabled = false;
+                    position.dead = false;
+                    position.invisible = false;
+                }
+            }
+            
+            if (revivedCount > 0) {
+                eventLogs.push(`✨ ${revivedCount} player(s) were revived at the break!`);
+            }
+        }
+        
+        return revivedCount;
+        
+    } catch (error) {
+        console.error('[REVIVAL] Error reviving dead players:', error);
+        return 0;
+    }
+}
+
+/**
  * Handle lightning strike hazard - stuns player for several mining actions
  */
 async function handleLightningStrike(member, position, dbEntry, eventLogs) {
@@ -874,21 +1171,17 @@ async function handleLightningStrike(member, position, dbEntry, eventLogs) {
                 source: 'lightning_strike'
             };
             
-            // Apply health damage if health system is active
-            try {
-                const { calculatePlayerStat } = require('../../calculatePlayerStat');
-                const playerStats = await calculatePlayerStat(member.id);
+            // Apply health damage
+            const healthResult = await applyHazardDamage(member.id, damageAmount, 'lightning_strike');
+            
+            if (healthResult.success) {
+                eventLogs.push(`⚡ ${member.displayName} was struck by lightning and stunned for ${stunDuration} actions! (-${damageAmount} health: ${healthResult.newHealth}/${healthResult.maxHealth})`);
                 
-                if (playerStats && playerStats.health) {
-                    const newHealth = Math.max(0, playerStats.health.current - damageAmount);
-                    
-                    // Update health (this would need to be integrated with the health system)
-                    eventLogs.push(`⚡ ${member.displayName} was struck by lightning and stunned for ${stunDuration} actions! (-${damageAmount} health)`);
-                } else {
-                    eventLogs.push(`⚡ ${member.displayName} was struck by lightning and stunned for ${stunDuration} actions!`);
+                // Check for death
+                if (healthResult.newHealth <= 0) {
+                    return await handlePlayerDeath(member, position, mapData, eventLogs, 'lightning_strike', dbEntry);
                 }
-            } catch (healthError) {
-                console.error('[LIGHTNING] Error applying health damage:', healthError);
+            } else {
                 eventLogs.push(`⚡ ${member.displayName} was struck by lightning and stunned for ${stunDuration} actions!`);
             }
             
@@ -1040,5 +1333,10 @@ module.exports = {
     cleanupExpiredDisables,
     updateStuckStatus,
     checkHazardImmunity,
+    applyHazardDamage,
+    handlePlayerDeath,
+    reviveDeadPlayers,
+    damageArmorDurability,
+    handleArmorBreak,
     ENCOUNTER_CONFIG  // Export for treasure handling
 };

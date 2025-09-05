@@ -1343,6 +1343,22 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
             return;
         }
         
+        // Revive all dead players at break start
+        try {
+            const { reviveDeadPlayers } = require('./mining/hazardEffects');
+            const eventLogs = [];
+            const revivedCount = await reviveDeadPlayers(dbEntry, eventLogs);
+            
+            if (revivedCount > 0) {
+                // Announce revivals
+                for (const log of eventLogs) {
+                    await channel.send(`✨ **Break Revival**: ${log}`);
+                }
+            }
+        } catch (revivalError) {
+            console.error('[MINING] Error reviving dead players at break start:', revivalError);
+        }
+        
         // DOUBLE-CHECK: Prevent repeated long breaks even if called incorrectly
         if (isLongBreak && dbEntry.gameData?.lastLongBreakStarted) {
             const timeSinceLastLong = now - dbEntry.gameData.lastLongBreakStarted;

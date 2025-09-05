@@ -1431,5 +1431,95 @@
     ],
     "image": "grilled_fish",
     "seasonal": "summer"
+  },
+  {
+    "id": "233",
+    "name": "Leather Mining Vest",
+    "type": "equipment",
+    "slot": "armor",
+    "description": "Basic leather protection against mining hazards. Reduces damage from cave-ins and minor explosions.",
+    "value": 150,
+    "vendable": true,
+    "abilities": [
+      { "name": "armor", "powerlevel": 1 }
+    ],
+    "image": "leather_vest",
+    "armorReduction": 0.15,
+    "durability": 80,
+    "tier": "common"
+  },
+  {
+    "id": "234", 
+    "name": "Iron Mining Armor",
+    "type": "equipment",
+    "slot": "armor",
+    "description": "Sturdy iron plates protect vital areas from hazard damage. Standard protection for serious miners.",
+    "value": 400,
+    "vendable": true,
+    "abilities": [
+      { "name": "armor", "powerlevel": 2 },
+      { "name": "mining", "powerlevel": 1 }
+    ],
+    "image": "iron_armor",
+    "armorReduction": 0.25,
+    "durability": 120,
+    "tier": "uncommon"
+  },
+  {
+    "id": "235",
+    "name": "Steel Hazard Suit",
+    "type": "equipment", 
+    "slot": "armor",
+    "description": "Advanced steel armor with reinforced joints. Provides excellent protection against explosions and toxic gases.",
+    "value": 800,
+    "vendable": true,
+    "abilities": [
+      { "name": "armor", "powerlevel": 3 },
+      { "name": "mining", "powerlevel": 2 },
+      { "name": "luck", "powerlevel": 1 }
+    ],
+    "image": "steel_armor",
+    "armorReduction": 0.35,
+    "durability": 160,
+    "tier": "rare"
+  },
+  {
+    "id": "236",
+    "name": "Mythril Guardian Plate",
+    "type": "equipment",
+    "slot": "armor", 
+    "description": "Legendary mythril armor that shimmers with protective enchantments. Reduces damage from all hazards significantly.",
+    "value": 2000,
+    "vendable": true,
+    "abilities": [
+      { "name": "armor", "powerlevel": 4 },
+      { "name": "mining", "powerlevel": 3 },
+      { "name": "luck", "powerlevel": 2 },
+      { "name": "sight", "powerlevel": 1 }
+    ],
+    "image": "mythril_armor",
+    "armorReduction": 0.50,
+    "durability": 200,
+    "tier": "epic"
+  },
+  {
+    "id": "237",
+    "name": "Adamantine Fortress Armor",
+    "type": "equipment",
+    "slot": "armor",
+    "description": "The ultimate protection forged from void-touched adamantine. Nearly impervious to all mining hazards.",
+    "value": 5000,
+    "vendable": true,
+    "abilities": [
+      { "name": "armor", "powerlevel": 5 },
+      { "name": "mining", "powerlevel": 4 },
+      { "name": "luck", "powerlevel": 3 },
+      { "name": "sight", "powerlevel": 2 },
+      { "name": "speed", "powerlevel": 1 }
+    ],
+    "image": "adamantine_armor",
+    "armorReduction": 0.70,
+    "durability": 300,
+    "tier": "legendary"
   }
 ]

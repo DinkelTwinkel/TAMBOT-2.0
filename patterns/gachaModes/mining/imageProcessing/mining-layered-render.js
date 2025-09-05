@@ -1644,8 +1644,9 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
                         await drawTent(ctx, tileCenterX, tileCenterY, floorTileSize, 
                                      member, imageSettings);
                     } else {
-                        // Check if player should be invisible to others
-                        const shouldRenderPlayer = !member.visibilityInfo?.isInvisible;
+                        // Check if player should be invisible to others (includes dead players)
+                        const isDead = position.dead || position.invisible;
+                        const shouldRenderPlayer = !member.visibilityInfo?.isInvisible && !isDead;
                         
                         if (shouldRenderPlayer) {
                             // Apply reduced visibility effect

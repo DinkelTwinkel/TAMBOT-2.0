@@ -297,9 +297,81 @@ async function getPlayerStats(playerId) {
         }
     }
 
+    // Calculate total armor protection from best armor
+    let totalArmorReduction = 0;
+    let bestArmor = null;
+    
+    // Find the best armor item
+    const armorItems = invItems.filter(item => {
+        const itemData = itemSheet.find(i => i.id === item.itemId);
+        return itemData && itemData.type === 'equipment' && itemData.slot === 'armor' && item.quantity > 0;
+    });
+    
+    if (armorItems.length > 0) {
+        // Find armor with highest protection
+        let bestArmorPower = 0;
+        
+        for (const armorItem of armorItems) {
+            const itemData = itemSheet.find(i => i.id === armorItem.itemId);
+            if (itemData) {
+                // Calculate total armor power
+                let armorPower = 0;
+                if (itemData.abilities) {
+                    for (const ability of itemData.abilities) {
+                        if (ability.name === 'armor') {
+                            armorPower += ability.powerlevel || 0;
+                        }
+                    }
+                }
+                
+                // Add base armor reduction if specified
+                if (itemData.armorReduction) {
+                    armorPower += itemData.armorReduction * 100; // Convert to power scale
+                }
+                
+                if (armorPower > bestArmorPower) {
+                    bestArmorPower = armorPower;
+                    bestArmor = {
+                        ...armorItem,
+                        itemData: itemData,
+                        armorPower: armorPower
+                    };
+                }
+            }
+        }
+        
+        if (bestArmor) {
+            // Calculate total armor reduction
+            const armorAbilities = bestArmor.itemData.abilities?.filter(a => a.name === 'armor') || [];
+            const armorLevels = armorAbilities.reduce((sum, a) => sum + (a.powerlevel || 0), 0);
+            
+            totalArmorReduction = (armorLevels * 0.05) + (bestArmor.itemData.armorReduction || 0);
+            totalArmorReduction = Math.min(0.8, totalArmorReduction); // Cap at 80% reduction
+            
+            // Add armor to equipped items
+            equippedItems[bestArmor.itemId] = {
+                itemId: bestArmor.itemId,
+                name: bestArmor.itemData.name,
+                type: 'equipment',
+                slot: 'armor',
+                abilities: bestArmor.itemData.abilities || [],
+                durability: bestArmor.itemData.durability || 100,
+                currentDurability: bestArmor.currentDurability || bestArmor.itemData.durability || 100,
+                inventoryQuantity: bestArmor.quantity,
+                armorReduction: totalArmorReduction,
+                armorPower: bestArmor.armorPower
+            };
+            
+            // Add armor stat
+            playerStats.armor = Math.floor(totalArmorReduction * 100); // Convert to percentage for display
+        }
+    }
+
     return {
         stats: playerStats,
-        equippedItems: equippedItems
+        equippedItems: equippedItems,
+        totalArmorReduction: totalArmorReduction,
+        bestArmor: bestArmor
     };
 }
 

@@ -127,11 +127,31 @@ function parseUniqueItemBonuses(equippedItems) {
         
         // Damage reduction
         durabilityDamageReduction: 0,
+        armorReduction: 0, // Reduces health damage from hazards
         neverBreaks: false
     };
     
     if (!equippedItems) return bonuses;
     
+    // Process regular equipment for armor bonuses
+    for (const [id, item] of Object.entries(equippedItems)) {
+        // Check for armor equipment
+        if (item.type === 'equipment' && item.slot === 'armor') {
+            // Apply armor reduction from equipment
+            const armorAbility = item.abilities?.find(a => a.name === 'armor');
+            if (armorAbility) {
+                const armorLevel = armorAbility.power || armorAbility.powerlevel || 0;
+                bonuses.armorReduction += armorLevel * 0.05; // 5% reduction per armor level
+            }
+            
+            // Check for armorReduction property directly on item
+            if (item.armorReduction) {
+                bonuses.armorReduction += item.armorReduction;
+            }
+        }
+    }
+    
+    // Process unique items
     for (const [id, item] of Object.entries(equippedItems)) {
         if (!item.isUnique) continue;
         
