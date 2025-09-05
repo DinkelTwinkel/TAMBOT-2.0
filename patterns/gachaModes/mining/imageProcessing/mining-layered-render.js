@@ -2100,6 +2100,7 @@ async function getBestMiningPickaxe(userId) {
     try {
         let bestPickaxe = null;
         let bestMiningPower = 0;
+        const debugInfo = [];
 
         // Check regular inventory items first
         const inventory = await PlayerInventory.findOne({ playerId: userId });
@@ -2113,6 +2114,8 @@ async function getBestMiningPickaxe(userId) {
                 const miningAbility = item.abilities?.find(a => a.name === 'mining');
                 if (!miningAbility || !miningAbility.powerlevel) continue;
 
+                debugInfo.push(`Regular: ${item.name} (power: ${miningAbility.powerlevel})`);
+
                 if (miningAbility.powerlevel > bestMiningPower) {
                     bestMiningPower = miningAbility.powerlevel;
                     bestPickaxe = item;
@@ -2123,15 +2126,38 @@ async function getBestMiningPickaxe(userId) {
         // Check unique items owned by the player
         try {
             const uniqueItems = await UniqueItem.findPlayerUniqueItems(userId);
+            debugInfo.push(`Found ${uniqueItems ? uniqueItems.length : 0} unique items`);
+            
             if (uniqueItems && uniqueItems.length > 0) {
                 for (const uniqueItem of uniqueItems) {
-                    const uniqueItemData = getUniqueItemById(uniqueItem.uniqueItemId);
-                    if (!uniqueItemData || uniqueItemData.type !== 'tool' || uniqueItemData.slot !== 'mining') {
+                    console.log(`[PICKAXE DEBUG] Processing unique item:`, JSON.stringify(uniqueItem, null, 2));
+                    
+                    // The database field is 'itemId', not 'uniqueItemId'
+                    const uniqueItemData = getUniqueItemById(uniqueItem.itemId);
+                    console.log(`[PICKAXE DEBUG] Retrieved unique item data:`, uniqueItemData ? uniqueItemData.name : 'null');
+                    
+                    if (!uniqueItemData) {
+                        console.log(`[PICKAXE DEBUG] No data found for unique item ID: ${uniqueItem.itemId}`);
+                        continue;
+                    }
+                    
+                    if (uniqueItemData.type !== 'tool') {
+                        console.log(`[PICKAXE DEBUG] Item ${uniqueItemData.name} is not a tool (type: ${uniqueItemData.type})`);
+                        continue;
+                    }
+                    
+                    if (uniqueItemData.slot !== 'mining') {
+                        console.log(`[PICKAXE DEBUG] Item ${uniqueItemData.name} is not a mining tool (slot: ${uniqueItemData.slot})`);
                         continue;
                     }
 
                     const miningAbility = uniqueItemData.abilities?.find(a => a.name === 'mining');
-                    if (!miningAbility || !miningAbility.powerlevel) continue;
+                    if (!miningAbility || !miningAbility.powerlevel) {
+                        console.log(`[PICKAXE DEBUG] Item ${uniqueItemData.name} has no mining ability or powerlevel`);
+                        continue;
+                    }
+
+                    debugInfo.push(`Unique: ${uniqueItemData.name} (power: ${miningAbility.powerlevel})`);
 
                     // If this unique pickaxe is better than the current best, use it
                     if (miningAbility.powerlevel > bestMiningPower) {
@@ -2143,6 +2169,11 @@ async function getBestMiningPickaxe(userId) {
         } catch (uniqueError) {
             console.error(`Error checking unique items for user ${userId}:`, uniqueError);
         }
+
+        // Debug logging
+        console.log(`[PICKAXE DEBUG] User ${userId}:`);
+        console.log(`  Available pickaxes: ${debugInfo.join(', ')}`);
+        console.log(`  Selected: ${bestPickaxe ? bestPickaxe.name : 'none'} (power: ${bestMiningPower})`);
 
         return bestPickaxe;
     } catch (error) {

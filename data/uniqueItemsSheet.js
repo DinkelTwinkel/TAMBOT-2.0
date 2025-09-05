@@ -579,7 +579,9 @@ const UNIQUE_ITEMS = [
 
 // Helper function to get item by ID
 function getUniqueItemById(id) {
-    return UNIQUE_ITEMS.find(item => item.id === id);
+    // Handle both string and number IDs
+    const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
+    return UNIQUE_ITEMS.find(item => item.id === numericId || item.id === id);
 }
 
 // Helper function to get items available at a power level

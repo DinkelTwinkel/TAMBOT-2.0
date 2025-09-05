@@ -1,0 +1,45 @@
+{
+  "system": "inn",
+  "category": "events",
+  "version": "1.0",
+  "savedAt": 1757071648348,
+  "pools": {
+    "60cf0ec24138": [
+      {
+        "id": "f0fe6c36cf8527f8",
+        "dialogue": "Counts cash register, restocks supplies, smiles at guests walking in.",
+        "contextKey": "60cf0ec24138",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "moderate",
+          "innType": "default",
+          "createdAt": 1757071619361,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      }
+    ],
+    "52bf5d18f00c": [
+      {
+        "id": "fddc53acb6b79c6d",
+        "dialogue": "In the opulent chandelier-lit foyer of Noble's Rest, Hydra discovered three glimmering coins nestled amongst plush velvet cushions.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757071648348,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      }
+    ]
+  }
+}
