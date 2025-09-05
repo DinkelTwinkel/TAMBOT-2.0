@@ -29,6 +29,7 @@ function parseUniqueItemBonuses(equippedItems) {
         // New unique item abilities
         fireResistance: 0,
         electricResistance: 0,
+        lightningImmunity: false,
         darkPower: 0,
         lightPower: 0,
         cosmicPower: 0,
@@ -264,6 +265,9 @@ function parseUniqueItemBonuses(equippedItems) {
             case 8: // Stormcaller's Gauntlets
                 bonuses.chainMiningChance += 0.2 * maintenanceRatio;
                 bonuses.hazardResistance += 0.3 * maintenanceRatio; // Electric immunity
+                bonuses.electricResistance += 1.0 * maintenanceRatio; // Complete lightning immunity
+                bonuses.stormPower += 0.8 * maintenanceRatio; // 80% storm mastery
+                bonuses.lightningImmunity = true; // Complete lightning stun immunity
                 // Machinery system
                 bonuses.machinerySystem.canOvercharge = true;
                 // Visual effects
@@ -403,6 +407,8 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.stormPower += 0.85 * maintenanceRatio; // 85% storm power
                 bonuses.chainMiningChance += 0.5 * maintenanceRatio; // 50% chain mining
                 bonuses.electricResistance += 1.0 * maintenanceRatio; // Complete electric immunity
+                bonuses.lightningImmunity = true; // Complete lightning stun immunity
+                bonuses.stormMastery = 0.9 * maintenanceRatio; // 90% storm mastery
                 // Ore value multipliers
                 bonuses.oreValueMultipliers.adamantine = 5.0 * maintenanceRatio; // 5x adamantine value
                 // Visual effects
@@ -460,6 +466,8 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.electricPower += 0.7 * maintenanceRatio; // 70% electric power
                 bonuses.chainMiningChance += 0.3 * maintenanceRatio; // 30% chain mining
                 bonuses.electricResistance += 1.0 * maintenanceRatio; // Complete electric immunity
+                bonuses.lightningImmunity = true; // Complete lightning stun immunity
+                bonuses.conductivity = 0.8 * maintenanceRatio; // 80% electrical conductivity
                 // Ore value multipliers
                 bonuses.oreValueMultipliers.copper = 1.5 * maintenanceRatio; // 1.5x copper value
                 // Machinery system

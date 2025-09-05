@@ -1197,6 +1197,93 @@ function drawFireTrap(ctx, centerX, centerY, tileSize, isVisible, wasDiscovered,
 }
 
 /**
+ * Draw lightning trap with animated electric effects
+ */
+function drawLightningTrap(ctx, centerX, centerY, tileSize, isVisible, wasDiscovered) {
+    ctx.save();
+    
+    const trapSize = Math.max(8, tileSize * 0.6);
+    const animationFrame = Date.now() / 100; // Animation timing
+    
+    if (isVisible) {
+        // Draw electric field background
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'; // Golden glow
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, trapSize, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw animated lightning bolts
+        ctx.strokeStyle = '#FFD700'; // Gold
+        ctx.lineWidth = Math.max(1, tileSize * 0.05);
+        ctx.lineCap = 'round';
+        
+        // Draw multiple lightning bolts radiating from center
+        const boltCount = 6;
+        for (let i = 0; i < boltCount; i++) {
+            const angle = (i * Math.PI * 2 / boltCount) + (animationFrame * 0.1);
+            const length = trapSize * (0.5 + Math.sin(animationFrame + i) * 0.3);
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            
+            // Create jagged lightning bolt
+            const segments = 3;
+            for (let j = 1; j <= segments; j++) {
+                const segmentLength = length / segments;
+                const baseX = centerX + Math.cos(angle) * segmentLength * j;
+                const baseY = centerY + Math.sin(angle) * segmentLength * j;
+                
+                // Add random jaggedness
+                const jaggerX = baseX + (Math.random() - 0.5) * tileSize * 0.2;
+                const jaggerY = baseY + (Math.random() - 0.5) * tileSize * 0.2;
+                
+                ctx.lineTo(jaggerX, jaggerY);
+            }
+            
+            ctx.stroke();
+        }
+        
+        // Draw central electric core
+        ctx.fillStyle = '#FFFF00'; // Bright yellow
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, trapSize * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw pulsing electric ring
+        const pulseSize = trapSize * (0.8 + Math.sin(animationFrame * 0.5) * 0.2);
+        ctx.strokeStyle = '#00FFFF'; // Cyan
+        ctx.lineWidth = Math.max(1, tileSize * 0.03);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, pulseSize, 0, Math.PI * 2);
+        ctx.stroke();
+        
+    } else if (wasDiscovered) {
+        // Dimmed version for discovered but not visible
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.1)';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, trapSize * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#7F7F00'; // Dim yellow
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, trapSize * 0.6, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    
+    // Draw lightning symbol if tile is large enough
+    if (tileSize >= 20) {
+        ctx.fillStyle = isVisible ? '#FFFFFF' : '#7F7F7F';
+        ctx.font = `bold ${Math.floor(trapSize * 0.8)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⚡', centerX, centerY);
+    }
+    
+    ctx.restore();
+}
+
+/**
  * Fallback rendering for encounters without images
  */
 function drawEncounterFallback(ctx, encounter, centerX, centerY, tileSize, isVisible, wasDiscovered) {
@@ -1210,6 +1297,10 @@ function drawEncounterFallback(ctx, encounter, centerX, centerY, tileSize, isVis
             // Use the enhanced fire trap rendering
             const animationFrame = Date.now() / 50; // Simple animation based on time
             drawFireTrap(ctx, centerX, centerY, tileSize, isVisible, wasDiscovered, animationFrame);
+        } 
+        // Special rendering for lightning_strike
+        else if (encounter.type === 'lightning_strike' || encounter.type === ENCOUNTER_TYPES?.LIGHTNING_STRIKE) {
+            drawLightningTrap(ctx, centerX, centerY, tileSize, isVisible, wasDiscovered);
         } else {
             // Default rendering for other hazards
             const baseColor = config?.color || '#FF0000';

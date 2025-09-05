@@ -3642,7 +3642,7 @@
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.035,
-            "allowedTypes": ["bomb_trap", "wall_trap"],
+            "allowedTypes": ["bomb_trap", "wall_trap", "lightning_strike"],
             "modifiers": {}
         },
         "shop": 0,
@@ -3665,7 +3665,7 @@
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.040,
-            "allowedTypes": ["bomb_trap", "wall_trap"],
+            "allowedTypes": ["bomb_trap", "wall_trap", "lightning_strike"],
             "modifiers": {}
         },
         "shop": 0,
@@ -3688,7 +3688,7 @@
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.045,
-            "allowedTypes": ["bomb_trap", "wall_trap"],
+            "allowedTypes": ["bomb_trap", "wall_trap", "lightning_strike"],
             "modifiers": {}
         },
         "shop": 0,
@@ -3711,7 +3711,7 @@
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.050,
-            "allowedTypes": ["bomb_trap", "wall_trap", "fire_blast"],
+            "allowedTypes": ["bomb_trap", "wall_trap", "fire_blast", "lightning_strike"],
             "modifiers": {}
         },
         "shop": 0,
@@ -3734,10 +3734,11 @@
         "script": "mining_optimized_v5_performance.js",
         "hazardConfig": {
             "spawnChance": 0.08,
-            "allowedTypes": ["bomb_trap", "wall_trap", "fire_blast"],
+            "allowedTypes": ["bomb_trap", "wall_trap", "fire_blast", "lightning_strike"],
             "modifiers": {
                 "bombRadius": 4,
-                "greenFogDamage": 3
+                "greenFogDamage": 3,
+                "lightningIntensity": 2.0
             }
         },
         "shop": 109,

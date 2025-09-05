@@ -131,6 +131,7 @@ const ENCOUNTER_TYPES = {
     GREEN_FOG: 'green_fog',
     WALL_TRAP: 'wall_trap',
     FIRE_BLAST: 'fire_blast',
+    LIGHTNING_STRIKE: 'lightning_strike',
     TREASURE: 'treasure',
     RARE_TREASURE: 'rare_treasure'
 };
@@ -141,7 +142,8 @@ const HAZARD_TYPES = {
     BOMB_TRAP: 'bomb_trap',
     GREEN_FOG: 'green_fog',
     WALL_TRAP: 'wall_trap',
-    FIRE_BLAST: 'fire_blast'
+    FIRE_BLAST: 'fire_blast',
+    LIGHTNING_STRIKE: 'lightning_strike'
 };
 
 // Encounter Configurations (includes hazards and treasures)
@@ -201,6 +203,19 @@ const ENCOUNTER_CONFIG = {
         burnPercentageBase: 10,  // Base 10% burn at power level 1
         burnPercentagePerLevel: 5  // +5% per power level
     },
+    [ENCOUNTER_TYPES.LIGHTNING_STRIKE]: {
+        name: 'Lightning Strike',
+        symbol: '⚡',
+        color: '#FFD700',
+        image: 'lightning_strike',
+        description: 'Stuns miners with electric shock',
+        powerRequirement: 3,
+        weight: 8,
+        isHazard: true,
+        stunDuration: 3, // Number of mining actions/turns
+        stunChance: 0.8, // 80% chance to stun
+        damageAmount: 15 // Health damage
+    },
     [ENCOUNTER_TYPES.TREASURE]: {
         name: 'Treasure Chest',
         symbol: '💰',
@@ -233,7 +248,8 @@ const HAZARD_CONFIG = {
     [HAZARD_TYPES.BOMB_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.BOMB_TRAP],
     [HAZARD_TYPES.GREEN_FOG]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.GREEN_FOG],
     [HAZARD_TYPES.WALL_TRAP]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.WALL_TRAP],
-    [HAZARD_TYPES.FIRE_BLAST]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.FIRE_BLAST]
+    [HAZARD_TYPES.FIRE_BLAST]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.FIRE_BLAST],
+    [HAZARD_TYPES.LIGHTNING_STRIKE]: ENCOUNTER_CONFIG[ENCOUNTER_TYPES.LIGHTNING_STRIKE]
 };
 
 // Power level encounter spawn configurations
@@ -248,11 +264,11 @@ const ENCOUNTER_SPAWN_CONFIG = {
     },
     3: { 
         spawnChance: 0.03, 
-        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.FIRE_BLAST, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
+        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.FIRE_BLAST, ENCOUNTER_TYPES.LIGHTNING_STRIKE, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
     },
     4: { 
         spawnChance: 0.035, 
-        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.WALL_TRAP, ENCOUNTER_TYPES.FIRE_BLAST, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
+        availableTypes: [ENCOUNTER_TYPES.PORTAL_TRAP, ENCOUNTER_TYPES.BOMB_TRAP, ENCOUNTER_TYPES.GREEN_FOG, ENCOUNTER_TYPES.WALL_TRAP, ENCOUNTER_TYPES.FIRE_BLAST, ENCOUNTER_TYPES.LIGHTNING_STRIKE, ENCOUNTER_TYPES.TREASURE, ENCOUNTER_TYPES.RARE_TREASURE] 
     },
     5: { 
         spawnChance: 0.04, 

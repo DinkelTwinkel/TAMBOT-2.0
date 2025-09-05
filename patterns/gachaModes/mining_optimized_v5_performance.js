@@ -2975,6 +2975,24 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     const luckStat = finalLuckStat;
     const speedStat = Math.min(finalSpeedStat, MAX_SPEED_ACTIONS);
     
+    // Check if player is stunned by lightning
+    const { isPlayerStunned, reduceStunDuration } = require('./mining/hazardEffects');
+    if (isPlayerStunned(dbEntry, member.id)) {
+        // Player is stunned, reduce stun duration and skip actions
+        const stunEnded = await reduceStunDuration(dbEntry, member.id);
+        
+        if (stunEnded) {
+            eventLogs.push(`⚡ ${member.displayName} recovered from lightning stun!`);
+        } else {
+            const stunData = dbEntry.gameData?.stunned?.[member.id];
+            const actionsLeft = stunData?.actionsRemaining || 0;
+            eventLogs.push(`⚡ ${member.displayName} is stunned by lightning (${actionsLeft} actions remaining)`);
+            
+            // Return early - no actions this turn
+            return { mapChanged: false, wallsBroken: 0, treasuresFound: 0, mapData, hazardsChanged: false };
+        }
+    }
+    
     let wallsBroken = 0;
     let treasuresFound = 0;
     let mapChanged = false;

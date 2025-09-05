@@ -73,6 +73,10 @@ async function processEncounterTrigger(member, position, mapData, hazardsData, d
             case HAZARD_TYPES.FIRE_BLAST:
                 result = await handleFireBlast(member, position, dbEntry, eventLogs);
                 break;
+                
+            case HAZARD_TYPES.LIGHTNING_STRIKE:
+                result = await handleLightningStrike(member, position, dbEntry, eventLogs);
+                break;
         }
     }
     
@@ -837,6 +841,137 @@ function cleanupExpiredDisables(dbEntry) {
 }
 
 /**
+ * Handle lightning strike hazard - stuns player for several mining actions
+ */
+async function handleLightningStrike(member, position, dbEntry, eventLogs) {
+    const config = HAZARD_CONFIG[HAZARD_TYPES.LIGHTNING_STRIKE];
+    const stunDuration = config.stunDuration || 3; // Default 3 actions
+    const stunChance = config.stunChance || 0.8; // Default 80% chance
+    const damageAmount = config.damageAmount || 15; // Default 15 health damage
+    
+    let result = {
+        mapChanged: false,
+        playerMoved: false,
+        playerDisabled: false,
+        message: null,
+        treasureFound: false,
+        itemsFound: []
+    };
+    
+    try {
+        // Check if player is stunned
+        if (Math.random() < stunChance) {
+            // Apply stun effect
+            if (!dbEntry.gameData.stunned) {
+                dbEntry.gameData.stunned = {};
+            }
+            
+            const stunEndTime = Date.now() + (stunDuration * 15000); // 15 seconds per action
+            dbEntry.gameData.stunned[member.id] = {
+                startTime: Date.now(),
+                endTime: stunEndTime,
+                actionsRemaining: stunDuration,
+                source: 'lightning_strike'
+            };
+            
+            // Apply health damage if health system is active
+            try {
+                const { calculatePlayerStat } = require('../../calculatePlayerStat');
+                const playerStats = await calculatePlayerStat(member.id);
+                
+                if (playerStats && playerStats.health) {
+                    const newHealth = Math.max(0, playerStats.health.current - damageAmount);
+                    
+                    // Update health (this would need to be integrated with the health system)
+                    eventLogs.push(`⚡ ${member.displayName} was struck by lightning and stunned for ${stunDuration} actions! (-${damageAmount} health)`);
+                } else {
+                    eventLogs.push(`⚡ ${member.displayName} was struck by lightning and stunned for ${stunDuration} actions!`);
+                }
+            } catch (healthError) {
+                console.error('[LIGHTNING] Error applying health damage:', healthError);
+                eventLogs.push(`⚡ ${member.displayName} was struck by lightning and stunned for ${stunDuration} actions!`);
+            }
+            
+            result.playerDisabled = true;
+            result.message = `You were struck by lightning and are stunned for ${stunDuration} mining actions!`;
+            
+            // Update database with stun effect
+            const gachaVC = require('../../../models/activevcs');
+            await gachaVC.updateOne(
+                { channelId: dbEntry.channelId },
+                { $set: { 'gameData.stunned': dbEntry.gameData.stunned } }
+            );
+            
+        } else {
+            // Lightning missed
+            eventLogs.push(`⚡ Lightning crackled near ${member.displayName} but missed!`);
+            result.message = 'Lightning crackled dangerously close to you, but you managed to avoid the worst of it!';
+        }
+        
+    } catch (error) {
+        console.error('[LIGHTNING] Error handling lightning strike:', error);
+        eventLogs.push(`⚡ ${member.displayName} encountered a lightning hazard!`);
+        result.message = 'You encountered a lightning hazard!';
+    }
+    
+    return result;
+}
+
+/**
+ * Check if player is currently stunned by lightning
+ */
+function isPlayerStunned(dbEntry, playerId) {
+    const stunData = dbEntry.gameData?.stunned?.[playerId];
+    if (!stunData) return false;
+    
+    const now = Date.now();
+    
+    // Check if stun has expired
+    if (now > stunData.endTime || stunData.actionsRemaining <= 0) {
+        // Clean up expired stun
+        if (dbEntry.gameData.stunned) {
+            delete dbEntry.gameData.stunned[playerId];
+        }
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Reduce stun duration when player attempts an action
+ */
+async function reduceStunDuration(dbEntry, playerId) {
+    const stunData = dbEntry.gameData?.stunned?.[playerId];
+    if (!stunData) return false;
+    
+    stunData.actionsRemaining--;
+    
+    if (stunData.actionsRemaining <= 0) {
+        // Stun expired
+        delete dbEntry.gameData.stunned[playerId];
+        
+        // Update database
+        const gachaVC = require('../../../models/activevcs');
+        await gachaVC.updateOne(
+            { channelId: dbEntry.channelId },
+            { $set: { 'gameData.stunned': dbEntry.gameData.stunned } }
+        );
+        
+        return true; // Stun ended
+    } else {
+        // Update remaining actions
+        const gachaVC = require('../../../models/activevcs');
+        await gachaVC.updateOne(
+            { channelId: dbEntry.channelId },
+            { $set: { 'gameData.stunned': dbEntry.gameData.stunned } }
+        );
+        
+        return false; // Still stunned
+    }
+}
+
+/**
  * Check if player has immunity to specific hazard types based on unique items
  */
 async function checkHazardImmunity(member, hazardType) {
@@ -871,6 +1006,12 @@ async function checkHazardImmunity(member, hazardType) {
                 // Structural immunity from earth/diamond items or phase walk
                 return uniqueBonuses.diamondMastery >= 0.5 || uniqueBonuses.phaseWalkChance >= 0.1;
                 
+            case HAZARD_TYPES.LIGHTNING_STRIKE:
+                // Lightning immunity from electric/storm items or specific lightning immunity
+                return uniqueBonuses.lightningImmunity || 
+                       uniqueBonuses.electricResistance >= 1.0 || 
+                       uniqueBonuses.stormPower >= 0.5;
+                
             default:
                 // General hazard resistance
                 return uniqueBonuses.hazardResistance >= 1.0; // 100% resistance = immunity to all
@@ -890,8 +1031,11 @@ module.exports = {
     handleGreenFog,
     handleWallTrap,
     handleFireBlast,
+    handleLightningStrike,
     isPlayerStuck,
     isPlayerDisabled,
+    isPlayerStunned,
+    reduceStunDuration,
     enablePlayersAfterBreak,
     cleanupExpiredDisables,
     updateStuckStatus,
