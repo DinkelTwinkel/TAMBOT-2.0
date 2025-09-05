@@ -24,6 +24,7 @@ class InnKeeperV3Controller {
         this.messageThrottle = new Map();
         this.processingLocks = new Map();
         this.retryAttempts = new Map();
+        this.messageCache = new Map(); // Cache for message editing like V2
         
         // V3 Enhanced Features
         this.innLevels = new Map(); // Track inn levels per channel
@@ -106,11 +107,16 @@ class InnKeeperV3Controller {
             }
 
             try {
-                // Initialize V3 features if needed
-                await this.initializeV3Features(channelId, dbEntry, now);
+                // Initialize V3 features if needed (with error handling)
+                try {
+                    await this.initializeV3Features(channelId, dbEntry, now);
+                } catch (initError) {
+                    console.error(`[InnKeeperV3] Error initializing V3 features:`, initError);
+                    // Continue with basic functionality even if V3 features fail
+                }
                 
                 // Check and refresh shop with level bonuses
-                await this.checkAndRefreshShopV3(channelId, dbEntry, now);
+                await this.checkAndRefreshShopV3(channel, channelId, dbEntry, now);
                 
                 // Enhanced work/break state management
                 const workState = await this.checkWorkStateV3(channel, channelId, now);
@@ -118,21 +124,49 @@ class InnKeeperV3Controller {
                     return;
                 }
                 
-                // Generate enhanced activities
+                // CORE INN LOGIC - Generate sales and manage work cycles
+                try {
+                    // Check if we should generate sales (main inn functionality)
+                    const shouldGenerate = this.shouldGenerateActivity(dbEntry, now);
+                    if (shouldGenerate) {
+                        // Generate sales with V3 bonuses
+                        await this.generateSalesV3(channel, dbEntry, now);
+                    }
+                    
+                    // Check if work period is complete
+                    if (this.isWorkPeriodCompleteV3(dbEntry, now)) {
+                        await this.startBreakV3(channel, channelId, now);
+                        return; // Break started, exit this cycle
+                    }
+                    
+                } catch (coreError) {
+                    console.error(`[InnKeeperV3] Error in core inn logic:`, coreError);
+                    // Continue with V3 features even if core logic fails
+                }
+                
+                // Generate enhanced activities (V3 specific events)
                 if (this.shouldGenerateActivityV3(dbEntry, now)) {
                     await this.generateActivityV3(channel, channelId, now);
                 }
                 
-                // Update enhanced display
+                // Update enhanced display using existing V2 system + V3 enhancements
                 if (this.shouldUpdateDisplay(channelId, now)) {
-                    await this.updateDisplayV3(channel, dbEntry, now);
+                    // Get fresh entry for display
+                    const freshEntry = await ActiveVCs.findOne({ channelId }).lean();
+                    if (freshEntry) {
+                        // Use the existing display manager like V2 for core activity logs
+                        await this.displayManager.update(channel, freshEntry);
+                        
+                        // Add V3 enhancement info as a separate message if needed
+                        await this.addV3StatusInfo(channel, freshEntry, now);
+                    }
                 }
                 
                 // Process seasonal events
                 await this.processSeasonalEvents(channel, dbEntry, now);
                 
                 // Update player reputations
-                await this.updatePlayerReputations(channelId, dbEntry, now);
+                await this.updatePlayerReputations(channel, channelId, dbEntry, now);
                 
                 // Check and award achievements
                 await this.checkAchievements(channel, dbEntry, now);
@@ -154,7 +188,19 @@ class InnKeeperV3Controller {
      * Initialize V3 features for a channel
      */
     async initializeV3Features(channelId, dbEntry, now) {
-        if (!dbEntry.gameData.v3Features) {
+        // Get fresh data from database to ensure we have the latest state
+        const freshEntry = await ActiveVCs.findOne({ channelId }).lean();
+        if (!freshEntry) {
+            console.error(`[InnKeeperV3] No database entry found for channel ${channelId}`);
+            return;
+        }
+        
+        // Initialize gameData if it doesn't exist
+        if (!freshEntry.gameData) {
+            freshEntry.gameData = {};
+        }
+        
+        if (!freshEntry.gameData.v3Features) {
             const v3Features = {
                 innLevel: 1,
                 totalXP: 0,
@@ -170,19 +216,42 @@ class InnKeeperV3Controller {
                 lastDailyBonus: now
             };
             
+            // Also initialize basic inn game state if not present
+            const initData = {
+                'gameData.v3Features': v3Features
+            };
+            
+            // Initialize core inn game state if missing
+            if (!freshEntry.gameData.gamemode) {
+                initData['gameData.gamemode'] = 'innkeeper';
+            }
+            if (!freshEntry.gameData.workState) {
+                initData['gameData.workState'] = 'working';
+                initData['gameData.workStartTime'] = new Date(now);
+            }
+            if (!freshEntry.gameData.sales) {
+                initData['gameData.sales'] = [];
+            }
+            if (!freshEntry.gameData.events) {
+                initData['gameData.events'] = [];
+            }
+            if (!freshEntry.gameData.lastActivity) {
+                initData['gameData.lastActivity'] = new Date(now);
+            }
+            
             await ActiveVCs.findOneAndUpdate(
                 { channelId: channelId },
-                { $set: { 'gameData.v3Features': v3Features } }
+                { $set: initData }
             );
             
-            console.log(`[InnKeeperV3] Initialized V3 features for channel ${channelId}`);
+            console.log(`[InnKeeperV3] Initialized V3 features and core inn state for channel ${channelId}`);
         }
     }
 
     /**
      * Enhanced shop refresh with level bonuses
      */
-    async checkAndRefreshShopV3(channelId, dbEntry, now) {
+    async checkAndRefreshShopV3(channel, channelId, dbEntry, now) {
         const v3Features = dbEntry.gameData.v3Features;
         const innLevel = v3Features?.innLevel || 1;
         
@@ -405,7 +474,8 @@ class InnKeeperV3Controller {
             )
             .setTimestamp();
         
-        await channel.send({ embeds: [embed] });
+        // Use edit-first approach for events too
+        await this.postOrUpdateV3Display(channel, { embeds: [embed] });
         
         console.log(`[InnKeeperV3] Generated ${event.name} event for channel ${channel.id}`);
     }
@@ -445,12 +515,18 @@ class InnKeeperV3Controller {
      * Process seasonal events
      */
     async processSeasonalEvents(channel, dbEntry, now) {
-        const v3Features = dbEntry.gameData.v3Features;
+        // Get fresh data and ensure v3Features exists
+        const freshEntry = await ActiveVCs.findOne({ channelId: channel.id }).lean();
+        if (!freshEntry || !freshEntry.gameData || !freshEntry.gameData.v3Features) {
+            return; // Skip if V3 features not initialized
+        }
+        
+        const v3Features = freshEntry.gameData.v3Features;
         
         // Check if seasonal event should start
         if (!v3Features.seasonalEvent || v3Features.seasonalEvent.expiresAt < now) {
             if (Math.random() < 0.1) { // 10% chance to start seasonal event
-                await this.startSeasonalEvent(channel, dbEntry, now);
+                await this.startSeasonalEvent(channel, freshEntry, now);
             }
         }
     }
@@ -506,13 +582,13 @@ class InnKeeperV3Controller {
             )
             .setTimestamp();
         
-        await channel.send({ embeds: [embed] });
+        await this.postOrUpdateV3Display(channel, { embeds: [embed] });
     }
 
     /**
      * Update player reputations based on activity
      */
-    async updatePlayerReputations(channelId, dbEntry, now) {
+    async updatePlayerReputations(channel, channelId, dbEntry, now) {
         const v3Features = dbEntry.gameData.v3Features;
         const lastUpdate = v3Features.lastReputationUpdate || now;
         
@@ -642,7 +718,7 @@ class InnKeeperV3Controller {
             )
             .setTimestamp();
         
-        await channel.send({ embeds: [embed] });
+        await this.postOrUpdateV3Display(channel, { embeds: [embed] });
     }
 
     /**
@@ -660,7 +736,7 @@ class InnKeeperV3Controller {
             )
             .setTimestamp();
         
-        await channel.send({ embeds: [embed] });
+        await this.postOrUpdateV3Display(channel, { embeds: [embed] });
     }
 
     /**
@@ -710,54 +786,695 @@ class InnKeeperV3Controller {
         return 0x0099FF;
     }
 
-    // Inherit existing methods from v2 with enhancements
+    // Lock management for V3
     async acquireLock(channelId, timeout = 45000) {
-        // Enhanced lock acquisition with longer timeout for V3 features
-        return await super.acquireLock(channelId, timeout);
+        if (this.processingLocks.has(channelId)) {
+            return false; // Already locked
+        }
+        
+        this.processingLocks.set(channelId, Date.now());
+        
+        // Set timeout to auto-release lock
+        setTimeout(() => {
+            this.releaseLock(channelId);
+        }, timeout);
+        
+        return true;
     }
 
     async releaseLock(channelId) {
-        return await super.releaseLock(channelId);
+        return this.processingLocks.delete(channelId);
     }
 
     async handleError(channelId, error) {
-        return await super.handleError(channelId, error);
+        console.error(`[InnKeeperV3] Error in channel ${channelId}:`, error);
+        this.releaseLock(channelId);
+        
+        // Track retry attempts
+        const retries = this.retryAttempts.get(channelId) || 0;
+        this.retryAttempts.set(channelId, retries + 1);
+        
+        return false;
     }
 
-    // Placeholder methods that would need implementation
+    // Core inn functionality with V3 enhancements
+    async generateSalesV3(channel, dbEntry, now) {
+        try {
+            // Get fresh database entry
+            const freshEntry = await ActiveVCs.findOne({ channelId: channel.id });
+            if (!freshEntry || freshEntry.gameData?.workState !== 'working') {
+                console.log('[InnKeeperV3] Skipping sales generation - not working');
+                return;
+            }
+            
+            // Get V3 features for bonuses
+            const v3Features = freshEntry.gameData?.v3Features || {};
+            const innLevel = v3Features.innLevel || 1;
+            const profitBoost = 1 + (innLevel - 1) * 0.03; // 3% per level
+            
+            // Use the core event manager to generate actual sales (like V2)
+            const event = await this.eventManager.generateEvent(channel, freshEntry);
+            
+            if (event && event.type === 'npcSale') {
+                // Generate unique event ID for idempotency
+                const eventId = `${channel.id}-${now}-${Math.random()}`;
+                event.eventId = eventId;
+                
+                // Apply V3 profit bonus to the sale
+                const originalProfit = event.saleData.profit || 0;
+                const enhancedProfit = Math.floor(originalProfit * profitBoost);
+                event.saleData.profit = enhancedProfit;
+                
+                // Calculate XP from the sale
+                const xpGained = Math.floor(enhancedProfit * 0.1); // 10% of profit as XP
+                
+                // Record sale atomically with V3 enhancements
+                const updated = await ActiveVCs.findOneAndUpdate(
+                    {
+                        channelId: channel.id,
+                        'gameData.sales.eventId': { $ne: eventId }
+                    },
+                    {
+                        $push: { 'gameData.sales': event.saleData },
+                        $set: { 'gameData.lastActivity': new Date() },
+                        $inc: { 
+                            'gameData.eventSequence': 1,
+                            'gameData.v3Features.totalXP': xpGained,
+                            'gameData.v3Features.totalSales': 1,
+                            'gameData.v3Features.totalProfit': enhancedProfit
+                        }
+                    }
+                );
+                
+                if (updated) {
+                    console.log(`[InnKeeperV3] NPC sale recorded with V3 bonuses: ${event.saleData.buyerName} bought ${event.saleData.itemName} for ${event.saleData.price}c (${enhancedProfit} profit, ${xpGained} XP)`);
+                    
+                    // Check for level up
+                    const newTotalXP = (v3Features.totalXP || 0) + xpGained;
+                    const newLevel = Math.floor(newTotalXP / 1000) + 1; // 1000 XP per level
+                    if (newLevel > innLevel) {
+                        await this.handleLevelUp(channel, updated, newLevel);
+                    }
+                }
+            } else if (event) {
+                // Handle other event types (friendship, etc.)
+                console.log(`[InnKeeperV3] Generated non-sale event: ${event.type}`);
+            } else {
+                console.log(`[InnKeeperV3] No event generated this cycle`);
+            }
+            
+        } catch (error) {
+            console.error(`[InnKeeperV3] Error generating sales:`, error);
+        }
+    }
+
     async generateShopV3(channel, dbEntry, now, profitBoost, eventFrequency) {
         // Enhanced shop generation with level bonuses
+        try {
+            // Use existing shop generation with bonuses
+            const shopResult = await this.eventManager.generateNPCSaleAtomic(channel, dbEntry);
+            return shopResult;
+        } catch (error) {
+            console.error(`[InnKeeperV3] Error generating shop:`, error);
+            return null;
+        }
     }
 
     async generateSalesWithMultiplier(channel, dbEntry, now, multiplier) {
         // Generate sales with enhanced multiplier
+        return await this.generateSalesV3(channel, dbEntry, now);
     }
 
     async updateDisplayV3(channel, dbEntry, now) {
-        // Enhanced display with V3 features
+        // Enhanced display with V3 features using edit-first approach like V2
+        try {
+            // Check if we should update display (throttling)
+            const lastUpdate = this.messageThrottle.get(channel.id) || 0;
+            if (now - lastUpdate < 30000) return; // 30 second throttle
+            
+            // Get fresh V3 data
+            const freshEntry = await ActiveVCs.findOne({ channelId: channel.id }).lean();
+            const v3Features = freshEntry?.gameData?.v3Features || {};
+            const innLevel = v3Features.innLevel || 1;
+            const totalXP = v3Features.totalXP || 0;
+            const totalProfit = v3Features.totalProfit || 0;
+            
+            // Create enhanced display embed
+            const embed = new EmbedBuilder()
+                .setTitle(`🏨 Inn Activity (Level ${innLevel})`)
+                .setDescription(`**XP**: ${totalXP} | **Total Profit**: ${totalProfit} coins`)
+                .setColor('Gold')
+                .setTimestamp();
+                
+            // Add V3 status fields
+            if (v3Features.seasonalEvent) {
+                const event = v3Features.seasonalEvent;
+                const timeLeft = Math.max(0, event.expiresAt - now);
+                const daysLeft = Math.floor(timeLeft / (24 * 60 * 60 * 1000));
+                
+                embed.addFields({
+                    name: '🎉 Active Event',
+                    value: `${event.name}\n${event.description}\n**${daysLeft} days left**`,
+                    inline: false
+                });
+            }
+            
+            // Use the same edit-first approach as V2
+            await this.postOrUpdateV3Display(channel, { embeds: [embed] });
+            this.messageThrottle.set(channel.id, now);
+            
+        } catch (error) {
+            console.error(`[InnKeeperV3] Error updating display:`, error);
+        }
+    }
+    
+    /**
+     * Post or update V3 display (edit existing if found, like V2)
+     */
+    async postOrUpdateV3Display(channel, messageData) {
+        try {
+            // Check cache first
+            const cachedMessageId = this.messageCache?.get(channel.id);
+            
+            if (cachedMessageId) {
+                try {
+                    const existingMessage = await channel.messages.fetch(cachedMessageId);
+                    await existingMessage.edit(messageData);
+                    return existingMessage;
+                } catch (err) {
+                    if (this.messageCache) {
+                        this.messageCache.delete(channel.id);
+                    }
+                }
+            }
+            
+            // Search for existing V3 inn message in last 5 messages
+            const messages = await channel.messages.fetch({ limit: 5 });
+            for (const message of messages.values()) {
+                if (message.author.bot && 
+                    message.embeds.length > 0 && 
+                    (message.embeds[0].title?.includes('Inn Activity') ||
+                     message.embeds[0].title?.includes('Inn (Level'))) {
+                    await message.edit(messageData);
+                    if (!this.messageCache) {
+                        this.messageCache = new Map();
+                    }
+                    this.messageCache.set(channel.id, message.id);
+                    console.log(`[InnKeeperV3] Updated existing inn display message`);
+                    return message;
+                }
+            }
+            
+            // Create new message only if none found
+            const newMessage = await channel.send(messageData);
+            if (!this.messageCache) {
+                this.messageCache = new Map();
+            }
+            this.messageCache.set(channel.id, newMessage.id);
+            console.log(`[InnKeeperV3] Created new inn display message`);
+            
+            return newMessage;
+            
+        } catch (error) {
+            console.error('[InnKeeperV3] Error posting/updating V3 display:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Add V3 status information as a separate, less frequent update
+     */
+    async addV3StatusInfo(channel, dbEntry, now) {
+        try {
+            // Only update V3 status every 2 minutes to avoid spam
+            const lastV3Update = this.messageThrottle.get(`${channel.id}_v3`) || 0;
+            if (now - lastV3Update < 120000) return; // 2 minutes
+            
+            const v3Features = dbEntry.gameData?.v3Features;
+            if (!v3Features) return;
+            
+            const innLevel = v3Features.innLevel || 1;
+            const totalXP = v3Features.totalXP || 0;
+            const xpToNext = 1000 - (totalXP % 1000);
+            
+            // Create V3 status embed
+            const embed = new EmbedBuilder()
+                .setTitle(`🏨 Inn Status (Level ${innLevel})`)
+                .setDescription(`**XP**: ${totalXP} (${xpToNext} to next level)`)
+                .setColor('Purple')
+                .setTimestamp();
+                
+            // Add seasonal event info
+            if (v3Features.seasonalEvent) {
+                const event = v3Features.seasonalEvent;
+                const timeLeft = Math.max(0, event.expiresAt - now);
+                const daysLeft = Math.floor(timeLeft / (24 * 60 * 60 * 1000));
+                
+                embed.addFields({
+                    name: '🎉 Seasonal Event',
+                    value: `${event.name} (${daysLeft} days left)`,
+                    inline: true
+                });
+            }
+            
+            // Add level bonuses
+            const profitBonus = Math.round((innLevel - 1) * 3);
+            if (profitBonus > 0) {
+                embed.addFields({
+                    name: '📈 Level Bonuses',
+                    value: `+${profitBonus}% profit boost`,
+                    inline: true
+                });
+            }
+            
+            // Use edit-first approach for V3 status
+            await this.postOrUpdateV3Status(channel, { embeds: [embed] });
+            this.messageThrottle.set(`${channel.id}_v3`, now);
+            
+        } catch (error) {
+            console.error(`[InnKeeperV3] Error adding V3 status:`, error);
+        }
+    }
+    
+    /**
+     * Post or update V3 status (separate from main activity log)
+     */
+    async postOrUpdateV3Status(channel, messageData) {
+        try {
+            // Search for existing V3 status message in last 3 messages
+            const messages = await channel.messages.fetch({ limit: 3 });
+            for (const message of messages.values()) {
+                if (message.author.bot && 
+                    message.embeds.length > 0 && 
+                    message.embeds[0].title?.includes('Inn Status (Level')) {
+                    await message.edit(messageData);
+                    console.log(`[InnKeeperV3] Updated existing V3 status message`);
+                    return message;
+                }
+            }
+            
+            // Only create new V3 status message if there's significant info to show
+            const embed = messageData.embeds[0];
+            if (embed.fields && embed.fields.length > 0) {
+                const newMessage = await channel.send(messageData);
+                console.log(`[InnKeeperV3] Created new V3 status message`);
+                return newMessage;
+            }
+            
+        } catch (error) {
+            console.error('[InnKeeperV3] Error posting/updating V3 status:', error);
+            return null;
+        }
+    }
+    
+    async checkWorkStateV3(channel, channelId, now) {
+        // Enhanced work/break state checking like V2
+        try {
+            // Get fresh data from database
+            const freshEntry = await ActiveVCs.findOne({ channelId });
+            if (!freshEntry) return { shouldReturn: false, state: 'work' };
+            
+            const gameData = freshEntry.gameData || {};
+            
+            // Check if inn is in break period
+            if (gameData.workState === 'break') {
+                const breakEndTime = new Date(gameData.breakEndTime || now).getTime();
+                
+                if (now < breakEndTime) {
+                    // Still in break
+                    console.log(`[InnKeeperV3] Still in break, ${Math.round((breakEndTime - now) / 60000)} minutes remaining`);
+                    return { shouldReturn: true, state: 'break' };
+                } else {
+                    // Break is over, transition back to working
+                    console.log('[InnKeeperV3] Break period ended, transitioning back to work');
+                    
+                    const newWorkStartTime = now;
+                    const nextBreakTime = now + (this.config.TIMING?.WORK_DURATION || 25 * 60 * 1000);
+                    
+                    await ActiveVCs.updateOne(
+                        { channelId },
+                        { 
+                            $set: { 
+                                'gameData.workState': 'working',
+                                'gameData.workStartTime': new Date(newWorkStartTime),
+                                'gameData.lastActivity': new Date(now),
+                                nextTrigger: new Date(nextBreakTime)
+                            },
+                            $unset: { 
+                                'gameData.breakStartTime': 1,
+                                'gameData.breakEndTime': 1
+                            }
+                        }
+                    );
+                    
+                    // Send work restart message
+                    const embed = new EmbedBuilder()
+                        .setTitle('🏨 Inn Reopened!')
+                        .setColor('Green')
+                        .setDescription('The inn is back open for business! Customers will start arriving soon.')
+                        .addFields({
+                            name: '⏰ Next Break',
+                            value: `<t:${Math.floor(nextBreakTime / 1000)}:R>`,
+                            inline: true
+                        })
+                        .setTimestamp();
+                        
+                    await channel.send({ embeds: [embed] });
+                    
+                    return { shouldReturn: false, state: 'work' };
+                }
+            }
+            
+            // Not in break, check if we should be working
+            if (!gameData.workState || gameData.workState === 'working') {
+                return { shouldReturn: false, state: 'work' };
+            }
+            
+            return { shouldReturn: false, state: 'work' };
+            
+        } catch (error) {
+            console.error(`[InnKeeperV3] Error checking work state:`, error);
+            return { shouldReturn: false, state: 'work' };
+        }
+    }
+    
+    async generateActivityV3(channel, channelId, now) {
+        // Generate V3 enhanced activities
+        try {
+            // Get fresh data for event generation
+            const freshEntry = await ActiveVCs.findOne({ channelId }).lean();
+            if (!freshEntry) return;
+            
+            // Generate special V3 events
+            if (Math.random() < 0.1) { // 10% chance for special events
+                await this.generateEnhancedEvent(channel, freshEntry, now);
+            }
+        } catch (error) {
+            console.error(`[InnKeeperV3] Error generating V3 activities:`, error);
+        }
     }
 
     isWorkPeriodCompleteV3(dbEntry, now, effectiveWorkDuration) {
-        // Work period check with automation
-        return super.isWorkPeriodComplete(dbEntry, now);
+        // Work period check like V2 - check actual work state and timing
+        const gameData = dbEntry.gameData || {};
+        
+        // Check if already in break
+        if (gameData.workState === 'break') {
+            return false; // Already in break
+        }
+        
+        // Check if work state is set to working
+        if (gameData.workState !== 'working') {
+            return false; // Not in working state
+        }
+        
+        // Get work start time (when inn started working)
+        const workStartTime = new Date(gameData.workStartTime || gameData.lastActivity || now - 1000).getTime();
+        const workDuration = effectiveWorkDuration || this.config.TIMING?.WORK_DURATION || (25 * 60 * 1000);
+        const timeSinceWorkStart = now - workStartTime;
+        
+        console.log(`[InnKeeperV3] Work check: ${Math.round(timeSinceWorkStart / 60000)}/${Math.round(workDuration / 60000)} minutes`);
+        
+        return timeSinceWorkStart >= workDuration;
     }
 
     async startBreakV3(channel, channelId, now) {
-        // Enhanced break start with V3 features
-        return await super.startBreak(channel, channelId, now);
+        // Enhanced break start with V3 features and profit distribution
+        console.log('[InnKeeperV3] Starting break and distributing profits...');
+        
+        try {
+            const ActiveVCs = require('../../models/activevcs');
+            
+            // Get current data for profit distribution
+            const current = await ActiveVCs.findOne({ channelId });
+            if (!current) {
+                console.error('[InnKeeperV3] No database entry found for break start');
+                return false;
+            }
+            
+            // Distribute profits before break if there are sales
+            const gameData = current.gameData || {};
+            const sales = gameData.sales || [];
+            const events = gameData.events || [];
+            
+            if (sales.length > 0 || events.length > 0) {
+                console.log(`[InnKeeperV3] Distributing profits from ${sales.length} sales and ${events.length} events`);
+                await this.distributeProfitsV3(channel, current, now);
+            } else {
+                console.log('[InnKeeperV3] No sales to distribute, starting break anyway');
+            }
+            
+            // Start break with atomic state transition
+            const breakEndTime = now + (this.config.TIMING?.BREAK_DURATION || 5 * 60 * 1000);
+            
+            const updated = await ActiveVCs.findOneAndUpdate(
+                { 
+                    channelId,
+                    'gameData.workState': 'working'
+                },
+                { 
+                    $set: { 
+                        'gameData.workState': 'break',
+                        'gameData.breakStartTime': now,
+                        'gameData.breakEndTime': new Date(breakEndTime),
+                        'gameData.sales': [], // Clear sales after distribution
+                        'gameData.events': [], // Clear events
+                        'gameData.lastActivity': new Date(now),
+                        nextTrigger: new Date(breakEndTime)
+                    }
+                },
+                { new: true }
+            );
+            
+            if (!updated) {
+                console.log('[InnKeeperV3] Failed to start break - state already changed');
+                return false;
+            }
+            
+            // Send break message
+            const embed = new EmbedBuilder()
+                .setTitle('☕ Break Time!')
+                .setColor(0xF39C12)
+                .setDescription('The inn is closing for a 5-minute break. Workers deserve some rest!')
+                .addFields(
+                    { name: 'Break Duration', value: '5 minutes', inline: true },
+                    { name: 'Reopening At', value: `<t:${Math.floor(breakEndTime / 1000)}:R>`, inline: true }
+                )
+                .setTimestamp();
+                
+            await channel.send({ embeds: [embed] });
+            
+            console.log(`[InnKeeperV3] Break started, will end at ${new Date(breakEndTime).toISOString()}`);
+            return true;
+            
+        } catch (error) {
+            console.error('[InnKeeperV3] Error starting break:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Distribute profits with V3 enhancements
+     */
+    async distributeProfitsV3(channel, dbEntry, now) {
+        try {
+            const Money = require('../../models/currency');
+            const gameData = dbEntry.gameData || {};
+            const sales = gameData.sales || [];
+            const events = gameData.events || [];
+            
+            if (sales.length === 0 && events.length === 0) {
+                console.log('[InnKeeperV3] No sales or events to distribute');
+                return;
+            }
+            
+            // Get members in voice channel (excluding bots)
+            const membersInVC = Array.from(channel.members.values()).filter(m => !m.user.bot);
+            
+            if (membersInVC.length === 0) {
+                console.log('[InnKeeperV3] No members in VC for profit distribution');
+                return;
+            }
+            
+            // Calculate totals
+            const totalSales = sales.reduce((sum, sale) => sum + (sale.price || 0), 0);
+            const totalProfit = sales.reduce((sum, sale) => sum + (sale.profit || 0), 0);
+            const totalTips = sales.reduce((sum, sale) => sum + (sale.tip || 0), 0);
+            const eventCosts = events.reduce((sum, event) => sum + (event.cost || 0), 0);
+            
+            // Apply V3 level bonus to profits
+            const v3Features = gameData.v3Features || {};
+            const innLevel = v3Features.innLevel || 1;
+            const levelBonus = 1 + (innLevel - 1) * 0.03; // 3% per level
+            const enhancedProfit = Math.floor(totalProfit * levelBonus);
+            
+            // Calculate synergy bonus for multiple workers
+            let synergyBonus = 0;
+            if (membersInVC.length > 1) {
+                const synergyMultiplier = 1 + (Math.log(membersInVC.length) * 0.1);
+                synergyBonus = Math.floor((enhancedProfit + totalTips) * (synergyMultiplier - 1));
+            }
+            
+            // Calculate gross total
+            const grossTotal = enhancedProfit + totalTips + synergyBonus - eventCosts;
+            
+            // Innkeeper's cut (10%)
+            const innkeeperCut = grossTotal > 0 ? Math.floor(grossTotal * 0.1) : 0;
+            
+            // Net total for distribution
+            const netTotal = grossTotal - innkeeperCut;
+            
+            if (netTotal <= 0) {
+                console.log('[InnKeeperV3] No profit to distribute after costs');
+                return;
+            }
+            
+            // Initialize earnings for each member
+            const earnings = {};
+            for (const member of membersInVC) {
+                earnings[member.id] = {
+                    member: member,
+                    coins: 0,
+                    sales: 0,
+                    tips: 0,
+                    bonuses: 0
+                };
+            }
+            
+            // Distribute profits from each sale
+            for (const sale of sales) {
+                const saleProfit = Math.floor((sale.profit || 0) * levelBonus);
+                const eligibleMembers = membersInVC.filter(m => m.id !== sale.buyer);
+                
+                if (eligibleMembers.length > 0) {
+                    const profitPerMember = Math.floor(saleProfit / eligibleMembers.length);
+                    
+                    for (const member of eligibleMembers) {
+                        earnings[member.id].coins += profitPerMember;
+                        earnings[member.id].sales += profitPerMember;
+                    }
+                }
+                
+                // Distribute tips to all members (including buyer)
+                if (sale.tip > 0) {
+                    const tipPerMember = Math.floor(sale.tip / membersInVC.length);
+                    for (const member of membersInVC) {
+                        earnings[member.id].coins += tipPerMember;
+                        earnings[member.id].tips += tipPerMember;
+                    }
+                }
+            }
+            
+            // Distribute synergy bonus equally
+            if (synergyBonus > 0) {
+                const bonusPerMember = Math.floor(synergyBonus / membersInVC.length);
+                for (const member of membersInVC) {
+                    earnings[member.id].coins += bonusPerMember;
+                    earnings[member.id].bonuses += bonusPerMember;
+                }
+            }
+            
+            // Award coins to each member
+            const totalAwarded = [];
+            for (const [memberId, earning] of Object.entries(earnings)) {
+                if (earning.coins > 0) {
+                    try {
+                        await Money.findOneAndUpdate(
+                            { userId: memberId },
+                            { $inc: { money: earning.coins } },
+                            { upsert: true, new: true }
+                        );
+                        
+                        totalAwarded.push({
+                            member: earning.member,
+                            coins: earning.coins,
+                            breakdown: earning
+                        });
+                        
+                        console.log(`[InnKeeperV3] Awarded ${earning.coins} coins to ${earning.member.displayName}`);
+                    } catch (payoutError) {
+                        console.error(`[InnKeeperV3] Error awarding coins to ${memberId}:`, payoutError);
+                    }
+                }
+            }
+            
+            // Send profit distribution summary
+            if (totalAwarded.length > 0) {
+                const embed = new EmbedBuilder()
+                    .setTitle('💰 Inn Profits Distributed!')
+                    .setDescription(`**Work Period Complete** - Level ${innLevel} Inn\n**Total Profit**: ${netTotal} coins${levelBonus > 1 ? ` (+${Math.round((levelBonus - 1) * 100)}% level bonus)` : ''}`)
+                    .setColor('Gold')
+                    .setTimestamp();
+                
+                // Show individual earnings
+                const earningsText = totalAwarded
+                    .map(award => `${award.member.displayName}: **${award.coins}** coins`)
+                    .join('\n');
+                
+                embed.addFields({
+                    name: '👥 Worker Earnings',
+                    value: earningsText,
+                    inline: false
+                });
+                
+                if (synergyBonus > 0) {
+                    embed.addFields({
+                        name: '🤝 Teamwork Bonus',
+                        value: `+${synergyBonus} coins (${membersInVC.length} workers)`,
+                        inline: true
+                    });
+                }
+                
+                if (innkeeperCut > 0) {
+                    embed.addFields({
+                        name: '🏨 Inn Maintenance',
+                        value: `${innkeeperCut} coins`,
+                        inline: true
+                    });
+                }
+                
+                await channel.send({ embeds: [embed] });
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.error('[InnKeeperV3] Error starting break and distributing profits:', error);
+            return false;
+        }
     }
 
     shouldRefreshShop(dbEntry, now) {
-        return super.shouldRefreshShop(dbEntry, now);
+        const lastRefresh = dbEntry.gameData?.lastShopRefresh || 0;
+        return (now - lastRefresh) >= (this.config.SHOP_REFRESH_INTERVAL || 3600000);
+    }
+
+    shouldGenerateActivity(dbEntry, now) {
+        const lastActivity = dbEntry.gameData?.lastActivity || 0;
+        const activityInterval = this.config.TIMING?.ACTIVITY_GUARANTEE || 15000; // 15 seconds
+        return (now - lastActivity) >= activityInterval;
     }
 
     shouldGenerateActivityV3(dbEntry, now) {
-        return super.shouldGenerateActivity(dbEntry, now);
+        const lastActivity = dbEntry.gameData?.lastActivity || 0;
+        return (now - lastActivity) >= (this.config.ACTIVITY_INTERVAL || 60000);
     }
 
     shouldUpdateDisplay(channelId, now) {
-        return super.shouldUpdateDisplay(channelId, now);
+        const lastUpdate = this.messageThrottle.get(channelId) || 0;
+        return (now - lastUpdate) >= (this.config.DISPLAY_UPDATE_INTERVAL || 30000);
     }
 }
 
-module.exports = InnKeeperV3Controller;
+// Create a singleton instance for the game master to use
+const innKeeperV3Instance = new InnKeeperV3Controller();
+
+// Export as a function that calls the main method on the instance
+module.exports = async (channel, dbEntry, json, client) => {
+    const now = Date.now();
+    return await innKeeperV3Instance.processInn(channel, dbEntry, now);
+};
+
+// Also export the class for direct use if needed
+module.exports.InnKeeperV3Controller = InnKeeperV3Controller;
+module.exports.instance = innKeeperV3Instance;

@@ -1245,18 +1245,191 @@
     "duration": 800
   },
   {
-  "id": "63",
-  "name": "Adamantite Breaker",
-  "type": "tool",
-  "slot": "mining",
-  "description": "Forged from pure adamantite, this legendary pickaxe is harder than diamond yet impossibly light. Each swing cuts through stone like butter while moving at supernatural speeds.",
-  "value": 25000,
-  "vendable": true,
-  "abilities": [
-    { "name": "mining", "powerlevel": 15 },
-    { "name": "speed", "powerlevel": 5 }
-  ],
-  "image": "adamantite_pickaxe",
-  "durability": 250
-}
+    "id": "220",
+    "name": "Shadow Ore",
+    "type": "mineLoot",
+    "description": "A mysterious dark ore that seems to absorb light. Found only by shadow clones, it pulses with otherworldly energy.",
+    "value": 50,
+    "vendable": false,
+    "abilities": [],
+    "image": "shadow_ore",
+    "tier": "rare",
+    "rarity": "shadow",
+    "specialProperties": {
+      "shadowOnly": true,
+      "energyType": "dark",
+      "luminosity": -1
+    }
+  },
+  {
+    "id": "221",
+    "name": "Pumpkin Pie",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "A delicious seasonal pie made from fresh pumpkins. Harvest Festival special!",
+    "value": 25,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 2 }
+    ],
+    "image": "pumpkin_pie",
+    "seasonal": "harvest"
+  },
+  {
+    "id": "222",
+    "name": "Apple Cider",
+    "type": "consumable",
+    "subtype": "drink",
+    "description": "Warm spiced apple cider perfect for autumn evenings.",
+    "value": 15,
+    "vendable": true,
+    "abilities": [
+      { "name": "speed", "powerlevel": 1 }
+    ],
+    "image": "apple_cider",
+    "seasonal": "harvest"
+  },
+  {
+    "id": "223",
+    "name": "Harvest Bread",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Freshly baked bread made with harvest grains.",
+    "value": 20,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 2 }
+    ],
+    "image": "harvest_bread",
+    "seasonal": "harvest"
+  },
+  {
+    "id": "224",
+    "name": "Hot Chocolate",
+    "type": "consumable",
+    "subtype": "drink",
+    "description": "Rich, creamy hot chocolate to warm you during winter nights.",
+    "value": 30,
+    "vendable": true,
+    "abilities": [
+      { "name": "sight", "powerlevel": 2 }
+    ],
+    "image": "hot_chocolate",
+    "seasonal": "winter"
+  },
+  {
+    "id": "225",
+    "name": "Gingerbread",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Spiced gingerbread cookies shaped like little miners.",
+    "value": 22,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 1 },
+      { "name": "speed", "powerlevel": 1 }
+    ],
+    "image": "gingerbread",
+    "seasonal": "winter"
+  },
+  {
+    "id": "226",
+    "name": "Winter Stew",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Hearty stew with root vegetables and tender meat.",
+    "value": 35,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 3 }
+    ],
+    "image": "winter_stew",
+    "seasonal": "winter"
+  },
+  {
+    "id": "227",
+    "name": "Spring Salad",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Fresh greens and vegetables celebrating the arrival of spring.",
+    "value": 18,
+    "vendable": true,
+    "abilities": [
+      { "name": "sight", "powerlevel": 2 }
+    ],
+    "image": "spring_salad",
+    "seasonal": "spring"
+  },
+  {
+    "id": "228",
+    "name": "Flower Tea",
+    "type": "consumable",
+    "subtype": "drink",
+    "description": "Delicate tea brewed with spring flowers and herbs.",
+    "value": 25,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 2 }
+    ],
+    "image": "flower_tea",
+    "seasonal": "spring"
+  },
+  {
+    "id": "229",
+    "name": "Fresh Herbs",
+    "type": "consumable",
+    "subtype": "ingredient",
+    "description": "Aromatic herbs gathered in the spring morning dew.",
+    "value": 12,
+    "vendable": true,
+    "abilities": [
+      { "name": "speed", "powerlevel": 1 }
+    ],
+    "image": "fresh_herbs",
+    "seasonal": "spring"
+  },
+  {
+    "id": "230",
+    "name": "Summer Ale",
+    "type": "consumable",
+    "subtype": "drink",
+    "description": "Light, refreshing ale perfect for hot summer days.",
+    "value": 28,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 2 },
+      { "name": "speed", "powerlevel": 1 }
+    ],
+    "image": "summer_ale",
+    "seasonal": "summer"
+  },
+  {
+    "id": "231",
+    "name": "Fresh Fruit",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Juicy seasonal fruits at their peak ripeness.",
+    "value": 20,
+    "vendable": true,
+    "abilities": [
+      { "name": "luck", "powerlevel": 2 }
+    ],
+    "image": "fresh_fruit",
+    "seasonal": "summer"
+  },
+  {
+    "id": "232",
+    "name": "Grilled Fish",
+    "type": "consumable",
+    "subtype": "food",
+    "description": "Perfectly grilled fish with summer herbs and spices.",
+    "value": 40,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 3 },
+      { "name": "sight", "powerlevel": 1 }
+    ],
+    "image": "grilled_fish",
+    "seasonal": "summer"
+  }
 ]

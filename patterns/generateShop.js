@@ -210,9 +210,52 @@ function calculateFluctuatedPrice(basePrice, guildConfigUpdatedAt, itemId, price
     return Math.max(1, Math.floor(basePrice * multiplier));
 }
 
+// Function to calculate shop discounts from unique items
+async function calculateShopDiscount(playerId) {
+    try {
+        const { calculatePlayerStat } = require('./calculatePlayerStat');
+        const { parseUniqueItemBonuses } = require('./gachaModes/mining/uniqueItemBonuses');
+        
+        const playerStats = await calculatePlayerStat(playerId);
+        if (!playerStats || !playerStats.equippedItems) return 1.0; // No discount
+        
+        const uniqueBonuses = parseUniqueItemBonuses(playerStats.equippedItems);
+        let discount = 1.0;
+        
+        // Crown of the Forgotten King - Royal discount
+        if (uniqueBonuses.npcSystem && uniqueBonuses.npcSystem.canCommandNPC) {
+            discount *= 0.9; // 10% discount
+        }
+        
+        // Midas' Burden - Wealth attracts better deals
+        if (uniqueBonuses.greed > 0) {
+            discount *= 0.95; // 5% discount
+        }
+        
+        // Crystal Seer's Orb - Divination reveals best prices
+        if (uniqueBonuses.divination > 0.5) {
+            discount *= 0.85; // 15% discount
+        }
+        
+        // The One Pick - Legendary status commands respect
+        if (uniqueBonuses.titles && uniqueBonuses.titles.includes('Heir of the Miner King')) {
+            discount *= 0.8; // 20% discount
+        }
+        
+        return Math.max(0.5, discount); // Minimum 50% of original price
+        
+    } catch (error) {
+        console.error('[SHOP] Error calculating discount:', error);
+        return 1.0; // No discount on error
+    }
+}
+
 // Function to get fluctuated prices for all items in the shop using guild config
-async function getShopPrices(itemIds, guildId, priceChangeFactor) {
+async function getShopPrices(itemIds, guildId, priceChangeFactor, playerId = null) {
     const prices = {};
+    
+    // Calculate player discount if playerId provided
+    const playerDiscount = playerId ? await calculateShopDiscount(playerId) : 1.0;
     
     // Get guild config for seeding
     const guildConfig = await GuildConfig.findOne({ guildId });
@@ -223,9 +266,14 @@ async function getShopPrices(itemIds, guildId, priceChangeFactor) {
         itemIds.forEach(itemId => {
             const item = itemSheet.find(i => i.id === String(itemId));
             if (item) {
+                const baseBuyPrice = calculateFluctuatedPrice(item.value, fallbackDate, itemId, priceChangeFactor);
+                const baseSellPrice = Math.floor(baseBuyPrice / 2);
+                
                 prices[itemId] = {
-                    buy: calculateFluctuatedPrice(item.value, fallbackDate, itemId, priceChangeFactor),
-                    sell: Math.floor(calculateFluctuatedPrice(item.value, fallbackDate, itemId, priceChangeFactor) / 2)
+                    buy: Math.floor(baseBuyPrice * playerDiscount),
+                    sell: baseSellPrice, // Sell prices not affected by discount
+                    originalBuy: baseBuyPrice,
+                    discount: playerDiscount < 1.0 ? Math.round((1 - playerDiscount) * 100) : 0
                 };
             }
         });
@@ -235,9 +283,14 @@ async function getShopPrices(itemIds, guildId, priceChangeFactor) {
     itemIds.forEach(itemId => {
         const item = itemSheet.find(i => i.id === String(itemId));
         if (item) {
+            const baseBuyPrice = calculateFluctuatedPrice(item.value, guildConfig.updatedAt, itemId, priceChangeFactor);
+            const baseSellPrice = Math.floor(baseBuyPrice / 2);
+            
             prices[itemId] = {
-                buy: calculateFluctuatedPrice(item.value, guildConfig.updatedAt, itemId, priceChangeFactor),
-                sell: Math.floor(calculateFluctuatedPrice(item.value, guildConfig.updatedAt, itemId, priceChangeFactor) / 2)
+                buy: Math.floor(baseBuyPrice * playerDiscount),
+                sell: baseSellPrice, // Sell prices not affected by discount
+                originalBuy: baseBuyPrice,
+                discount: playerDiscount < 1.0 ? Math.round((1 - playerDiscount) * 100) : 0
             };
         }
     });
@@ -260,7 +313,7 @@ function validateItemIds(itemIds) {
     });
 }
 
-async function generateShop(channel, closingTime = 20) {
+async function generateShop(channel, closingTime = 20, playerId = null) {
     // Default to coalMineShop as fallback
     const DEFAULT_SHOP_ID = 'coalMineShop';
     
@@ -297,9 +350,9 @@ async function generateShop(channel, closingTime = 20) {
         availableItems.splice(index, 1);
     }
 
-    // Calculate fluctuated prices using guild config for all valid items
+    // Calculate fluctuated prices using guild config for all valid items (with unique item discounts)
     const allShopItems = Array.from(new Set([...validStaticItems, ...validItemPool]));
-    const fluctuatedPrices = await getShopPrices(allShopItems, channel.guild.id, shopInfo.priceChangeFactor);
+    const fluctuatedPrices = await getShopPrices(allShopItems, channel.guild.id, shopInfo.priceChangeFactor, playerId);
 
     // Prepare shop context for AI dialogue
     const rotationalItems = buyPool.filter(id => !validStaticItems.includes(id));
@@ -441,10 +494,20 @@ async function generateShop(channel, closingTime = 20) {
 
     const shopTitle = shopInfo.name;
 
+    // Check if player has any discounts
+    let discountInfo = '';
+    if (playerId) {
+        const hasDiscounts = Object.values(fluctuatedPrices).some(price => price.discount > 0);
+        if (hasDiscounts) {
+            const maxDiscount = Math.max(...Object.values(fluctuatedPrices).map(price => price.discount));
+            discountInfo = `\n✨ **Unique Item Discount: ${maxDiscount}% OFF!** ✨`;
+        }
+    }
+
     const embed = new EmbedBuilder()
         .setTitle(shopTitle)
         .setColor('Gold')
-        .setDescription('```' + formatDescription(pickShopDescription) + '```')
+        .setDescription('```' + formatDescription(pickShopDescription) + '```' + discountInfo)
         .setImage('attachment://shop.png')
         .setFooter({ text: refreshText })
         .setThumbnail(thumbAttachment ? 'attachment://thumb.gif' : null);
@@ -874,3 +937,4 @@ module.exports.generateNoItemDialogue = generateNoItemDialogue;
 module.exports.rememberPurchase = rememberPurchase;
 module.exports.getRecentPurchases = getRecentPurchases;
 module.exports.canUseAIForShop = canUseAIForShop;
+module.exports.calculateShopDiscount = calculateShopDiscount;

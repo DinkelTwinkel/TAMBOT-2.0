@@ -1506,6 +1506,8 @@ async function forceStartThiefEvent(channel) {
  */
 async function calculateMinecartValue(dbEntry) {
     const { miningItemPool, SERVER_POWER_MODIFIERS, POWER_LEVEL_CONFIG } = require('./miningConstants');
+    const { calculatePlayerStat } = require('../../calculatePlayerStat');
+    const { parseUniqueItemBonuses } = require('./uniqueItemBonuses');
     const gachaInfo = require('../../../data/gachaServers.json');
     
     const gameData = dbEntry.gameData;
@@ -1555,7 +1557,56 @@ async function calculateMinecartValue(dbEntry) {
                 if (!contributorRewards[playerId]) {
                     contributorRewards[playerId] = { coins: 0, items: [] };
                 }
-                contributorRewards[playerId].coins += coinsPerContributor;
+                
+                let playerReward = coinsPerContributor;
+                
+                // Apply unique item ore value multipliers for this player
+                try {
+                    const playerStats = await calculatePlayerStat(playerId);
+                    if (playerStats && playerStats.equippedItems) {
+                        const uniqueBonuses = parseUniqueItemBonuses(playerStats.equippedItems);
+                        if (uniqueBonuses.oreValueMultipliers) {
+                            // Check for specific ore type multipliers
+                            const oreName = poolItem.name.toLowerCase();
+                            let multiplier = 1.0;
+                            
+                            // Apply specific ore multipliers
+                            for (const [oreType, multiplierValue] of Object.entries(uniqueBonuses.oreValueMultipliers)) {
+                                if (oreName.includes(oreType.toLowerCase()) || 
+                                    itemId === oreType || 
+                                    poolItem.tier === oreType.toLowerCase()) {
+                                    multiplier = Math.max(multiplier, multiplierValue);
+                                }
+                            }
+                            
+                            // Apply general tier multipliers
+                            if (uniqueBonuses.oreValueMultipliers.common && poolItem.tier === 'common') {
+                                multiplier = Math.max(multiplier, uniqueBonuses.oreValueMultipliers.common);
+                            }
+                            if (uniqueBonuses.oreValueMultipliers.uncommon && poolItem.tier === 'uncommon') {
+                                multiplier = Math.max(multiplier, uniqueBonuses.oreValueMultipliers.uncommon);
+                            }
+                            if (uniqueBonuses.oreValueMultipliers.rare && poolItem.tier === 'rare') {
+                                multiplier = Math.max(multiplier, uniqueBonuses.oreValueMultipliers.rare);
+                            }
+                            if (uniqueBonuses.oreValueMultipliers.epic && poolItem.tier === 'epic') {
+                                multiplier = Math.max(multiplier, uniqueBonuses.oreValueMultipliers.epic);
+                            }
+                            if (uniqueBonuses.oreValueMultipliers.legendary && poolItem.tier === 'legendary') {
+                                multiplier = Math.max(multiplier, uniqueBonuses.oreValueMultipliers.legendary);
+                            }
+                            
+                            if (multiplier > 1.0) {
+                                playerReward = Math.floor(playerReward * multiplier);
+                                console.log(`[ORE VALUE] Applied ${multiplier}x multiplier to ${poolItem.name} for player ${playerId}`);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error(`[ORE VALUE] Error applying multipliers for player ${playerId}:`, error);
+                }
+                
+                contributorRewards[playerId].coins += playerReward;
                 contributorRewards[playerId].items.push(`${poolItem.name} x${contributed}`);
             }
         }

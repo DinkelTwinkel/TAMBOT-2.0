@@ -106,7 +106,8 @@ client.once(Events.ClientReady, async c => {
     eatTheRichListener(client);
     const ShopHandler = require('./patterns/shopHandler');
     const ItemTransferHandler = require('./patterns/itemTransferHandler');
-    const ItemUseHandler = require('./patterns/itemUseHandler'); 
+    const ItemUseHandler = require('./patterns/itemUseHandler');
+    const TitleEquipHandler = require('./patterns/titleEquipHandler'); 
 
     console.log('✅ Centralized shop handler initialized');
 
@@ -123,6 +124,10 @@ client.once(Events.ClientReady, async c => {
         // Initialize item use handler for this guild
         const itemUseHandler = new ItemUseHandler(client, guild.id);
         console.log(`✅ Item use handler initialized for guild: ${guild.name}`);
+        
+        // Initialize title equip handler for this guild
+        const titleEquipHandler = new TitleEquipHandler(client, guild.id);
+        console.log(`✅ Title equip handler initialized for guild: ${guild.name}`);
 
         // Fetch guild config from MongoDB
         let config = await GuildConfig.findOne({ guildId: guild.id });
@@ -252,11 +257,13 @@ client.on(Events.GuildCreate, async (guild) => {
     const ShopHandler = require('./patterns/shopHandler');
     const ItemTransferHandler = require('./patterns/itemTransferHandler');
     const ItemUseHandler = require('./patterns/itemUseHandler');
+    const TitleEquipHandler = require('./patterns/titleEquipHandler');
     
     // Initialize handlers for the new guild
     new ShopHandler(client, guild.id);
     new ItemTransferHandler(client, guild.id);
     new ItemUseHandler(client, guild.id);
+    new TitleEquipHandler(client, guild.id);
     console.log(`✅ Initialized handlers for new guild: ${guild.name} (${guild.id})`);
 });
 
@@ -281,6 +288,13 @@ client.on(Events.GuildDelete, async (guild) => {
         const itemUseHandler = client.itemUseHandlers.get(guild.id);
         itemUseHandler.cleanup();
         console.log(`✅ Item use handler cleaned up for guild: ${guild.id}`);
+    }
+    
+    // Cleanup title equip handler
+    if (client.titleEquipHandlers && client.titleEquipHandlers.has(guild.id)) {
+        const titleEquipHandler = client.titleEquipHandlers.get(guild.id);
+        titleEquipHandler.cleanup();
+        console.log(`✅ Title equip handler cleaned up for guild: ${guild.id}`);
     }
 });
 

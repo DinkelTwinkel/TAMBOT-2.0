@@ -2843,7 +2843,7 @@
         "colour": "FF69B4",
         "image": "crystalMine",
         "nextLevelConditionType": "treasuresFound",
-        "conditionCost": 75,
+        "conditionCost": 45,
         "deeperMineId": "11001",
         "isLocked": false
     },

@@ -1943,6 +1943,39 @@ module.exports = async (channel, dbEntry, json, client) => {
         // Set mining context for this processing cycle
         miningContext.setMiningContext(mineTypeId, channel.id, serverPowerLevel);
         
+        // Track mine access for titles (for all players in this mine)
+        if (mineTypeId) {
+            try {
+                const { updateMineReached } = require('./mining/titleSystem');
+                
+                for (const member of members.values()) {
+                    const newTitles = await updateMineReached(member.id, mineTypeId, member.displayName, channel.guild?.id);
+                    
+                    // Announce new mining titles immediately and auto-equip with role
+                    if (newTitles.length > 0) {
+                        for (const title of newTitles) {
+                            // Auto-equip the new legendary title
+                            try {
+                                const equipResult = await require('./mining/titleSystem').equipTitle(member.id, title.id, member);
+                                
+                                let roleMessage = '';
+                                if (equipResult.success && equipResult.role) {
+                                    roleMessage = `\n🎭 **Discord role equipped**: ${equipResult.role.name}`;
+                                }
+                                
+                                await channel.send(`🏆 **${member.displayName}** earned the legendary title: ${title.emoji} **${title.name}**!\n*${title.description}*${roleMessage}`);
+                            } catch (equipError) {
+                                console.error('[MINING] Error auto-equipping title:', equipError);
+                                await channel.send(`🏆 **${member.displayName}** earned the legendary title: ${title.emoji} **${title.name}**!\n*${title.description}*`);
+                            }
+                        }
+                    }
+                }
+            } catch (titleError) {
+                console.error('[MINING] Error tracking mine access for titles:', titleError);
+            }
+        }
+        
         // Debug hazard configuration for this mine (only for Ruby mines or when there's an issue)
         if (mineTypeId && (String(mineTypeId).startsWith('5') || String(mineTypeId).startsWith('10'))) {
             hazardAllowedTypesFix.debugHazardConfig(mineTypeId);
@@ -2696,9 +2729,14 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         return { mapChanged: false, wallsBroken: 0, treasuresFound: 0, mapData, hazardsChanged: false };
     }
 
-    const miningPower = Math.max(0, playerData?.stats?.mining || 0);
-    const luckStat = Math.max(0, playerData?.stats?.luck || 0);
-    const speedStat = Math.min(Math.max(1, playerData?.stats?.speed || 1), MAX_SPEED_ACTIONS);
+    // Get base player stats
+    const baseMiningPower = Math.max(0, playerData?.stats?.mining || 0);
+    const baseLuckStat = Math.max(0, playerData?.stats?.luck || 0);
+    const baseSpeedStat = Math.max(1, playerData?.stats?.speed || 1);
+    
+    // Initialize team buff variables (will be calculated after unique bonuses)
+    let teamMiningSpeedBonus = 0;
+    let teamAllStatsBonus = 0;
 
     // Get deeper mine status with caching
     const mineTypeId = dbEntry?.typeId || null;
@@ -2732,9 +2770,210 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             sightThroughWalls: 0,
             shadowTeleportChance: 0,
             phaseWalkChance: 0,
-            uniqueItems: []
+            uniqueItems: [],
+            oreValueMultipliers: {},
+            healthRegen: 0,
+            maxHealth: 100,
+            currentHealth: 100,
+            visualEffects: { aura: null, glowColor: null, particleEffect: null, visibleToOthers: false },
+            teamBuffs: { miningSpeed: 0, allStats: 0, radius: 0 },
+            cloneSystem: { activeClones: 0, maxClones: 0, cloneStats: 0, cloneBonuses: {} },
+            npcSystem: { canCommandNPC: false, npcCooldown: 0, npcType: null },
+            titles: [],
+            machinerySystem: { canOvercharge: false, canConductElectricity: false, canMagnetize: false },
+            minimapSystem: { invisible: false, reducedVisibility: 0 }
         };
     }
+    
+    // Initialize player health if not set
+    if (!playerData.health) {
+        playerData.health = {
+            current: uniqueBonuses.maxHealth,
+            max: uniqueBonuses.maxHealth,
+            lastRegen: Date.now()
+        };
+    }
+    
+    // Apply health regeneration
+    const now = Date.now();
+    const timeSinceLastRegen = now - (playerData.health.lastRegen || now);
+    if (timeSinceLastRegen > 60000 && uniqueBonuses.healthRegen > 0) { // Every minute
+        const regenAmount = Math.floor(uniqueBonuses.healthRegen * uniqueBonuses.maxHealth);
+        if (regenAmount > 0) {
+            playerData.health.current = Math.min(
+                playerData.health.current + regenAmount,
+                uniqueBonuses.maxHealth
+            );
+            playerData.health.lastRegen = now;
+            eventLogs.push(`🌿 ${member.displayName} regenerated ${regenAmount} health!`);
+        }
+    }
+    
+    // Process time-based effects from unique items
+    if (!playerData.timeBasedEffects) {
+        playerData.timeBasedEffects = {
+            dailyCooldowns: {},
+            hourlyEffects: {},
+            lastProcessed: now
+        };
+    }
+    
+    const timeSinceLastProcess = now - (playerData.timeBasedEffects.lastProcessed || now);
+    
+    // Process hourly effects (every hour)
+    if (timeSinceLastProcess > 3600000) { // 1 hour
+        processHourlyEffects(member, playerData, uniqueBonuses, eventLogs, now);
+        playerData.timeBasedEffects.lastProcessed = now;
+    }
+    
+    // Check daily cooldowns
+    processDailyCooldowns(member, playerData, uniqueBonuses, eventLogs, now);
+    
+    // Process NPC helpers for this player
+    if (uniqueBonuses.npcSystem && uniqueBonuses.npcSystem.canCommandNPC) {
+        try {
+            const { processNPCActions } = require('./mining/npcHelperSystem');
+            const npcResult = await processNPCActions(dbEntry.channelId, mapData, eventLogs, dbEntry);
+            
+            if (npcResult.mapChanged) {
+                // NPC actions changed the map
+                console.log(`[NPC] NPCs modified map for ${member.displayName}`);
+            }
+        } catch (error) {
+            console.error(`[NPC] Error processing NPCs for ${member.displayName}:`, error);
+        }
+    }
+    
+    // Update max health if it changed
+    playerData.health.max = uniqueBonuses.maxHealth;
+    
+    // Update title system with equipped unique items and apply title benefits
+    try {
+        const { updateEquippedUniqueItems, getTitleBenefits } = require('./mining/titleSystem');
+        await updateEquippedUniqueItems(member.id, playerData.equippedItems);
+        
+        const titleBenefits = getTitleBenefits(member.id);
+        
+        // Apply title benefits to bonuses
+        if (titleBenefits.miningSpeed) {
+            // This would need to be integrated with the actual mining speed calculation
+        }
+        if (titleBenefits.hazardResistance) {
+            uniqueBonuses.hazardResistance += titleBenefits.hazardResistance;
+        }
+        if (titleBenefits.coinMultiplier) {
+            uniqueBonuses.coinMultiplier = (uniqueBonuses.coinMultiplier || 1) + titleBenefits.coinMultiplier;
+        }
+    } catch (error) {
+        console.error(`[TITLES] Error updating titles for ${member.displayName}:`, error);
+    }
+    
+    // Apply team buffs from this player to nearby players
+    if (uniqueBonuses.teamBuffs && uniqueBonuses.teamBuffs.radius > 0) {
+        const playerPosition = dbEntry.gameData?.playerPositions?.[member.id];
+        if (playerPosition) {
+            const teamMembers = Object.entries(dbEntry.gameData?.playerPositions || {});
+            for (const [memberId, memberPos] of teamMembers) {
+                if (memberId === member.id) continue; // Don't buff self
+                
+                // Calculate distance
+                const distance = Math.abs(memberPos.x - playerPosition.x) + Math.abs(memberPos.y - playerPosition.y);
+                if (distance <= uniqueBonuses.teamBuffs.radius) {
+                    // Apply team buffs to nearby player
+                    if (!dbEntry.gameData.teamBuffs) {
+                        dbEntry.gameData.teamBuffs = {};
+                    }
+                    if (!dbEntry.gameData.teamBuffs[memberId]) {
+                        dbEntry.gameData.teamBuffs[memberId] = { sources: {} };
+                    }
+                    
+                    dbEntry.gameData.teamBuffs[memberId].sources[member.id] = {
+                        miningSpeed: uniqueBonuses.teamBuffs.miningSpeed,
+                        allStats: uniqueBonuses.teamBuffs.allStats,
+                        expires: Date.now() + 300000 // 5 minutes
+                    };
+                    
+                    if (Math.random() < 0.1) { // 10% chance to log
+                        console.log(`[TEAM BUFF] ${member.displayName} buffing ${memberId} at distance ${distance}`);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Apply team buffs received from other players
+    if (dbEntry.gameData.teamBuffs && dbEntry.gameData.teamBuffs[member.id]) {
+        const now = Date.now();
+        const receivedBuffs = dbEntry.gameData.teamBuffs[member.id].sources;
+        
+        for (const [sourceId, buffs] of Object.entries(receivedBuffs)) {
+            if (buffs.expires > now) {
+                teamMiningSpeedBonus += buffs.miningSpeed || 0;
+                teamAllStatsBonus += buffs.allStats || 0;
+            } else {
+                // Clean up expired buffs
+                delete receivedBuffs[sourceId];
+            }
+        }
+        
+        if (Object.keys(receivedBuffs).length === 0) {
+            delete dbEntry.gameData.teamBuffs[member.id];
+        }
+    }
+    
+    // Process machinery interactions
+    if (uniqueBonuses.machinerySystem && (uniqueBonuses.machinerySystem.canOvercharge || 
+        uniqueBonuses.machinerySystem.canConductElectricity || uniqueBonuses.machinerySystem.canMagnetize)) {
+        try {
+            const { processMachineryInteractions } = require('./mining/machinerySystem');
+            const playerPosition = dbEntry.gameData?.playerPositions?.[member.id];
+            
+            if (playerPosition) {
+                const machineryResult = await processMachineryInteractions(
+                    member.id, playerPosition, uniqueBonuses, dbEntry.channelId, mapData, eventLogs
+                );
+                
+                // Apply machinery bonuses
+                if (machineryResult.bonuses.magneticOreBonus) {
+                    uniqueBonuses.lootMultiplier *= (1 + machineryResult.bonuses.magneticOreBonus * 0.1);
+                }
+                if (machineryResult.bonuses.electricEfficiency) {
+                    teamMiningSpeedBonus += machineryResult.bonuses.electricEfficiency;
+                }
+                if (machineryResult.bonuses.overchargeBonus) {
+                    uniqueBonuses.lootMultiplier *= (1 + machineryResult.bonuses.overchargeBonus);
+                }
+            }
+        } catch (error) {
+            console.error(`[MACHINERY] Error processing machinery for ${member.displayName}:`, error);
+        }
+    }
+    
+    // Now apply team buffs to create final stats
+    let finalMiningPower = baseMiningPower;
+    let finalLuckStat = baseLuckStat;
+    let finalSpeedStat = baseSpeedStat;
+    
+    // Apply team all-stats bonus
+    if (teamAllStatsBonus > 0) {
+        finalMiningPower = Math.floor(baseMiningPower * (1 + teamAllStatsBonus));
+        finalLuckStat = Math.floor(baseLuckStat * (1 + teamAllStatsBonus));
+        finalSpeedStat = Math.floor(baseSpeedStat * (1 + teamAllStatsBonus));
+        
+        if (Math.random() < 0.05) { // 5% chance to log
+            eventLogs.push(`⚡ ${member.displayName} receives team stat bonus: +${Math.floor(teamAllStatsBonus * 100)}%!`);
+        }
+    }
+    
+    // Apply team mining speed bonus
+    if (teamMiningSpeedBonus > 0) {
+        finalSpeedStat = Math.floor(finalSpeedStat * (1 + teamMiningSpeedBonus));
+    }
+    
+    // Final stats with caps
+    const miningPower = finalMiningPower;
+    const luckStat = finalLuckStat;
+    const speedStat = Math.min(finalSpeedStat, MAX_SPEED_ACTIONS);
     
     let wallsBroken = 0;
     let treasuresFound = 0;
@@ -3381,6 +3620,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 }
             }
             
+            // Determine destination for exploration items
+            let destination = 'inventory'; // Exploration items typically go to inventory
+            if (bonusItem.category === 'ore') {
+                destination = 'minecart';
+            }
+            
             // Show different icon and text based on destination
             if (destination === 'inventory') {
                 eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring! (Added to inventory)`);
@@ -3394,6 +3639,22 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         } catch (actionError) {
             console.error(`[MINING] Error processing action ${actionNum} for ${member.displayName}:`, actionError);
         }
+    }
+    
+    // Update progress tracking for achievements and titles
+    try {
+        const { updatePlayerProgress } = require('./mining/titleSystem');
+        
+        if (wallsBroken > 0) {
+            await updatePlayerProgress(member.id, 'wallsBroken', wallsBroken);
+        }
+        if (treasuresFound > 0) {
+            await updatePlayerProgress(member.id, 'treasuresFound', treasuresFound);
+        }
+        // Note: Other progress updates (oreFound, coinsEarned, etc.) would be added where those events occur
+        
+    } catch (error) {
+        console.error(`[PROGRESS] Error updating progress for ${member.displayName}:`, error);
     }
     
     return { mapChanged, wallsBroken, treasuresFound, mapData, hazardsChanged };
@@ -3506,6 +3767,68 @@ module.exports.startHealthMonitoring = startHealthMonitoring;
 module.exports.getDiagnostics = getDiagnostics;
 module.exports.concurrencyManager = concurrencyManager;
 module.exports.endBreak = endBreak;
+
+// Time-based effects helper functions
+function processHourlyEffects(member, playerData, uniqueBonuses, eventLogs, currentTime) {
+    // Crown of the Forgotten King - hourly NPC command refresh
+    if (uniqueBonuses.npcSystem && uniqueBonuses.npcSystem.canCommandNPC) {
+        if (!playerData.timeBasedEffects.hourlyEffects.npcCommandsUsed) {
+            playerData.timeBasedEffects.hourlyEffects.npcCommandsUsed = 0;
+        }
+        
+        // Reset hourly NPC commands
+        playerData.timeBasedEffects.hourlyEffects.npcCommandsUsed = 0;
+        eventLogs.push(`👑 ${member.displayName}'s NPC command refreshed!`);
+    }
+    
+    // Midas' Burden - hourly wealth transfer
+    if (uniqueBonuses.greed > 0) {
+        // Transfer small amount of wealth from other players
+        const wealthTransfer = Math.floor(Math.random() * 100) + 50; // 50-150 coins
+        eventLogs.push(`💰 ${member.displayName}'s greed draws ${wealthTransfer} coins from the shadows!`);
+        // Note: Actual wealth transfer would need to be implemented in the currency system
+    }
+    
+    // Phoenix Feather Charm - hourly resurrection chance refresh
+    if (uniqueBonuses.autoReviveChance > 0) {
+        playerData.timeBasedEffects.hourlyEffects.reviveChanceUsed = false;
+        eventLogs.push(`🔥 ${member.displayName}'s phoenix power has recharged!`);
+    }
+}
+
+function processDailyCooldowns(member, playerData, uniqueBonuses, eventLogs, currentTime) {
+    const oneDayAgo = currentTime - (24 * 60 * 60 * 1000);
+    
+    // Crown of the Forgotten King - daily NPC summon
+    if (uniqueBonuses.npcSystem && uniqueBonuses.npcSystem.canCommandNPC) {
+        const lastNPCUse = playerData.timeBasedEffects.dailyCooldowns.npcSummon || 0;
+        
+        if (lastNPCUse < oneDayAgo) {
+            // NPC summon is available
+            playerData.timeBasedEffects.dailyCooldowns.npcSummonAvailable = true;
+        }
+    }
+    
+    // The One Pick - daily reality fracture
+    if (uniqueBonuses.titles && uniqueBonuses.titles.includes('Heir of the Miner King')) {
+        const lastRealityUse = playerData.timeBasedEffects.dailyCooldowns.realityFracture || 0;
+        
+        if (lastRealityUse < oneDayAgo) {
+            // Reality fracture is available (reveals entire map)
+            playerData.timeBasedEffects.dailyCooldowns.realityFractureAvailable = true;
+        }
+    }
+    
+    // Crystal Seer's Orb - daily divination
+    if (uniqueBonuses.divination > 0.5) {
+        const lastDivinationUse = playerData.timeBasedEffects.dailyCooldowns.divination || 0;
+        
+        if (lastDivinationUse < oneDayAgo) {
+            // Divination is available (predict next rare ore location)
+            playerData.timeBasedEffects.dailyCooldowns.divinationAvailable = true;
+        }
+    }
+}
 // Graceful shutdown - save cache before exit
 process.on('SIGINT', async () => {
     console.log('[MINING] Saving cache before shutdown...');

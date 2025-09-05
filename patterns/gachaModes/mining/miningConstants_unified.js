@@ -677,6 +677,21 @@ const UNIFIED_ITEM_POOL = {
             minPowerLevel: 7,
             maxPowerLevel: 10,
             category: ITEM_CATEGORY.ORE
+        },
+        { 
+            itemId: "220", 
+            name: "Shadow Ore", 
+            value: 50,
+            baseWeight: 2,
+            tier: 'rare',
+            minPowerLevel: 1,
+            maxPowerLevel: 10,
+            category: ITEM_CATEGORY.ORE,
+            specialProperties: {
+                shadowOnly: true,
+                energyType: "dark",
+                luminosity: -1
+            }
         }
     ],
     
@@ -1539,6 +1554,26 @@ function calculateItemQuantity(item, context, miningPower = 0, luckStat = 0, pow
     return quantity;
 }
 
+// Function to calculate item find chance
+function calculateItemFindChance(powerLevel, luckStat, activityType = 'mining') {
+    const { ITEM_FINDING_CONFIG } = require('./fixes/miningConstants');
+    
+    const baseChance = ITEM_FINDING_CONFIG.baseItemFindChance;
+    const activityMult = ITEM_FINDING_CONFIG.activityMultipliers[activityType] || 1.0;
+    const powerMult = ITEM_FINDING_CONFIG.powerLevelMultipliers[powerLevel] || 1.0;
+    const luckBonus = 1 + (luckStat * 0.01); // Each luck point adds 1% to chance
+    
+    return baseChance * activityMult * powerMult * luckBonus;
+}
+
+// Function to get available regular items for power level
+function getAvailableRegularItems(powerLevel) {
+    const { ITEM_FINDING_CONFIG } = require('./fixes/miningConstants');
+    return ITEM_FINDING_CONFIG.regularItemPool.filter(
+        item => item.minPower <= powerLevel && item.maxPower >= powerLevel
+    );
+}
+
 // Legacy functions for backward compatibility
 function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency, isDeeperMine = false, mineTypeId = null) {
     // Map tile types to contexts
@@ -2057,6 +2092,8 @@ module.exports = {
     calculateItemQuantity,
     shouldGoToInventory,  // Export helper function
     getItemDestination,   // Export helper function
+    calculateItemFindChance,  // Export item find chance calculation
+    getAvailableRegularItems, // Export regular items function
     
     // Legacy functions for backward compatibility
     mineFromTile,

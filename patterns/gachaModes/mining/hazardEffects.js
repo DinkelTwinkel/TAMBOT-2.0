@@ -37,7 +37,22 @@ async function processEncounterTrigger(member, position, mapData, hazardsData, d
         // Handle treasure
         result = await handleTreasureChest(member, position, dbEntry, eventLogs, triggeredEncounter.type, powerLevel, mineTypeId);
     } else {
-        // Handle hazards
+        // Handle hazards - now with immunity checks
+        const isImmune = await checkHazardImmunity(member, triggeredEncounter.type);
+        
+        if (isImmune) {
+            const config = ENCOUNTER_CONFIG[triggeredEncounter.type] || HAZARD_CONFIG[triggeredEncounter.type];
+            eventLogs.push(`✨ ${member.displayName} is immune to ${config.name || triggeredEncounter.type}!`);
+            return {
+                mapChanged: false,
+                playerMoved: false,
+                playerDisabled: false,
+                message: `You are immune to this hazard!`,
+                treasureFound: false,
+                itemsFound: []
+            };
+        }
+        
         switch (triggeredEncounter.type) {
             case HAZARD_TYPES.PORTAL_TRAP:
                 result = await handlePortalTrap(member, position, mapData, eventLogs);
@@ -191,9 +206,12 @@ async function handleTreasureChest(member, position, dbEntry, eventLogs, treasur
             minecart.items[itemId].contributors[member.id] += itemInfo.quantity;
         }
         
-        // Mark as modified and save
-        dbEntry.markModified('gameData.minecart');
-        await dbEntry.save();
+        // Update database directly (dbEntry is a lean document)
+        const gachaVC = require('../../../models/activevcs');
+        await gachaVC.updateOne(
+            { channelId: dbEntry.channelId },
+            { $set: { 'gameData.minecart': minecart } }
+        );
     }
     
     // Build message
@@ -682,9 +700,12 @@ async function handleFireBlast(member, position, dbEntry, eventLogs) {
             }
         }
         
-        // Mark as modified and save
-        dbEntry.markModified('gameData.minecart');
-        await dbEntry.save();
+        // Update database directly (dbEntry is a lean document)
+        const gachaVC = require('../../../models/activevcs');
+        await gachaVC.updateOne(
+            { channelId: dbEntry.channelId },
+            { $set: { 'gameData.minecart': minecart } }
+        );
     }
     
     let message = `🔥 BURNED ${burnPercentage}% of minecart!`;
@@ -815,6 +836,51 @@ function cleanupExpiredDisables(dbEntry) {
     return anyRemoved;
 }
 
+/**
+ * Check if player has immunity to specific hazard types based on unique items
+ */
+async function checkHazardImmunity(member, hazardType) {
+    try {
+        const calculatePlayerStat = require('../../calculatePlayerStat');
+        const { parseUniqueItemBonuses } = require('./uniqueItemBonuses');
+        
+        const playerStats = await calculatePlayerStat(member.id);
+        if (!playerStats || !playerStats.equippedItems) return false;
+        
+        const uniqueBonuses = parseUniqueItemBonuses(playerStats.equippedItems);
+        
+        // Check specific hazard immunities based on unique item abilities
+        switch(hazardType) {
+            case HAZARD_TYPES.FIRE_BLAST:
+                // Fire immunity from volcanic/fire items
+                return uniqueBonuses.fireResistance >= 1.0; // 100% fire resistance = immunity
+                
+            case HAZARD_TYPES.BOMB_TRAP:
+                // Explosive immunity from storm items or general hazard resistance
+                return uniqueBonuses.electricResistance >= 1.0 || uniqueBonuses.hazardResistance >= 1.0;
+                
+            case HAZARD_TYPES.GREEN_FOG:
+                // Toxic immunity from nature/life items
+                return uniqueBonuses.lifePower >= 0.5 || uniqueBonuses.naturePower >= 0.5;
+                
+            case HAZARD_TYPES.PORTAL_TRAP:
+                // Spatial immunity from cosmic/void items
+                return uniqueBonuses.cosmicPower >= 0.5 || uniqueBonuses.voidMastery >= 0.5;
+                
+            case HAZARD_TYPES.WALL_TRAP:
+                // Structural immunity from earth/diamond items or phase walk
+                return uniqueBonuses.diamondMastery >= 0.5 || uniqueBonuses.phaseWalkChance >= 0.1;
+                
+            default:
+                // General hazard resistance
+                return uniqueBonuses.hazardResistance >= 1.0; // 100% resistance = immunity to all
+        }
+    } catch (error) {
+        console.error(`[HAZARD] Error checking immunity for ${member.displayName}:`, error);
+        return false;
+    }
+}
+
 module.exports = {
     processHazardTrigger,
     processEncounterTrigger,
@@ -829,5 +895,6 @@ module.exports = {
     enablePlayersAfterBreak,
     cleanupExpiredDisables,
     updateStuckStatus,
+    checkHazardImmunity,
     ENCOUNTER_CONFIG  // Export for treasure handling
 };

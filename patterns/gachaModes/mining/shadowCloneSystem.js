@@ -69,6 +69,22 @@ function initializeShadowClones(playerId, playerName, playerData, mapData) {
             tempMinecart: {
                 coins: 0,
                 items: []
+            },
+            
+            // Enhanced shadow clone abilities
+            abilities: {
+                shadowOreChance: 0.1, // 10% chance to find shadow ore
+                hazardTriggerChance: 0.15, // 15% chance to trigger hazards
+                knockoutResistance: 0.3, // 30% chance to resist knockout
+                respawnTime: 120000, // 2 minutes respawn time
+                darkSilhouette: true // Appears as dark silhouette to others
+            },
+            
+            // Visual properties
+            visual: {
+                isDarkSilhouette: true,
+                opacity: 0.7,
+                shadowTrail: true
             }
         };
         
@@ -113,7 +129,8 @@ async function processShadowCloneActions(
     generateTreasure,
     transaction,
     eventLogs,
-    hazardsData
+    hazardsData,
+    dbEntry
 ) {
     const results = {
         wallsBroken: 0,
@@ -197,23 +214,52 @@ async function processShadowCloneActions(
     const hazardKey = `${newX},${newY}`;
     if (hazardsData?.hazards?.has(hazardKey)) {
         const hazard = hazardsData.hazards.get(hazardKey);
-        if (hazard && !hazard.triggered && Math.random() < 0.3) { // 30% chance to trigger
+        if (hazard && !hazard.triggered && Math.random() < clone.abilities.hazardTriggerChance) {
             results.hazardTriggered = true;
             eventLogs.push(`💥 ${clone.displayName} triggered a ${hazard.type} hazard!`);
             
-            // Knock out the clone
-            clone.respawning = true;
-            clone.active = false;
-            
-            // Set respawn timer (2 minutes)
-            const respawnTime = 120000;
-            setTimeout(() => {
-                clone.respawning = false;
-                clone.active = true;
-                eventLogs.push(`✨ ${clone.displayName} has respawned!`);
-            }, respawnTime);
-            
-            return results;
+            // Check knockout resistance
+            if (Math.random() < clone.abilities.knockoutResistance) {
+                eventLogs.push(`👤 ${clone.displayName} resisted the knockout effect!`);
+                // Clone survives but still triggers the hazard
+                hazard.triggered = true;
+            } else {
+                // Knock out the clone
+                clone.respawning = true;
+                clone.active = false;
+                
+                // Set respawn timer
+                const respawnTime = clone.abilities.respawnTime;
+                const timerKey = `${clone.ownerId}_${clone.index}`;
+                
+                const respawnTimer = setTimeout(() => {
+                    clone.respawning = false;
+                    clone.active = true;
+                    
+                    // Respawn near owner if possible
+                    const ownerPos = mapData.playerPositions[clone.ownerId];
+                    if (ownerPos) {
+                        const respawnX = Math.max(0, Math.min(mapData.width - 1, ownerPos.x + (Math.random() > 0.5 ? 1 : -1)));
+                        const respawnY = Math.max(0, Math.min(mapData.height - 1, ownerPos.y + (Math.random() > 0.5 ? 1 : -1)));
+                        
+                        mapData.playerPositions[clone.id] = {
+                            x: respawnX,
+                            y: respawnY,
+                            isClone: true,
+                            ownerId: clone.ownerId,
+                            cloneIndex: clone.index,
+                            hidden: false
+                        };
+                    }
+                    
+                    eventLogs.push(`✨ ${clone.displayName} has respawned from the shadows!`);
+                    cloneRespawnTimers.delete(timerKey);
+                }, respawnTime);
+                
+                cloneRespawnTimers.set(timerKey, respawnTimer);
+                
+                return results;
+            }
         }
     }
     
@@ -230,7 +276,26 @@ async function processShadowCloneActions(
             
             // Chance to find items when breaking walls
             if (Math.random() < efficiency.oreSpawnChance) {
-                const minedItem = await mineFromTile(
+                // Check for shadow ore first (unique to shadow clones)
+                if (Math.random() < clone.abilities.shadowOreChance) {
+                    // Use the proper shadow ore from item sheet
+                    const { addItemToMinecart } = require('./miningDatabase');
+                    
+                    try {
+                        // Add shadow ore to the minecart using the proper system
+                        await addItemToMinecart(dbEntry, clone.ownerId, '220', 1);
+                        
+                        results.itemsFound.push(`Shadow Ore x1`);
+                        results.coinsEarned += 50; // Base shadow ore value
+                        
+                        eventLogs.push(`🌑 ${clone.displayName} found Shadow Ore!`);
+                    } catch (error) {
+                        console.error('[SHADOW CLONE] Error adding shadow ore:', error);
+                        eventLogs.push(`🌑 ${clone.displayName} found something in the shadows, but it slipped away...`);
+                    }
+                } else {
+                    // Regular mining
+                    const minedItem = await mineFromTile(
                     { id: clone.id, displayName: clone.displayName },
                     clone.stats.mining,
                     clone.stats.luck,
@@ -246,6 +311,7 @@ async function processShadowCloneActions(
                     clone.tempMinecart.items.push(minedItem);
                     
                     eventLogs.push(`${clone.displayName} found ${minedItem.quantity}x ${minedItem.item.name}!`);
+                }
                 }
             }
         }

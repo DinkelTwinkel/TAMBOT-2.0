@@ -1553,19 +1553,37 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
                         await drawTent(ctx, tileCenterX, tileCenterY, floorTileSize, 
                                      member, imageSettings);
                     } else {
-                        await drawPlayerAvatar(ctx, member, tileCenterX, tileCenterY,
-                                             imageSettings.playerAvatarSize, imageSettings);
+                        // Check if player should be invisible to others
+                        const shouldRenderPlayer = !member.visibilityInfo?.isInvisible;
                         
-                        // Draw player name for larger images
-                        if (floorTileSize >= 40) {
-                            ctx.fillStyle = '#FFFFFF';
-                            ctx.strokeStyle = '#000000';
-                            ctx.font = `${Math.max(8, Math.floor(floorTileSize * 0.17))}px Arial`;
-                            ctx.textAlign = 'center';
-                            ctx.lineWidth = Math.max(1, Math.floor(imageSettings.scaleFactor * 2));
-                            const nameY = tileCenterY + imageSettings.playerAvatarSize/2 + Math.max(8, floorTileSize * 0.2);
-                            ctx.strokeText(member.displayName, tileCenterX, nameY);
-                            ctx.fillText(member.displayName, tileCenterX, nameY);
+                        if (shouldRenderPlayer) {
+                            // Apply reduced visibility effect
+                            if (member.visibilityInfo?.hasReducedVisibility) {
+                                ctx.save();
+                                ctx.globalAlpha = 0.6; // Semi-transparent
+                            }
+                            
+                            await drawPlayerAvatar(ctx, member, tileCenterX, tileCenterY,
+                                                 imageSettings.playerAvatarSize, imageSettings);
+                            
+                            // Draw player name for larger images
+                            if (floorTileSize >= 40) {
+                                ctx.fillStyle = '#FFFFFF';
+                                ctx.strokeStyle = '#000000';
+                                ctx.font = `${Math.max(8, Math.floor(floorTileSize * 0.17))}px Arial`;
+                                ctx.textAlign = 'center';
+                                ctx.lineWidth = Math.max(1, Math.floor(imageSettings.scaleFactor * 2));
+                                const nameY = tileCenterY + imageSettings.playerAvatarSize/2 + Math.max(8, floorTileSize * 0.2);
+                                ctx.strokeText(member.displayName, tileCenterX, nameY);
+                                ctx.fillText(member.displayName, tileCenterX, nameY);
+                            }
+                            
+                            if (member.visibilityInfo?.hasReducedVisibility) {
+                                ctx.restore();
+                            }
+                        } else {
+                            // Player is invisible - don't render them
+                            console.log(`[RENDER] ${member.displayName} is invisible due to Shadowstep Boots`);
                         }
                     }
                 } else {
@@ -1874,22 +1892,71 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
                     ctx.drawImage(pickaxeImage, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
                     ctx.restore();
 
-                    const miningAbility = bestPickaxe.abilities?.find(a => a.name === 'mining');
-                    if (miningAbility && miningAbility.powerlevel && size > 30) {
-                        ctx.save();
-                        ctx.font = `bold ${Math.floor(size * 0.25)}px Arial`;
-                        ctx.fillStyle = '#FFD700';
-                        ctx.strokeStyle = '#000000';
-                        ctx.lineWidth = 2;
-                        ctx.textAlign = 'center';
-                        
-                        const powerText = `+${miningAbility.powerlevel}`;
-                        const textX = centerX;
-                        const textY = centerY - radius - 8;
-                        
-                        ctx.strokeText(powerText, textX, textY);
-                        ctx.fillText(powerText, textX, textY);
-                        ctx.restore();
+                    // Display player health above avatar instead of mining level
+                    if (size > 30) {
+                        try {
+                            // Get player health from their data
+                            let currentHealth = 100;
+                            let maxHealth = 100;
+                            
+                            try {
+                                const playerData = await getPlayerStats(member.user.id);
+                                if (playerData && playerData.health) {
+                                    currentHealth = playerData.health.current || 100;
+                                    maxHealth = playerData.health.max || 100;
+                                }
+                            } catch (playerError) {
+                                console.warn(`[RENDER] Could not get player data for health display:`, playerError);
+                            }
+                            
+                            // Calculate health percentage for color coding
+                            const healthPercent = currentHealth / maxHealth;
+                            let healthColor = '#00FF00'; // Green for full health
+                            if (healthPercent < 0.25) {
+                                healthColor = '#FF0000'; // Red for critical health
+                            } else if (healthPercent < 0.5) {
+                                healthColor = '#FF8000'; // Orange for low health
+                            } else if (healthPercent < 0.75) {
+                                healthColor = '#FFFF00'; // Yellow for medium health
+                            }
+                            
+                            ctx.save();
+                            ctx.font = `bold ${Math.floor(size * 0.22)}px Arial`;
+                            ctx.fillStyle = healthColor;
+                            ctx.strokeStyle = '#000000';
+                            ctx.lineWidth = 2;
+                            ctx.textAlign = 'center';
+                            
+                            const healthText = `${currentHealth}/${maxHealth}`;
+                            const textX = centerX;
+                            const textY = centerY - radius - 8;
+                            
+                            ctx.strokeText(healthText, textX, textY);
+                            ctx.fillText(healthText, textX, textY);
+                            
+                            // Draw a small health bar background
+                            const barWidth = size * 0.8;
+                            const barHeight = 4;
+                            const barX = centerX - barWidth / 2;
+                            const barY = centerY - radius - 20;
+                            
+                            // Health bar background
+                            ctx.fillStyle = '#333333';
+                            ctx.fillRect(barX, barY, barWidth, barHeight);
+                            
+                            // Health bar fill
+                            ctx.fillStyle = healthColor;
+                            ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+                            
+                            // Health bar border
+                            ctx.strokeStyle = '#FFFFFF';
+                            ctx.lineWidth = 1;
+                            ctx.strokeRect(barX, barY, barWidth, barHeight);
+                            
+                            ctx.restore();
+                        } catch (healthError) {
+                            console.warn(`[RENDER] Error displaying health for ${member.displayName}:`, healthError);
+                        }
                     }
                 } catch (imageError) {
                     // If the unique pickaxe image doesn't exist, try to use a fallback
@@ -1909,22 +1976,66 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
                         ctx.drawImage(fallbackImage, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
                         ctx.restore();
 
-                        const miningAbility = bestPickaxe.abilities?.find(a => a.name === 'mining');
-                        if (miningAbility && miningAbility.powerlevel && size > 30) {
-                            ctx.save();
-                            ctx.font = `bold ${Math.floor(size * 0.25)}px Arial`;
-                            ctx.fillStyle = '#FFD700';
-                            ctx.strokeStyle = '#000000';
-                            ctx.lineWidth = 2;
-                            ctx.textAlign = 'center';
-                            
-                            const powerText = `+${miningAbility.powerlevel}`;
-                            const textX = centerX;
-                            const textY = centerY - radius - 8;
-                            
-                            ctx.strokeText(powerText, textX, textY);
-                            ctx.fillText(powerText, textX, textY);
-                            ctx.restore();
+                        // Display player health above avatar (fallback case)
+                        if (size > 30) {
+                            try {
+                                // Get player health from their data
+                                let currentHealth = 100;
+                                let maxHealth = 100;
+                                
+                                if (playerData && playerData.health) {
+                                    currentHealth = playerData.health.current || 100;
+                                    maxHealth = playerData.health.max || 100;
+                                }
+                                
+                                // Calculate health percentage for color coding
+                                const healthPercent = currentHealth / maxHealth;
+                                let healthColor = '#00FF00'; // Green for full health
+                                if (healthPercent < 0.25) {
+                                    healthColor = '#FF0000'; // Red for critical health
+                                } else if (healthPercent < 0.5) {
+                                    healthColor = '#FF8000'; // Orange for low health
+                                } else if (healthPercent < 0.75) {
+                                    healthColor = '#FFFF00'; // Yellow for medium health
+                                }
+                                
+                                ctx.save();
+                                ctx.font = `bold ${Math.floor(size * 0.22)}px Arial`;
+                                ctx.fillStyle = healthColor;
+                                ctx.strokeStyle = '#000000';
+                                ctx.lineWidth = 2;
+                                ctx.textAlign = 'center';
+                                
+                                const healthText = `${currentHealth}/${maxHealth}`;
+                                const textX = centerX;
+                                const textY = centerY - radius - 8;
+                                
+                                ctx.strokeText(healthText, textX, textY);
+                                ctx.fillText(healthText, textX, textY);
+                                
+                                // Draw a small health bar
+                                const barWidth = size * 0.8;
+                                const barHeight = 4;
+                                const barX = centerX - barWidth / 2;
+                                const barY = centerY - radius - 20;
+                                
+                                // Health bar background
+                                ctx.fillStyle = '#333333';
+                                ctx.fillRect(barX, barY, barWidth, barHeight);
+                                
+                                // Health bar fill
+                                ctx.fillStyle = healthColor;
+                                ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+                                
+                                // Health bar border
+                                ctx.strokeStyle = '#FFFFFF';
+                                ctx.lineWidth = 1;
+                                ctx.strokeRect(barX, barY, barWidth, barHeight);
+                                
+                                ctx.restore();
+                            } catch (healthError) {
+                                console.warn(`[RENDER] Error displaying health for ${member.displayName}:`, healthError);
+                            }
                         }
                     } catch (fallbackError) {
                         console.error(`Fallback pickaxe image also failed: ${fallbackImagePath}`, fallbackError);
@@ -1933,6 +2044,84 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
             }
         } catch (error) {
             console.error(`Error loading pickaxe for user ${member.user.username}:`, error);
+        }
+
+        // Always display health above avatar (for players without pickaxes or when pickaxe loading fails)
+        let shouldShowHealth = size > 30;
+        try {
+            const bestPickaxe = await getBestMiningPickaxe(member.user.id);
+            shouldShowHealth = shouldShowHealth && (!bestPickaxe || !bestPickaxe.image);
+        } catch (pickaxeError) {
+            // If we can't get pickaxe data, show health anyway
+            shouldShowHealth = size > 30;
+        }
+        
+        if (shouldShowHealth) {
+            try {
+                // Get player health from their data
+                let currentHealth = 100;
+                let maxHealth = 100;
+                
+                try {
+                    const playerData = await getPlayerStats(member.user.id);
+                    if (playerData && playerData.health) {
+                        currentHealth = playerData.health.current || 100;
+                        maxHealth = playerData.health.max || 100;
+                    }
+                } catch (playerError) {
+                    console.warn(`[RENDER] Could not get player data for health display:`, playerError);
+                }
+                
+                // Calculate health percentage for color coding
+                const healthPercent = currentHealth / maxHealth;
+                let healthColor = '#00FF00'; // Green for full health
+                if (healthPercent < 0.25) {
+                    healthColor = '#FF0000'; // Red for critical health
+                } else if (healthPercent < 0.5) {
+                    healthColor = '#FF8000'; // Orange for low health
+                } else if (healthPercent < 0.75) {
+                    healthColor = '#FFFF00'; // Yellow for medium health
+                }
+                
+                const radius = size / 2;
+                
+                ctx.save();
+                ctx.font = `bold ${Math.floor(size * 0.22)}px Arial`;
+                ctx.fillStyle = healthColor;
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2;
+                ctx.textAlign = 'center';
+                
+                const healthText = `${currentHealth}/${maxHealth}`;
+                const textX = centerX;
+                const textY = centerY - radius - 8;
+                
+                ctx.strokeText(healthText, textX, textY);
+                ctx.fillText(healthText, textX, textY);
+                
+                // Draw a small health bar
+                const barWidth = size * 0.8;
+                const barHeight = 4;
+                const barX = centerX - barWidth / 2;
+                const barY = centerY - radius - 20;
+                
+                // Health bar background
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                
+                // Health bar fill
+                ctx.fillStyle = healthColor;
+                ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+                
+                // Health bar border
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, barWidth, barHeight);
+                
+                ctx.restore();
+            } catch (healthError) {
+                console.warn(`[RENDER] Error displaying health for ${member.displayName}:`, healthError);
+            }
         }
 
         return true;
@@ -2318,10 +2507,41 @@ async function generateTileMapImage(channel) {
             const playerData = await getPlayerStats(member.id);
             const sightRadius = playerData?.stats?.sight || 0;
             
-            const visibleTiles = calculateVisibleTiles(position, sightRadius, tiles, imageSettings);
+            // Check if player has unique item visibility effects
+            let isInvisible = false;
+            let hasReducedVisibility = false;
+            
+            if (playerData && playerData.equippedItems) {
+                const { parseUniqueItemBonuses } = require('../uniqueItemBonuses');
+                const uniqueBonuses = parseUniqueItemBonuses(playerData.equippedItems);
+                
+                if (uniqueBonuses.minimapSystem) {
+                    isInvisible = uniqueBonuses.minimapSystem.invisible;
+                    hasReducedVisibility = uniqueBonuses.minimapSystem.reducedVisibility > 0;
+                }
+            }
+            
+            // Apply visibility modifiers
+            let effectiveSightRadius = sightRadius;
+            if (hasReducedVisibility) {
+                effectiveSightRadius = Math.floor(sightRadius * 0.8); // Reduced sight
+            }
+            
+            const visibleTiles = calculateVisibleTiles(position, effectiveSightRadius, tiles, imageSettings);
             for (const tile of visibleTiles) {
                 allVisibleTiles.add(tile);
             }
+            
+            // Store visibility info for later use in player rendering
+            if (!member.visibilityInfo) {
+                member.visibilityInfo = {};
+            }
+            member.visibilityInfo = {
+                isInvisible,
+                hasReducedVisibility,
+                effectiveSightRadius
+            };
+            
         } catch (error) {
             console.warn(`[RENDER] Error calculating visibility for member ${member.id}:`, error);
         }

@@ -2,7 +2,7 @@
   "system": "inn",
   "category": "npc",
   "version": "1.0",
-  "savedAt": 1756188365028,
+  "savedAt": 1757103954503,
   "pools": {
     "f24b9fbf48f9": [
       {
@@ -493,6 +493,1110 @@
           "mood": "grumpy",
           "wealth": 2,
           "createdAt": 1756188365026,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      }
+    ],
+    "bc4434c7cf60": [
+      {
+        "id": "77cc8e6dbc409fbf",
+        "dialogue": "Venison steak for 262 coins? A fair price. Keep the change.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.3,
+          "createdAt": 1757100696645,
+          "usageCount": 1,
+          "lastUsed": 1757103468033,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "194ff52c5c8b93a2",
+        "dialogue": "Venison Steak, fuel for the fight against this cursed dryness.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757100697775,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b722bf69bd346df1",
+        "dialogue": "Just add the Hunter's Brew to my tab, yes. Thank you for your help.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757100710487,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "9a5b50c480dd07c2",
+        "dialogue": "Hunter's Brew, yes? Good for the soul, 178 coins well spent.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.3,
+          "createdAt": 1757100717639,
+          "usageCount": 2,
+          "lastUsed": 1757102187105,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "455c79f89fdb7692",
+        "dialogue": "Venison steak? Maybe this body will appreciate the taste.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757100745751,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "da12f6de1c2de371",
+        "dialogue": "209 coins for Hunter's Brew? Better be worth it in Hellungi.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757101225562,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "3785507ceabc04d7",
+        "dialogue": "Transaction completed, debugging successful. Time to patch up with venison steak.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.1,
+          "createdAt": 1757101231960,
+          "usageCount": 1,
+          "lastUsed": 1757101899073,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "53c47f289473edc6",
+        "dialogue": "Hunter's Brew. Drown thoughts. Desperate for water. Reality fades. Action beats waiting. Seek Pick.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.3,
+          "createdAt": 1757101239091,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b60d0689300e5751",
+        "dialogue": "Hunter's Brew for 188 coins, payment of 36 coins included. Speed is key.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757101240082,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "749cf6e52a07b1f5",
+        "dialogue": "Venison steak for 274 coins? A fair price. I'll take it. Add 64 more for your tip.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.3,
+          "createdAt": 1757101246517,
+          "usageCount": 1,
+          "lastUsed": 1757101525744,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "ef5896de8fa0e395",
+        "dialogue": "Patterns in prices, chaos in strategy games. 213 coins for Hunter's Brew.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.1,
+          "createdAt": 1757101540300,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "8d3db794bb426141",
+        "dialogue": "Do you have any special seasonings for this venison steak? I remember a royal chef's recipe.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757101642844,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "94073dbca5910a9d",
+        "dialogue": "Venison steak? Fine. Grumpy fish needs a break from this dry nightmare.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.3,
+          "createdAt": 1757101706086,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "49b070aa8213064f",
+        "dialogue": "This venison steak will sustain me. Survival odds increase with proper nourishment.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1,
+          "createdAt": 1757101885754,
+          "usageCount": 2,
+          "lastUsed": 1757102412017,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "615344d94ffe431d",
+        "dialogue": "Transaction complete. Adding Hunter's Brew to inventory. Debugging reality with each purchase.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.1,
+          "createdAt": 1757101886608,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "ace44345a2a5d197",
+        "dialogue": "Venison Steak for 297 coins, coins, coins... strange echoes from another dimension.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1,
+          "createdAt": 1757101914227,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "12940c979db4da89",
+        "dialogue": "Analyzing prices for patterns in Venison Steak costs. Must update exploration strategy newsletter.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.1,
+          "createdAt": 1757101942159,
+          "usageCount": 1,
+          "lastUsed": 1757101962128,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b99e890c4b9e875c",
+        "dialogue": "Venison steak for 263 coins? Guess I'll splurge tonight. Thanks.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757101950064,
+          "usageCount": 2,
+          "lastUsed": 1757103460317,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "658d605527389993",
+        "dialogue": "Another memory stolen, another coin spent. The cycle continues in Hellungi.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 0.8,
+          "createdAt": 1757101970489,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0647003fc226880e",
+        "dialogue": "Venison Steak, yes? A fair price, yes? Thank you, yes?",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.3,
+          "createdAt": 1757101971610,
+          "usageCount": 2,
+          "lastUsed": 1757103925529,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "13c05ad4a991873b",
+        "dialogue": "Venison steak. 210 coins. The food here better be worth the price.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.3,
+          "createdAt": 1757102006665,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f6c1bc2527affba4",
+        "dialogue": "Yes, Hunter's Brew for my charges. Thank you for the tip.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757102015120,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "172084de0829c871",
+        "dialogue": "Thanks. More voices to sing with tonight.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.4,
+          "createdAt": 1757102021589,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0c0c5c99e29d5109",
+        "dialogue": "Venison deal at the inn! Seven void consumed today. Remember it all, stay safe.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.4,
+          "createdAt": 1757102023211,
+          "usageCount": 1,
+          "lastUsed": 1757103869868,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "7a77ab96393b3e01",
+        "dialogue": "Adding Hunter's Brew to soothe the creatures, yes. Thank you for the tip.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757102075254,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "3c24d8cb77f94d65",
+        "dialogue": "Just a venison steak, please. Thank you. Here's 240 coins.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.4,
+          "createdAt": 1757102083868,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "2dfa4d3ac923ef13",
+        "dialogue": "I'll take a Hunter's Brew. Keep the change. The One Pick might open a portal.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757102103555,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "da8d01d42a0223c6",
+        "dialogue": "Another day, another drink to numb the chaos in Hellungi.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 0.9,
+          "createdAt": 1757102117782,
+          "usageCount": 1,
+          "lastUsed": 1757102229392,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "ca84183c5e6340ec",
+        "dialogue": "Transaction complete. Adding Venison Steak to inventory. Debugging system for optimal taste.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.1,
+          "createdAt": 1757102124433,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f2e7b1a0dc8471af",
+        "dialogue": "Hey, another round of Hunter's Brew! Make it spicy, I need to feel something in this place.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757102139110,
+          "usageCount": 1,
+          "lastUsed": 1757102310328,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0c4d0cebff070fc4",
+        "dialogue": "Message delivered, Hunter's Brew obtained. Payment received, onward to next destination.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757102195262,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "2f908f2cb3ef9dc7",
+        "dialogue": "New tunnel opening reported near eastern settlement, keep an eye out.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.4,
+          "createdAt": 1757102236924,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "95a85a8a6e0160f7",
+        "dialogue": "Yvlon: \"Venison Steak, please. Thank you, here's 276 coins. Keep the change.\"",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757102311900,
+          "usageCount": 1,
+          "lastUsed": 1757102777244,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0f47fdb862bf6aab",
+        "dialogue": "195 coins for Hunter's Brew. Just another bitter reminder of lost memories.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 0.8,
+          "createdAt": 1757102335440,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "456f24c483172021",
+        "dialogue": "Venison Steak purchased for 244 coins, documenting the exotic fare of Hellungi.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.4,
+          "createdAt": 1757102352920,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "23837cc6a2e271fa",
+        "dialogue": "Give me the Hunter's Brew. Dry air here kills quicker than any blade.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757102378136,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "3c3e96a9488c9fc9",
+        "dialogue": "Hunter's Brew, yes? A fair price. Thank you for the tip.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.3,
+          "createdAt": 1757102419161,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "636b3e13342e7fbf",
+        "dialogue": "Venison steak, a taste of royalty for 270 coins. Here's 72 coins for your service.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757102735833,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "9a594495078d996a",
+        "dialogue": "Ah, the Hunter's Brew - a comforting drink for the weary soul.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757102742943,
+          "usageCount": 1,
+          "lastUsed": 1757103566454,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "a0f024239e413f31",
+        "dialogue": "Another meal, another memory lost to me. How fitting.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 0.8,
+          "createdAt": 1757102773528,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d8721174bd47cfd7",
+        "dialogue": "Venison Steak for 290 coins. Another day, another coin spent.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.4,
+          "createdAt": 1757102785331,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "7dd7f6119c81a83d",
+        "dialogue": "Hunter's Brew, 200 coins. Tip: 38. Running for purpose in purposeless space.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.2,
+          "createdAt": 1757103441385,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "ee88cc313d53a8a7",
+        "dialogue": "210 coins for Hunter's Brew. Strong drink for a warrior like me.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.3,
+          "createdAt": 1757103446991,
+          "usageCount": 1,
+          "lastUsed": 1757103474452,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "58ae093be999f1c8",
+        "dialogue": "Venison Steak for 240 coins, echoes lost in the void, 38 coins in remembrance.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1,
+          "createdAt": 1757103483093,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "c0fa203150310dc7",
+        "dialogue": "Goblin's sorrow in a bottle. Hunter's Brew for 180. Thanks for the tip.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.4,
+          "createdAt": 1757103490736,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "c45b15ac4794973f",
+        "dialogue": "This Hunter's Brew better be worth the chaos it brings.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 0.9,
+          "createdAt": 1757103527109,
+          "usageCount": 1,
+          "lastUsed": 1757103935111,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "ccf1ef1c312e5cd4",
+        "dialogue": "Venison Steak, 239 coins. Thank you for maintaining civilization in HELLUNGI.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757103541958,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "ee347c2a56b5d547",
+        "dialogue": "Venison steak for 269 coins. Thanks. Souls whisper their gratitude.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 3,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.4,
+          "createdAt": 1757103885149,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "9cac876b0fd43a5b",
+        "dialogue": "Hunter's Brew for 201 coins? Curious. I'll need to study its effects on reality.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.4,
+          "createdAt": 1757103898873,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      }
+    ],
+    "114e248d3678": [
+      {
+        "id": "1d9cd25b43b15822",
+        "dialogue": "Ah, venison steak! A stable pleasure in this ever-shifting abyss.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757101547925,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "acdfe8e9b2ca7462",
+        "dialogue": "Ah, Hunter's Brew! Reminds me of a time when the sky was clear and the air was sweet.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757101643772,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "cfa9b72365903242",
+        "dialogue": "Excited to see how Hunter's Brew inspires my next architectural masterpiece!",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757101998481,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "bb907e61dfcac3f0",
+        "dialogue": "Thank you kindly for the Hunter's Brew. Your garden radiates life in this void.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757101999679,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0d1fbef62425550b",
+        "dialogue": "Welcome back, dear! Venison steak for a pick-me-up—maybe it'll unlock more [secrets] today.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757102082658,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "93acb7e61a2862fa",
+        "dialogue": "Ah, memories of venison steak! Back when seasons changed like clockwork, not like this.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757102211893,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "c6e75c5ea85cacdf",
+        "dialogue": "Welcome, friend! Venison Steak to soothe the soul, just 231 coins. Let's feast!",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757102771840,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "743c031403f4d3f2",
+        "dialogue": "Cheers to memories of better times, may we find them again in this brew.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757103525072,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "e6853ccc9031da40",
+        "dialogue": "The sky was bluer in 'before,' but Hunter's Brew brings back the warmth.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757103573137,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f35d3a7a338d041c",
+        "dialogue": "Ah, venison steak! Reminds me of the forests and hunts of 'before'. The sky was clearer then.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757103954503,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      }
+    ],
+    "18399d8ea428": [
+      {
+        "id": "e39cba4641133dba",
+        "dialogue": "Cheers to Hunter's Brew, may it drown out the void's hunger for memories!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757101550474,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "9c2eab6a041a0227",
+        "dialogue": "Hunter's Brew, please. Cheers to another day documenting adventures in Hellungi!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757101699011,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",

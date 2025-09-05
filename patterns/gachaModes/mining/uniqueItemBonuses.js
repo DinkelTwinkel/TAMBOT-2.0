@@ -63,6 +63,64 @@ function parseUniqueItemBonuses(equippedItems) {
         sanity: 0,
         speed: 0,
         
+        // Ore value multipliers
+        oreValueMultipliers: {},
+        
+        // Health system
+        healthRegen: 0,
+        maxHealth: 100,
+        currentHealth: 100,
+        
+        // Time-based effects
+        dailyCooldowns: {},
+        hourlyEffects: {},
+        
+        // Visual effects
+        visualEffects: {
+            aura: null,
+            glowColor: null,
+            particleEffect: null,
+            visibleToOthers: false
+        },
+        
+        // Team buffs
+        teamBuffs: {
+            miningSpeed: 0,
+            allStats: 0,
+            radius: 0
+        },
+        
+        // Advanced clone system
+        cloneSystem: {
+            activeClones: 0,
+            maxClones: 0,
+            cloneStats: 0,
+            cloneBonuses: {}
+        },
+        
+        // NPC system
+        npcSystem: {
+            canCommandNPC: false,
+            npcCooldown: 0,
+            npcType: null
+        },
+        
+        // Title system
+        titles: [],
+        
+        // Machinery system
+        machinerySystem: {
+            canOvercharge: false,
+            canConductElectricity: false,
+            canMagnetize: false
+        },
+        
+        // Minimap system
+        minimapSystem: {
+            invisible: false,
+            reducedVisibility: 0
+        },
+        
         // Track which unique items are equipped
         uniqueItems: [],
         
@@ -129,6 +187,22 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.areaDamageChance += 1.0; // Always area damage
                 bonuses.teamMiningBonus += 0.5; // 50% bonus to team
                 bonuses.neverBreaks = true;
+                // Ore value multipliers - transmutes common to rare
+                bonuses.oreValueMultipliers.common = 2.0; // 2x common ore value
+                bonuses.oreValueMultipliers.uncommon = 2.0; // 2x uncommon ore value
+                bonuses.oreValueMultipliers.rare = 2.0; // 2x rare ore value
+                bonuses.oreValueMultipliers.epic = 2.0; // 2x epic ore value
+                bonuses.oreValueMultipliers.legendary = 2.0; // 2x legendary ore value
+                // Team buffs
+                bonuses.teamBuffs.allStats = 0.5; // 50% all stats to team
+                bonuses.teamBuffs.radius = 10; // 10 tile radius
+                // Visual effects
+                bonuses.visualEffects.aura = 'divine';
+                bonuses.visualEffects.glowColor = '#FFFFFF';
+                bonuses.visualEffects.particleEffect = 'reality_fracture';
+                bonuses.visualEffects.visibleToOthers = true; // Divine aura visible to all
+                // Title system
+                bonuses.titles.push('Heir of the Miner King');
                 break;
                 
             case 2: // Earthshaker
@@ -150,6 +224,12 @@ function parseUniqueItemBonuses(equippedItems) {
             case 5: // Phoenix Feather Charm
                 bonuses.autoReviveChance += 0.5 * maintenanceRatio;
                 bonuses.hazardResistance += 0.5 * maintenanceRatio; // Fire immunity
+                // Health regeneration
+                bonuses.healthRegen += 0.01 * maintenanceRatio; // 1% health per minute
+                // Visual effects
+                bonuses.visualEffects.aura = 'phoenix';
+                bonuses.visualEffects.glowColor = '#FF4500';
+                bonuses.visualEffects.particleEffect = 'flame_wisp';
                 break;
                 
             case 6: // Shadowstep Boots
@@ -157,16 +237,39 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.phaseWalkChance += 0.1 * maintenanceRatio; // 10% chance to phase through walls
                 bonuses.shadowTeleportChance += 0.05 * maintenanceRatio; // 5% chance to teleport
                 bonuses.movementSpeedBonus += 0.3 * maintenanceRatio;
+                // Minimap system
+                bonuses.minimapSystem.invisible = true; // Invisible on minimap
+                // Visual effects
+                bonuses.visualEffects.aura = 'shadow';
+                bonuses.visualEffects.glowColor = '#2F4F4F';
+                bonuses.visualEffects.particleEffect = 'shadow_trail';
                 break;
                 
             case 7: // Crown of the Forgotten King
                 bonuses.teamMiningBonus += 0.1 * maintenanceRatio;
                 bonuses.sightThroughWalls += 1 * maintenanceRatio;
+                // Team buffs
+                bonuses.teamBuffs.miningSpeed = 0.1 * maintenanceRatio; // 10% mining speed to nearby players
+                bonuses.teamBuffs.radius = 5; // 5 tile radius
+                // NPC system
+                bonuses.npcSystem.canCommandNPC = true;
+                bonuses.npcSystem.npcCooldown = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+                bonuses.npcSystem.npcType = 'helper';
+                // Visual effects
+                bonuses.visualEffects.aura = 'royal';
+                bonuses.visualEffects.glowColor = '#4B0082';
+                bonuses.visualEffects.particleEffect = 'forgotten_whispers';
                 break;
                 
             case 8: // Stormcaller's Gauntlets
                 bonuses.chainMiningChance += 0.2 * maintenanceRatio;
                 bonuses.hazardResistance += 0.3 * maintenanceRatio; // Electric immunity
+                // Machinery system
+                bonuses.machinerySystem.canOvercharge = true;
+                // Visual effects
+                bonuses.visualEffects.aura = 'electric';
+                bonuses.visualEffects.glowColor = '#00FFFF';
+                bonuses.visualEffects.particleEffect = 'lightning_spark';
                 break;
                 
             case 10: // Midas' Burden
@@ -174,6 +277,13 @@ function parseUniqueItemBonuses(equippedItems) {
                 // But we still apply the loot multiplier
                 bonuses.lootMultiplier *= (1 + 0.5 * maintenanceRatio);
                 bonuses.doubleOreChance += 0.1 * maintenanceRatio;
+                // Coin doubling effects
+                bonuses.oreValueMultipliers.coin = 2.0 * maintenanceRatio; // 2x coin value
+                // Visual effects
+                bonuses.visualEffects.aura = 'golden';
+                bonuses.visualEffects.glowColor = '#FFD700';
+                bonuses.visualEffects.particleEffect = 'gold_dust';
+                bonuses.visualEffects.visibleToOthers = true; // Golden aura visible to all
                 // Note: The luck multiplier (0x or 100x) is handled in stats calculation
                 break;
                 
@@ -181,7 +291,19 @@ function parseUniqueItemBonuses(equippedItems) {
                 // Shadow clone spawning is handled separately in shadowCloneSystem.js
                 // Here we add the base bonuses from the amulet itself
                 bonuses.lootMultiplier *= 1.4; // 40% more loot from collective fortune
+                bonuses.shadowLegion += 0.8 * maintenanceRatio; // 80% shadow legion power
+                bonuses.collectiveFortune += 0.6 * maintenanceRatio; // 60% collective fortune
+                bonuses.soulDrain += 0.1 * maintenanceRatio; // 10% soul drain
                 bonuses.movementSpeedBonus += 0.1 * maintenanceRatio; // Small speed bonus
+                // Clone system
+                bonuses.cloneSystem.maxClones = Math.floor(3 * maintenanceRatio); // Up to 3 clones
+                bonuses.cloneSystem.cloneStats = 0.5 * maintenanceRatio; // Clones have 50% of player stats
+                bonuses.cloneSystem.cloneBonuses.lootMultiplier = 0.2; // Clones provide 20% loot bonus each
+                // Visual effects
+                bonuses.visualEffects.aura = 'shadow_legion';
+                bonuses.visualEffects.glowColor = '#4B0082';
+                bonuses.visualEffects.particleEffect = 'shadow_wisps';
+                bonuses.visualEffects.visibleToOthers = true; // Dark aura visible to others
                 // Note: The soul drain penalty is applied in calculatePlayerStat
                 // Note: Clone management happens in the main mining loop
                 break;
@@ -191,6 +313,15 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.darkPower += 0.6 * maintenanceRatio; // 60% dark power
                 bonuses.sightThroughWalls += 5 * maintenanceRatio; // See through coal walls
                 bonuses.hazardResistance += 0.3 * maintenanceRatio; // 30% hazard resistance
+                // Ore value multipliers
+                bonuses.oreValueMultipliers.coal = 3.0 * maintenanceRatio; // 3x coal value
+                bonuses.oreValueMultipliers.anthracite = 3.0 * maintenanceRatio; // 3x anthracite value
+                // Visual effects
+                bonuses.visualEffects.aura = 'dark';
+                bonuses.visualEffects.glowColor = '#2F2F2F';
+                bonuses.visualEffects.particleEffect = 'coal_embers';
+                // Minimap effects
+                bonuses.minimapSystem.reducedVisibility = 0.2 * maintenanceRatio; // 20% reduced visibility
                 break;
                 
             case 13: // Solar Forge Hammer
@@ -198,6 +329,15 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.lightPower += 0.7 * maintenanceRatio; // 70% light power
                 bonuses.chainMiningChance += 0.25 * maintenanceRatio; // 25% chain mining
                 bonuses.movementSpeedBonus += 0.1 * maintenanceRatio; // 10% speed bonus
+                // Ore value multipliers
+                bonuses.oreValueMultipliers.topaz = 2.5 * maintenanceRatio; // 2.5x topaz value
+                bonuses.oreValueMultipliers.crystal = 2.5 * maintenanceRatio; // 2.5x crystal value
+                // Health regeneration
+                bonuses.healthRegen += 0.01 * maintenanceRatio; // 1% health per minute
+                // Visual effects
+                bonuses.visualEffects.aura = 'light';
+                bonuses.visualEffects.glowColor = '#FFD700';
+                bonuses.visualEffects.particleEffect = 'solar_flare';
                 break;
                 
             case 14: // Diamond Heart
@@ -205,6 +345,13 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.resistance += 0.9 * maintenanceRatio; // 90% resistance
                 bonuses.hazardResistance += 0.5 * maintenanceRatio; // 50% hazard resistance
                 bonuses.lootMultiplier *= (1 + 0.3 * maintenanceRatio); // 30% loot multiplier
+                // Ore value multipliers
+                bonuses.oreValueMultipliers.diamond = 4.0 * maintenanceRatio; // 4x diamond value
+                bonuses.oreValueMultipliers.gem = 4.0 * maintenanceRatio; // 4x gem value
+                // Visual effects
+                bonuses.visualEffects.aura = 'diamond';
+                bonuses.visualEffects.glowColor = '#B9F2FF';
+                bonuses.visualEffects.particleEffect = 'diamond_sparkle';
                 break;
                 
             case 15: // World Tree Branch
@@ -212,6 +359,15 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.lifePower += 0.8 * maintenanceRatio; // 80% life power
                 bonuses.phaseWalkChance += 0.15 * maintenanceRatio; // 15% phase through walls
                 bonuses.movementSpeedBonus += 0.2 * maintenanceRatio; // 20% speed bonus
+                // Ore value multipliers
+                bonuses.oreValueMultipliers.emerald = 3.0 * maintenanceRatio; // 3x emerald value
+                bonuses.oreValueMultipliers.plant = 3.0 * maintenanceRatio; // 3x plant-based ore value
+                // Health regeneration
+                bonuses.healthRegen += 0.02 * maintenanceRatio; // 2% health per minute
+                // Visual effects
+                bonuses.visualEffects.aura = 'nature';
+                bonuses.visualEffects.glowColor = '#00FF00';
+                bonuses.visualEffects.particleEffect = 'leaf_swirl';
                 break;
                 
             case 16: // Volcanic Core
@@ -219,6 +375,13 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.firePower += 0.95 * maintenanceRatio; // 95% fire power
                 bonuses.fireResistance += 1.0 * maintenanceRatio; // Complete fire immunity
                 bonuses.areaDamageChance += 0.4 * maintenanceRatio; // 40% area damage
+                // Ore value multipliers
+                bonuses.oreValueMultipliers.ruby = 3.5 * maintenanceRatio; // 3.5x ruby value
+                bonuses.oreValueMultipliers.fire = 3.5 * maintenanceRatio; // 3.5x fire-based ore value
+                // Visual effects
+                bonuses.visualEffects.aura = 'volcanic';
+                bonuses.visualEffects.glowColor = '#FF4500';
+                bonuses.visualEffects.particleEffect = 'lava_burst';
                 break;
                 
             case 17: // Cosmic Void Crystal
@@ -226,6 +389,13 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.cosmicPower += 0.85 * maintenanceRatio; // 85% cosmic power
                 bonuses.phaseWalkChance += 0.2 * maintenanceRatio; // 20% phase through walls
                 bonuses.dodgeChance += 0.25 * maintenanceRatio; // 25% dodge chance
+                // Ore value multipliers
+                bonuses.oreValueMultipliers.cosmic = 2.0 * maintenanceRatio; // 2x cosmic value
+                bonuses.oreValueMultipliers.void = 2.0 * maintenanceRatio; // 2x void ore value
+                // Visual effects
+                bonuses.visualEffects.aura = 'cosmic';
+                bonuses.visualEffects.glowColor = '#8A2BE2';
+                bonuses.visualEffects.particleEffect = 'cosmic_swirl';
                 break;
                 
             case 18: // Adamantine Storm
@@ -233,6 +403,12 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.stormPower += 0.85 * maintenanceRatio; // 85% storm power
                 bonuses.chainMiningChance += 0.5 * maintenanceRatio; // 50% chain mining
                 bonuses.electricResistance += 1.0 * maintenanceRatio; // Complete electric immunity
+                // Ore value multipliers
+                bonuses.oreValueMultipliers.adamantine = 5.0 * maintenanceRatio; // 5x adamantine value
+                // Visual effects
+                bonuses.visualEffects.aura = 'storm';
+                bonuses.visualEffects.glowColor = '#00FFFF';
+                bonuses.visualEffects.particleEffect = 'storm_lightning';
                 break;
                 
             case 19: // Iron Lord's Gauntlets
@@ -240,6 +416,15 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.strength += 0.8 * maintenanceRatio; // 80% strength
                 bonuses.hazardResistance += 0.4 * maintenanceRatio; // 40% hazard resistance
                 bonuses.durabilityDamageReduction += 0.5 * maintenanceRatio; // 50% less durability damage
+                // Ore value multipliers
+                bonuses.oreValueMultipliers.iron = 2.0 * maintenanceRatio; // 2x iron value
+                bonuses.oreValueMultipliers.metal = 2.0 * maintenanceRatio; // 2x metal value
+                // Machinery system
+                bonuses.machinerySystem.canMagnetize = true;
+                // Visual effects
+                bonuses.visualEffects.aura = 'iron';
+                bonuses.visualEffects.glowColor = '#2F4F4F';
+                bonuses.visualEffects.particleEffect = 'iron_sparks';
                 break;
                 
             case 20: // Crystal Seer's Orb
@@ -247,6 +432,13 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.divination += 0.85 * maintenanceRatio; // 85% divination
                 bonuses.sightThroughWalls += 10 * maintenanceRatio; // See entire map
                 bonuses.lootMultiplier *= (1 + 0.5 * maintenanceRatio); // 50% loot multiplier
+                // Ore value multipliers
+                bonuses.oreValueMultipliers.crystal = 3.0 * maintenanceRatio; // 3x crystal value
+                bonuses.oreValueMultipliers.vision = 3.0 * maintenanceRatio; // 3x vision ore value
+                // Visual effects
+                bonuses.visualEffects.aura = 'crystal';
+                bonuses.visualEffects.glowColor = '#E6E6FA';
+                bonuses.visualEffects.particleEffect = 'crystal_visions';
                 break;
                 
             case 21: // Primordial Fossil
@@ -254,6 +446,13 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.ancientWisdom += 0.9 * maintenanceRatio; // 90% ancient wisdom
                 bonuses.movementSpeedBonus += 0.25 * maintenanceRatio; // 25% speed bonus
                 bonuses.hazardResistance += 0.3 * maintenanceRatio; // 30% hazard resistance
+                // Ore value multipliers
+                bonuses.oreValueMultipliers.fossil = 4.0 * maintenanceRatio; // 4x fossil value
+                bonuses.oreValueMultipliers.ancient = 4.0 * maintenanceRatio; // 4x ancient ore value
+                // Visual effects
+                bonuses.visualEffects.aura = 'ancient';
+                bonuses.visualEffects.glowColor = '#8B4513';
+                bonuses.visualEffects.particleEffect = 'ancient_energy';
                 break;
                 
             case 22: // Copper Conductor
@@ -261,6 +460,14 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.electricPower += 0.7 * maintenanceRatio; // 70% electric power
                 bonuses.chainMiningChance += 0.3 * maintenanceRatio; // 30% chain mining
                 bonuses.electricResistance += 1.0 * maintenanceRatio; // Complete electric immunity
+                // Ore value multipliers
+                bonuses.oreValueMultipliers.copper = 1.5 * maintenanceRatio; // 1.5x copper value
+                // Machinery system
+                bonuses.machinerySystem.canConductElectricity = true;
+                // Visual effects
+                bonuses.visualEffects.aura = 'electric';
+                bonuses.visualEffects.glowColor = '#FFD700';
+                bonuses.visualEffects.particleEffect = 'electric_sparks';
                 break;
                 
             default:
