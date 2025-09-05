@@ -91,12 +91,11 @@ module.exports = {
       // Add armor protection display
       if (totalArmorPoints > 0 && bestArmor) {
         const armorPercentage = Math.round(totalArmorReduction * 100);
-        const durabilityPercentage = Math.round((bestArmor.currentDurability || bestArmor.itemData.durability) / bestArmor.itemData.durability * 100);
-        const durabilityBar = getDurabilityBar(durabilityPercentage);
+        const armorStatPoints = stats.armor || 0; // Use the actual armor stat shown in Total Power
         
         embed.addFields({
           name: '🛡️ Armor Protection',
-          value: `${armorPercentage}% damage reduction (${totalArmorPoints} total armor points)`,
+          value: `${armorPercentage}% damage reduction (${armorStatPoints} armor points)`,
           inline: false
         });
       }
