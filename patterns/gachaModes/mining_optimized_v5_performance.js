@@ -1477,7 +1477,22 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
                 
             await channel.send({ embeds: [longBreakEmbed] });
             
-            const eventResult = await selectedEvent(channel, updatedDbEntry);
+            // ALWAYS ensure an event happens during long break
+            let eventResult;
+            try {
+                eventResult = await selectedEvent(channel, updatedDbEntry);
+                
+                // If no event result or event failed, force a backup event
+                if (!eventResult) {
+                    console.log(`[LONG BREAK] Primary event failed, starting backup event`);
+                    const { forceBackupLongBreakEvent } = require('./mining/miningEvents');
+                    eventResult = await forceBackupLongBreakEvent(channel, updatedDbEntry, playerCount);
+                }
+            } catch (eventError) {
+                console.error(`[LONG BREAK] Event error:`, eventError);
+                const { forceBackupLongBreakEvent } = require('./mining/miningEvents');
+                eventResult = await forceBackupLongBreakEvent(channel, updatedDbEntry, playerCount);
+            }
             
             const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
             await logEvent(channel, `🎪 LONG BREAK EVENT: ${eventResult || 'Event started'}`, true, {

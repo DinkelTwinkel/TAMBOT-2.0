@@ -1618,6 +1618,251 @@ async function calculateMinecartValue(dbEntry) {
     };
 }
 
+/**
+ * Force a backup event for long breaks to ensure something always happens
+ */
+async function forceBackupLongBreakEvent(channel, dbEntry, playerCount) {
+    try {
+        const { EmbedBuilder } = require('discord.js');
+        
+        // Enhanced backup events with actual gameplay benefits
+        const backupEvents = [
+            {
+                name: "Miner's Gathering",
+                description: "Veteran miners share stories and trade tips during the extended break.",
+                buffs: {
+                    mining: 2,
+                    luck: 1,
+                    sight: 1
+                },
+                buffDuration: 60, // 60 minutes
+                embed: {
+                    title: "👥 Miner's Gathering",
+                    description: "Experienced miners gather to share tales of deep shafts and legendary finds. Everyone gains wisdom from the stories!",
+                    color: 'Gold',
+                    fields: [
+                        { name: '📚 Wisdom Gained', value: '**+2 Mining, +1 Luck, +1 Sight** for 60 minutes', inline: false }
+                    ]
+                }
+            },
+            {
+                name: "Equipment Maintenance",
+                description: "Miners take time to properly maintain their equipment during the break.",
+                durabilityRestore: 25, // Restore 25% durability
+                buffs: {
+                    mining: 1
+                },
+                buffDuration: 30, // 30 minutes
+                embed: {
+                    title: "🔧 Equipment Maintenance",
+                    description: "The extended break provides time for thorough equipment maintenance. All tools and armor are inspected and repaired!",
+                    color: 'Blue',
+                    fields: [
+                        { name: '⚒️ Maintenance Complete', value: '**25% durability restored** to all equipment\n**+1 Mining** for 30 minutes', inline: false }
+                    ]
+                }
+            },
+            {
+                name: "Safety Training",
+                description: "Miners review safety procedures and hazard identification during the break.",
+                buffs: {
+                    armor: 1,
+                    sight: 2
+                },
+                buffDuration: 45, // 45 minutes
+                embed: {
+                    title: "🛡️ Safety Training Session",
+                    description: "Mine safety experts conduct training on hazard recognition and survival techniques. Knowledge that could save lives!",
+                    color: 'Orange',
+                    fields: [
+                        { name: '📋 Training Complete', value: '**+1 Armor, +2 Sight** for 45 minutes\nBetter hazard detection and protection', inline: false }
+                    ]
+                }
+            },
+            {
+                name: "Legendary Tales",
+                description: "Stories of The One Pick and the Miner King inspire all present.",
+                buffs: {
+                    luck: 3,
+                    mining: 1
+                },
+                buffDuration: 90, // 90 minutes
+                embed: {
+                    title: "⭐ Legendary Tales",
+                    description: "Elder miners recount legends of The One Pick and the Miner King's legendary exploits. These tales inspire courage for the depths ahead!",
+                    color: 'Purple',
+                    fields: [
+                        { name: '👑 Inspiration', value: '**+3 Luck, +1 Mining** for 90 minutes\nLegendary inspiration boosts fortune', inline: false }
+                    ]
+                }
+            },
+            {
+                name: "Trade Circle",
+                description: "Miners form a trading circle to exchange resources and knowledge.",
+                buffs: {
+                    speed: 2,
+                    luck: 1
+                },
+                buffDuration: 40, // 40 minutes
+                embed: {
+                    title: "💰 Trade Circle",
+                    description: "Miners gather in a circle to trade resources, share mining techniques, and form bonds that will serve them in the dangerous depths.",
+                    color: 'Green',
+                    fields: [
+                        { name: '🤝 Community Bonds', value: '**+2 Speed, +1 Luck** for 40 minutes\nImproved efficiency from cooperation', inline: false }
+                    ]
+                }
+            }
+        ];
+        
+        // Select random backup event
+        const backupEvent = backupEvents[Math.floor(Math.random() * backupEvents.length)];
+        
+        // Send the backup event
+        const eventEmbed = new EmbedBuilder()
+            .setTitle(backupEvent.embed.title)
+            .setDescription(backupEvent.embed.description)
+            .setColor(backupEvent.embed.color)
+            .setTimestamp();
+            
+        for (const field of backupEvent.embed.fields) {
+            eventEmbed.addFields(field);
+        }
+        
+        await channel.send({ embeds: [eventEmbed] });
+        
+        // Apply buffs and durability restoration to all players in the channel
+        const members = channel.members.filter(m => !m.user.bot);
+        let buffedPlayers = 0;
+        let restoredPlayers = 0;
+        
+        for (const member of members.values()) {
+            try {
+                // Apply buffs if the event has them
+                if (backupEvent.buffs && Object.keys(backupEvent.buffs).length > 0) {
+                    await applyEventBuffs(member.id, backupEvent.buffs, backupEvent.buffDuration, backupEvent.name);
+                    buffedPlayers++;
+                }
+                
+                // Apply durability restoration if the event has it
+                if (backupEvent.durabilityRestore) {
+                    await restoreEquipmentDurability(member.id, backupEvent.durabilityRestore);
+                    restoredPlayers++;
+                }
+            } catch (playerError) {
+                console.error(`[LONG BREAK] Error applying event benefits to ${member.displayName}:`, playerError);
+            }
+        }
+        
+        console.log(`[LONG BREAK] Backup event executed: ${backupEvent.name} (${buffedPlayers} players buffed, ${restoredPlayers} equipment restored)`);
+        return backupEvent.name;
+        
+    } catch (error) {
+        console.error('[LONG BREAK] Error in backup event:', error);
+        return 'Backup event completed';
+    }
+}
+
+/**
+ * Apply event buffs to a player
+ */
+async function applyEventBuffs(playerId, buffs, duration, eventName) {
+    try {
+        const PlayerBuffs = require('../../../models/PlayerBuff');
+        
+        // Convert duration from minutes to milliseconds
+        const durationMs = duration * 60 * 1000;
+        const expiresAt = new Date(Date.now() + durationMs);
+        
+        // Create buff effects map
+        const effects = new Map();
+        for (const [stat, power] of Object.entries(buffs)) {
+            effects.set(stat, power);
+        }
+        
+        // Find or create player buff document
+        let playerBuffDoc = await PlayerBuffs.findOne({ playerId });
+        if (!playerBuffDoc) {
+            playerBuffDoc = new PlayerBuffs({
+                playerId: playerId,
+                buffs: []
+            });
+        }
+        
+        // Add the new buff
+        playerBuffDoc.buffs.push({
+            name: eventName,
+            effects: effects,
+            appliedAt: new Date(),
+            expiresAt: expiresAt,
+            source: 'long_break_event'
+        });
+        
+        await playerBuffDoc.save();
+        
+        console.log(`[BUFFS] Applied ${eventName} buffs to player ${playerId}: ${Object.entries(buffs).map(([k,v]) => `${k}+${v}`).join(', ')} for ${duration} minutes`);
+        return true;
+        
+    } catch (error) {
+        console.error(`[BUFFS] Error applying event buffs to ${playerId}:`, error);
+        return false;
+    }
+}
+
+/**
+ * Restore equipment durability for a player
+ */
+async function restoreEquipmentDurability(playerId, restorePercentage) {
+    try {
+        const PlayerInventory = require('../../../models/inventory');
+        
+        // Get player's inventory
+        const inventory = await PlayerInventory.findOne({ playerId });
+        if (!inventory || !inventory.items) {
+            return { restored: false, count: 0 };
+        }
+        
+        let restoredCount = 0;
+        const itemSheet = require('../../../data/itemSheet.json');
+        
+        // Process each item that has durability
+        for (const item of inventory.items) {
+            const itemData = itemSheet.find(i => i.id === item.itemId);
+            
+            if (itemData && itemData.durability && item.currentDurability !== undefined) {
+                const maxDurability = itemData.durability;
+                const currentDurability = item.currentDurability;
+                
+                // Calculate restoration amount
+                const restoreAmount = Math.floor(maxDurability * (restorePercentage / 100));
+                const newDurability = Math.min(maxDurability, currentDurability + restoreAmount);
+                
+                if (newDurability > currentDurability) {
+                    // Update the item's durability
+                    await PlayerInventory.updateOne(
+                        { 
+                            playerId: playerId,
+                            'items.itemId': item.itemId
+                        },
+                        {
+                            $set: { 'items.$.currentDurability': newDurability }
+                        }
+                    );
+                    
+                    restoredCount++;
+                    console.log(`[DURABILITY] Restored ${itemData.name}: ${currentDurability} -> ${newDurability} (+${restoreAmount})`);
+                }
+            }
+        }
+        
+        return { restored: true, count: restoredCount };
+        
+    } catch (error) {
+        console.error(`[DURABILITY] Error restoring equipment for ${playerId}:`, error);
+        return { restored: false, count: 0 };
+    }
+}
+
 // ============ EXPORTS ============
 
 module.exports = {
@@ -1627,6 +1872,9 @@ module.exports = {
     startRailBuildingEvent,
     endThiefGame,
     calculateMinecartValue,
+    forceBackupLongBreakEvent,
+    applyEventBuffs,
+    restoreEquipmentDurability,
     
     // Event management
     setSpecialEvent,
