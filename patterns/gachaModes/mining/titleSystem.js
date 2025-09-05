@@ -329,6 +329,44 @@ const TITLES = {
             creationPower: 0.2,
             ancientWisdom: 0.3
         }
+    },
+    
+    // Special Unique Mine Titles
+    GULLET_SURVIVOR: {
+        id: 'gullet_survivor',
+        name: 'Survivor of the Gullet',
+        description: 'Descended into the hellish gullet of an insatiable demon and lived to tell the tale',
+        emoji: '😈',
+        rarity: 'mythic',
+        requirements: {
+            mineReached: 16 // ???'s Gullet
+        },
+        benefits: {
+            digestiveResistance: 1.0, // Complete acid immunity
+            voidWalk: 0.2,
+            demonicPower: 0.15,
+            sanityProtection: 0.3,
+            hellishFortitude: 0.25
+        }
+    },
+    
+    ABYSSAL_VOIDWALKER: {
+        id: 'abyssal_voidwalker',
+        name: 'Abyssal Voidwalker',
+        description: 'Mastered the abyssal depths where void-touched adamantite transcends reality itself',
+        emoji: '💀',
+        rarity: 'mythic',
+        requirements: {
+            mineReached: 18 // Abyssal Adamantite Depths
+        },
+        benefits: {
+            voidMastery: 0.3,
+            adamantineMastery: 0.25,
+            dimensionalWalk: 0.2,
+            realityResistance: 0.15,
+            abyssalPower: 0.25,
+            gravityControl: 0.1
+        }
     }
 };
 
@@ -571,11 +609,12 @@ async function checkTitles(playerId, playerName = 'Unknown', guildId = null) {
             }
             
             if (requirementsMet) {
-                playerTitles.addTitle(titleId);
+                // Use the title.id (lowercase) instead of titleId (which might be uppercase key)
+                playerTitles.addTitle(title.id);
                 newTitles.push(title);
                 
                 await playerTitles.save();
-                console.log(`[TITLES] ${playerId} unlocked title: ${title.name}`);
+                console.log(`[TITLES] ${playerId} unlocked title: ${title.name} (ID: ${title.id})`);
             }
         }
         
@@ -594,15 +633,16 @@ async function awardTitle(playerId, titleId, playerName = 'Unknown', guildId = n
         const playerTitles = await getOrCreatePlayerTitles(playerId, playerName, guildId);
         if (!playerTitles) return false;
         
-        const title = TITLES[titleId];
+        // Find title by ID (titleId might be uppercase key, we need the actual title.id)
+        const title = Object.values(TITLES).find(t => t.id === titleId) || TITLES[titleId];
         
-        if (title && !playerTitles.hasTitle(titleId)) {
-            playerTitles.addTitle(titleId);
+        if (title && !playerTitles.hasTitle(title.id)) {
+            playerTitles.addTitle(title.id); // Use title.id (lowercase)
             
             // Auto-equip legendary+ titles
             if (title.rarity === 'legendary' || title.rarity === 'mythic') {
-                playerTitles.activeTitles = [titleId]; // Clear others and set this one
-                playerTitles.displayTitle = titleId;
+                playerTitles.activeTitles = [title.id]; // Use title.id (lowercase)
+                playerTitles.displayTitle = title.id; // Use title.id (lowercase)
             }
             
             await playerTitles.save();
@@ -706,22 +746,22 @@ async function equipTitle(playerId, titleId, member = null) {
             
             if (shouldHaveTitle) {
                 console.log(`[TITLES] Player meets requirements, auto-granting title ${titleId}`);
-                playerTitles.addTitle(titleId);
-                playerTitles.activeTitles = [titleId];
-                playerTitles.displayTitle = titleId;
+                playerTitles.addTitle(titleDefinition.id); // Use title.id (lowercase)
+                playerTitles.activeTitles = [titleDefinition.id]; // Use title.id (lowercase)
+                playerTitles.displayTitle = titleDefinition.id; // Use title.id (lowercase)
                 await playerTitles.save();
                 
                 // Continue with role assignment
                 if (member) {
                     try {
                         const { equipTitleRole } = require('./titleRoleManager');
-                        const roleResult = await equipTitleRole(member, titleId);
+                        const roleResult = await equipTitleRole(member, titleDefinition.id);
                         
                         if (roleResult.success && roleResult.role) {
                             playerTitles.discordRoles = [{
                                 roleId: roleResult.role.id,
                                 roleName: roleResult.role.name,
-                                titleId: titleId,
+                                titleId: titleDefinition.id, // Use title.id (lowercase)
                                 assignedAt: new Date()
                             }];
                             await playerTitles.save();
@@ -789,27 +829,42 @@ async function getPlayerTitles(playerId, playerName = 'Unknown', guildId = null)
         
         return {
             available: playerTitles.availableTitles.map(titleData => {
-                // Find title by ID since TITLES uses uppercase keys
-                const titleDefinition = Object.values(TITLES).find(t => t.id === titleData.titleId);
+                // Find title by ID - handle both uppercase keys and lowercase IDs
+                let titleDefinition = Object.values(TITLES).find(t => t.id === titleData.titleId);
+                
+                // If not found by lowercase ID, try uppercase key lookup
+                if (!titleDefinition) {
+                    titleDefinition = TITLES[titleData.titleId];
+                }
+                
                 if (!titleDefinition) {
                     console.warn(`[TITLES] Could not find title definition for ID: ${titleData.titleId}`);
                     return null;
                 }
                 
+                // Use the correct lowercase ID going forward
+                const correctId = titleDefinition.id;
+                
                 return {
-                    id: titleData.titleId,
+                    id: correctId, // Always use the correct lowercase ID
                     ...titleDefinition,
-                    active: playerTitles.activeTitles.includes(titleData.titleId),
+                    active: playerTitles.activeTitles.includes(titleData.titleId) || playerTitles.activeTitles.includes(correctId),
                     unlockedAt: titleData.unlockedAt,
                     timesEquipped: titleData.timesEquipped,
                     lastEquipped: titleData.lastEquipped
                 };
             }).filter(title => title !== null), // Remove any null entries
             display: playerTitles.displayTitle ? (() => {
-                // Find title by ID since TITLES uses uppercase keys
-                const titleData = Object.values(TITLES).find(t => t.id === playerTitles.displayTitle);
+                // Find title by ID - handle both uppercase keys and lowercase IDs
+                let titleData = Object.values(TITLES).find(t => t.id === playerTitles.displayTitle);
+                
+                // If not found by lowercase ID, try uppercase key lookup
+                if (!titleData) {
+                    titleData = TITLES[playerTitles.displayTitle];
+                }
+                
                 return titleData ? {
-                    id: playerTitles.displayTitle,
+                    id: titleData.id || playerTitles.displayTitle, // Use correct ID
                     ...titleData
                 } : null;
             })() : null,
@@ -918,6 +973,72 @@ async function updateMineReached(playerId, mineId, playerName = 'Unknown', guild
     }
 }
 
+/**
+ * Migrate existing uppercase title IDs to lowercase (one-time migration)
+ */
+async function migrateTitleIDs() {
+    try {
+        console.log('[TITLES] Starting title ID migration...');
+        
+        const allPlayerTitles = await PlayerTitles.find({});
+        let migratedCount = 0;
+        
+        for (const playerDoc of allPlayerTitles) {
+            let needsUpdate = false;
+            
+            // Migrate available titles
+            for (const titleData of playerDoc.availableTitles) {
+                const titleDefinition = TITLES[titleData.titleId]; // Check if it's an uppercase key
+                if (titleDefinition && titleDefinition.id !== titleData.titleId) {
+                    console.log(`[TITLES] Migrating ${titleData.titleId} -> ${titleDefinition.id} for player ${playerDoc.playerId}`);
+                    titleData.titleId = titleDefinition.id; // Convert to lowercase
+                    needsUpdate = true;
+                }
+            }
+            
+            // Migrate active titles
+            for (let i = 0; i < playerDoc.activeTitles.length; i++) {
+                const titleId = playerDoc.activeTitles[i];
+                const titleDefinition = TITLES[titleId]; // Check if it's an uppercase key
+                if (titleDefinition && titleDefinition.id !== titleId) {
+                    playerDoc.activeTitles[i] = titleDefinition.id; // Convert to lowercase
+                    needsUpdate = true;
+                }
+            }
+            
+            // Migrate display title
+            if (playerDoc.displayTitle) {
+                const titleDefinition = TITLES[playerDoc.displayTitle]; // Check if it's an uppercase key
+                if (titleDefinition && titleDefinition.id !== playerDoc.displayTitle) {
+                    playerDoc.displayTitle = titleDefinition.id; // Convert to lowercase
+                    needsUpdate = true;
+                }
+            }
+            
+            // Migrate Discord roles
+            for (const roleData of playerDoc.discordRoles) {
+                const titleDefinition = TITLES[roleData.titleId]; // Check if it's an uppercase key
+                if (titleDefinition && titleDefinition.id !== roleData.titleId) {
+                    roleData.titleId = titleDefinition.id; // Convert to lowercase
+                    needsUpdate = true;
+                }
+            }
+            
+            if (needsUpdate) {
+                await playerDoc.save();
+                migratedCount++;
+            }
+        }
+        
+        console.log(`[TITLES] Migration complete: ${migratedCount} players updated`);
+        return migratedCount;
+        
+    } catch (error) {
+        console.error('[TITLES] Error during migration:', error);
+        return 0;
+    }
+}
+
 module.exports = {
     TITLES,
     ACHIEVEMENTS,
@@ -932,5 +1053,6 @@ module.exports = {
     getPlayerTitles,
     getTitleBenefits,
     updateEquippedUniqueItems,
-    updateMineReached
+    updateMineReached,
+    migrateTitleIDs
 };

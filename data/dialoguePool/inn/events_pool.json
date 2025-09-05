@@ -2,7 +2,7 @@
   "system": "inn",
   "category": "events",
   "version": "1.0",
-  "savedAt": 1757103722346,
+  "savedAt": 1757105510399,
   "pools": {
     "60cf0ec24138": [
       {
@@ -880,6 +880,38 @@
           "businessLevel": "slow",
           "innType": "default",
           "createdAt": 1757103722346,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "52ad8c2deb724156",
+        "dialogue": "Innkeeper rearranges lobby furniture for the third time that day.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757105454647,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "776ea691bb4e5ebc",
+        "dialogue": "Innkeeper polishes glassware while humming a tune, hoping for customers to appear soon.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757105510399,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",

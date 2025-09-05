@@ -106,6 +106,18 @@ const TITLE_ROLE_CONFIGS = {
         name: '🦕 Witness of the Origin',
         color: '#654321', // Brown
         position: 10
+    },
+    
+    // Special Unique Mine Titles
+    'gullet_survivor': {
+        name: '😈 Survivor of the Gullet',
+        color: '#8B0000', // Dark Red
+        position: 11 // Highest position for mythic titles
+    },
+    'abyssal_voidwalker': {
+        name: '💀 Abyssal Voidwalker',
+        color: '#000000', // Pure Black
+        position: 11 // Highest position for mythic titles
     }
 };
 
