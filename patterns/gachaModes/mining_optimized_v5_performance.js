@@ -1462,10 +1462,25 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
                 console.log(`[LONG BREAK] No rails found, moving ${members.size} players to entrance`);
             }
             
+            // Send prominent long break announcement FIRST
+            const { EmbedBuilder } = require('discord.js');
+            const longBreakEmbed = new EmbedBuilder()
+                .setTitle('🎪 LONG BREAK STARTED!')
+                .setDescription('**The mine is closing for an extended break!**')
+                .setColor('Purple')
+                .addFields(
+                    { name: '⏰ Duration', value: `${Math.floor(LONG_BREAK_DURATION / 60000)} minutes`, inline: true },
+                    { name: '🎯 Activities', value: 'Special events, shop access, social time', inline: true },
+                    { name: '🔄 Next Mining', value: `<t:${Math.floor((now + LONG_BREAK_DURATION) / 1000)}:R>`, inline: true }
+                )
+                .setTimestamp();
+                
+            await channel.send({ embeds: [longBreakEmbed] });
+            
             const eventResult = await selectedEvent(channel, updatedDbEntry);
             
             const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
-            await logEvent(channel, `🎪 LONG BREAK: ${eventResult || 'Event started'}`, true, {
+            await logEvent(channel, `🎪 LONG BREAK EVENT: ${eventResult || 'Event started'}`, true, {
                 level: powerLevel,
                 name: powerLevelConfig?.name || 'Unknown Miner',
                 specialBonus: `Power Level ${powerLevel} Event`
