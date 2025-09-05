@@ -108,6 +108,10 @@ module.exports = {
             emoji: '🚫'
         });
 
+        // Track used values to prevent duplicates
+        const usedValues = new Set();
+        usedValues.add(`${user.id}|${interaction.guild?.id || 'unknown'}|unequip|${page}`);
+        
         // Add titles for this page
         titlesOnPage.forEach(title => {
             // Add null checking for all title properties
@@ -115,6 +119,16 @@ module.exports = {
                 console.warn('[TITLES] Skipping invalid title:', title);
                 return;
             }
+            
+            // Create unique value
+            const value = `${user.id}|${interaction.guild?.id || 'unknown'}|${title.id}|${page}`;
+            
+            // Skip if value already exists (prevents duplicates)
+            if (usedValues.has(value)) {
+                console.warn(`[TITLES] Skipping duplicate title value: ${title.id}`);
+                return;
+            }
+            usedValues.add(value);
             
             const rarityEmoji = {
                 'mythic': '🌟',
@@ -137,10 +151,24 @@ module.exports = {
             selectOptions.push({
                 label: `${emoji} ${title.name}${activeIndicator}`,
                 description: `${rarityEmoji[rarity] || '🤍'} ${rarity} - ${description}`,
-                value: `${user.id}|${interaction.guild?.id || 'unknown'}|${title.id}|${page}`,
+                value: value,
                 emoji: emoji
             });
         });
+
+        // Ensure we have valid options and don't exceed Discord's 25 option limit
+        if (selectOptions.length === 0) {
+            selectOptions.push({
+                label: '🚫 No Titles Available',
+                description: 'No titles to display on this page',
+                value: `${user.id}|${interaction.guild?.id || 'unknown'}|none|${page}`,
+                emoji: '🚫'
+            });
+        } else if (selectOptions.length > 25) {
+            // Trim to 25 options (Discord limit)
+            selectOptions.splice(25);
+            console.warn(`[TITLES] Trimmed select options to 25 for Discord limit`);
+        }
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('titles_equip_select')

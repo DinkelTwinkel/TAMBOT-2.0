@@ -827,33 +827,47 @@ async function getPlayerTitles(playerId, playerName = 'Unknown', guildId = null)
         const playerTitles = await getOrCreatePlayerTitles(playerId, playerName, guildId);
         if (!playerTitles) return { available: [], display: null, achievements: [] };
         
-        return {
-            available: playerTitles.availableTitles.map(titleData => {
-                // Find title by ID - handle both uppercase keys and lowercase IDs
-                let titleDefinition = Object.values(TITLES).find(t => t.id === titleData.titleId);
-                
-                // If not found by lowercase ID, try uppercase key lookup
-                if (!titleDefinition) {
-                    titleDefinition = TITLES[titleData.titleId];
-                }
-                
-                if (!titleDefinition) {
-                    console.warn(`[TITLES] Could not find title definition for ID: ${titleData.titleId}`);
-                    return null;
-                }
-                
-                // Use the correct lowercase ID going forward
-                const correctId = titleDefinition.id;
-                
-                return {
+        // Process and deduplicate titles
+        const titleMap = new Map(); // Use Map to deduplicate by ID
+        
+        for (const titleData of playerTitles.availableTitles) {
+            // Find title by ID - handle both uppercase keys and lowercase IDs
+            let titleDefinition = Object.values(TITLES).find(t => t.id === titleData.titleId);
+            
+            // If not found by lowercase ID, try uppercase key lookup
+            if (!titleDefinition) {
+                titleDefinition = TITLES[titleData.titleId];
+            }
+            
+            if (!titleDefinition) {
+                console.warn(`[TITLES] Could not find title definition for ID: ${titleData.titleId}`);
+                continue;
+            }
+            
+            // Use the correct lowercase ID as the key for deduplication
+            const correctId = titleDefinition.id;
+            
+            // Only keep the entry if it's not already in the map, or if this one is newer
+            const existing = titleMap.get(correctId);
+            if (!existing || (titleData.unlockedAt && titleData.unlockedAt > existing.unlockedAt)) {
+                titleMap.set(correctId, {
                     id: correctId, // Always use the correct lowercase ID
                     ...titleDefinition,
                     active: playerTitles.activeTitles.includes(titleData.titleId) || playerTitles.activeTitles.includes(correctId),
                     unlockedAt: titleData.unlockedAt,
-                    timesEquipped: titleData.timesEquipped,
+                    timesEquipped: titleData.timesEquipped || 0,
                     lastEquipped: titleData.lastEquipped
-                };
-            }).filter(title => title !== null), // Remove any null entries
+                });
+                
+                // Log deduplication
+                if (existing) {
+                    console.log(`[TITLES] Deduplicated title ${correctId} for player ${playerId}`);
+                }
+            }
+        }
+        
+        return {
+            available: Array.from(titleMap.values()), // Convert Map back to array
             display: playerTitles.displayTitle ? (() => {
                 // Find title by ID - handle both uppercase keys and lowercase IDs
                 let titleData = Object.values(TITLES).find(t => t.id === playerTitles.displayTitle);

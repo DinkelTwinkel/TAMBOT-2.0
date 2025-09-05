@@ -88,7 +88,7 @@ module.exports = {
       if (totalArmorReduction > 0 && bestArmor) {
         const armorPercentage = Math.round(totalArmorReduction * 100);
         const durabilityPercentage = Math.round((bestArmor.currentDurability || bestArmor.itemData.durability) / bestArmor.itemData.durability * 100);
-        const durabilityBar = createDurabilityBar(durabilityPercentage);
+        const durabilityBar = getDurabilityBar(durabilityPercentage);
         
         embed.addFields({
           name: '🛡️ Armor Protection',
@@ -109,12 +109,13 @@ module.exports = {
           // Format stats with actual power shown (for unique items with maintenance scaling)
           const statsStr = item.abilities
             .map(a => {
-              const sign = a.power >= 0 ? '+' : '';
+              const power = a.power || a.powerlevel || 0;
+              const sign = power >= 0 ? '+' : '';
               // Show base power in parentheses if it's scaled down
-              if (item.isUnique && a.basePower && a.power !== a.basePower) {
-                return `${a.name} ${sign}${a.power} (${a.basePower})`;
+              if (item.isUnique && a.basePower && power !== a.basePower) {
+                return `${a.name} ${sign}${power} (${a.basePower})`;
               }
-              return `${a.name} ${sign}${a.power}`;
+              return `${a.name} ${sign}${power}`;
             })
             .join(', ');
           
@@ -147,12 +148,14 @@ module.exports = {
               itemDisplay = `• ${itemName} **(${statsStr})**\n  ${durabilityBar} ${currentDurability}/${maxDurability} (${durabilityPercent}%)`;
             } else {
               // Multiple stats - show first inline, rest with └
-              const primarySign = item.abilities[0].power >= 0 ? '+' : '';
-              const primaryStat = `${item.abilities[0].name} ${primarySign}${item.abilities[0].power}`;
+              const primaryPower = item.abilities[0].power || item.abilities[0].powerlevel || 0;
+              const primarySign = primaryPower >= 0 ? '+' : '';
+              const primaryStat = `${item.abilities[0].name} ${primarySign}${primaryPower}`;
               const additionalStats = item.abilities.slice(1)
                 .map(a => {
-                  const sign = a.power >= 0 ? '+' : '';
-                  return `${a.name} ${sign}${a.power}`;
+                  const power = a.power || a.powerlevel || 0;
+                  const sign = power >= 0 ? '+' : '';
+                  return `${a.name} ${sign}${power}`;
                 })
                 .join(', ');
               

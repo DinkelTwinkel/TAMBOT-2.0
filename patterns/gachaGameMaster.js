@@ -492,12 +492,51 @@ async function processItemMaintenance(item, itemData) {
         const oldLevel = item.maintenanceLevel;
         if (shouldDecay) {
             const decayRate = itemData.maintenanceDecayRate || 1;
-            await item.reduceMaintenance(decayRate);
+            
+            // Check if item has the reduceMaintenance method
+            if (typeof item.reduceMaintenance === 'function') {
+                await item.reduceMaintenance(decayRate);
+            } else {
+                // Fallback: manually reduce maintenance
+                item.maintenanceLevel = Math.max(0, item.maintenanceLevel - decayRate);
+                
+                // If maintenance hits 0, handle ownership loss
+                if (item.maintenanceLevel <= 0 && item.ownerId) {
+                    console.log(`[UNIQUE ITEMS] ${itemData.name} lost due to maintenance failure`);
+                    
+                    // Add to previous owners if the field exists
+                    if (item.previousOwners) {
+                        item.previousOwners.push({
+                            userId: item.ownerId,
+                            userTag: item.ownerTag,
+                            acquiredDate: item.createdAt,
+                            lostDate: new Date(),
+                            lostReason: 'maintenance_failure'
+                        });
+                    }
+                    
+                    // Update statistics if they exist
+                    if (item.statistics) {
+                        item.statistics.timesLostToMaintenance++;
+                    }
+                    
+                    // Remove current owner
+                    item.ownerId = null;
+                    item.ownerTag = null;
+                    item.maintenanceLevel = 10; // Reset for next owner
+                }
+            }
         }
         
         // Set next maintenance check for 24 hours later
         item.nextMaintenanceCheck = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        await item.save();
+        
+        // Save with error handling
+        if (typeof item.save === 'function') {
+            await item.save();
+        } else {
+            console.warn(`[UNIQUE ITEMS] Item ${item.itemId} does not have save method, skipping save`);
+        }
         
         console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance ${oldLevel} -> ${item.maintenanceLevel} (Owner: ${item.ownerTag || 'None'})`);
         
