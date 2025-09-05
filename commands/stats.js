@@ -96,7 +96,7 @@ module.exports = {
         
         embed.addFields({
           name: '🛡️ Armor Protection',
-          value: `${armorPercentage}% damage reduction (${totalArmorPoints} total armor points)\n${durabilityBar} ${durabilityPercentage}% durability`,
+          value: `${armorPercentage}% damage reduction (${totalArmorPoints} total armor points)`,
           inline: false
         });
       }
