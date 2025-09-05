@@ -23,8 +23,8 @@ module.exports = {
     await interaction.deferReply();
 
     try {
-      // Get player stats and equipped items
-      const { stats, equippedItems } = await getPlayerStats(target.id);
+      // Get player stats and equipped items (including armor data)
+      const { stats, equippedItems, totalArmorReduction, bestArmor } = await getPlayerStats(target.id);
       
       // Get active buffs for display
       const buffDoc = await PlayerBuffs.findOne({ playerId: target.id });
@@ -80,6 +80,19 @@ module.exports = {
         embed.addFields({
           name: 'Total Power',
           value: '*No stats yet - visit the shop to get started!*',
+          inline: false
+        });
+      }
+
+      // Add armor protection display
+      if (totalArmorReduction > 0 && bestArmor) {
+        const armorPercentage = Math.round(totalArmorReduction * 100);
+        const durabilityPercentage = Math.round((bestArmor.currentDurability || bestArmor.itemData.durability) / bestArmor.itemData.durability * 100);
+        const durabilityBar = createDurabilityBar(durabilityPercentage);
+        
+        embed.addFields({
+          name: '🛡️ Armor Protection',
+          value: `**${bestArmor.itemData.name}** - ${armorPercentage}% damage reduction\n${durabilityBar} ${durabilityPercentage}% durability`,
           inline: false
         });
       }

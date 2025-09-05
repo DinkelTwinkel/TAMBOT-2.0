@@ -1438,7 +1438,7 @@
     "type": "equipment",
     "slot": "armor",
     "description": "Basic leather protection against mining hazards. Reduces damage from cave-ins and minor explosions.",
-    "value": 150,
+    "value": 500,
     "vendable": true,
     "abilities": [
       { "name": "armor", "powerlevel": 1 }
@@ -1454,7 +1454,7 @@
     "type": "equipment",
     "slot": "armor",
     "description": "Sturdy iron plates protect vital areas from hazard damage. Standard protection for serious miners.",
-    "value": 400,
+    "value": 1200,
     "vendable": true,
     "abilities": [
       { "name": "armor", "powerlevel": 2 },
@@ -1471,7 +1471,7 @@
     "type": "equipment", 
     "slot": "armor",
     "description": "Advanced steel armor with reinforced joints. Provides excellent protection against explosions and toxic gases.",
-    "value": 800,
+    "value": 2500,
     "vendable": true,
     "abilities": [
       { "name": "armor", "powerlevel": 3 },
@@ -1489,7 +1489,7 @@
     "type": "equipment",
     "slot": "armor", 
     "description": "Legendary mythril armor that shimmers with protective enchantments. Reduces damage from all hazards significantly.",
-    "value": 2000,
+    "value": 6000,
     "vendable": true,
     "abilities": [
       { "name": "armor", "powerlevel": 4 },
@@ -1508,7 +1508,7 @@
     "type": "equipment",
     "slot": "armor",
     "description": "The ultimate protection forged from void-touched adamantine. Nearly impervious to all mining hazards.",
-    "value": 5000,
+    "value": 15000,
     "vendable": true,
     "abilities": [
       { "name": "armor", "powerlevel": 5 },

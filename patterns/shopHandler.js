@@ -142,6 +142,25 @@ class ShopHandler {
         shopConfigCache.clear();
         console.log(`[SHOP] Cleared caches for guild ${this.guildId}`);
     }
+    
+    async announcePurchase(channel, member, item, quantity, price) {
+        try {
+            // Check if this is an inn channel
+            const gachaVC = require('../models/activevcs');
+            const channelData = await gachaVC.findOne({ channelId: channel.id }).lean();
+            
+            // Only announce in non-inn channels
+            if (!channelData || channelData.gameData?.gamemode !== 'innkeeper') {
+                const quantityText = quantity > 1 ? `${quantity}x ` : '';
+                const announcement = `🛒 **${member.displayName}** purchased ${quantityText}**${item.name}** for ${price * quantity} coins!`;
+                
+                await channel.send(announcement);
+                console.log(`[SHOP] Announced purchase in channel ${channel.id}: ${member.displayName} bought ${item.name}`);
+            }
+        } catch (error) {
+            console.error('[SHOP] Error announcing purchase:', error);
+        }
+    }
 
     // Optimized helper function with caching
     async getShopFluctuatedPrices(channelId, guildId) {
@@ -552,6 +571,9 @@ class ShopHandler {
             
             // Track spending for this purchase
             this.trackSpending(userId, totalCost);
+            
+            // Send purchase announcement for non-inn channels
+            await this.announcePurchase(interaction.channel, interaction.member, item, quantity, currentBuyPrice);
             
             // Create enhanced response message
             let responseMessage = `${interaction.member} ✅ Purchased ${quantity} x **${item.name}** for ${totalCost} coins! (${currentBuyPrice}c${priceIndicator} each)`;
