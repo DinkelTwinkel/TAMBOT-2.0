@@ -2,7 +2,7 @@
   "system": "inn",
   "category": "events",
   "version": "1.0",
-  "savedAt": 1757071648348,
+  "savedAt": 1757079555637,
   "pools": {
     "60cf0ec24138": [
       {
@@ -14,6 +14,102 @@
           "businessLevel": "moderate",
           "innType": "default",
           "createdAt": 1757071619361,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "459d6aff9196b6c0",
+        "dialogue": "Innkeeper tidies up common areas and refills refreshment station during quiet afternoon.",
+        "contextKey": "60cf0ec24138",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "moderate",
+          "innType": "default",
+          "createdAt": 1757073250871,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "f60939cb8a74cfca",
+        "dialogue": "The innkeeper surveys the lobby, noting several guests reading by the fireplace.",
+        "contextKey": "60cf0ec24138",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "moderate",
+          "innType": "default",
+          "createdAt": 1757076378226,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "b85c9ade654d3098",
+        "dialogue": "Innkeeper refills coffee pots and straightens dining room tables during lull in guest check-ins.",
+        "contextKey": "60cf0ec24138",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "moderate",
+          "innType": "default",
+          "createdAt": 1757076519164,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "6039d6c9be9a8f01",
+        "dialogue": "The innkeeper tidies up the common area, straightening furniture and replenishing supplies.",
+        "contextKey": "60cf0ec24138",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "moderate",
+          "innType": "default",
+          "createdAt": 1757077791963,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "07e74beb9e20b766",
+        "dialogue": "Innkeeper restocks breakfast items, checks in new guests on a quiet afternoon.",
+        "contextKey": "60cf0ec24138",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "moderate",
+          "innType": "default",
+          "createdAt": 1757077819744,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "ac2d857fd44d5ae0",
+        "dialogue": "Tidying up the lobby and restocking amenities while keeping an eye on guest arrivals.",
+        "contextKey": "60cf0ec24138",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "moderate",
+          "innType": "default",
+          "createdAt": 1757077936284,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",
@@ -33,6 +129,565 @@
           "innType": "default",
           "luckLevel": "normal",
           "createdAt": 1757071648348,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "9c885244d4497fbf",
+        "dialogue": "Hidden under a velvet cushion in the opulent chaise lounge at Noble's Rest.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757073364551,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "04ef1a48fa67c862",
+        "dialogue": "Hydra discovered the 13 coins nestled amongst the plush cushions of the opulent chaise lounge in Noble's Rest.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757074316019,
+          "usageCount": 1,
+          "lastUsed": 1757079485264,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "da04b2e427ff521d",
+        "dialogue": "Hydra discovered the treasures amongst the opulent cushions of the grand velvet chaise lounge at Noble's Rest.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757074485605,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "505a8723377ecdca",
+        "dialogue": "Hydra discovered the coins resting on a gilded tray in the opulent parlor at Noble's Rest.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757076130979,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "9d31e1a96b5fedbd",
+        "dialogue": "Hydra discovered the coins nestled discreetly within the opulent cushions of a plush chaise lounge.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757076157885,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "5c9730abd96214ad",
+        "dialogue": "In the opulent chandelier-lit foyer, Hydra found 13 gleaming coins scattered amidst velvet cushions and golden accents.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757076214062,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "2e078579a268ace9",
+        "dialogue": "Hydra discovered the 17 coins nestled within the sumptuous cushions of a lavish velvet chaise lounge.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757076862943,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "42e4006a24378e7c",
+        "dialogue": "Discovered amidst the lush velvet cushions of the opulent chaise lounge in Noble's Rest.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757076988723,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "53c278544dd1c8a1",
+        "dialogue": "Hydra discovered three coins nestled in the opulent cushions of Noble's Rest velvet chaise lounge.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757077022743,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "ae0f8dfc581a22ea",
+        "dialogue": "Hydra discovered the six coins nestled within the plush cushions of a regal velvet chaise lounge.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757078560602,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "a81a7f00431c9f40",
+        "dialogue": "Hydra discovered the coins gracefully nestled beneath a plush velvet cushion in the opulent lounge of Noble's Rest.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757078785101,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      }
+    ],
+    "f8d766d81fba": [
+      {
+        "id": "d7c4b6403d56d0fa",
+        "dialogue": "Stasis and Seborn guard a secret interdimensional portal, accessible only with The One Pick.",
+        "contextKey": "f8d766d81fba",
+        "metadata": {
+          "eventType": "rumor",
+          "topic": "general",
+          "innType": "👑 Noble's Rest",
+          "createdAt": 1757072250748,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "6cc53a54bc8f67bf",
+        "dialogue": "Seborn whispers of a portal to a realm where The One Pick reveals hidden truths to those who dare enter.",
+        "contextKey": "f8d766d81fba",
+        "metadata": {
+          "eventType": "rumor",
+          "topic": "general",
+          "innType": "👑 Noble's Rest",
+          "createdAt": 1757074135282,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "f28c7982e4bcdd28",
+        "dialogue": "Rumor has it The One Pick can unlock hidden interdimensional portals, granting unimaginable power and knowledge.",
+        "contextKey": "f8d766d81fba",
+        "metadata": {
+          "eventType": "rumor",
+          "topic": "general",
+          "innType": "👑 Noble's Rest",
+          "createdAt": 1757074336616,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "c9fac8b00413c93a",
+        "dialogue": "They say The One Pick can open portals to other worlds, rumored to hold unimaginable power. Olesm hears whispers.",
+        "contextKey": "f8d766d81fba",
+        "metadata": {
+          "eventType": "rumor",
+          "topic": "general",
+          "innType": "👑 Noble's Rest",
+          "createdAt": 1757075132415,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "5c536628fe73af70",
+        "dialogue": "Elirr whispers of a secret portal to a world of infinite power and danger, guarded by The One Pick.",
+        "contextKey": "f8d766d81fba",
+        "metadata": {
+          "eventType": "rumor",
+          "topic": "general",
+          "innType": "👑 Noble's Rest",
+          "createdAt": 1757076058883,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "21b68420a8693dc5",
+        "dialogue": "Yvlon Byres may know how to open interdimensional portals with The One Pick, hidden in the depths of Hellungi.",
+        "contextKey": "f8d766d81fba",
+        "metadata": {
+          "eventType": "rumor",
+          "topic": "general",
+          "innType": "👑 Noble's Rest",
+          "createdAt": 1757077511344,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "cee2e9e6a9d7a36f",
+        "dialogue": "Rumor has it The One Pick opens interdimensional portals when used with the right [skill] combination.",
+        "contextKey": "f8d766d81fba",
+        "metadata": {
+          "eventType": "rumor",
+          "topic": "general",
+          "innType": "👑 Noble's Rest",
+          "createdAt": 1757078393356,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "6010fec6d6f2aeb6",
+        "dialogue": "Whisper, hear of portals to unknown worlds only accessible by The One Pick, hidden in plain sight.",
+        "contextKey": "f8d766d81fba",
+        "metadata": {
+          "eventType": "rumor",
+          "topic": "general",
+          "innType": "👑 Noble's Rest",
+          "createdAt": 1757079555637,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      }
+    ],
+    "c871ed07409b": [
+      {
+        "id": "ed1223374f89ccf6",
+        "dialogue": "Innkeeper polishes glasses, rearranges furniture, and tidies up lobby during quiet afternoon.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757072334442,
+          "usageCount": 1,
+          "lastUsed": 1757078167144,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "2995a2556db31657",
+        "dialogue": "Innkeeper dusts off shelves and rearranges lobby decorations to pass the time.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757072517832,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "ae3f4d9a2a14952f",
+        "dialogue": "Innkeeper rearranges lobby furniture for a more welcoming atmosphere.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757073285741,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "e6a93724105abbfe",
+        "dialogue": "Innkeeper straightens empty chairs and wipes down tables in the empty dining room.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757074191018,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "3455c6281d7b198c",
+        "dialogue": "Checking inventory and organizing supplies in the kitchen and bar area.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757074393230,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "8b314d11a499ae57",
+        "dialogue": "Innkeeper tidies up common areas, checks inventory, and updates marketing materials during slow period.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757075201319,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "959830e6b717363e",
+        "dialogue": "Counts the money in the till for the third time that hour.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757075718984,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "7bac986734f0ef94",
+        "dialogue": "Innkeeper wipes down barstools and rearranges menu display during slow business period.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757076256110,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "dd30d14519327982",
+        "dialogue": "Innkeeper rearranges lobby furniture to pass time during quiet evening.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757076660613,
+          "usageCount": 1,
+          "lastUsed": 1757078118007,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "7cec24a073e54e38",
+        "dialogue": "Checking inventory levels and updating guest rooms during downtime.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757076692880,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "359414f09d7df744",
+        "dialogue": "Innkeeper cleans lobby for the third time, hoping for a guest to arrive soon.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757076981211,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "287f22c35df6790f",
+        "dialogue": "Innkeeper polishes the same spot on the front desk for the third time.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757078301986,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "e8db415a666aa8c1",
+        "dialogue": "Innkeeper rearranges lobby furniture to pass the time during slow business hours.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757078749646,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "986fece8a9457f46",
+        "dialogue": "Innkeeper polishes glasses, staring out windows at empty streets during slow business period.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757078889668,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "cec1e4dadbf49bb4",
+        "dialogue": "Innkeeper polishes silverware while gazing out at empty dining room.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757079366315,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",

@@ -2748,6 +2748,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     
     let bestPickaxe = null;
     let isUniquePickaxe = false;
+    let pickaxeBroken = false; // Track if pickaxe has been broken in this cycle
     try {
         for (const [key, item] of Object.entries(playerData?.equippedItems || {})) {
             if (!item || item.type !== 'tool' || item.slot !== 'mining') continue;
@@ -2895,19 +2896,26 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                                 }
                             }
                         } else {
-                            const durabilityCheck = checkPickaxeBreak(bestPickaxe, tile.hardness);
-                            if (durabilityCheck.shouldBreak) {
-                                transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
-                                eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered!`);
-                            } else {
-                                transaction.updatePickaxeDurability(member.id, bestPickaxe.itemId, durabilityCheck.newDurability);
-                                
-                                const maxDurability = bestPickaxe.durability || 100;
-                                const durabilityPercent = (durabilityCheck.newDurability / maxDurability) * 100;
-                                
-                                if (durabilityPercent <= 10) {
-                                    findMessage += ` ⚠️ [${bestPickaxe.name}: ${durabilityCheck.newDurability}/${maxDurability}]`;
+                            // Only check pickaxe durability if it hasn't been broken yet in this cycle
+                            if (!pickaxeBroken) {
+                                const durabilityCheck = checkPickaxeBreak(bestPickaxe, tile.hardness);
+                                if (durabilityCheck.shouldBreak) {
+                                    console.log(`[PICKAXE BREAK] ${member.displayName}'s ${bestPickaxe.name} (ID: ${bestPickaxe.itemId}) is breaking!`);
+                                    transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
+                                    eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered!`);
+                                    pickaxeBroken = true; // Mark pickaxe as broken to prevent multiple breaks
+                                } else {
+                                    transaction.updatePickaxeDurability(member.id, bestPickaxe.itemId, durabilityCheck.newDurability);
+                                    
+                                    const maxDurability = bestPickaxe.durability || 100;
+                                    const durabilityPercent = (durabilityCheck.newDurability / maxDurability) * 100;
+                                    
+                                    if (durabilityPercent <= 10) {
+                                        findMessage += ` ⚠️ [${bestPickaxe.name}: ${durabilityCheck.newDurability}/${maxDurability}]`;
+                                    }
                                 }
+                            } else {
+                                console.log(`[PICKAXE BREAK] Skipping durability check for ${member.displayName} - pickaxe already broken this cycle`);
                             }
                         }
                     }

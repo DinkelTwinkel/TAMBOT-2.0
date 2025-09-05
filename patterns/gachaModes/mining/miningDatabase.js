@@ -538,6 +538,13 @@ async function breakPickaxe(playerId, playerTag, pickaxe) {
             currentDurability: item.currentDurability
         })));
         
+        // Check if there are multiple pickaxes with the same ID
+        const pickaxesWithSameId = inventory.items.filter(item => String(item.itemId) === String(pickaxeId));
+        if (pickaxesWithSameId.length > 1) {
+            console.warn(`WARNING: Found ${pickaxesWithSameId.length} pickaxes with ID ${pickaxeId}! This could cause multiple breaks.`);
+            console.warn('Pickaxes with same ID:', pickaxesWithSameId);
+        }
+        
         // Find the specific item - check multiple field names and string conversions
         const itemIndex = inventory.items.findIndex(item => {
             const itemIdStr = String(item.itemId || item.id || '');
