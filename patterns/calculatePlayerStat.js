@@ -329,34 +329,36 @@ async function getPlayerStats(playerId) {
         for (const armorItem of armorItems) {
             const itemData = itemSheet.find(i => i.id === armorItem.itemId);
             if (itemData) {
-                // Calculate total armor points
-                let armorPoints = 0;
+                // Calculate armor stat points (for display in Total Power)
+                let armorStatPoints = 0;
                 if (itemData.abilities) {
                     for (const ability of itemData.abilities) {
                         if (ability.name === 'armor') {
-                            armorPoints += ability.powerlevel || 0;
+                            armorStatPoints += ability.powerlevel || 0;
                         }
                     }
                 }
                 
-                // Convert base armor reduction to armor points (legacy support)
+                // Calculate total effective armor points (for damage reduction calculation)
+                let totalEffectivePoints = armorStatPoints;
                 if (itemData.armorReduction) {
-                    armorPoints += Math.floor(itemData.armorReduction * 100); // Convert 0.70 -> 70 points
+                    totalEffectivePoints += Math.floor(itemData.armorReduction * 100); // Convert 0.70 -> 70 points
                 }
                 
-                if (armorPoints > bestArmorPoints) {
-                    bestArmorPoints = armorPoints;
+                if (totalEffectivePoints > bestArmorPoints) {
+                    bestArmorPoints = totalEffectivePoints;
                     bestArmor = {
                         ...armorItem,
                         itemData: itemData,
-                        armorPoints: armorPoints
+                        armorStatPoints: armorStatPoints,
+                        totalEffectivePoints: totalEffectivePoints
                     };
                 }
             }
         }
         
         if (bestArmor) {
-            totalArmorPoints = bestArmor.armorPoints;
+            totalArmorPoints = bestArmor.totalEffectivePoints; // For damage reduction calculation
             
             // Add armor to equipped items
             equippedItems[bestArmor.itemId] = {
@@ -368,11 +370,12 @@ async function getPlayerStats(playerId) {
                 durability: bestArmor.itemData.durability || 100,
                 currentDurability: bestArmor.currentDurability || bestArmor.itemData.durability || 100,
                 inventoryQuantity: bestArmor.quantity,
-                armorPoints: totalArmorPoints
+                armorStatPoints: bestArmor.armorStatPoints,
+                totalEffectivePoints: bestArmor.totalEffectivePoints
             };
             
-            // Add armor stat as points
-            playerStats.armor = totalArmorPoints;
+            // Add armor stat as ONLY the stat points (not including legacy armorReduction)
+            playerStats.armor = bestArmor.armorStatPoints;
         }
     }
 
