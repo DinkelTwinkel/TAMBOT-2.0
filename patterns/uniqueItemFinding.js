@@ -61,7 +61,7 @@ async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activi
             // Use the Midas drop chance calculation directly for check frequency
             // This makes wealthy players check for Midas Burden much more often
             const { calculateMidasDropChance } = require('./conditionalUniqueItems');
-            const checkChance = calculateMidasDropChance(playerWealth) * 0.01; // Scale down to reasonable check rate
+            const checkChance = calculateMidasDropChance(playerWealth) * 0.11; // Scale down to reasonable check rate (targeting 1 in 1000 at 1M wealth)
             
             if (Math.random() < checkChance) {
                 const conditionalItems = [10]; // Midas' Burden

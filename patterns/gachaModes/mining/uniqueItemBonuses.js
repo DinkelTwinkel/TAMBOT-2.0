@@ -26,6 +26,43 @@ function parseUniqueItemBonuses(equippedItems) {
         teamMiningBonus: 0,
         chainMiningChance: 0,
         
+        // New unique item abilities
+        fireResistance: 0,
+        electricResistance: 0,
+        darkPower: 0,
+        lightPower: 0,
+        cosmicPower: 0,
+        stormPower: 0,
+        volcanicPower: 0,
+        lifePower: 0,
+        naturePower: 0,
+        ancientWisdom: 0,
+        primordialPower: 0,
+        crystalPower: 0,
+        divination: 0,
+        ironMastery: 0,
+        copperMastery: 0,
+        coalMastery: 0,
+        solarMastery: 0,
+        diamondMastery: 0,
+        adamantineMastery: 0,
+        voidMastery: 0,
+        shadowLegion: 0,
+        collectiveFortune: 0,
+        soulDrain: 0,
+        leadership: 0,
+        memory: 0,
+        stealth: 0,
+        defense: 0,
+        strength: 0,
+        vitality: 0,
+        resistance: 0,
+        electricPower: 0,
+        greed: 0,
+        curse: 0,
+        sanity: 0,
+        speed: 0,
+        
         // Track which unique items are equipped
         uniqueItems: [],
         
@@ -148,6 +185,87 @@ function parseUniqueItemBonuses(equippedItems) {
                 // Note: The soul drain penalty is applied in calculatePlayerStat
                 // Note: Clone management happens in the main mining loop
                 break;
+                
+            case 12: // Coal King's Crown
+                bonuses.coalMastery += 0.8 * maintenanceRatio; // 80% coal mastery
+                bonuses.darkPower += 0.6 * maintenanceRatio; // 60% dark power
+                bonuses.sightThroughWalls += 5 * maintenanceRatio; // See through coal walls
+                bonuses.hazardResistance += 0.3 * maintenanceRatio; // 30% hazard resistance
+                break;
+                
+            case 13: // Solar Forge Hammer
+                bonuses.solarMastery += 0.55 * maintenanceRatio; // 55% solar mastery
+                bonuses.lightPower += 0.7 * maintenanceRatio; // 70% light power
+                bonuses.chainMiningChance += 0.25 * maintenanceRatio; // 25% chain mining
+                bonuses.movementSpeedBonus += 0.1 * maintenanceRatio; // 10% speed bonus
+                break;
+                
+            case 14: // Diamond Heart
+                bonuses.diamondMastery += 0.75 * maintenanceRatio; // 75% diamond mastery
+                bonuses.resistance += 0.9 * maintenanceRatio; // 90% resistance
+                bonuses.hazardResistance += 0.5 * maintenanceRatio; // 50% hazard resistance
+                bonuses.lootMultiplier *= (1 + 0.3 * maintenanceRatio); // 30% loot multiplier
+                break;
+                
+            case 15: // World Tree Branch
+                bonuses.natureMastery += 0.65 * maintenanceRatio; // 65% nature mastery
+                bonuses.lifePower += 0.8 * maintenanceRatio; // 80% life power
+                bonuses.phaseWalkChance += 0.15 * maintenanceRatio; // 15% phase through walls
+                bonuses.movementSpeedBonus += 0.2 * maintenanceRatio; // 20% speed bonus
+                break;
+                
+            case 16: // Volcanic Core
+                bonuses.volcanicMastery += 0.7 * maintenanceRatio; // 70% volcanic mastery
+                bonuses.firePower += 0.95 * maintenanceRatio; // 95% fire power
+                bonuses.fireResistance += 1.0 * maintenanceRatio; // Complete fire immunity
+                bonuses.areaDamageChance += 0.4 * maintenanceRatio; // 40% area damage
+                break;
+                
+            case 17: // Cosmic Void Crystal
+                bonuses.voidMastery += 0.9 * maintenanceRatio; // 90% void mastery
+                bonuses.cosmicPower += 0.85 * maintenanceRatio; // 85% cosmic power
+                bonuses.phaseWalkChance += 0.2 * maintenanceRatio; // 20% phase through walls
+                bonuses.dodgeChance += 0.25 * maintenanceRatio; // 25% dodge chance
+                break;
+                
+            case 18: // Adamantine Storm
+                bonuses.adamantineMastery += 0.95 * maintenanceRatio; // 95% adamantine mastery
+                bonuses.stormPower += 0.85 * maintenanceRatio; // 85% storm power
+                bonuses.chainMiningChance += 0.5 * maintenanceRatio; // 50% chain mining
+                bonuses.electricResistance += 1.0 * maintenanceRatio; // Complete electric immunity
+                break;
+                
+            case 19: // Iron Lord's Gauntlets
+                bonuses.ironMastery += 0.7 * maintenanceRatio; // 70% iron mastery
+                bonuses.strength += 0.8 * maintenanceRatio; // 80% strength
+                bonuses.hazardResistance += 0.4 * maintenanceRatio; // 40% hazard resistance
+                bonuses.durabilityDamageReduction += 0.5 * maintenanceRatio; // 50% less durability damage
+                break;
+                
+            case 20: // Crystal Seer's Orb
+                bonuses.crystalPower += 0.75 * maintenanceRatio; // 75% crystal power
+                bonuses.divination += 0.85 * maintenanceRatio; // 85% divination
+                bonuses.sightThroughWalls += 10 * maintenanceRatio; // See entire map
+                bonuses.lootMultiplier *= (1 + 0.5 * maintenanceRatio); // 50% loot multiplier
+                break;
+                
+            case 21: // Primordial Fossil
+                bonuses.primordialPower += 0.8 * maintenanceRatio; // 80% primordial power
+                bonuses.ancientWisdom += 0.9 * maintenanceRatio; // 90% ancient wisdom
+                bonuses.movementSpeedBonus += 0.25 * maintenanceRatio; // 25% speed bonus
+                bonuses.hazardResistance += 0.3 * maintenanceRatio; // 30% hazard resistance
+                break;
+                
+            case 22: // Copper Conductor
+                bonuses.copperMastery += 0.6 * maintenanceRatio; // 60% copper mastery
+                bonuses.electricPower += 0.7 * maintenanceRatio; // 70% electric power
+                bonuses.chainMiningChance += 0.3 * maintenanceRatio; // 30% chain mining
+                bonuses.electricResistance += 1.0 * maintenanceRatio; // Complete electric immunity
+                break;
+                
+            default:
+                console.log(`[UNIQUE] Unknown unique item ID: ${itemId}`);
+                break;
         }
     }
     
@@ -159,6 +277,49 @@ function parseUniqueItemBonuses(equippedItems) {
     bonuses.durabilityDamageReduction = Math.min(bonuses.durabilityDamageReduction, 0.9); // Max 90%
     bonuses.chainMiningChance = Math.min(bonuses.chainMiningChance, 1.0); // Max 100%
     bonuses.areaDamageChance = Math.min(bonuses.areaDamageChance, 1.0); // Max 100%
+    bonuses.phaseWalkChance = Math.min(bonuses.phaseWalkChance, 0.5); // Max 50%
+    bonuses.shadowTeleportChance = Math.min(bonuses.shadowTeleportChance, 0.2); // Max 20%
+    bonuses.autoReviveChance = Math.min(bonuses.autoReviveChance, 1.0); // Max 100%
+    bonuses.teamMiningBonus = Math.min(bonuses.teamMiningBonus, 0.5); // Max 50%
+    bonuses.sightThroughWalls = Math.min(bonuses.sightThroughWalls, 20); // Max 20 tiles
+    bonuses.lootMultiplier = Math.min(bonuses.lootMultiplier, 10); // Max 10x multiplier
+    
+    // Cap new ability bonuses
+    bonuses.fireResistance = Math.min(bonuses.fireResistance, 1.0); // Max 100%
+    bonuses.electricResistance = Math.min(bonuses.electricResistance, 1.0); // Max 100%
+    bonuses.darkPower = Math.min(bonuses.darkPower, 1.0); // Max 100%
+    bonuses.lightPower = Math.min(bonuses.lightPower, 1.0); // Max 100%
+    bonuses.cosmicPower = Math.min(bonuses.cosmicPower, 1.0); // Max 100%
+    bonuses.stormPower = Math.min(bonuses.stormPower, 1.0); // Max 100%
+    bonuses.volcanicPower = Math.min(bonuses.volcanicPower, 1.0); // Max 100%
+    bonuses.lifePower = Math.min(bonuses.lifePower, 1.0); // Max 100%
+    bonuses.naturePower = Math.min(bonuses.naturePower, 1.0); // Max 100%
+    bonuses.ancientWisdom = Math.min(bonuses.ancientWisdom, 1.0); // Max 100%
+    bonuses.primordialPower = Math.min(bonuses.primordialPower, 1.0); // Max 100%
+    bonuses.crystalPower = Math.min(bonuses.crystalPower, 1.0); // Max 100%
+    bonuses.divination = Math.min(bonuses.divination, 1.0); // Max 100%
+    bonuses.ironMastery = Math.min(bonuses.ironMastery, 1.0); // Max 100%
+    bonuses.copperMastery = Math.min(bonuses.copperMastery, 1.0); // Max 100%
+    bonuses.coalMastery = Math.min(bonuses.coalMastery, 1.0); // Max 100%
+    bonuses.solarMastery = Math.min(bonuses.solarMastery, 1.0); // Max 100%
+    bonuses.diamondMastery = Math.min(bonuses.diamondMastery, 1.0); // Max 100%
+    bonuses.adamantineMastery = Math.min(bonuses.adamantineMastery, 1.0); // Max 100%
+    bonuses.voidMastery = Math.min(bonuses.voidMastery, 1.0); // Max 100%
+    bonuses.shadowLegion = Math.min(bonuses.shadowLegion, 5); // Max 5 clones
+    bonuses.collectiveFortune = Math.min(bonuses.collectiveFortune, 1.0); // Max 100%
+    bonuses.soulDrain = Math.min(bonuses.soulDrain, 0.5); // Max 50% (negative)
+    bonuses.leadership = Math.min(bonuses.leadership, 1.0); // Max 100%
+    bonuses.memory = Math.min(bonuses.memory, 0.5); // Max 50% (negative)
+    bonuses.stealth = Math.min(bonuses.stealth, 1.0); // Max 100%
+    bonuses.defense = Math.min(bonuses.defense, 1.0); // Max 100%
+    bonuses.strength = Math.min(bonuses.strength, 1.0); // Max 100%
+    bonuses.vitality = Math.min(bonuses.vitality, 1.0); // Max 100%
+    bonuses.resistance = Math.min(bonuses.resistance, 1.0); // Max 100%
+    bonuses.electricPower = Math.min(bonuses.electricPower, 1.0); // Max 100%
+    bonuses.greed = Math.min(bonuses.greed, 1.0); // Max 100%
+    bonuses.curse = Math.min(bonuses.curse, 0.5); // Max 50% (negative)
+    bonuses.sanity = Math.min(bonuses.sanity, 0.5); // Max 50% (negative)
+    bonuses.speed = Math.min(bonuses.speed, 1.0); // Max 100%
     
     // Log final bonuses for debugging
     if (bonuses.uniqueItems.length > 0) {
@@ -429,32 +590,59 @@ function checkShadowstepTeleport(position, mapData, teleportChance, member, even
     
     const { TILE_TYPES } = require('./miningConstants_unified');
     
-    // Find all discovered floor tiles
+    // First, look for ore tiles that are in sight (discovered)
+    const oreTiles = [];
     const floorTiles = [];
+    
     for (let y = 0; y < mapData.height; y++) {
         for (let x = 0; x < mapData.width; x++) {
             const tile = mapData.tiles[y]?.[x];
-            if (tile && tile.type === TILE_TYPES.FLOOR && tile.discovered) {
-                // Don't include current position
-                if (x !== position.x || y !== position.y) {
-                    floorTiles.push({ x, y });
-                }
+            if (!tile || !tile.discovered) continue;
+            
+            // Don't include current position
+            if (x === position.x && y === position.y) continue;
+            
+            // Prioritize ore tiles (walls with ore, rare ore, treasure chests)
+            if (tile.type === TILE_TYPES.WALL_WITH_ORE || 
+                tile.type === TILE_TYPES.RARE_ORE || 
+                tile.type === TILE_TYPES.TREASURE_CHEST) {
+                oreTiles.push({ x, y, type: 'ore' });
+            }
+            // Fallback to floor tiles
+            else if (tile.type === TILE_TYPES.FLOOR) {
+                floorTiles.push({ x, y, type: 'floor' });
             }
         }
     }
     
-    // No valid teleport destinations
-    if (floorTiles.length === 0) {
-        return null;
+    let destination = null;
+    let teleportType = '';
+    
+    // Prioritize ore tiles if any are available
+    if (oreTiles.length > 0) {
+        destination = oreTiles[Math.floor(Math.random() * oreTiles.length)];
+        teleportType = 'ore';
+    }
+    // Fallback to floor tiles if no ore tiles are available
+    else if (floorTiles.length > 0) {
+        destination = floorTiles[Math.floor(Math.random() * floorTiles.length)];
+        teleportType = 'floor';
     }
     
-    // Pick a random floor tile
-    const destination = floorTiles[Math.floor(Math.random() * floorTiles.length)];
+    // No valid teleport destinations
+    if (!destination) {
+        return null;
+    }
     
     // Calculate distance for the log message
     const distance = Math.abs(destination.x - position.x) + Math.abs(destination.y - position.y);
     
-    eventLogs.push(`🌑 ${member.displayName} shadowsteps ${distance} tiles away in a blur of darkness!`);
+    // Create appropriate log message based on teleport type
+    if (teleportType === 'ore') {
+        eventLogs.push(`🌑 ${member.displayName} shadowsteps ${distance} tiles to a promising ore deposit in a blur of darkness!`);
+    } else {
+        eventLogs.push(`🌑 ${member.displayName} shadowsteps ${distance} tiles away in a blur of darkness!`);
+    }
     
     return destination;
 }
