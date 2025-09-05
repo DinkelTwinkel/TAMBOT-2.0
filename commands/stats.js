@@ -24,7 +24,11 @@ module.exports = {
 
     try {
       // Get player stats and equipped items (including armor data)
-      const { stats, equippedItems, totalArmorReduction, bestArmor } = await getPlayerStats(target.id);
+      const { stats, equippedItems, totalArmorPoints, bestArmor } = await getPlayerStats(target.id);
+      const { calculateDamageReduction } = require('../patterns/calculatePlayerStat');
+      
+      // Calculate damage reduction from armor points
+      const totalArmorReduction = calculateDamageReduction(totalArmorPoints);
       
       // Get active buffs for display
       const buffDoc = await PlayerBuffs.findOne({ playerId: target.id });
@@ -85,14 +89,14 @@ module.exports = {
       }
 
       // Add armor protection display
-      if (totalArmorReduction > 0 && bestArmor) {
+      if (totalArmorPoints > 0 && bestArmor) {
         const armorPercentage = Math.round(totalArmorReduction * 100);
         const durabilityPercentage = Math.round((bestArmor.currentDurability || bestArmor.itemData.durability) / bestArmor.itemData.durability * 100);
         const durabilityBar = getDurabilityBar(durabilityPercentage);
         
         embed.addFields({
           name: '🛡️ Armor Protection',
-          value: `**${bestArmor.itemData.name}** - ${armorPercentage}% damage reduction\n${durabilityBar} ${durabilityPercentage}% durability`,
+          value: `**${bestArmor.itemData.name}** - ${armorPercentage}% damage reduction (${totalArmorPoints} armor points)\n${durabilityBar} ${durabilityPercentage}% durability`,
           inline: false
         });
       }

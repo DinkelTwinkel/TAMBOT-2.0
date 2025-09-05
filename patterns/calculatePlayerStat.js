@@ -6,6 +6,21 @@ const { getUniqueItemById } = require('../data/uniqueItemsSheet');
 const { getMidasLuckMultiplier } = require('./conditionalUniqueItems');
 
 /**
+ * Calculate damage reduction percentage from armor points
+ * Uses a logarithmic curve to prevent overpowered armor
+ * @param {number} armorPoints - Total armor points
+ * @returns {number} - Damage reduction as decimal (0.0 to 0.8)
+ */
+function calculateDamageReduction(armorPoints) {
+    if (armorPoints <= 0) return 0;
+    
+    // Logarithmic formula: reduction = 0.8 * (1 - e^(-armorPoints/50))
+    // This gives diminishing returns and caps at 80% reduction
+    const reduction = 0.8 * (1 - Math.exp(-armorPoints / 50));
+    return Math.min(0.8, reduction); // Hard cap at 80%
+}
+
+/**
  * Builds a player's stats based on their inventory and all active buffs.
  * - Tools: Only best tool per slot type, using matching ability
  * - Charms: All cumulative (one of each)
@@ -297,8 +312,8 @@ async function getPlayerStats(playerId) {
         }
     }
 
-    // Calculate total armor protection from best armor
-    let totalArmorReduction = 0;
+    // Calculate total armor points from best armor
+    let totalArmorPoints = 0;
     let bestArmor = null;
     
     // Find the best armor item
@@ -308,45 +323,40 @@ async function getPlayerStats(playerId) {
     });
     
     if (armorItems.length > 0) {
-        // Find armor with highest protection
-        let bestArmorPower = 0;
+        // Find armor with highest total armor points
+        let bestArmorPoints = 0;
         
         for (const armorItem of armorItems) {
             const itemData = itemSheet.find(i => i.id === armorItem.itemId);
             if (itemData) {
-                // Calculate total armor power
-                let armorPower = 0;
+                // Calculate total armor points
+                let armorPoints = 0;
                 if (itemData.abilities) {
                     for (const ability of itemData.abilities) {
                         if (ability.name === 'armor') {
-                            armorPower += ability.powerlevel || 0;
+                            armorPoints += ability.powerlevel || 0;
                         }
                     }
                 }
                 
-                // Add base armor reduction if specified
+                // Convert base armor reduction to armor points (legacy support)
                 if (itemData.armorReduction) {
-                    armorPower += itemData.armorReduction * 100; // Convert to power scale
+                    armorPoints += Math.floor(itemData.armorReduction * 100); // Convert 0.70 -> 70 points
                 }
                 
-                if (armorPower > bestArmorPower) {
-                    bestArmorPower = armorPower;
+                if (armorPoints > bestArmorPoints) {
+                    bestArmorPoints = armorPoints;
                     bestArmor = {
                         ...armorItem,
                         itemData: itemData,
-                        armorPower: armorPower
+                        armorPoints: armorPoints
                     };
                 }
             }
         }
         
         if (bestArmor) {
-            // Calculate total armor reduction
-            const armorAbilities = bestArmor.itemData.abilities?.filter(a => a.name === 'armor') || [];
-            const armorLevels = armorAbilities.reduce((sum, a) => sum + (a.powerlevel || 0), 0);
-            
-            totalArmorReduction = (armorLevels * 0.05) + (bestArmor.itemData.armorReduction || 0);
-            totalArmorReduction = Math.min(0.8, totalArmorReduction); // Cap at 80% reduction
+            totalArmorPoints = bestArmor.armorPoints;
             
             // Add armor to equipped items
             equippedItems[bestArmor.itemId] = {
@@ -358,21 +368,21 @@ async function getPlayerStats(playerId) {
                 durability: bestArmor.itemData.durability || 100,
                 currentDurability: bestArmor.currentDurability || bestArmor.itemData.durability || 100,
                 inventoryQuantity: bestArmor.quantity,
-                armorReduction: totalArmorReduction,
-                armorPower: bestArmor.armorPower
+                armorPoints: totalArmorPoints
             };
             
-            // Add armor stat
-            playerStats.armor = Math.floor(totalArmorReduction * 100); // Convert to percentage for display
+            // Add armor stat as points
+            playerStats.armor = totalArmorPoints;
         }
     }
 
     return {
         stats: playerStats,
         equippedItems: equippedItems,
-        totalArmorReduction: totalArmorReduction,
+        totalArmorPoints: totalArmorPoints,
         bestArmor: bestArmor
     };
 }
 
 module.exports = getPlayerStats;
+module.exports.calculateDamageReduction = calculateDamageReduction;

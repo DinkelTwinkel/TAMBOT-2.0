@@ -891,17 +891,22 @@ async function applyHazardDamage(playerId, baseDamageAmount, source) {
             const calculatePlayerStat = require('../../calculatePlayerStat');
             
             const playerStats = await calculatePlayerStat(playerId);
-            if (playerStats && playerStats.totalArmorReduction > 0) {
-                const originalDamage = actualDamage;
-                const reduction = Math.floor(actualDamage * playerStats.totalArmorReduction);
-                actualDamage = Math.max(1, actualDamage - reduction); // Minimum 1 damage
-                armorUsed = true;
+            if (playerStats && playerStats.totalArmorPoints > 0) {
+                // Calculate damage reduction from armor points
+                const totalArmorReduction = calculatePlayerStat.calculateDamageReduction(playerStats.totalArmorPoints);
                 
-                console.log(`[HEALTH] Armor reduced damage from ${originalDamage} to ${actualDamage} (${Math.round(playerStats.totalArmorReduction * 100)}% reduction)`);
-                
-                // Damage the armor durability
-                if (playerStats.bestArmor) {
-                    await damageArmorDurability(playerId, playerStats.bestArmor, source);
+                if (totalArmorReduction > 0) {
+                    const originalDamage = actualDamage;
+                    const reduction = Math.floor(actualDamage * totalArmorReduction);
+                    actualDamage = Math.max(1, actualDamage - reduction); // Minimum 1 damage
+                    armorUsed = true;
+                    
+                    console.log(`[HEALTH] Armor reduced damage from ${originalDamage} to ${actualDamage} (${Math.round(totalArmorReduction * 100)}% reduction from ${playerStats.totalArmorPoints} armor points)`);
+                    
+                    // Damage the armor durability
+                    if (playerStats.bestArmor) {
+                        await damageArmorDurability(playerId, playerStats.bestArmor, source);
+                    }
                 }
             }
         } catch (armorError) {
