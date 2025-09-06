@@ -434,7 +434,7 @@ const ACHIEVEMENTS = {
         id: 'team_player',
         name: 'Team Player',
         description: 'Mined with others for 10 hours',
-        requirements: { teamMiningTime: 10 * 60 * 60 * 1000 },
+        requirements: { teamMiningTime: 10 * 60 }, // 10 hours in minutes
         reward: { coins: 200, title: null }
     },
     
@@ -544,13 +544,32 @@ async function checkAchievements(playerId, playerName = 'Unknown', guildId = nul
         for (const [achievementId, achievement] of Object.entries(ACHIEVEMENTS)) {
             if (playerTitles.hasAchievement(achievementId)) continue;
             
+            // Skip achievements that don't have proper requirements
+            if (!achievement.requirements || Object.keys(achievement.requirements).length === 0) {
+                console.warn(`[TITLES] Achievement ${achievementId} has no requirements, skipping`);
+                continue;
+            }
+            
             // Check if requirements are met
             let requirementsMet = true;
             for (const [requirement, value] of Object.entries(achievement.requirements)) {
-                if (playerTitles.progress[requirement] < value) {
+                const currentProgress = playerTitles.progress[requirement] || 0;
+                if (currentProgress < value) {
                     requirementsMet = false;
                     break;
                 }
+            }
+            
+            // Additional check: Don't award achievements to brand new players
+            // unless they actually have some progress tracked
+            const hasAnyProgress = Object.values(playerTitles.progress).some(val => 
+                Array.isArray(val) ? val.length > 0 : val > 0
+            );
+            
+            if (!hasAnyProgress && requirementsMet) {
+                // This suggests the achievement is being awarded incorrectly to a new player
+                console.warn(`[TITLES] Skipping achievement ${achievementId} for new player with no progress`);
+                requirementsMet = false;
             }
             
             if (requirementsMet) {

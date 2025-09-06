@@ -2540,6 +2540,113 @@ function applyFinalPassShader(ctx, width, height, replaceChance = 0.3, blackThre
 }
 
 /**
+ * Draw HP bars for all players in the top left corner when map is too large
+ */
+async function drawCornerHPDisplay(ctx, members, channelId, canvasWidth, canvasHeight) {
+    try {
+        // Get health data for all players
+        const gachaVC = require('../../../../models/activevcs');
+        const dbEntry = await gachaVC.findOne({ channelId: channelId }).lean();
+        
+        const playersWithHealth = [];
+        
+        for (const member of members.values()) {
+            if (member.user.bot) continue;
+            
+            let currentHealth = 100;
+            let maxHealth = 100;
+            
+            // Get health from database
+            if (dbEntry && dbEntry.gameData && dbEntry.gameData.playerHealth && dbEntry.gameData.playerHealth[member.user.id]) {
+                const healthData = dbEntry.gameData.playerHealth[member.user.id];
+                currentHealth = healthData.current || 100;
+                maxHealth = healthData.max || 100;
+            }
+            
+            playersWithHealth.push({
+                name: member.displayName,
+                currentHealth,
+                maxHealth,
+                healthPercent: currentHealth / maxHealth
+            });
+        }
+        
+        if (playersWithHealth.length === 0) return;
+        
+        // Position in top left corner
+        const startX = 20;
+        const startY = 20;
+        const barWidth = 120;
+        const barHeight = 16;
+        const spacing = 22;
+        const maxPlayers = Math.min(15, playersWithHealth.length); // Limit to 15 players to fit on screen
+        
+        // Background panel
+        const panelWidth = barWidth + 40;
+        const panelHeight = (maxPlayers * spacing) + 20;
+        
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(startX - 10, startY - 10, panelWidth, panelHeight);
+        
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(startX - 10, startY - 10, panelWidth, panelHeight);
+        
+        // Draw HP bars for each player
+        for (let i = 0; i < maxPlayers; i++) {
+            const player = playersWithHealth[i];
+            const y = startY + (i * spacing);
+            
+            // Player name
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(player.name, startX, y - 2);
+            
+            // HP bar background
+            ctx.fillStyle = '#333333';
+            ctx.fillRect(startX, y + 2, barWidth, barHeight);
+            
+            // HP bar fill
+            let healthColor = '#00FF00'; // Green
+            if (player.healthPercent < 0.25) {
+                healthColor = '#FF0000'; // Red
+            } else if (player.healthPercent < 0.5) {
+                healthColor = '#FF8000'; // Orange
+            } else if (player.healthPercent < 0.75) {
+                healthColor = '#FFFF00'; // Yellow
+            }
+            
+            ctx.fillStyle = healthColor;
+            ctx.fillRect(startX, y + 2, barWidth * player.healthPercent, barHeight);
+            
+            // HP bar border
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(startX, y + 2, barWidth, barHeight);
+            
+            // HP text
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${player.currentHealth}/${player.maxHealth}`, startX + barWidth/2, y + 13);
+        }
+        
+        // Title
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('PLAYER HEALTH', startX + panelWidth/2 - 10, startY - 15);
+        
+        ctx.restore();
+        
+    } catch (error) {
+        console.error('[RENDER] Error in drawCornerHPDisplay:', error);
+    }
+}
+
+/**
  * Main function to generate enhanced layered mining map
  */
 async function generateTileMapImage(channel) {
@@ -2724,6 +2831,15 @@ async function generateTileMapImage(channel) {
         await drawTopLayer(ctx, width, height, floorTileSize, theme);
     } catch (error) {
         console.error(`[RENDER] Error drawing top layer for channel ${channel.id}:`, error);
+    }
+    
+    // === CORNER HP DISPLAY (when individual HP bars are too small) ===
+    if (floorTileSize <= 30) {
+        try {
+            await drawCornerHPDisplay(ctx, members, channel.id, finalWidth, finalHeight);
+        } catch (error) {
+            console.error(`[RENDER] Error drawing corner HP display for channel ${channel.id}:`, error);
+        }
     }
 
     // Restore translation
