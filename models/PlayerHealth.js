@@ -128,16 +128,22 @@ playerHealthSchema.statics.revivePlayer = async function(playerId, channelId, re
     const playerHealth = await this.findOne({ playerId, channelId });
     
     if (playerHealth && playerHealth.isDead) {
-        playerHealth.currentHealth = reviveHealth || Math.floor(playerHealth.maxHealth * 0.5);
-        playerHealth.isDead = false;
-        playerHealth.reviveAtNextBreak = false;
-        playerHealth.lastDamageSource = 'revival';
-        playerHealth.lastDamageTime = new Date();
-        
-        await playerHealth.save();
-        
-        console.log(`[HEALTH SCHEMA] Revived player ${playerId} to ${playerHealth.currentHealth} health`);
-        return true;
+        // Only revive if reviveHealth is explicitly provided
+        if (reviveHealth !== null && reviveHealth !== undefined) {
+            playerHealth.currentHealth = reviveHealth;
+            playerHealth.isDead = false;
+            playerHealth.reviveAtNextBreak = false;
+            playerHealth.lastDamageSource = 'revival';
+            playerHealth.lastDamageTime = new Date();
+            
+            await playerHealth.save();
+            
+            console.log(`[HEALTH SCHEMA] Revived player ${playerId} to ${playerHealth.currentHealth} health`);
+            return true;
+        } else {
+            console.log(`[HEALTH SCHEMA] Not reviving player ${playerId} - no revive health specified`);
+            return false;
+        }
     }
     
     return false;

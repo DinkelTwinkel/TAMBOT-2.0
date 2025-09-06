@@ -2154,14 +2154,20 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
                     const PlayerHealth = require('../../../../models/PlayerHealth');
                     const playerHealth = await PlayerHealth.findPlayerHealth(member.user.id, channel.id);
                     
-                    if (playerHealth) {
-                        currentHealth = playerHealth.currentHealth || 100;
+                if (playerHealth) {
+                    // Dead players show 0 health
+                    if (playerHealth.isDead) {
+                        currentHealth = 0;
                         maxHealth = playerHealth.maxHealth || 100;
                     } else {
-                        // Fallback to default health
-                        currentHealth = 100;
-                        maxHealth = 100;
+                        currentHealth = playerHealth.currentHealth || 100;
+                        maxHealth = playerHealth.maxHealth || 100;
                     }
+                } else {
+                    // Fallback to default health
+                    currentHealth = 100;
+                    maxHealth = 100;
+                }
                 } catch (playerError) {
                     console.warn(`[RENDER] Could not get player health data for display:`, playerError);
                 }
@@ -2573,8 +2579,14 @@ async function drawCornerHPDisplay(ctx, members, channelId, canvasWidth, canvasH
                 const playerHealth = await PlayerHealth.findPlayerHealth(member.user.id, channelId);
                 
                 if (playerHealth) {
-                    currentHealth = playerHealth.currentHealth || 100;
-                    maxHealth = playerHealth.maxHealth || 100;
+                    // Dead players show 0 health
+                    if (playerHealth.isDead) {
+                        currentHealth = 0;
+                        maxHealth = playerHealth.maxHealth || 100;
+                    } else {
+                        currentHealth = playerHealth.currentHealth || 100;
+                        maxHealth = playerHealth.maxHealth || 100;
+                    }
                 }
             } catch (healthError) {
                 console.warn(`[RENDER] Could not get health for ${member.displayName}:`, healthError);

@@ -277,9 +277,15 @@ async function drawHealthBar(ctx, member, centerX, barY, barWidth, channelId) {
                 const playerHealth = await PlayerHealth.findPlayerHealth(member.id, channelId);
                 
                 if (playerHealth) {
-                    currentHealth = playerHealth.currentHealth || 100;
-                    maxHealth = playerHealth.maxHealth || 100;
-                    console.log(`[STATS THUMBNAIL] Player health: ${currentHealth}/${maxHealth}`);
+                    // Dead players show 0 health
+                    if (playerHealth.isDead) {
+                        currentHealth = 0;
+                        maxHealth = playerHealth.maxHealth || 100;
+                    } else {
+                        currentHealth = playerHealth.currentHealth || 100;
+                        maxHealth = playerHealth.maxHealth || 100;
+                    }
+                    console.log(`[STATS THUMBNAIL] Player health: ${currentHealth}/${maxHealth} (dead: ${playerHealth.isDead})`);
                 } else {
                     console.log(`[STATS THUMBNAIL] No health data found for player ${member.id}`);
                 }
@@ -708,8 +714,9 @@ async function createStatsThumb(member, playerStats, channelId = null) {
                 const playerHealth = await PlayerHealth.findPlayerHealth(member.id, channelId);
                 if (playerHealth) {
                     healthData = {
-                        current: playerHealth.currentHealth,
-                        max: playerHealth.maxHealth
+                        current: playerHealth.isDead ? 0 : playerHealth.currentHealth,
+                        max: playerHealth.maxHealth,
+                        isDead: playerHealth.isDead
                     };
                 }
             } catch (healthError) {
