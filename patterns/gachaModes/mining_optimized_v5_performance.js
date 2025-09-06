@@ -3728,8 +3728,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             }
             await addItemWithDestination(dbEntry, member.id, bonusItem.itemId, 1, destination);
         }
-    }
-            
+                }
+            }
         } catch (actionError) {
             console.error(`[MINING] Error processing action ${actionNum} for ${member.displayName}:`, actionError);
         }
