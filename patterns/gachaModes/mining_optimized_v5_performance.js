@@ -8,7 +8,7 @@ const { canStartBreak, emergencyBreakReset } = require('./mining/mining_break_ho
 const { handlePickaxeDurability } = require('./mining/improvedDurabilityHandling');
 const deeperMineChecker = require('../mining/deeperMineChecker');
 // Use the new layered rendering system with auto-generated images
-const generateTileMapImage = require('./mining/imageProcessing/mining-layered-render');
+const { generateTileMapImage } = require('./mining/imageProcessing/mining-layered-render');
 const gachaVC = require('../../models/activevcs');
 const mapCacheSystem = require('./mining/cache/mapCacheSystem');
 const { 
@@ -2309,6 +2309,7 @@ if (shouldStartBreak) {
         
         let mapData = dbEntry.gameData.map;
         let mapChanged = false;
+        let healthDataChanged = false; // Track if health data was modified
         const transaction = new DatabaseTransaction();
         const eventLogs = [];
         let wallsBroken = 0;
@@ -2495,19 +2496,22 @@ if (shouldStartBreak) {
         
         const hadExpiredDisables = hazardEffects.cleanupExpiredDisables(dbEntry);
         if (hadExpiredDisables) {
-            // Update database directly since dbEntry is a lean document
+            // Update only the disabled players field, not the entire gameData
             await gachaVC.updateOne(
                 { channelId: channel.id },
-                { $set: { gameData: dbEntry.gameData } }
+                { $set: { 'gameData.disabledPlayers': dbEntry.gameData.disabledPlayers } }
             );
         }
         
         // Process actions for each player with improved error handling and performance
         const playerProcessingPromises = Array.from(members.values()).map(async (member) => {
             try {
-                // Initialize player health if needed
+                // Initialize player health if needed (only once)
                 const { initializePlayerHealth } = require('./mining/healthSystem');
-                await initializePlayerHealth(member.id, dbEntry);
+                const wasInitialized = await initializePlayerHealth(member.id, dbEntry);
+                if (wasInitialized) {
+                    console.log(`[MINING] Initialized health for new player ${member.displayName}`);
+                }
                 
                 const wasDisabled = dbEntry.gameData?.disabledPlayers?.[member.id];
                 const isDisabled = hazardEffects.isPlayerDisabled(member.id, dbEntry);
@@ -2698,6 +2702,16 @@ if (shouldStartBreak) {
         }
         
         await batchDB.flush();
+        
+        // Save health data if it was modified during this cycle
+        if (dbEntry._healthDataChanged) {
+            console.log('[MINING] Saving health data changes to database');
+            await gachaVC.updateOne(
+                { channelId: channel.id },
+                { $set: { 'gameData.playerHealth': dbEntry.gameData.playerHealth } }
+            );
+            healthDataChanged = true;
+        }
         
         if (mapChanged) {
             dbCache.delete(channel.id);

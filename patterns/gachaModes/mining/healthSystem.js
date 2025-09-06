@@ -6,63 +6,58 @@ const { calculatePlayerStat } = require('../../calculatePlayerStat');
  */
 async function updatePlayerHealth(playerId, healthChange, source = 'unknown') {
     try {
-        // Get current player stats which include health data
-        const playerStats = await calculatePlayerStat(playerId);
+        const gachaVC = require('../../../models/activevcs');
         
-        if (!playerStats) {
-            console.warn(`[HEALTH] No player stats found for ${playerId}`);
+        // Find the player's active mining channel
+        const activeChannel = await gachaVC.findOne({
+            'gameData.gamemode': 'mining',
+            [`gameData.map.playerPositions.${playerId}`]: { $exists: true }
+        });
+        
+        if (!activeChannel) {
+            console.warn(`[HEALTH] No active mining channel found for player ${playerId}`);
             return { success: false, newHealth: 100, maxHealth: 100 };
         }
         
-        // Initialize health if not present
-        if (!playerStats.health) {
-            playerStats.health = {
-                current: 100,
-                max: 100,
-                lastRegen: Date.now()
-            };
-        }
+        // Get current health from database
+        let currentHealth = 100;
+        let maxHealth = 100;
         
-        const currentHealth = playerStats.health.current || 100;
-        const maxHealth = playerStats.health.max || 100;
+        if (activeChannel.gameData.playerHealth && activeChannel.gameData.playerHealth[playerId]) {
+            const healthData = activeChannel.gameData.playerHealth[playerId];
+            currentHealth = healthData.current || 100;
+            maxHealth = healthData.max || 100;
+        }
         
         // Calculate new health
         const newHealth = Math.max(0, Math.min(maxHealth, currentHealth + healthChange));
         
-        // Update health in player stats
-        playerStats.health.current = newHealth;
-        
         // Save the updated health back to the database
-        // We need to update this through the proper channel since health is stored in gameData
         try {
-            const gachaVC = require('../../../models/activevcs');
+            const updateResult = await gachaVC.updateOne(
+                { _id: activeChannel._id },
+                { 
+                    $set: { 
+                        [`gameData.playerHealth.${playerId}`]: {
+                            current: newHealth,
+                            max: maxHealth,
+                            lastUpdated: Date.now()
+                        }
+                    } 
+                }
+            );
             
-            // Find the player's active mining channel to update their health
-            const activeChannels = await gachaVC.find({
-                'gameData.gamemode': 'mining',
-                [`gameData.map.playerPositions.${playerId}`]: { $exists: true }
-            });
-            
-            // Update health in all active mining channels for this player
-            for (const channelEntry of activeChannels) {
-                await gachaVC.updateOne(
-                    { _id: channelEntry._id },
-                    { 
-                        $set: { 
-                            [`gameData.playerHealth.${playerId}`]: {
-                                current: newHealth,
-                                max: maxHealth,
-                                lastUpdated: Date.now()
-                            }
-                        } 
-                    }
-                );
+            if (!updateResult.acknowledged) {
+                console.error(`[HEALTH] Failed to save health update for player ${playerId}`);
+                return { success: false, newHealth: currentHealth, maxHealth: maxHealth };
             }
         } catch (dbError) {
             console.error('[HEALTH] Error saving health to database:', dbError);
+            return { success: false, newHealth: currentHealth, maxHealth: maxHealth };
         }
         
-        console.log(`[HEALTH] ${playerId} health: ${currentHealth} -> ${newHealth} (${healthChange >= 0 ? '+' : ''}${healthChange} from ${source})`);
+        console.log(`[HEALTH] ${playerId} health: ${currentHealth} -> ${newHealth} (${healthChange >= 0 ? '+' : ''}${healthChange} from ${source}) - DB updated: ${updateResult.acknowledged}`);
+        console.log(`[HEALTH] Health data stored in channel ${activeChannel.channelId}`);
         
         return {
             success: true,
@@ -110,7 +105,18 @@ async function initializePlayerHealth(playerId, dbEntry) {
                 lastUpdated: Date.now()
             };
             
-            console.log(`[HEALTH] Initialized health for player ${playerId}`);
+            // Force save to database immediately
+            const gachaVC = require('../../../models/activevcs');
+            await gachaVC.updateOne(
+                { channelId: dbEntry.channelId },
+                { 
+                    $set: { 
+                        [`gameData.playerHealth.${playerId}`]: dbEntry.gameData.playerHealth[playerId]
+                    } 
+                }
+            );
+            
+            console.log(`[HEALTH] Initialized health for player ${playerId} and saved to DB`);
             return true; // Indicates health was initialized
         }
         
@@ -243,6 +249,26 @@ async function processHealthRegeneration(playerId, uniqueBonuses) {
     }
 }
 
+/**
+ * Debug function to check player health in database
+ */
+async function debugPlayerHealth(playerId, channelId) {
+    try {
+        const gachaVC = require('../../../models/activevcs');
+        const dbEntry = await gachaVC.findOne({ channelId: channelId });
+        
+        console.log(`[HEALTH DEBUG] Player ${playerId} in channel ${channelId}:`);
+        console.log(`[HEALTH DEBUG] gameData exists:`, !!dbEntry?.gameData);
+        console.log(`[HEALTH DEBUG] playerHealth exists:`, !!dbEntry?.gameData?.playerHealth);
+        console.log(`[HEALTH DEBUG] player health data:`, dbEntry?.gameData?.playerHealth?.[playerId]);
+        
+        return dbEntry?.gameData?.playerHealth?.[playerId] || null;
+    } catch (error) {
+        console.error(`[HEALTH DEBUG] Error checking health for ${playerId}:`, error);
+        return null;
+    }
+}
+
 module.exports = {
     updatePlayerHealth,
     healPlayer,
@@ -251,5 +277,6 @@ module.exports = {
     getHealthStatus,
     checkAutoRevive,
     processHealthRegeneration,
-    initializePlayerHealth
+    initializePlayerHealth,
+    debugPlayerHealth
 };

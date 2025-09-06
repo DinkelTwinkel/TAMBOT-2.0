@@ -84,7 +84,7 @@ function analyzeMineProgression(mineId, gachaServers) {
     // Extract level info from the mine name
     const levelMatch = mineEntry.name.match(/L(-?\d+)/);
     if (!levelMatch) {
-        console.log(`No level info found in mine name: ${mineEntry.name}`);
+        // Silently return null for mines without level info (reduces log spam)
         return null;
     }
     

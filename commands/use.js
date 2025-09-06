@@ -45,10 +45,11 @@ module.exports = {
 
 
     async execute(interaction) {
-        // Defer with ephemeral reply
-        await interaction.deferReply({ ephemeral: true });
+        try {
+            // Defer with ephemeral reply
+            await interaction.deferReply({ ephemeral: true });
 
-        const user = interaction.user;
+            const user = interaction.user;
 
         // Get user's inventory
         const playerInv = await PlayerInventory.findOne({ playerId: user.id }).lean();
@@ -99,51 +100,92 @@ module.exports = {
         let currentPage = 0;
         const totalPages = pages.length;
 
-        // Send initial message
-        const message = await interaction.editReply({
-            embeds: [this.createUsableItemsEmbed(pages[currentPage], currentPage, user, totalPages)],
-            components: this.createComponents(pages[currentPage], currentPage, totalPages, user.id, interaction.channelId),
-            ephemeral: true
-        });
-
-        // Create collector for pagination buttons only
-        const collector = message.createMessageComponentCollector({
-            filter: i => i.user.id === user.id && i.customId.startsWith('use_page_'),
-            time: 300000 // 5 minutes
-        });
-
-        collector.on('collect', async (i) => {
-            if (i.customId === 'use_page_prev') {
-                currentPage = Math.max(0, currentPage - 1);
-            } else if (i.customId === 'use_page_next') {
-                currentPage = Math.min(totalPages - 1, currentPage + 1);
+        // Send initial message with error handling
+        try {
+            const embed = this.createUsableItemsEmbed(pages[currentPage], currentPage, user, totalPages);
+            const components = this.createComponents(pages[currentPage], currentPage, totalPages, user.id, interaction.channelId);
+            
+            // Check if embed description is too long
+            if (embed.data.description && embed.data.description.length > 4096) {
+                console.error(`[USE COMMAND] Embed description too long: ${embed.data.description.length} characters`);
+                return interaction.editReply({
+                    content: '❌ Too many items to display. The inventory system needs optimization.',
+                    ephemeral: true
+                });
             }
-
-            await i.update({
-                embeds: [this.createUsableItemsEmbed(pages[currentPage], currentPage, user, totalPages)],
-                components: this.createComponents(pages[currentPage], currentPage, totalPages, user.id, interaction.channelId),
+            
+            const message = await interaction.editReply({
+                embeds: [embed],
+                components: components,
                 ephemeral: true
             });
-        });
-
-        collector.on('end', () => {
-            // Update the message to show it's expired
-            interaction.editReply({
-                content: '⏰ This use menu has expired. Use `/use` again to use items.',
-                embeds: [],
-                components: [],
+        } catch (embedError) {
+            console.error('[USE COMMAND] Error creating embed:', embedError);
+            return interaction.editReply({
+                content: '❌ There was an error displaying your usable items. Please try again.',
                 ephemeral: true
-            }).catch(() => {}); // Ignore errors if message was deleted
-        });
+            });
+        }
+
+        // Create collector for pagination buttons only
+        try {
+            const collector = message.createMessageComponentCollector({
+                filter: i => i.user.id === user.id && i.customId.startsWith('use_page_'),
+                time: 300000 // 5 minutes
+            });
+
+            collector.on('collect', async (i) => {
+                try {
+                    if (i.customId === 'use_page_prev') {
+                        currentPage = Math.max(0, currentPage - 1);
+                    } else if (i.customId === 'use_page_next') {
+                        currentPage = Math.min(totalPages - 1, currentPage + 1);
+                    }
+
+                    await i.update({
+                        embeds: [this.createUsableItemsEmbed(pages[currentPage], currentPage, user, totalPages)],
+                        components: this.createComponents(pages[currentPage], currentPage, totalPages, user.id, interaction.channelId),
+                        ephemeral: true
+                    });
+                } catch (updateError) {
+                    console.error('[USE COMMAND] Error updating pagination:', updateError);
+                }
+            });
+
+            collector.on('end', () => {
+                // Update the message to show it's expired
+                interaction.editReply({
+                    content: '⏰ This use menu has expired. Use `/use` again to use items.',
+                    embeds: [],
+                    components: [],
+                    ephemeral: true
+                }).catch(() => {}); // Ignore errors if message was deleted
+            });
+        } catch (collectorError) {
+            console.error('[USE COMMAND] Error creating collector:', collectorError);
+        }
+        
+        } catch (mainError) {
+            console.error('[USE COMMAND] Main execution error:', mainError);
+            try {
+                await interaction.editReply({
+                    content: '❌ There was an error executing this command. Please try again later.',
+                    ephemeral: true
+                });
+            } catch (replyError) {
+                console.error('[USE COMMAND] Failed to send error reply:', replyError);
+            }
+        }
     },
 
 // ============================================
 // PAGINATION METHOD
 // ============================================
 
-    // Paginate items based on Discord's description limit
+    // Paginate items based on Discord's description limit AND select menu limit
     paginateItems(items) {
         const maxDescriptionLength = 4096; // Discord's embed description limit
+        const maxItemsPerPage = 24; // Leave room for 1 option buffer (Discord limit is 25)
         const pages = [];
         let currentPageItems = [];
         let currentDescription = '';
@@ -188,8 +230,8 @@ module.exports = {
                 const toAdd = (!typeStartedOnPage ? typeHeader : '') + line + (!typeStartedOnPage ? '' : '');
                 const futureLength = currentDescription.length + toAdd.length + (typeStartedOnPage ? 0 : codeBlockEnd.length);
                 
-                // Check if adding this item would exceed the limit
-                if (futureLength > maxDescriptionLength && currentPageItems.length > 0) {
+                // Check if adding this item would exceed the limits (description OR select menu)
+                if ((futureLength > maxDescriptionLength || currentPageItems.length >= maxItemsPerPage) && currentPageItems.length > 0) {
                     // Close current type's code block if started
                     if (typeStartedOnPage) {
                         currentDescription += codeBlockEnd;
@@ -335,6 +377,18 @@ module.exports = {
                 emoji: this.getTypeEmoji(item.type)
             };
         }).filter(option => option !== null); // Filter out null values
+
+        // Ensure we have valid options and respect Discord's 25 option limit
+        if (selectOptions.length === 0) {
+            console.error(`[USE COMMAND] No valid select options for page ${page}`);
+            return []; // Return empty components if no valid options
+        }
+
+        // Discord select menus have a maximum of 25 options
+        if (selectOptions.length > 25) {
+            console.warn(`[USE COMMAND] Trimming select options from ${selectOptions.length} to 25 for Discord limit`);
+            selectOptions.splice(25); // Keep only first 25 options
+        }
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId(`use_item_select`)

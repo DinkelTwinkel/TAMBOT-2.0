@@ -399,7 +399,7 @@ async function loadTileImageVariation(tileType, theme = MINE_THEMES.GENERIC, var
     try {
         const image = await loadImage(primaryPath);
         tileImageCache.set(cacheKey, image);
-        console.log(`Successfully loaded blended tile: ${primaryPath}`);
+        // Successfully loaded blended tile (log removed to reduce spam)
         return image;
     } catch (error) {
         // Image doesn't exist, try to generate it
@@ -2140,15 +2140,8 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
             console.error(`Error loading pickaxe for user ${member.user.username}:`, error);
         }
 
-        // Always display health above avatar (for players without pickaxes or when pickaxe loading fails)
-        let shouldShowHealth = size > 30;
-        try {
-            const bestPickaxe = await getBestMiningPickaxe(member.user.id);
-            shouldShowHealth = shouldShowHealth && (!bestPickaxe || !bestPickaxe.image);
-        } catch (pickaxeError) {
-            // If we can't get pickaxe data, show health anyway
-            shouldShowHealth = size > 30;
-        }
+        // Always display health above avatar when size is large enough
+        const shouldShowHealth = size > 30;
         
         if (shouldShowHealth) {
             try {
@@ -2596,9 +2589,9 @@ async function drawCornerHPDisplay(ctx, members, channelId, canvasWidth, canvasH
         
         if (playersWithHealth.length === 0) return;
         
-        // Position in top left corner
+        // Position in top left corner with more padding from border
         const startX = 20;
-        const startY = 20;
+        const startY = 40; // Increased from 20 to 40 for more top padding
         const barWidth = 120;
         const barHeight = 8; // Thinner bars
         const spacing = 30; // More padding between bars
@@ -2887,4 +2880,9 @@ async function generateTileMapImage(channel) {
     }
 }
 
-module.exports = generateTileMapImage;
+module.exports = {
+    generateTileMapImage,
+    getBestMiningPickaxe,
+    loadTileImageVariation,
+    getMineTheme
+};

@@ -1,8 +1,9 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const getPlayerStats = require('../patterns/calculatePlayerStat');
 const PlayerBuffs = require('../models/PlayerBuff');
 const PlayerProfile = require('../models/PlayerProfile');
 const registerBotMessage = require('../patterns/registerBotMessage');
+const { createStatsThumb } = require('../patterns/gachaModes/mining/imageProcessing/statsThumbnailer');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -38,31 +39,61 @@ module.exports = {
       // Get player profile for thumbnail
       const playerProfile = await PlayerProfile.findOne({ playerId: target.id });
 
+      // Get user's role color from guild member
+      let roleColor = 0x00AE86; // Default color
+      try {
+        const guildMember = await interaction.guild.members.fetch(target.id);
+        if (guildMember && guildMember.displayHexColor && guildMember.displayHexColor !== '#000000') {
+          roleColor = parseInt(guildMember.displayHexColor.replace('#', ''), 16);
+        }
+      } catch (memberError) {
+        console.warn('[STATS] Could not fetch guild member for role color:', memberError);
+      }
+
       const embed = new EmbedBuilder()
         .setTitle(`📜 ${target.username}'s Stats`)
-        .setColor(0x00AE86);
+        .setColor(roleColor);
 
-      // Add profile picture as thumbnail - use stored CDN URL or fallback to Discord avatar
+      // Generate custom stats thumbnail
+      let attachment = null;
       try {
-        if (playerProfile?.profilePicture?.url) {
-          // Use stored CDN URL if available
-          embed.setThumbnail(playerProfile.profilePicture.url);
+        // Get guild member for role color support in thumbnail
+        const guildMember = await interaction.guild.members.fetch(target.id).catch(() => null);
+        const memberForThumbnail = guildMember || target;
+        
+        const thumbnailResult = await createStatsThumb(memberForThumbnail, { equippedItems }, interaction.channel?.id);
+        
+        if (thumbnailResult) {
+          if (thumbnailResult.url) {
+            // Use cached URL
+            embed.setThumbnail(thumbnailResult.url);
+          } else if (thumbnailResult.buffer) {
+            // Use generated buffer
+            attachment = new AttachmentBuilder(thumbnailResult.buffer, { name: 'stats-thumb.png' });
+            embed.setThumbnail('attachment://stats-thumb.png');
+          }
         } else {
-          // Fallback to Discord avatar with optimal size (512 for better quality)
-          // dynamic: true ensures we get animated avatars if they have one
-          // size: 512 is a good balance between quality and load time
+          // Fallback to Discord avatar
           const avatarUrl = target.displayAvatarURL({ 
             dynamic: true, 
             size: 512,
-            format: 'png' // Force PNG for better quality (will be overridden if avatar is animated)
+            format: 'png'
           });
           embed.setThumbnail(avatarUrl);
         }
-      } catch (error) {
-        // If avatar fetch fails for any reason, continue without thumbnail
-        console.error('Failed to set thumbnail:', error);
-        // Optionally, you could set a default placeholder image here
-        // embed.setThumbnail('https://your-cdn.com/default-avatar.png');
+      } catch (thumbnailError) {
+        console.error('Failed to generate stats thumbnail:', thumbnailError);
+        // Fallback to Discord avatar
+        try {
+          const avatarUrl = target.displayAvatarURL({ 
+            dynamic: true, 
+            size: 512,
+            format: 'png'
+          });
+          embed.setThumbnail(avatarUrl);
+        } catch (avatarError) {
+          console.error('Failed to set fallback avatar:', avatarError);
+        }
       }
 
       // Add combined stats display (equipment + buffs)
@@ -291,7 +322,12 @@ module.exports = {
         embeds.push(buffsEmbed);
       }
       
-      const reply = await interaction.editReply({ embeds });
+      const replyOptions = { embeds };
+      if (attachment) {
+        replyOptions.files = [attachment];
+      }
+      
+      const reply = await interaction.editReply(replyOptions);
       
       // Register for auto-cleanup after 10 minutes
       await registerBotMessage(interaction.guild.id, interaction.channel.id, reply.id, 10);
@@ -409,3 +445,4 @@ function getDurabilityBar(percent) {
   //${emoji} 
   return `${barChar.repeat(validFilled)}${emptyChar.repeat(validEmpty)}`;
 }
+

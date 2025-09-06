@@ -55,15 +55,15 @@ async function processEncounterTrigger(member, position, mapData, hazardsData, d
         
         switch (triggeredEncounter.type) {
             case HAZARD_TYPES.PORTAL_TRAP:
-                result = await handlePortalTrap(member, position, mapData, eventLogs);
+                result = await handlePortalTrap(member, position, mapData, eventLogs, powerLevel, dbEntry);
                 break;
                 
             case HAZARD_TYPES.BOMB_TRAP:
-                result = await handleBombTrap(member, position, mapData, dbEntry, eventLogs);
+                result = await handleBombTrap(member, position, mapData, dbEntry, eventLogs, powerLevel);
                 break;
                 
             case HAZARD_TYPES.GREEN_FOG:
-                result = await handleGreenFog(member, position, transaction, eventLogs);
+                result = await handleGreenFog(member, position, transaction, eventLogs, dbEntry, powerLevel);
                 break;
                 
             case HAZARD_TYPES.WALL_TRAP:
@@ -71,11 +71,11 @@ async function processEncounterTrigger(member, position, mapData, hazardsData, d
                 break;
                 
             case HAZARD_TYPES.FIRE_BLAST:
-                result = await handleFireBlast(member, position, dbEntry, eventLogs);
+                result = await handleFireBlast(member, position, dbEntry, eventLogs, powerLevel);
                 break;
                 
             case HAZARD_TYPES.LIGHTNING_STRIKE:
-                result = await handleLightningStrike(member, position, dbEntry, eventLogs);
+                result = await handleLightningStrike(member, position, dbEntry, eventLogs, powerLevel);
                 break;
         }
     }
@@ -245,7 +245,7 @@ async function handleTreasureChest(member, position, dbEntry, eventLogs, treasur
 /**
  * Handle Portal Trap - Teleport player to random location
  */
-async function handlePortalTrap(member, position, mapData, eventLogs) {
+async function handlePortalTrap(member, position, mapData, eventLogs, powerLevel = 1, dbEntry = null) {
     // Find all possible teleport destinations (including walls)
     const possibleTiles = [];
     
@@ -283,7 +283,28 @@ async function handlePortalTrap(member, position, mapData, eventLogs) {
                      destTile.type === TILE_TYPES.REINFORCED_WALL ||
                      destTile.type === TILE_TYPES.WALL_WITH_ORE ||
                      destTile.type === TILE_TYPES.RARE_ORE)) {
-        message += " - STUCK IN WALL!";
+        
+        // Apply crushing damage when stuck in wall
+        const baseCrushingDamage = 10; // Portal trap crushing damage
+        const crushingDamage = Math.ceil(baseCrushingDamage * (1 + ((powerLevel - 1) * 0.25)));
+        
+        if (dbEntry) {
+            const healthResult = await applyHazardDamageWithContext(member.id, crushingDamage, 'portal_trap', powerLevel, dbEntry);
+            
+            if (healthResult.success) {
+                message += ` - STUCK IN WALL! (-${crushingDamage} health: ${healthResult.newHealth}/${healthResult.maxHealth})`;
+                
+                // Check for death
+                if (healthResult.newHealth <= 0) {
+                    return await handlePlayerDeath(member, position, mapData, eventLogs, 'portal_trap', dbEntry);
+                }
+            } else {
+                message += " - STUCK IN WALL! (health system error)";
+            }
+        } else {
+            message += " - STUCK IN WALL!";
+        }
+        
         position.stuck = true;
     } else {
         position.stuck = false;
@@ -299,7 +320,7 @@ async function handlePortalTrap(member, position, mapData, eventLogs) {
 /**
  * Handle Bomb Trap - Explode surrounding area
  */
-async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
+async function handleBombTrap(member, position, mapData, dbEntry, eventLogs, powerLevel = 1) {
     const bombConfig = HAZARD_CONFIG[HAZARD_TYPES.BOMB_TRAP];
     const blastRadius = bombConfig.blastRadius || 2;
     const KNOCKOUT_DURATION = bombConfig.knockoutDuration || (5 * 60 * 1000); // Use config or default to 5 minutes
@@ -348,9 +369,10 @@ async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
         dbEntry.gameData.disabledPlayers = {};
     }
     
-    // Apply health damage from explosion
-    const explosionDamage = 25; // Bombs deal significant damage
-    const healthResult = await applyHazardDamage(member.id, explosionDamage, 'bomb_trap');
+    // Apply health damage from explosion (scaled with power level)
+    const baseExplosionDamage = 25;
+    const explosionDamage = Math.ceil(baseExplosionDamage * (1 + ((powerLevel - 1) * 0.25)));
+    const healthResult = await applyHazardDamageWithContext(member.id, explosionDamage, 'bomb_trap', powerLevel, dbEntry);
     
     let message = `BOOM! Destroyed ${tilesDestroyed} ore tiles!`;
     if (healthResult.success) {
@@ -376,16 +398,20 @@ async function handleBombTrap(member, position, mapData, dbEntry, eventLogs) {
 /**
  * Handle Green Fog - Damage equipment durability
  */
-async function handleGreenFog(member, position, transaction, eventLogs, dbEntry) {
-    const durabilityDamage = HAZARD_CONFIG[HAZARD_TYPES.GREEN_FOG].durabilityDamage || 1;
-    const toxicDamage = 8; // Green fog deals toxic damage
+async function handleGreenFog(member, position, transaction, eventLogs, dbEntry, powerLevel = 1) {
+    // Scale damage with power level (25% increase per level)
+    const baseDurabilityDamage = HAZARD_CONFIG[HAZARD_TYPES.GREEN_FOG].durabilityDamage || 1;
+    const durabilityDamage = Math.ceil(baseDurabilityDamage * (1 + ((powerLevel - 1) * 0.25)));
+    
+    const baseToxicDamage = 8;
+    const toxicDamage = Math.ceil(baseToxicDamage * (1 + ((powerLevel - 1) * 0.25)));
     const PlayerInventory = require('../../../models/inventory');
     const getPlayerStats = require('../../calculatePlayerStat');
     const { parseUniqueItemBonuses, applyDurabilityDamageReduction } = require('./uniqueItemBonuses');
     
     try {
         // Apply health damage from toxic fog
-        const healthResult = await applyHazardDamage(member.id, toxicDamage, 'green_fog');
+        const healthResult = await applyHazardDamageWithContext(member.id, toxicDamage, 'green_fog', powerLevel, dbEntry);
         
         let healthMessage = '';
         if (healthResult.success) {
@@ -529,11 +555,15 @@ async function handleGreenFog(member, position, transaction, eventLogs, dbEntry)
  * Handle Wall Trap - Convert surrounding floors to walls
  */
 async function handleWallTrap(member, position, mapData, eventLogs, dbEntry, powerLevel = 1) {
-    const crushingDamage = 12; // Wall traps deal crushing damage
+    // Scale crushing damage with power level
+    const baseCrushingDamage = 12;
+    const crushingDamage = Math.ceil(baseCrushingDamage * (1 + ((powerLevel - 1) * 0.25)));
     let tilesConverted = 0;
     
     // Apply health damage from being trapped
-    const healthResult = await applyHazardDamage(member.id, crushingDamage, 'wall_trap');
+    console.log(`[WALL TRAP] Applying ${crushingDamage} damage to player ${member.id} (power level ${powerLevel})`);
+    const healthResult = await applyHazardDamageWithContext(member.id, crushingDamage, 'wall_trap', powerLevel, dbEntry);
+    console.log(`[WALL TRAP] Health result:`, healthResult);
     const adjacentPositions = [
         { x: position.x - 1, y: position.y },
         { x: position.x + 1, y: position.y },
@@ -593,6 +623,7 @@ async function handleWallTrap(member, position, mapData, eventLogs, dbEntry, pow
     }
     
     // Add health damage message
+    console.log(`[WALL TRAP] Health result success: ${healthResult.success}, damage: ${crushingDamage}`);
     if (healthResult.success) {
         message += ` (-${crushingDamage} health: ${healthResult.newHealth}/${healthResult.maxHealth})`;
         
@@ -600,6 +631,9 @@ async function handleWallTrap(member, position, mapData, eventLogs, dbEntry, pow
         if (healthResult.newHealth <= 0) {
             return await handlePlayerDeath(member, position, mapData, eventLogs, 'wall_trap', dbEntry);
         }
+    } else {
+        console.log(`[WALL TRAP] Health damage failed for player ${member.id}`);
+        message += ` (health system error)`;
     }
     
     // Don't add message to eventLogs here - processEncounterTrigger will handle it
@@ -615,9 +649,26 @@ async function handleWallTrap(member, position, mapData, eventLogs, dbEntry, pow
 /**
  * Handle Fire Blast - Burns items in minecart
  */
-async function handleFireBlast(member, position, dbEntry, eventLogs) {
+async function handleFireBlast(member, position, dbEntry, eventLogs, powerLevel = 1) {
     const config = HAZARD_CONFIG[HAZARD_TYPES.FIRE_BLAST];
-    const powerLevel = dbEntry.gameData?.powerLevel || 1;
+    
+    // Apply fire damage to player
+    const baseFireDamage = 6; // Fire blast deals fire damage
+    const fireDamage = Math.ceil(baseFireDamage * (1 + ((powerLevel - 1) * 0.25)));
+    
+    const healthResult = await applyHazardDamageWithContext(member.id, fireDamage, 'fire_blast', powerLevel, dbEntry);
+    
+    let healthMessage = '';
+    if (healthResult.success) {
+        healthMessage = ` (-${fireDamage} health: ${healthResult.newHealth}/${healthResult.maxHealth})`;
+        
+        // Check for death
+        if (healthResult.newHealth <= 0) {
+            return await handlePlayerDeath(member, position, mapData, eventLogs, 'fire_blast', dbEntry);
+        }
+    } else {
+        healthMessage = ' (health system error)';
+    }
     
     // Import item pools to look up item information
     const { miningItemPool, treasureItems, UNIFIED_ITEM_POOL } = require('./miningConstants_unified');
@@ -757,8 +808,11 @@ async function handleFireBlast(member, position, dbEntry, eventLogs) {
         const moreCount = itemsBurned.length > 3 ? ` and ${itemsBurned.length - 3} more` : '';
         message += ` Lost: ${burnedList}${moreCount} (${totalValueBurned} value)`;
     } else {
-        message = "Fire blast fizzled - no damage!";
+        message = "Fire blast fizzled - no items burned!";
     }
+    
+    // Add health damage to message
+    message += healthMessage;
     
     return {
         mapChanged: false,
@@ -880,9 +934,9 @@ function cleanupExpiredDisables(dbEntry) {
 }
 
 /**
- * Apply health damage from hazards with RNG and armor reduction
+ * Apply health damage from hazards with context (more reliable)
  */
-async function applyHazardDamage(playerId, baseDamageAmount, source) {
+async function applyHazardDamageWithContext(playerId, baseDamageAmount, source, powerLevel = 1, dbEntry = null) {
     try {
         // Add RNG to damage (±25% variation)
         const damageVariation = 0.25;
@@ -910,7 +964,112 @@ async function applyHazardDamage(playerId, baseDamageAmount, source) {
                     
                     // Damage the armor durability
                     if (playerStats.bestArmor) {
-                        await damageArmorDurability(playerId, playerStats.bestArmor, source);
+                        await damageArmorDurability(playerId, playerStats.bestArmor, source, powerLevel);
+                    }
+                }
+            }
+        } catch (armorError) {
+            console.error('[HEALTH] Error calculating armor reduction:', armorError);
+        }
+        
+        // Update health using direct database access
+        if (!dbEntry || !dbEntry.channelId) {
+            console.error('[HEALTH] No dbEntry or channelId provided for health update');
+            return { success: false, newHealth: 100, maxHealth: 100, actualDamage: 0 };
+        }
+        
+        // Get current health from dbEntry
+        let currentHealth = 100;
+        let maxHealth = 100;
+        
+        if (dbEntry.gameData.playerHealth && dbEntry.gameData.playerHealth[playerId]) {
+            const healthData = dbEntry.gameData.playerHealth[playerId];
+            currentHealth = healthData.current || 100;
+            maxHealth = healthData.max || 100;
+        } else {
+            // Initialize health if not present
+            if (!dbEntry.gameData.playerHealth) {
+                dbEntry.gameData.playerHealth = {};
+            }
+            dbEntry.gameData.playerHealth[playerId] = {
+                current: 100,
+                max: 100,
+                lastUpdated: Date.now()
+            };
+        }
+        
+        // Calculate new health
+        const newHealth = Math.max(0, Math.min(maxHealth, currentHealth - actualDamage));
+        
+        console.log(`[HEALTH DEBUG] Player ${playerId}: ${currentHealth} - ${actualDamage} = ${newHealth}`);
+        
+        // Update health in dbEntry (will be saved by main mining loop)
+        dbEntry.gameData.playerHealth[playerId] = {
+            current: newHealth,
+            max: maxHealth,
+            lastUpdated: Date.now()
+        };
+        
+        // Mark the dbEntry as modified so main loop knows to save it
+        if (dbEntry.markModified) {
+            dbEntry.markModified('gameData.playerHealth');
+        }
+        
+        // Set a flag that health data changed
+        dbEntry._healthDataChanged = true;
+        
+        // Don't save to database here - let the main mining loop handle it to avoid conflicts
+        const updateResult = { acknowledged: true };
+        
+        console.log(`[HEALTH] ${playerId} health: ${currentHealth} -> ${newHealth} (-${actualDamage} from ${source}) - DB updated: ${updateResult.acknowledged}`);
+        
+        return {
+            success: true,
+            newHealth: newHealth,
+            maxHealth: maxHealth,
+            actualDamage: actualDamage,
+            baseDamage: baseDamageAmount,
+            armorUsed: armorUsed
+        };
+        
+    } catch (error) {
+        console.error(`[HEALTH] Error applying hazard damage with context:`, error);
+        return { success: false, newHealth: 100, maxHealth: 100, actualDamage: 0 };
+    }
+}
+
+/**
+ * Apply health damage from hazards with RNG and armor reduction (legacy)
+ */
+async function applyHazardDamage(playerId, baseDamageAmount, source, powerLevel = 1) {
+    try {
+        // Add RNG to damage (±25% variation)
+        const damageVariation = 0.25;
+        const minDamage = Math.floor(baseDamageAmount * (1 - damageVariation));
+        const maxDamage = Math.floor(baseDamageAmount * (1 + damageVariation));
+        let actualDamage = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
+        
+        // Apply armor damage reduction and durability
+        let armorUsed = false;
+        try {
+            const calculatePlayerStat = require('../../calculatePlayerStat');
+            
+            const playerStats = await calculatePlayerStat(playerId);
+            if (playerStats && playerStats.totalArmorPoints > 0) {
+                // Calculate damage reduction from armor points
+                const totalArmorReduction = calculatePlayerStat.calculateDamageReduction(playerStats.totalArmorPoints);
+                
+                if (totalArmorReduction > 0) {
+                    const originalDamage = actualDamage;
+                    const reduction = Math.floor(actualDamage * totalArmorReduction);
+                    actualDamage = Math.max(1, actualDamage - reduction); // Minimum 1 damage
+                    armorUsed = true;
+                    
+                    console.log(`[HEALTH] Armor reduced damage from ${originalDamage} to ${actualDamage} (${Math.round(totalArmorReduction * 100)}% reduction from ${playerStats.totalArmorPoints} armor points)`);
+                    
+                    // Damage the armor durability
+                    if (playerStats.bestArmor) {
+                        await damageArmorDurability(playerId, playerStats.bestArmor, source, powerLevel);
                     }
                 }
             }
@@ -937,10 +1096,10 @@ async function applyHazardDamage(playerId, baseDamageAmount, source) {
 /**
  * Damage armor durability when it protects from hazards
  */
-async function damageArmorDurability(playerId, armorData, source) {
+async function damageArmorDurability(playerId, armorData, source, powerLevel = 1) {
     try {
         const PlayerInventory = require('../../../models/inventory');
-        const durabilityDamage = getDurabilityDamageBySource(source);
+        const durabilityDamage = getDurabilityDamageBySource(source, powerLevel);
         
         // Get current armor durability
         const currentDurability = armorData.currentDurability || armorData.itemData.durability || 100;
@@ -987,10 +1146,10 @@ async function damageArmorDurability(playerId, armorData, source) {
 }
 
 /**
- * Get durability damage amount based on hazard source
+ * Get durability damage amount based on hazard source and power level
  */
-function getDurabilityDamageBySource(source) {
-    const damageMap = {
+function getDurabilityDamageBySource(source, powerLevel = 1) {
+    const baseDamageMap = {
         'bomb_trap': 15,      // Explosions damage armor heavily
         'lightning_strike': 10, // Electric damage
         'fire_blast': 12,     // Fire damage
@@ -999,7 +1158,12 @@ function getDurabilityDamageBySource(source) {
         'portal_trap': 4      // Dimensional stress
     };
     
-    return damageMap[source] || 5; // Default damage
+    const baseDamage = baseDamageMap[source] || 5; // Default damage
+    
+    // Scale damage with power level (25% increase per level)
+    const scaledDamage = Math.ceil(baseDamage * (1 + ((powerLevel - 1) * 0.25)));
+    
+    return scaledDamage;
 }
 
 /**
@@ -1150,11 +1314,12 @@ async function reviveDeadPlayers(dbEntry, eventLogs) {
 /**
  * Handle lightning strike hazard - stuns player for several mining actions
  */
-async function handleLightningStrike(member, position, dbEntry, eventLogs) {
+async function handleLightningStrike(member, position, dbEntry, eventLogs, powerLevel = 1) {
     const config = HAZARD_CONFIG[HAZARD_TYPES.LIGHTNING_STRIKE];
     const stunDuration = config.stunDuration || 3; // Default 3 actions
     const stunChance = config.stunChance || 0.8; // Default 80% chance
-    const damageAmount = config.damageAmount || 15; // Default 15 health damage
+    const baseDamageAmount = config.damageAmount || 15; // Default 15 health damage
+    const damageAmount = Math.ceil(baseDamageAmount * (1 + ((powerLevel - 1) * 0.25))); // Scale with power level
     
     let result = {
         mapChanged: false,
@@ -1182,7 +1347,7 @@ async function handleLightningStrike(member, position, dbEntry, eventLogs) {
             };
             
             // Apply health damage
-            const healthResult = await applyHazardDamage(member.id, damageAmount, 'lightning_strike');
+            const healthResult = await applyHazardDamageWithContext(member.id, damageAmount, 'lightning_strike', powerLevel, dbEntry);
             
             if (healthResult.success) {
                 eventLogs.push(`⚡ ${member.displayName} was struck by lightning and stunned for ${stunDuration} actions! (-${damageAmount} health: ${healthResult.newHealth}/${healthResult.maxHealth})`);
@@ -1196,7 +1361,7 @@ async function handleLightningStrike(member, position, dbEntry, eventLogs) {
             }
             
             result.playerDisabled = true;
-            result.message = `You were struck by lightning and are stunned for ${stunDuration} mining actions!`;
+            result.message = `You were struck by lightning and are stunned for ${stunDuration} mining actions! (-${damageAmount} health: ${healthResult.newHealth}/${healthResult.maxHealth})`;
             
             // Update database with stun effect
             const gachaVC = require('../../../models/activevcs');

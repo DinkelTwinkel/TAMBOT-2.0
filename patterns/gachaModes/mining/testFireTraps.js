@@ -11,7 +11,7 @@ const path = require('path');
 const { generateAllFireTrapImages } = require('./imageProcessing/generateFireTrapImages');
 
 // Import the drawing function from the main renderer
-const drawFireTrap = require('./imageProcessing/mining-layered-render').drawFireTrap;
+const { drawFireTrap } = require('./imageProcessing/mining-layered-render');
 
 /**
  * Test fire trap rendering directly

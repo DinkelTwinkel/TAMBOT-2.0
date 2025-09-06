@@ -247,7 +247,7 @@ async function loadTileImageVariation(tileType, theme = MINE_THEMES.GENERIC, var
     try {
         const image = await loadImage(primaryPath);
         tileImageCache.set(cacheKey, image);
-        console.log(`Successfully loaded blended tile: ${primaryPath}`);
+        // Successfully loaded blended tile (log removed to reduce spam)
         return image;
     } catch (error) {
         // Image doesn't exist, try to generate it
