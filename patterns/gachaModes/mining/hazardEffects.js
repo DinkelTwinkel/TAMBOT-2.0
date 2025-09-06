@@ -974,8 +974,8 @@ async function applyHazardDamageWithContext(playerId, baseDamageAmount, source, 
         
         // Use separate health schema to avoid database conflicts
         const PlayerHealth = require('../../../models/PlayerHealth');
-        const guildId = dbEntry?.guildId || 'unknown';
         const channelId = dbEntry?.channelId;
+        const guildId = dbEntry?.guildId || (dbEntry?.guild?.id) || 'unknown';
         
         if (!channelId) {
             console.error('[HEALTH] No channelId available for health update');

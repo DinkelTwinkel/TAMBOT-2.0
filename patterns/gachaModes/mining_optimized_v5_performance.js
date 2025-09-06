@@ -2509,7 +2509,7 @@ if (shouldStartBreak) {
                 // Initialize player health using separate schema
                 try {
                     const PlayerHealth = require('../models/PlayerHealth');
-                    await PlayerHealth.getOrCreatePlayerHealth(member.id, channel.id, interaction?.guild?.id || 'unknown');
+                    await PlayerHealth.getOrCreatePlayerHealth(member.id, channel.id, channel.guild.id);
                 } catch (healthInitError) {
                     console.error(`[MINING] Error initializing health for ${member.displayName}:`, healthInitError);
                 }
