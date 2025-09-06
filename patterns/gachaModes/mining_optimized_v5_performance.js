@@ -2704,15 +2704,7 @@ if (shouldStartBreak) {
         
         await batchDB.flush();
         
-        // Save health data if it was modified during this cycle
-        if (dbEntry._healthDataChanged) {
-            console.log('[MINING] Saving health data changes to database');
-            await gachaVC.updateOne(
-                { channelId: channel.id },
-                { $set: { 'gameData.playerHealth': dbEntry.gameData.playerHealth } }
-            );
-            healthDataChanged = true;
-        }
+        // Health data is now handled by separate PlayerHealth schema (no need to save here)
         
         if (mapChanged) {
             dbCache.delete(channel.id);
