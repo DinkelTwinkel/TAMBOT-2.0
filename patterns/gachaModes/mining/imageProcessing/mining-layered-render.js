@@ -2150,21 +2150,17 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
                 let maxHealth = 100;
                 
                 try {
-                    // First try to get health from the database entry (where health system stores it)
-                    const gachaVC = require('../../../../models/activevcs');
-                    const dbEntry = await gachaVC.findOne({ channelId: channel.id }).lean();
+                    // Get health from separate PlayerHealth schema
+                    const PlayerHealth = require('../../../../models/PlayerHealth');
+                    const playerHealth = await PlayerHealth.findPlayerHealth(member.user.id, channel.id);
                     
-                    if (dbEntry && dbEntry.gameData && dbEntry.gameData.playerHealth && dbEntry.gameData.playerHealth[member.user.id]) {
-                        const healthData = dbEntry.gameData.playerHealth[member.user.id];
-                        currentHealth = healthData.current || 100;
-                        maxHealth = healthData.max || 100;
+                    if (playerHealth) {
+                        currentHealth = playerHealth.currentHealth || 100;
+                        maxHealth = playerHealth.maxHealth || 100;
                     } else {
-                        // Fallback to player stats (legacy)
-                        const playerData = await getPlayerStats(member.user.id);
-                        if (playerData && playerData.health) {
-                            currentHealth = playerData.health.current || 100;
-                            maxHealth = playerData.health.max || 100;
-                        }
+                        // Fallback to default health
+                        currentHealth = 100;
+                        maxHealth = 100;
                     }
                 } catch (playerError) {
                     console.warn(`[RENDER] Could not get player health data for display:`, playerError);
@@ -2571,11 +2567,17 @@ async function drawCornerHPDisplay(ctx, members, channelId, canvasWidth, canvasH
             let currentHealth = 100;
             let maxHealth = 100;
             
-            // Get health from database
-            if (dbEntry && dbEntry.gameData && dbEntry.gameData.playerHealth && dbEntry.gameData.playerHealth[member.user.id]) {
-                const healthData = dbEntry.gameData.playerHealth[member.user.id];
-                currentHealth = healthData.current || 100;
-                maxHealth = healthData.max || 100;
+            // Get health from separate PlayerHealth schema
+            try {
+                const PlayerHealth = require('../../../../models/PlayerHealth');
+                const playerHealth = await PlayerHealth.findPlayerHealth(member.user.id, channelId);
+                
+                if (playerHealth) {
+                    currentHealth = playerHealth.currentHealth || 100;
+                    maxHealth = playerHealth.maxHealth || 100;
+                }
+            } catch (healthError) {
+                console.warn(`[RENDER] Could not get health for ${member.displayName}:`, healthError);
             }
             
             playersWithHealth.push({

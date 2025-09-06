@@ -972,65 +972,35 @@ async function applyHazardDamageWithContext(playerId, baseDamageAmount, source, 
             console.error('[HEALTH] Error calculating armor reduction:', armorError);
         }
         
-        // Update health using direct database access
-        if (!dbEntry || !dbEntry.channelId) {
-            console.error('[HEALTH] No dbEntry or channelId provided for health update');
+        // Use separate health schema to avoid database conflicts
+        const PlayerHealth = require('../../../models/PlayerHealth');
+        const guildId = dbEntry?.guildId || 'unknown';
+        const channelId = dbEntry?.channelId;
+        
+        if (!channelId) {
+            console.error('[HEALTH] No channelId available for health update');
             return { success: false, newHealth: 100, maxHealth: 100, actualDamage: 0 };
         }
         
-        // Get current health from dbEntry
-        let currentHealth = 100;
-        let maxHealth = 100;
+        // Update health using separate schema
+        const healthResult = await PlayerHealth.updatePlayerHealth(playerId, channelId, guildId, -actualDamage, source);
         
-        if (dbEntry.gameData.playerHealth && dbEntry.gameData.playerHealth[playerId]) {
-            const healthData = dbEntry.gameData.playerHealth[playerId];
-            currentHealth = healthData.current || 100;
-            maxHealth = healthData.max || 100;
-        } else {
-            // Initialize health if not present
-            if (!dbEntry.gameData.playerHealth) {
-                dbEntry.gameData.playerHealth = {};
-            }
-            dbEntry.gameData.playerHealth[playerId] = {
-                current: 100,
-                max: 100,
-                lastUpdated: Date.now()
+        if (healthResult.success) {
+            console.log(`[HEALTH] Successfully updated health in separate schema`);
+            
+            return {
+                success: true,
+                newHealth: healthResult.newHealth,
+                maxHealth: healthResult.maxHealth,
+                actualDamage: actualDamage,
+                baseDamage: baseDamageAmount,
+                armorUsed: armorUsed,
+                isDead: healthResult.isDead
             };
+        } else {
+            console.error('[HEALTH] Failed to update health in separate schema');
+            return { success: false, newHealth: 100, maxHealth: 100, actualDamage: 0 };
         }
-        
-        // Calculate new health
-        const newHealth = Math.max(0, Math.min(maxHealth, currentHealth - actualDamage));
-        
-        console.log(`[HEALTH DEBUG] Player ${playerId}: ${currentHealth} - ${actualDamage} = ${newHealth}`);
-        
-        // Update health in dbEntry (will be saved by main mining loop)
-        dbEntry.gameData.playerHealth[playerId] = {
-            current: newHealth,
-            max: maxHealth,
-            lastUpdated: Date.now()
-        };
-        
-        // Mark the dbEntry as modified so main loop knows to save it
-        if (dbEntry.markModified) {
-            dbEntry.markModified('gameData.playerHealth');
-        }
-        
-        // Set a flag that health data changed
-        dbEntry._healthDataChanged = true;
-        
-        // Don't save to database here - let the main mining loop handle it to avoid conflicts
-        const updateResult = { acknowledged: true };
-        
-        console.log(`[HEALTH] ${playerId} health: ${currentHealth} -> ${newHealth} (-${actualDamage} from ${source}) - DB updated: ${updateResult.acknowledged}`);
-        
-        return {
-            success: true,
-            newHealth: newHealth,
-            maxHealth: maxHealth,
-            actualDamage: actualDamage,
-            baseDamage: baseDamageAmount,
-            armorUsed: armorUsed
-        };
         
     } catch (error) {
         console.error(`[HEALTH] Error applying hazard damage with context:`, error);
