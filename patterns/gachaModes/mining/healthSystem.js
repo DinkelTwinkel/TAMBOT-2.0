@@ -94,6 +94,34 @@ async function damagePlayer(playerId, damageAmount, source = 'unknown') {
 }
 
 /**
+ * Initialize player health when they first join mining
+ */
+async function initializePlayerHealth(playerId, dbEntry) {
+    try {
+        if (!dbEntry.gameData.playerHealth) {
+            dbEntry.gameData.playerHealth = {};
+        }
+        
+        // Only initialize if not already present
+        if (!dbEntry.gameData.playerHealth[playerId]) {
+            dbEntry.gameData.playerHealth[playerId] = {
+                current: 100,
+                max: 100,
+                lastUpdated: Date.now()
+            };
+            
+            console.log(`[HEALTH] Initialized health for player ${playerId}`);
+            return true; // Indicates health was initialized
+        }
+        
+        return false; // Health already existed
+    } catch (error) {
+        console.error(`[HEALTH] Error initializing health for ${playerId}:`, error);
+        return false;
+    }
+}
+
+/**
  * Get player's current health status
  */
 async function getPlayerHealth(playerId) {
@@ -222,5 +250,6 @@ module.exports = {
     getPlayerHealth,
     getHealthStatus,
     checkAutoRevive,
-    processHealthRegeneration
+    processHealthRegeneration,
+    initializePlayerHealth
 };

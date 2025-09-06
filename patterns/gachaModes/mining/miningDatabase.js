@@ -624,7 +624,8 @@ function initializeGameData(dbEntry, channelId) {
                 treasuresFound: 0,
                 lifetimeRareOres: 0  // Track rare ores persistently
             },
-            cycleCount: 0  // CRITICAL: Initialize cycle count for break pattern
+            cycleCount: 0,  // CRITICAL: Initialize cycle count for break pattern
+            playerHealth: {}  // Initialize health tracking for all players
         };
         dbEntry.markModified('gameData');
     } else {
@@ -661,6 +662,13 @@ function initializeGameData(dbEntry, channelId) {
         if (dbEntry.gameData.cycleCount === undefined || dbEntry.gameData.cycleCount === null) {
             console.log(`[INIT] Adding missing cycleCount for channel ${channelId}`);
             dbEntry.gameData.cycleCount = 0;
+            modified = true;
+        }
+        
+        // Ensure playerHealth exists for health tracking
+        if (!dbEntry.gameData.playerHealth) {
+            console.log(`[INIT] Adding missing playerHealth for channel ${channelId}`);
+            dbEntry.gameData.playerHealth = {};
             modified = true;
         }
         

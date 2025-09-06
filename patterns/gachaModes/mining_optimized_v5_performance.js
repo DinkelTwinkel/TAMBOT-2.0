@@ -2505,6 +2505,10 @@ if (shouldStartBreak) {
         // Process actions for each player with improved error handling and performance
         const playerProcessingPromises = Array.from(members.values()).map(async (member) => {
             try {
+                // Initialize player health if needed
+                const { initializePlayerHealth } = require('./mining/healthSystem');
+                await initializePlayerHealth(member.id, dbEntry);
+                
                 const wasDisabled = dbEntry.gameData?.disabledPlayers?.[member.id];
                 const isDisabled = hazardEffects.isPlayerDisabled(member.id, dbEntry);
                 
@@ -3098,9 +3102,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             const position = mapData.playerPositions[member.id];
             if (!position) break;
             
-            if (position.stuck || position.trapped) {
-                break;
-            }
+            // Players can continue mining even when stuck or trapped (removed old restriction)
 
             
             // Reduced random treasure generation while mining

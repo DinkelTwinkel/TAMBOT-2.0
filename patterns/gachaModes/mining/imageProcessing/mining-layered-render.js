@@ -2155,13 +2155,24 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
                 let maxHealth = 100;
                 
                 try {
-                    const playerData = await getPlayerStats(member.user.id);
-                    if (playerData && playerData.health) {
-                        currentHealth = playerData.health.current || 100;
-                        maxHealth = playerData.health.max || 100;
+                    // First try to get health from the database entry (where health system stores it)
+                    const gachaVC = require('../../../../models/activevcs');
+                    const dbEntry = await gachaVC.findOne({ channelId: channel.id }).lean();
+                    
+                    if (dbEntry && dbEntry.gameData && dbEntry.gameData.playerHealth && dbEntry.gameData.playerHealth[member.user.id]) {
+                        const healthData = dbEntry.gameData.playerHealth[member.user.id];
+                        currentHealth = healthData.current || 100;
+                        maxHealth = healthData.max || 100;
+                    } else {
+                        // Fallback to player stats (legacy)
+                        const playerData = await getPlayerStats(member.user.id);
+                        if (playerData && playerData.health) {
+                            currentHealth = playerData.health.current || 100;
+                            maxHealth = playerData.health.max || 100;
+                        }
                     }
                 } catch (playerError) {
-                    console.warn(`[RENDER] Could not get player data for health display:`, playerError);
+                    console.warn(`[RENDER] Could not get player health data for display:`, playerError);
                 }
                 
                 // Calculate health percentage for color coding
