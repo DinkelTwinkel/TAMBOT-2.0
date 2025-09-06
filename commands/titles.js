@@ -6,7 +6,7 @@ const {
     ButtonBuilder,
     ButtonStyle
 } = require('discord.js');
-const { getPlayerTitles, TITLES } = require('../patterns/gachaModes/mining/titleSystem');
+const { getPlayerTitles, TITLES, ACHIEVEMENTS } = require('../patterns/gachaModes/mining/titleSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -62,39 +62,51 @@ module.exports = {
         const endIndex = Math.min(startIndex + itemsPerPage, playerTitles.available.length);
         const titlesOnPage = playerTitles.available.slice(startIndex, endIndex);
 
+        // Build achievements list
+        const achievementsList = Object.values(ACHIEVEMENTS)
+            .map(achievement => `${achievement.name} - ${achievement.description}`)
+            .join('\n');
+
+        // Build titles list for description
+        const currentTitleText = playerTitles.display 
+            ? `👑 **Currently Equipped:** ${playerTitles.display.emoji} ${playerTitles.display.name}\n*${playerTitles.display.description}*\n\n`
+            : `👑 **Currently Equipped:** *No title equipped*\n\n`;
+
+        const titlesListText = titlesOnPage
+            .filter(title => title && title.name)
+            .map(title => `${title.emoji || '🏷️'} **${title.name}** (${title.rarity || 'common'})${title.active ? ' ✅' : ''}\n*${title.description || 'No description'}*`)
+            .join('\n\n');
+
+        // Combine all content
+        let fullDescription = `${currentTitleText}**Achievements**\n\`\`\`\n${achievementsList}\n\`\`\`\n\n**📋 Available Titles (${startIndex + 1}-${endIndex} of ${playerTitles.available.length}):**\n${titlesListText}`;
+
+        // Handle Discord's 4096 character limit for embed descriptions
+        const maxDescriptionLength = 4000; // Leave some buffer
+        let descriptionToUse = fullDescription;
+        let isTruncated = false;
+
+        if (fullDescription.length > maxDescriptionLength) {
+            // Try to fit at least the achievements and current title
+            const essentialContent = `${currentTitleText}**Achievements**\n\`\`\`\n${achievementsList}\n\`\`\`\n\n**📋 Available Titles:** *(Showing fewer due to length limit)*\n`;
+            
+            if (essentialContent.length > maxDescriptionLength) {
+                // If even achievements don't fit, truncate achievements
+                const truncatedAchievements = achievementsList.substring(0, maxDescriptionLength - currentTitleText.length - 100) + '...';
+                descriptionToUse = `${currentTitleText}**Achievements**\n\`\`\`\n${truncatedAchievements}\n\`\`\``;
+            } else {
+                // Fit as many titles as possible
+                const remainingSpace = maxDescriptionLength - essentialContent.length;
+                const truncatedTitles = titlesListText.substring(0, remainingSpace - 20) + '...';
+                descriptionToUse = essentialContent + truncatedTitles;
+            }
+            isTruncated = true;
+        }
+
         // Create embed
         const embed = new EmbedBuilder()
             .setTitle(`📜 ${user.displayName}'s Titles${totalPages > 1 ? ` (Page ${page + 1}/${totalPages})` : ''}`)
+            .setDescription(descriptionToUse)
             .setColor('Purple');
-
-        // Show current display title
-        if (playerTitles.display) {
-            embed.addFields({
-                name: '👑 Currently Equipped',
-                value: `${playerTitles.display.emoji} **${playerTitles.display.name}**\n*${playerTitles.display.description}*`,
-                inline: false
-            });
-        } else {
-            embed.addFields({
-                name: '👑 Currently Equipped',
-                value: '*No title equipped*\nSelect a title from the menu below to equip it',
-                inline: false
-            });
-        }
-
-        // Show titles on this page
-        if (titlesOnPage.length > 0) {
-            const titleList = titlesOnPage
-                .filter(title => title && title.name) // Filter out invalid titles
-                .map(title => `${title.emoji || '🏷️'} **${title.name}** (${title.rarity || 'common'})${title.active ? ' ✅' : ''}`)
-                .join('\n');
-
-            embed.addFields({
-                name: `📋 Available Titles (${startIndex + 1}-${endIndex} of ${playerTitles.available.length})`,
-                value: titleList,
-                inline: false
-            });
-        }
 
         // Create select menu options
         const components = [];
@@ -208,7 +220,8 @@ module.exports = {
             components.push(new ActionRowBuilder().addComponents(buttons));
         }
 
-        embed.setFooter({ text: `${playerTitles.available.length} titles unlocked • Select from menu to equip` });
+        const footerText = `${playerTitles.available.length} titles unlocked • Select from menu to equip${isTruncated ? ' • Some content truncated due to length' : ''}`;
+        embed.setFooter({ text: footerText });
 
         await interaction.editReply({
             embeds: [embed],

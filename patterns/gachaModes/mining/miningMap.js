@@ -30,15 +30,21 @@ function generateTileType(channelId, x, y, powerLevel = 1) {
     return TILE_TYPES.WALL;
 }
 
-function getTileHardness(tileType) {
+function getTileHardness(tileType, powerLevel = 1) {
+    // Base hardness values
+    let baseHardness;
     switch (tileType) {
-        case TILE_TYPES.WALL: return 1;
-        case TILE_TYPES.WALL_WITH_ORE: return 2;
-        case TILE_TYPES.RARE_ORE: return 3;
-        case TILE_TYPES.REINFORCED_WALL: return 5;
-        case TILE_TYPES.TREASURE_CHEST: return 1;
+        case TILE_TYPES.WALL: baseHardness = 1; break;
+        case TILE_TYPES.WALL_WITH_ORE: baseHardness = 2; break;
+        case TILE_TYPES.RARE_ORE: baseHardness = 3; break;
+        case TILE_TYPES.REINFORCED_WALL: baseHardness = 5; break;
+        case TILE_TYPES.TREASURE_CHEST: baseHardness = 1; break;
         default: return 0;
     }
+    
+    // Scale hardness with power level (25% increase per level)
+    const hardnessMultiplier = 1 + ((powerLevel - 1) * 0.25);
+    return Math.max(1, Math.ceil(baseHardness * hardnessMultiplier));
 }
 
 function initializeMap(channelId, powerLevel = 1) {

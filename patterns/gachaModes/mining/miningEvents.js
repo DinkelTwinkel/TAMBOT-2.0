@@ -763,12 +763,12 @@ function getRandomTileFromCollapseType(collapseType) {
 }
 
 /**
- * Get tile hardness value
+ * Get tile hardness value scaled by power level
  */
-function getTileHardness(tileType) {
+function getTileHardness(tileType, powerLevel = 1) {
     const { TILE_TYPES } = require('./miningConstants');
     
-    const hardnessMap = {
+    const baseHardnessMap = {
         [TILE_TYPES.WALL]: 1,
         [TILE_TYPES.WALL_WITH_ORE]: 2,
         [TILE_TYPES.RARE_ORE]: 3,
@@ -778,7 +778,14 @@ function getTileHardness(tileType) {
         [TILE_TYPES.FLOOR]: 0
     };
     
-    return hardnessMap[tileType] || 1;
+    const baseHardness = baseHardnessMap[tileType] || 1;
+    
+    // Don't scale floor or hazard tiles
+    if (baseHardness === 0) return 0;
+    
+    // Scale hardness with power level (25% increase per level)
+    const hardnessMultiplier = 1 + ((powerLevel - 1) * 0.25);
+    return Math.max(1, Math.ceil(baseHardness * hardnessMultiplier));
 }
 
 

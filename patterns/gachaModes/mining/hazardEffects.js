@@ -67,7 +67,7 @@ async function processEncounterTrigger(member, position, mapData, hazardsData, d
                 break;
                 
             case HAZARD_TYPES.WALL_TRAP:
-                result = await handleWallTrap(member, position, mapData, eventLogs);
+                result = await handleWallTrap(member, position, mapData, eventLogs, dbEntry, powerLevel);
                 break;
                 
             case HAZARD_TYPES.FIRE_BLAST:
@@ -528,7 +528,7 @@ async function handleGreenFog(member, position, transaction, eventLogs, dbEntry)
 /**
  * Handle Wall Trap - Convert surrounding floors to walls
  */
-async function handleWallTrap(member, position, mapData, eventLogs, dbEntry) {
+async function handleWallTrap(member, position, mapData, eventLogs, dbEntry, powerLevel = 1) {
     const crushingDamage = 12; // Wall traps deal crushing damage
     let tilesConverted = 0;
     
@@ -557,16 +557,20 @@ async function handleWallTrap(member, position, mapData, eventLogs, dbEntry) {
         
         // Only convert floor tiles (not entrance, walls, or ores)
         if (tile.type === TILE_TYPES.FLOOR) {
+            // Import getTileHardness to calculate power-scaled hardness
+            const { getTileHardness } = require('./miningMap');
+            const scaledHardness = getTileHardness(TILE_TYPES.REINFORCED_WALL, powerLevel);
+            
             mapData.tiles[adj.y][adj.x] = {
-                type: TILE_TYPES.WALL,
+                type: TILE_TYPES.REINFORCED_WALL,
                 discovered: true,
-                hardness: 1
+                hardness: scaledHardness
             };
             tilesConverted++;
         }
     }
     
-    let message = `Walls spring up! ${tilesConverted} tiles blocked!`;
+    let message = `Reinforced walls spring up! ${tilesConverted} tiles blocked!`;
     
     // Check if player is now trapped
     let escapePossible = false;

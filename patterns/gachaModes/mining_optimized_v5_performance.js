@@ -3022,7 +3022,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     const speedStat = Math.min(finalSpeedStat, MAX_SPEED_ACTIONS);
     
     // Check if player is stunned by lightning
-    const { isPlayerStunned, reduceStunDuration } = require('./mining/hazardEffects');
+    const { isPlayerStunned, reduceStunDuration, isPlayerStuck } = require('./mining/hazardEffects');
     if (isPlayerStunned(dbEntry, member.id)) {
         // Player is stunned, reduce stun duration and skip actions
         const stunEnded = await reduceStunDuration(dbEntry, member.id);
@@ -3037,6 +3037,23 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             // Return early - no actions this turn
             return { mapChanged: false, wallsBroken: 0, treasuresFound: 0, mapData, hazardsChanged: false };
         }
+    }
+    
+    // Check if player is stuck in walls (but allow movement/mining unless dead)
+    const playerPosition = mapData.playerPositions[member.id];
+    if (playerPosition && isPlayerStuck(playerPosition, mapData)) {
+        if (playerPosition.trapped) {
+            // Players can still move and mine when trapped by walls, just show status message
+            if (Math.random() < 0.1) { // Only show message occasionally to avoid spam
+                eventLogs.push(`🧱 ${member.displayName} is surrounded by walls but continues mining!`);
+            }
+        } else if (playerPosition.stuck) {
+            if (Math.random() < 0.1) { // Only show message occasionally to avoid spam
+                eventLogs.push(`⚠️ ${member.displayName} is stuck in a wall but can mine to escape!`);
+            }
+        }
+        
+        // Continue processing - players can always move/mine unless dead
     }
     
     let wallsBroken = 0;
@@ -3325,14 +3342,23 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         }
                     }
                 } else {
-                    let findMessage;
-                    // Treasure chests no longer spawn
-                    if (tile.type === TILE_TYPES.RARE_ORE) {
-                        findMessage = `${member.displayName} struck rare ore! But they were parried! Wait what?)`;
+                    // Player failed to break the wall - log failure with hardness info
+                    const { getTileHardness } = require('./mining/miningMap');
+                    const tileHardness = getTileHardness(tile.type, powerLevel);
+                    
+                    let failMessage;
+                    if (tile.type === TILE_TYPES.REINFORCED_WALL) {
+                        failMessage = `${member.displayName}'s pickaxe bounced off the reinforced wall! (${tileHardness} hardness vs ${miningPower} power)`;
+                    } else if (tile.type === TILE_TYPES.RARE_ORE) {
+                        failMessage = `${member.displayName} struck rare ore but couldn't break it! (${tileHardness} hardness vs ${miningPower} power)`;
                     } else {
-                        findMessage = `${member.displayName} struck the ore wall but nothing happened...)`;
+                        failMessage = `${member.displayName} struck the wall but couldn't break it! (${tileHardness} hardness vs ${miningPower} power)`;
                     }
-                    eventLogs.push(findMessage);
+                    
+                    // Only show failure message occasionally to avoid spam
+                    if (Math.random() < 0.2) {
+                        eventLogs.push(failMessage);
+                    }
                 }
                 continue;
             }
