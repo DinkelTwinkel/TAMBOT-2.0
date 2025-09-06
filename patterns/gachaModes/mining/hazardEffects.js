@@ -1222,8 +1222,8 @@ async function handlePlayerDeath(member, position, mapData, eventLogs, source, d
             mapChanged: true,
             playerMoved: true,
             playerDisabled: true,
-            playerDied: true,
-            message: `You died! You will be revived at the entrance when the next break starts.`
+            message: `You died! You will be revived at the entrance when the next break starts.`,
+            playerDied: true
         };
         
     } catch (error) {
