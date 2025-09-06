@@ -2509,7 +2509,7 @@ if (shouldStartBreak) {
                 // Initialize player health using separate schema and check if dead
                 let isDead = false;
                 try {
-                    const PlayerHealth = require('../models/PlayerHealth');
+                    const PlayerHealth = require('../../models/PlayerHealth');
                     const playerHealth = await PlayerHealth.getOrCreatePlayerHealth(member.id, channel.id, channel.guild.id);
                     isDead = playerHealth.isDead;
                     
@@ -3513,6 +3513,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     wallsBroken++;
                 }
 } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
+
+    try {
     // Track movement for maintenance
     const oldX = position.x;
     const oldY = position.y;
@@ -3695,41 +3697,41 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         }
     }
     
-    // Exploration bonus - made much rarer and limited to common items
-    const explorationChance = (EXPLORATION_BONUS_CHANCE * efficiency.speedMultiplier) * 0.1; // 10% of original chance
-    if (Math.random() < explorationChance) {
-        const bonusItems = availableItems.filter(item => item.tier === 'common' || item.tier === 'uncommon');
-        if (bonusItems.length > 0) {
-            // Weight towards common items even for exploration
-            const weights = bonusItems.map(item => item.tier === 'common' ? 10 : 1);
-            const totalWeight = weights.reduce((a, b) => a + b, 0);
-            let random = Math.random() * totalWeight;
-            
-            let bonusItem = bonusItems[0];
-            for (let i = 0; i < bonusItems.length; i++) {
-                random -= weights[i];
-                if (random <= 0) {
-                    bonusItem = bonusItems[i];
-                    break;
+            // Exploration bonus - made much rarer and limited to common items
+            const explorationChance = (EXPLORATION_BONUS_CHANCE * efficiency.speedMultiplier) * 0.1; // 10% of original chance
+            if (Math.random() < explorationChance) {
+                const bonusItems = availableItems.filter(item => item.tier === 'common' || item.tier === 'uncommon');
+                if (bonusItems.length > 0) {
+                    // Weight towards common items even for exploration
+                    const weights = bonusItems.map(item => item.tier === 'common' ? 10 : 1);
+                    const totalWeight = weights.reduce((a, b) => a + b, 0);
+                    let random = Math.random() * totalWeight;
+                    
+                    let bonusItem = bonusItems[0];
+                    for (let i = 0; i < bonusItems.length; i++) {
+                        random -= weights[i];
+                        if (random <= 0) {
+                            bonusItem = bonusItems[i];
+                            break;
+                        }
+                    }
+                    
+                    // Determine destination for exploration items
+                    let destination = 'inventory'; // Exploration items typically go to inventory
+                    if (bonusItem.category === 'ore') {
+                        destination = 'minecart';
+                    }
+                    
+                    // Show different icon and text based on destination
+                    if (destination === 'inventory') {
+                        eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring! (Added to inventory)`);
+                    } else {
+                        eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
+                    }
+                    await addItemWithDestination(dbEntry, member.id, bonusItem.itemId, 1, destination);
                 }
             }
             
-            // Determine destination for exploration items
-            let destination = 'inventory'; // Exploration items typically go to inventory
-            if (bonusItem.category === 'ore') {
-                destination = 'minecart';
-            }
-            
-            // Show different icon and text based on destination
-            if (destination === 'inventory') {
-                eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring! (Added to inventory)`);
-            } else {
-                eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
-            }
-            await addItemWithDestination(dbEntry, member.id, bonusItem.itemId, 1, destination);
-        }
-                }
-            }
         } catch (actionError) {
             console.error(`[MINING] Error processing action ${actionNum} for ${member.displayName}:`, actionError);
         }
@@ -3752,6 +3754,10 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     }
     
     return { mapChanged, wallsBroken, treasuresFound, mapData, hazardsChanged };
+ } catch (error) {
+
+ }
+}
 }
 
 // Cleanup function for when bot shuts down or restarts
@@ -3940,4 +3946,4 @@ module.exports.cacheCommands = {
     getStats: () => mapCacheSystem.getStats(),
     clearChannel: (channelId) => mapCacheSystem.clearChannel(channelId),
     preloadAll: async () => await mapCacheSystem.preloadAll()
-};
+}

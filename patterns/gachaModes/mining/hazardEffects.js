@@ -972,18 +972,18 @@ async function applyHazardDamageWithContext(playerId, baseDamageAmount, source, 
             console.error('[HEALTH] Error calculating armor reduction:', armorError);
         }
         
-        // Use separate health schema to avoid database conflicts
-        const PlayerHealth = require('../../../models/PlayerHealth');
-        const channelId = dbEntry?.channelId;
-        const guildId = dbEntry?.guildId || (dbEntry?.guild?.id) || 'unknown';
-        
-        if (!channelId) {
-            console.error('[HEALTH] No channelId available for health update');
-            return { success: false, newHealth: 100, maxHealth: 100, actualDamage: 0 };
-        }
-        
-        // Update health using separate schema
-        const healthResult = await PlayerHealth.updatePlayerHealth(playerId, channelId, guildId, -actualDamage, source);
+         // Use separate health schema to avoid database conflicts
+         const PlayerHealth = require('../../../models/PlayerHealth');
+         const channelId = dbEntry?.channelId;
+         const guildId = 'unknown'; // Will be set properly by mining loop
+         
+         if (!channelId) {
+             console.error('[HEALTH] No channelId available for health update');
+             return { success: false, newHealth: 100, maxHealth: 100, actualDamage: 0 };
+         }
+         
+         // Update health using separate schema
+         const healthResult = await PlayerHealth.updatePlayerHealth(playerId, channelId, guildId, -actualDamage, source);
         
         if (healthResult.success) {
             console.log(`[HEALTH] Successfully updated health in separate schema`);
