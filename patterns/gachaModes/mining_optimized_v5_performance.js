@@ -2506,11 +2506,12 @@ if (shouldStartBreak) {
         // Process actions for each player with improved error handling and performance
         const playerProcessingPromises = Array.from(members.values()).map(async (member) => {
             try {
-                // Initialize player health if needed (only once)
-                const { initializePlayerHealth } = require('./mining/healthSystem');
-                const wasInitialized = await initializePlayerHealth(member.id, dbEntry);
-                if (wasInitialized) {
-                    console.log(`[MINING] Initialized health for new player ${member.displayName}`);
+                // Initialize player health using separate schema
+                try {
+                    const PlayerHealth = require('../models/PlayerHealth');
+                    await PlayerHealth.getOrCreatePlayerHealth(member.id, channel.id, interaction?.guild?.id || 'unknown');
+                } catch (healthInitError) {
+                    console.error(`[MINING] Error initializing health for ${member.displayName}:`, healthInitError);
                 }
                 
                 const wasDisabled = dbEntry.gameData?.disabledPlayers?.[member.id];
