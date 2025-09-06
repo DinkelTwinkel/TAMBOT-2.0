@@ -2506,10 +2506,17 @@ if (shouldStartBreak) {
         // Process actions for each player with improved error handling and performance
         const playerProcessingPromises = Array.from(members.values()).map(async (member) => {
             try {
-                // Initialize player health using separate schema
+                // Initialize player health using separate schema and check if dead
+                let isDead = false;
                 try {
                     const PlayerHealth = require('../models/PlayerHealth');
-                    await PlayerHealth.getOrCreatePlayerHealth(member.id, channel.id, channel.guild.id);
+                    const playerHealth = await PlayerHealth.getOrCreatePlayerHealth(member.id, channel.id, channel.guild.id);
+                    isDead = playerHealth.isDead;
+                    
+                    if (isDead) {
+                        console.log(`[MINING] Player ${member.displayName} is dead, skipping actions`);
+                        return null; // Skip processing for dead players
+                    }
                 } catch (healthInitError) {
                     console.error(`[MINING] Error initializing health for ${member.displayName}:`, healthInitError);
                 }

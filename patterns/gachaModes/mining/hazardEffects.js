@@ -1187,16 +1187,8 @@ async function handlePlayerDeath(member, position, mapData, eventLogs, source, d
         position.dead = true;
         position.invisible = true; // Make invisible when dead
         
-        // Set up revival at next break
-        if (!dbEntry.gameData.deadPlayers) {
-            dbEntry.gameData.deadPlayers = {};
-        }
-        
-        dbEntry.gameData.deadPlayers[member.id] = {
-            deathTime: Date.now(),
-            deathSource: source,
-            reviveAtNextBreak: true
-        };
+        // Death is already handled by PlayerHealth schema in applyHazardDamageWithContext
+        // No need to track in gameData.deadPlayers anymore
         
         // Check for auto-revive from Phoenix Feather Charm
         try {
@@ -1251,26 +1243,39 @@ async function handlePlayerDeath(member, position, mapData, eventLogs, source, d
  */
 async function reviveDeadPlayers(dbEntry, eventLogs) {
     try {
-        const deadPlayers = dbEntry.gameData?.deadPlayers || {};
-        const revivedCount = Object.keys(deadPlayers).length;
+        const PlayerHealth = require('../../../models/PlayerHealth');
+        const channelId = dbEntry.channelId;
         
-        if (revivedCount > 0) {
-            // Clear all dead players
-            dbEntry.gameData.deadPlayers = {};
+        // Find all dead players in this channel
+        const deadPlayers = await PlayerHealth.find({ 
+            channelId: channelId, 
+            isDead: true 
+        });
+        
+        let revivedCount = 0;
+        
+        for (const playerHealth of deadPlayers) {
+            // Revive player
+            const revived = await PlayerHealth.revivePlayer(playerHealth.playerId, channelId, 100); // Full health on break revival
             
-            // Reset player positions (they'll be set to entrance and made visible again)
-            for (const playerId of Object.keys(deadPlayers)) {
-                const position = dbEntry.gameData.mapData?.playerPositions?.[playerId];
+            if (revived) {
+                // Reset player position
+                const position = dbEntry.gameData?.map?.playerPositions?.[playerHealth.playerId];
                 if (position) {
                     position.disabled = false;
                     position.dead = false;
                     position.invisible = false;
+                    position.x = dbEntry.gameData.map.entranceX || 0;
+                    position.y = dbEntry.gameData.map.entranceY || 0;
                 }
+                
+                revivedCount++;
+                console.log(`[REVIVAL] Revived player ${playerHealth.playerId} at break`);
             }
-            
-            if (revivedCount > 0) {
-                eventLogs.push(`✨ ${revivedCount} player(s) were revived at the break!`);
-            }
+        }
+        
+        if (revivedCount > 0) {
+            eventLogs.push(`✨ ${revivedCount} player(s) were revived at the break!`);
         }
         
         return revivedCount;

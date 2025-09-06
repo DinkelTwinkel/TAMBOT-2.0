@@ -1236,7 +1236,7 @@ const longBreakEvents = [
         func: startThiefGame, 
         weight: 30, 
         name: 'Thief Game',
-        minPlayers: 2,  // Need at least 2 players for voting
+        minPlayers: 3,  // Need at least 2 players for voting
         maxPlayers: null, // No upper limit
         optimalPlayers: { min: 3, max: 8 } // Works best with 3-8 players
     },
