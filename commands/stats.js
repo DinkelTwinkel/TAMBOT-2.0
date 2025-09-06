@@ -248,7 +248,8 @@ module.exports = {
         }
       }
 
-      // Add active buffs field (simplified)
+      // Prepare active buffs display
+      let buffsEmbed = null;
       if (activeBuffs.length > 0) {
         const buffsDisplay = activeBuffs.map(buff => {
           const timeLeft = getTimeRemaining(buff.expiresAt);
@@ -261,15 +262,36 @@ module.exports = {
           return `• **${buff.name}** (${effects}) - *${timeLeft}*`;
         }).join('\n');
         
-        embed.addFields({
-          name: '✨ Active Buffs',
-          value: buffsDisplay,
-          inline: false
-        });
+        // Check if adding buffs would exceed Discord's embed limit
+        const currentEmbedLength = (embed.data.description || '').length + 
+                                  (embed.data.fields || []).reduce((total, field) => 
+                                    total + (field.name || '').length + (field.value || '').length, 0);
+        
+        const buffsFieldLength = buffsDisplay.length + 15; // Account for field name
+        
+        if (currentEmbedLength + buffsFieldLength > 5900) { // Leave buffer under 6000 char limit
+          // Create separate buffs embed
+          buffsEmbed = new EmbedBuilder()
+            .setTitle(`✨ ${target.username}'s Active Buffs`)
+            .setDescription(buffsDisplay)
+            .setColor(0x00AE86);
+        } else {
+          // Add to main embed
+          embed.addFields({
+            name: '✨ Active Buffs',
+            value: buffsDisplay,
+            inline: false
+          });
+        }
       }
 
-      // Send the embed
-      const reply = await interaction.editReply({ embeds: [embed] });
+      // Send the embed(s)
+      const embeds = [embed];
+      if (buffsEmbed) {
+        embeds.push(buffsEmbed);
+      }
+      
+      const reply = await interaction.editReply({ embeds });
       
       // Register for auto-cleanup after 10 minutes
       await registerBotMessage(interaction.guild.id, interaction.channel.id, reply.id, 10);

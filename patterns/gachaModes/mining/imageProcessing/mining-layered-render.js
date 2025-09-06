@@ -1658,9 +1658,10 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
                             await drawPlayerAvatar(ctx, member, tileCenterX, tileCenterY,
                                                  imageSettings.playerAvatarSize, imageSettings);
                             
-                            // Draw player name for larger images
+                            // Draw player name for larger images with role color
                             if (floorTileSize >= 40) {
-                                ctx.fillStyle = '#FFFFFF';
+                                const roleColor = getUserRoleColor(member);
+                                ctx.fillStyle = roleColor;
                                 ctx.strokeStyle = '#000000';
                                 ctx.font = `${Math.max(8, Math.floor(floorTileSize * 0.17))}px Arial`;
                                 ctx.textAlign = 'center';
@@ -1891,9 +1892,10 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
         ctx.drawImage(avatar, centerX - radius, centerY - radius, size, size);
         ctx.restore();
         
+        // Avatar border with role color
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
-        ctx.strokeStyle = '#FFFFFF';
+        ctx.strokeStyle = getUserRoleColor(member);
         ctx.lineWidth = Math.max(1, Math.floor(imageSettings.scaleFactor * 2));
         ctx.stroke();
 
@@ -2540,6 +2542,26 @@ function applyFinalPassShader(ctx, width, height, replaceChance = 0.3, blackThre
 }
 
 /**
+ * Get user's role color from Discord
+ */
+function getUserRoleColor(member) {
+    try {
+        // Get the highest role with a color
+        const roleColor = member.displayHexColor;
+        
+        // If no role color or default color, use white
+        if (!roleColor || roleColor === '#000000') {
+            return '#FFFFFF';
+        }
+        
+        return roleColor;
+    } catch (error) {
+        console.warn(`[RENDER] Error getting role color for ${member.displayName}:`, error);
+        return '#FFFFFF'; // Fallback to white
+    }
+}
+
+/**
  * Draw HP bars for all players in the top left corner when map is too large
  */
 async function drawCornerHPDisplay(ctx, members, channelId, canvasWidth, canvasHeight) {
@@ -2567,7 +2589,8 @@ async function drawCornerHPDisplay(ctx, members, channelId, canvasWidth, canvasH
                 name: member.displayName,
                 currentHealth,
                 maxHealth,
-                healthPercent: currentHealth / maxHealth
+                healthPercent: currentHealth / maxHealth,
+                roleColor: getUserRoleColor(member)
             });
         }
         
@@ -2577,36 +2600,26 @@ async function drawCornerHPDisplay(ctx, members, channelId, canvasWidth, canvasH
         const startX = 20;
         const startY = 20;
         const barWidth = 120;
-        const barHeight = 16;
-        const spacing = 22;
-        const maxPlayers = Math.min(15, playersWithHealth.length); // Limit to 15 players to fit on screen
-        
-        // Background panel
-        const panelWidth = barWidth + 40;
-        const panelHeight = (maxPlayers * spacing) + 20;
+        const barHeight = 8; // Thinner bars
+        const spacing = 30; // More padding between bars
+        const maxPlayers = Math.min(12, playersWithHealth.length); // Reduced to fit better with more spacing
         
         ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(startX - 10, startY - 10, panelWidth, panelHeight);
-        
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(startX - 10, startY - 10, panelWidth, panelHeight);
         
         // Draw HP bars for each player
         for (let i = 0; i < maxPlayers; i++) {
             const player = playersWithHealth[i];
             const y = startY + (i * spacing);
             
-            // Player name
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = 'bold 12px Arial';
+            // Player name with role color
+            ctx.fillStyle = player.roleColor;
+            ctx.font = 'bold 11px Arial';
             ctx.textAlign = 'left';
-            ctx.fillText(player.name, startX, y - 2);
+            ctx.fillText(player.name, startX, y - 8);
             
             // HP bar background
             ctx.fillStyle = '#333333';
-            ctx.fillRect(startX, y + 2, barWidth, barHeight);
+            ctx.fillRect(startX, y, barWidth, barHeight);
             
             // HP bar fill
             let healthColor = '#00FF00'; // Green
@@ -2619,25 +2632,14 @@ async function drawCornerHPDisplay(ctx, members, channelId, canvasWidth, canvasH
             }
             
             ctx.fillStyle = healthColor;
-            ctx.fillRect(startX, y + 2, barWidth * player.healthPercent, barHeight);
-            
-            // HP bar border
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(startX, y + 2, barWidth, barHeight);
+            ctx.fillRect(startX, y, barWidth * player.healthPercent, barHeight);
             
             // HP text
             ctx.fillStyle = '#FFFFFF';
-            ctx.font = 'bold 10px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`${player.currentHealth}/${player.maxHealth}`, startX + barWidth/2, y + 13);
+            ctx.font = 'bold 9px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(`${player.currentHealth}/${player.maxHealth}`, startX + barWidth + 5, y + 6);
         }
-        
-        // Title
-        ctx.fillStyle = '#FFD700';
-        ctx.font = 'bold 14px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('PLAYER HEALTH', startX + panelWidth/2 - 10, startY - 15);
         
         ctx.restore();
         

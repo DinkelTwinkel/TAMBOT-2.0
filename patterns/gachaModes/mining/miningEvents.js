@@ -523,7 +523,12 @@ async function startThiefGame(channel, dbEntry) {
  * Now scales dynamically with the number of floor tiles on the map
  */
 async function startMineCollapseEvent(channel, dbEntry) {
-    if (!channel?.isVoiceBased()) return;
+    console.log(`[MINE COLLAPSE] Starting mine collapse event for channel ${channel.id}`);
+    
+    if (!channel?.isVoiceBased()) {
+        console.log(`[MINE COLLAPSE] Channel ${channel.id} is not voice-based, aborting`);
+        return 'Channel is not voice-based';
+    }
     
     const { TILE_TYPES } = require('./miningConstants');
     const gachaVC = require('../../../models/activevcs');
@@ -531,6 +536,8 @@ async function startMineCollapseEvent(channel, dbEntry) {
     // Check player count for solo mode enhancements
     const members = channel.members.filter(m => !m.user.bot);
     const isSolo = members.size === 1;
+    
+    console.log(`[MINE COLLAPSE] Player count: ${members.size}, Solo mode: ${isSolo}`);
     
     // Get current map data
     const mapData = dbEntry.gameData?.map;
@@ -554,8 +561,10 @@ async function startMineCollapseEvent(channel, dbEntry) {
         }
     }
     
+    console.log(`[MINE COLLAPSE] Found ${floorTiles.length} floor tiles for potential collapse`);
+    
     if (floorTiles.length < 10) {
-        console.log('Not enough floor tiles for collapse event');
+        console.log(`[MINE COLLAPSE] Not enough floor tiles for collapse event (need 10, have ${floorTiles.length})`);
         return 'Mine too small for collapse event';
     }
     
@@ -1310,7 +1319,7 @@ function pickLongBreakEvent(playerCount = 1) {
     let rand = Math.random() * totalWeight;
     const selected = adjustedEvents.find(e => (rand -= e.adjustedWeight) < 0) || adjustedEvents[0];
     
-    console.log(`Selected ${selected.name} for ${playerCount} players`);
+    console.log(`[EVENT SELECTION] Selected ${selected.name} for ${playerCount} players (weight: ${selected.adjustedWeight}/${totalWeight})`);
     return selected.func;
 }
 
