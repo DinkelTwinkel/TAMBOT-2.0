@@ -3102,6 +3102,18 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             const position = mapData.playerPositions[member.id];
             if (!position) break;
             
+            // Check if player died during this cycle
+            try {
+                const PlayerHealth = require('../models/PlayerHealth');
+                const playerHealth = await PlayerHealth.findPlayerHealth(member.id, channel?.id);
+                if (playerHealth && playerHealth.isDead) {
+                    console.log(`[MINING] Player ${member.displayName} died during cycle, stopping remaining actions`);
+                    break; // Stop all remaining actions for this player
+                }
+            } catch (deathCheckError) {
+                console.error(`[MINING] Error checking death status for ${member.displayName}:`, deathCheckError);
+            }
+            
             // Players can continue mining even when stuck or trapped (removed old restriction)
 
             
@@ -3605,6 +3617,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     mapChanged = true;
                 }
                 
+                // Check if player died from treasure encounter (unlikely but possible)
+                if (treasureResult.playerDied) {
+                    console.log(`[MINING] Player ${member.displayName} died from treasure encounter, stopping actions`);
+                    break; // Stop processing actions for this player
+                }
+            }
+                
                 // Slightly higher chance for unique/legendary finds from treasure hazards
                 if (Math.random() < 0.005) { // 0.5% chance for treasure hazards
                     const treasureFind = await processUniqueItemFinding(
@@ -3682,6 +3701,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 if (hazardResult.mapChanged) {
                     mapChanged = true;
                 }
+                
+                // Check if player died from hazard
+                if (hazardResult.playerDied) {
+                    console.log(`[MINING] Player ${member.displayName} died from hazard, stopping actions`);
+                    break; // Stop processing actions for this player
+                }
+            }
                 if (hazardResult.playerMoved) {
                     // Position already updated by hazard
                 }
