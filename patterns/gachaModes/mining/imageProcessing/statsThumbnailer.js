@@ -272,16 +272,19 @@ async function drawHealthBar(ctx, member, centerX, barY, barWidth, channelId) {
         let maxHealth = 100;
         
         if (channelId) {
-            const gachaVC = require('../../../../models/activevcs');
-            const dbEntry = await gachaVC.findOne({ channelId: channelId }).lean();
-            
-            if (dbEntry && dbEntry.gameData && dbEntry.gameData.playerHealth && dbEntry.gameData.playerHealth[member.id]) {
-                const healthData = dbEntry.gameData.playerHealth[member.id];
-                currentHealth = healthData.current || 100;
-                maxHealth = healthData.max || 100;
-                console.log(`[STATS THUMBNAIL] Player health: ${currentHealth}/${maxHealth}`);
-            } else {
-                console.log(`[STATS THUMBNAIL] No health data found for player ${member.id}`);
+            try {
+                const PlayerHealth = require('../../../../models/PlayerHealth');
+                const playerHealth = await PlayerHealth.findPlayerHealth(member.id, channelId);
+                
+                if (playerHealth) {
+                    currentHealth = playerHealth.currentHealth || 100;
+                    maxHealth = playerHealth.maxHealth || 100;
+                    console.log(`[STATS THUMBNAIL] Player health: ${currentHealth}/${maxHealth}`);
+                } else {
+                    console.log(`[STATS THUMBNAIL] No health data found for player ${member.id}`);
+                }
+            } catch (healthError) {
+                console.warn(`[STATS THUMBNAIL] Error getting health data:`, healthError);
             }
         }
         
@@ -700,10 +703,17 @@ async function createStatsThumb(member, playerStats, channelId = null) {
         // Get health data for hash generation
         let healthData = { current: 100, max: 100 };
         if (channelId) {
-            const gachaVC = require('../../../../models/activevcs');
-            const dbEntry = await gachaVC.findOne({ channelId: channelId }).lean();
-            if (dbEntry && dbEntry.gameData && dbEntry.gameData.playerHealth && dbEntry.gameData.playerHealth[member.id]) {
-                healthData = dbEntry.gameData.playerHealth[member.id];
+            try {
+                const PlayerHealth = require('../../../models/PlayerHealth');
+                const playerHealth = await PlayerHealth.findPlayerHealth(member.id, channelId);
+                if (playerHealth) {
+                    healthData = {
+                        current: playerHealth.currentHealth,
+                        max: playerHealth.maxHealth
+                    };
+                }
+            } catch (healthError) {
+                console.warn('[STATS THUMBNAIL] Error getting health for hash:', healthError);
             }
         }
         
