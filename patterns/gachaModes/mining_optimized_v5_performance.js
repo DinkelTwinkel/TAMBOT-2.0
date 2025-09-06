@@ -3043,22 +3043,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         }
     }
     
-    // Check if player is stuck in walls (but allow movement/mining unless dead)
-    const playerPosition = mapData.playerPositions[member.id];
-    if (playerPosition && isPlayerStuck(playerPosition, mapData)) {
-        if (playerPosition.trapped) {
-            // Players can still move and mine when trapped by walls, just show status message
-            if (Math.random() < 0.1) { // Only show message occasionally to avoid spam
-                eventLogs.push(`🧱 ${member.displayName} is surrounded by walls but continues mining!`);
-            }
-        } else if (playerPosition.stuck) {
-            if (Math.random() < 0.1) { // Only show message occasionally to avoid spam
-                eventLogs.push(`⚠️ ${member.displayName} is stuck in a wall but can mine to escape!`);
-            }
-        }
-        
-        // Continue processing - players can always move/mine unless dead
-    }
+    // Wall trap status tracking removed - players can always continue mining after wall traps
+    // The trapped/stuck status is maintained for internal tracking but doesn't affect gameplay
     
     let wallsBroken = 0;
     let treasuresFound = 0;
@@ -3673,7 +3659,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 hazardsData,
                 dbEntry,
                 transaction,
-                eventLogs
+                eventLogs,
+                powerLevel,
+                mineTypeId
             );
             
             if (hazardResult) {

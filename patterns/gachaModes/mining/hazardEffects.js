@@ -96,8 +96,8 @@ async function processEncounterTrigger(member, position, mapData, hazardsData, d
 /**
  * Legacy function for backward compatibility
  */
-async function processHazardTrigger(member, position, mapData, hazardsData, dbEntry, transaction, eventLogs) {
-    return processEncounterTrigger(member, position, mapData, hazardsData, dbEntry, transaction, eventLogs);
+async function processHazardTrigger(member, position, mapData, hazardsData, dbEntry, transaction, eventLogs, powerLevel = 1, mineTypeId = null) {
+    return processEncounterTrigger(member, position, mapData, hazardsData, dbEntry, transaction, eventLogs, powerLevel, mineTypeId);
 }
 
 /**
@@ -602,7 +602,8 @@ async function handleWallTrap(member, position, mapData, eventLogs, dbEntry, pow
         }
     }
     
-    eventLogs.push(`🧱 ${member.displayName} ${message}`);
+    // Don't add message to eventLogs here - processEncounterTrigger will handle it
+    // eventLogs.push(`🧱 ${member.displayName} ${message}`);
     
     return {
         mapChanged: true,
