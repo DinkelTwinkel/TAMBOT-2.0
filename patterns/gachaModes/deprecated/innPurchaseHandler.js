@@ -171,13 +171,14 @@ class InnPurchaseHandler {
     }
 
     /**
-     * Calculate cost basis for an item (5% of base value for ~95% profit margin)
+     * Calculate cost basis for an item (35% of base value for ~65% profit margin)
      * @param {number} baseValue - Base value of the item
      * @param {number} quantity - Quantity being sold
      * @returns {number} - Total cost basis
      */
     static calculateCostBasis(baseValue, quantity = 1) {
-        return Math.floor(baseValue * 0.05 * quantity);
+        const InnConfig = require('../innKeeping/innConfig');
+        return Math.floor(baseValue * InnConfig.ECONOMY.COST_BASIS_MULTIPLIER * quantity);
     }
 }
 

@@ -665,7 +665,13 @@ class InnDisplayManager {
             });
         }
 
-        await channel.send({ embeds: [embed] });
+        // Try to send the profit report, but don't fail distribution if it doesn't work
+        try {
+            await channel.send({ embeds: [embed] });
+        } catch (messageError) {
+            console.error('[InnDisplay] Failed to send profit distribution report (distribution still successful):', messageError);
+            // Distribution was successful, just couldn't send the log
+        }
         
         // Clear the display cache
         this.messageCache.delete(channel.id);

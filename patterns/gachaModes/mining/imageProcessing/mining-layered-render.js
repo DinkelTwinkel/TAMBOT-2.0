@@ -1656,7 +1656,7 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
                             }
                             
                             await drawPlayerAvatar(ctx, member, tileCenterX, tileCenterY,
-                                                 imageSettings.playerAvatarSize, imageSettings);
+                                                 imageSettings.playerAvatarSize, imageSettings, channelId);
                             
                             // Draw player name for larger images with role color
                             if (floorTileSize >= 40) {
@@ -1682,7 +1682,7 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
                 } else {
                     // Multiple players on same tile - stack them
                     await drawStackedPlayers(ctx, obj.players, tileCenterX, tileCenterY, 
-                                           floorTileSize, imageSettings);
+                                           floorTileSize, imageSettings, channelId);
                 }
                 break;
         }
@@ -1868,7 +1868,7 @@ function drawRails(ctx, pixelX, pixelY, tileSize, railsData, mapData, tileX, til
 /**
  * Enhanced avatar drawing with pickaxe display and headlamp indicator (from original)
  */
-async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettings) {
+async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettings, channelId) {
     try {
         const avatarSize = imageSettings.scaleFactor < 0.5 ? 64 : 128;
         const avatarURL = member.user.displayAvatarURL({ extension: 'png', size: avatarSize });
@@ -2152,7 +2152,7 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
                 try {
                     // Get health from separate PlayerHealth schema
                     const PlayerHealth = require('../../../../models/PlayerHealth');
-                    const playerHealth = await PlayerHealth.findPlayerHealth(member.user.id, channel.id);
+                    const playerHealth = await PlayerHealth.findPlayerHealth(member.user.id, channelId);
                     
                 if (playerHealth) {
                     // Dead players show 0 health
@@ -2292,7 +2292,7 @@ async function drawCampfire(ctx, centerX, centerY, tileSize) {
 /**
  * Draw multiple players stacked on the same tile
  */
-async function drawStackedPlayers(ctx, players, centerX, centerY, tileSize, imageSettings) {
+async function drawStackedPlayers(ctx, players, centerX, centerY, tileSize, imageSettings, channelId) {
     const maxStack = Math.min(players.length, 4); // Limit visual stack to 4
     const stackOffset = Math.max(3, imageSettings.stackedOffset);
     const baseSize = imageSettings.playerAvatarSize;
@@ -2309,7 +2309,7 @@ async function drawStackedPlayers(ctx, players, centerX, centerY, tileSize, imag
         if (position.isTent) {
             await drawTent(ctx, playerX, playerY, tileSize * 0.8, member, imageSettings);
         } else {
-            await drawPlayerAvatar(ctx, member, playerX, playerY, scaledSize, imageSettings);
+            await drawPlayerAvatar(ctx, member, playerX, playerY, scaledSize, imageSettings, channelId);
         }
     }
     

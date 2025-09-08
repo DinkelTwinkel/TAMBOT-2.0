@@ -108,27 +108,27 @@ module.exports = {
     // Economy Configuration
     ECONOMY: {
         BASE_SALARY: {
-            FORMULA: 'power => 100 * Math.pow(2, power - 1)',
-            POWER_1: 100,
-            POWER_2: 200,
-            POWER_3: 400,
-            POWER_4: 800,
-            POWER_5: 1600,
-            POWER_6: 3200,
-            POWER_7: 6400
+            FORMULA: 'power => 15 * Math.pow(1.5, power - 1)',
+            POWER_1: 15,
+            POWER_2: 23,
+            POWER_3: 34,
+            POWER_4: 51,
+            POWER_5: 77,
+            POWER_6: 115,
+            POWER_7: 173
         },
-        PROFIT_MARGIN: 0.95,                  // 95% profit margin (5% cost basis)
-        COST_BASIS_MULTIPLIER: 0.05,          // 5% of item value
+        PROFIT_MARGIN: 0.65,                  // 65% profit margin (35% cost basis)
+        COST_BASIS_MULTIPLIER: 0.35,          // 35% of item value
         PRICE_FLUCTUATION: {
             MIN: 0.8,                          // -20% minimum price
             MAX: 1.2                           // +20% maximum price
         },
         TIPS: {
-            BASE_PERCENTAGE: 0.10,             // 10% base tip
+            BASE_PERCENTAGE: 0.05,             // 5% base tip
             MINIMUM_PERCENTAGE: {
-                POWER_1_3: 0.10,               // 10% minimum for low power
-                POWER_4_5: 0.15,               // 15% minimum for mid power
-                POWER_6_7: 0.25                // 25% minimum for high power
+                POWER_1_3: 0.05,               // 5% minimum for low power
+                POWER_4_5: 0.08,               // 8% minimum for mid power
+                POWER_6_7: 0.12                // 12% minimum for high power
             },
             NPC_MODIFIERS: {
                 WEALTH_MULTIPLIER: 0.15,       // Per wealth level
