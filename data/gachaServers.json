@@ -106,7 +106,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 500,
+        "conditionCost": 100,
         "deeperMineId": "1001",
         "isLocked": false
     },
@@ -128,7 +128,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 650,
+        "conditionCost": 200,
         "deeperMineId": "1002",
         "parentMineId": "1",
         "isLocked": false
@@ -151,7 +151,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 800,
+        "conditionCost": 300,
         "deeperMineId": "1003",
         "parentMineId": "1001",
         "isLocked": false
@@ -174,7 +174,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 950,
+        "conditionCost": 400,
         "deeperMineId": "1004",
         "parentMineId": "1002",
         "isLocked": false
@@ -197,7 +197,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1100,
+        "conditionCost": 500,
         "deeperMineId": "1005",
         "parentMineId": "1003",
         "isLocked": false
@@ -220,7 +220,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1250,
+        "conditionCost": 600,
         "deeperMineId": "101",
         "parentMineId": "1004",
         "isLocked": false
@@ -245,7 +245,7 @@
         "isDeeper": false,
         "parentMineId": "1005",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 2000,
+        "conditionCost": 1000,
         "deeperMineId": "1011",
         "isLocked": false
     },
@@ -268,7 +268,7 @@
         "image": "coalMineDeep",
         "parentMineId": "101",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 2500,
+        "conditionCost": 1100,
         "deeperMineId": "1012",
         "isLocked": true
     },
@@ -291,7 +291,7 @@
         "image": "coalMineDeep",
         "parentMineId": "1011",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 3000,
+        "conditionCost": 1200,
         "deeperMineId": "1013",
         "isLocked": true
     },
@@ -314,7 +314,7 @@
         "image": "coalMineDeep",
         "parentMineId": "1012",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 3500,
+        "conditionCost": 1300,
         "deeperMineId": "1014",
         "isLocked": true
     },
@@ -337,7 +337,7 @@
         "image": "coalMineDeep",
         "parentMineId": "1013",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 4000,
+        "conditionCost": 1400,
         "deeperMineId": "1015",
         "isLocked": true
     },
@@ -360,7 +360,7 @@
         "image": "coalMineDeep",
         "parentMineId": "1014",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 4500,
+        "conditionCost": 2000,
         "deeperMineId": "113",
         "isLocked": true
     },
