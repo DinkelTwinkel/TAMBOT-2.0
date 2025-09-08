@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const gachaVC = require('../models/activevcs');
 const PlayerInventory = require('../models/inventory');
-const generateTileMapImage = require('../patterns/gachaModes/mining/imageProcessing/mining-layered-render.js');
+const { generateTileMapImage } = require('../patterns/gachaModes/mining/imageProcessing/mining-layered-render.js');
 const { findOptimalRailStart } = require('../patterns/gachaModes/mining/railPathfindingExtended');
 const { checkAndHandleMapChanges } = require('../patterns/gachaModes/mining/coordinateManager');
 const railStorage = require('../patterns/gachaModes/mining/railStorage');

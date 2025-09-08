@@ -1480,7 +1480,7 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
             // ALWAYS ensure an event happens during long break
             let eventResult;
             try {
-                eventResult = await selectedEvent(channel, updatedDbEntry);
+                eventResult = await selectedEvent.func(channel, updatedDbEntry);
                 
                 // If no event result or event failed, force a backup event
                 if (!eventResult) {
@@ -2280,7 +2280,7 @@ if (shouldStartBreak) {
             if (isLongBreak) {
                 const playerCount = members.size;
                 selectedEvent = pickLongBreakEvent(playerCount);
-                console.log(`[MAIN] Long break: Selected event for ${playerCount} players`);
+                console.log(`[MAIN] Long break: Selected event ${selectedEvent.name} for ${playerCount} players`);
             }
             
             await startBreak(channel, dbEntry, isLongBreak, serverPowerLevel, selectedEvent);
@@ -3758,7 +3758,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
 
  }
 }
-}
+};
 
 // Cleanup function for when bot shuts down or restarts
 function cleanupAllChannels() {

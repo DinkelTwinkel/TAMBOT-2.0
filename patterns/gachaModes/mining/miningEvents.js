@@ -1320,7 +1320,10 @@ function pickLongBreakEvent(playerCount = 1) {
     const selected = adjustedEvents.find(e => (rand -= e.adjustedWeight) < 0) || adjustedEvents[0];
     
     console.log(`[EVENT SELECTION] Selected ${selected.name} for ${playerCount} players (weight: ${selected.adjustedWeight}/${totalWeight})`);
-    return selected.func;
+    return {
+        func: selected.func,
+        name: selected.name
+    };
 }
 
 /**
