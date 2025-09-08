@@ -119,16 +119,8 @@ module.exports = {
                 components: components,
                 ephemeral: true
             });
-        } catch (embedError) {
-            console.error('[USE COMMAND] Error creating embed:', embedError);
-            return interaction.editReply({
-                content: '❌ There was an error displaying your usable items. Please try again.',
-                ephemeral: true
-            });
-        }
-
-        // Create collector for pagination buttons only
-        try {
+            
+            // Create collector for pagination buttons only
             const collector = message.createMessageComponentCollector({
                 filter: i => i.user.id === user.id && i.customId.startsWith('use_page_'),
                 time: 300000 // 5 minutes
@@ -161,8 +153,13 @@ module.exports = {
                     ephemeral: true
                 }).catch(() => {}); // Ignore errors if message was deleted
             });
-        } catch (collectorError) {
-            console.error('[USE COMMAND] Error creating collector:', collectorError);
+            
+        } catch (embedError) {
+            console.error('[USE COMMAND] Error creating embed:', embedError);
+            return interaction.editReply({
+                content: '❌ There was an error displaying your usable items. Please try again.',
+                ephemeral: true
+            });
         }
         
         } catch (mainError) {

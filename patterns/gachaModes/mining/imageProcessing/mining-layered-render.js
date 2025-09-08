@@ -2077,9 +2077,14 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
                                 let currentHealth = 100;
                                 let maxHealth = 100;
                                 
-                                if (playerData && playerData.health) {
-                                    currentHealth = playerData.health.current || 100;
-                                    maxHealth = playerData.health.max || 100;
+                                try {
+                                    const fallbackPlayerData = await getPlayerStats(member.user.id);
+                                    if (fallbackPlayerData && fallbackPlayerData.health) {
+                                        currentHealth = fallbackPlayerData.health.current || 100;
+                                        maxHealth = fallbackPlayerData.health.max || 100;
+                                    }
+                                } catch (playerError) {
+                                    console.warn(`[RENDER] Could not get player data for health display in fallback:`, playerError);
                                 }
                                 
                                 // Calculate health percentage for color coding
