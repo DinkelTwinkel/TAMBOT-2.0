@@ -7,7 +7,7 @@
         "spawnWeight": 30,
         "description": "A hearty tavern where weary miners gather after long shifts underground. Known for its generous portions of meat and ale, this rustic inn offers warm beds and warmer company to those who work the depths.",
         "power": 1,
-        "script": "innKeeper_v3.js",
+        "script": "innKeeper_v4.js",
         "profitMargins": 0.7,
         "shop": 13,
         "colour": "DEB887",
