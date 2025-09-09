@@ -3530,18 +3530,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         eventLogs.push(findMessage);
                     }
                     
-                    } else {
-                        // Break regular wall for exploration
-                        const explorationMessages = [
-                            `⛏️ ${member.displayName} broke through a wall, opening new territory!`,
-                            `⛏️ ${member.displayName} carved a path through solid stone!`,
-                            `⛏️ ${member.displayName} cleared the way forward!`,
-                            `⛏️ ${member.displayName} opened up a new passage!`,
-                            `⛏️ ${member.displayName} broke through a wall, expanding the mine!`
-                        ];
-                        eventLogs.push(explorationMessages[Math.floor(Math.random() * explorationMessages.length)]);
-                    }
-                    
                     mapData.tiles[newY][newX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                     position.x = newX;
                     position.y = newY;
