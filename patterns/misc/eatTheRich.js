@@ -26,7 +26,7 @@ module.exports = (client) => {
       const startTime = Date.now();
       
       const userProfile = await Money.findOne({ userId: user.id });
-      if (!userProfile || userProfile.money >= 5) {
+      if (!userProfile || userProfile.money >= 500) {
         return interaction.reply({ content: "You need to be broke to eat the rich...!", ephemeral: true });
       }
 

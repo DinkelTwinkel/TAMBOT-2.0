@@ -408,14 +408,25 @@ class InnKeeperV4Controller {
     }
 
     /**
-     * Acquire processing lock
+     * Acquire processing lock (similar to mining system)
      */
     async acquireLock(channelId, timeout = this.config.TIMING.LOCK_TIMEOUT) {
-        if (this.processingLocks.has(channelId)) {
-            return false;
+        const startTime = Date.now();
+        
+        // Check if already locked and wait briefly like mining does
+        while (this.processingLocks.has(channelId)) {
+            if (Date.now() - startTime > timeout) {
+                console.warn(`[InnKeeperV4] Lock acquisition timeout for channel ${channelId}`);
+                this.forceUnlock(channelId);
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100)); // 100ms wait like mining
         }
         
-        this.processingLocks.set(channelId, Date.now());
+        this.processingLocks.set(channelId, {
+            timestamp: Date.now(),
+            pid: process.pid
+        });
         
         // Auto-release lock after timeout
         setTimeout(() => {
@@ -423,6 +434,14 @@ class InnKeeperV4Controller {
         }, timeout);
         
         return true;
+    }
+
+    /**
+     * Force unlock a channel (similar to mining system)
+     */
+    forceUnlock(channelId) {
+        console.warn(`[InnKeeperV4] Force unlocking channel ${channelId}`);
+        this.processingLocks.delete(channelId);
     }
 
     /**

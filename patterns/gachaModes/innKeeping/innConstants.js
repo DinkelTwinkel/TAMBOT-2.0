@@ -18,7 +18,7 @@ module.exports = {
         
         // Processing Intervals
         PROCESSING_INTERVAL: 30 * 1000,       // 30 seconds - how often to check state
-        LOCK_TIMEOUT: 30 * 1000,              // 30 seconds - processing lock timeout
+        LOCK_TIMEOUT: 5 * 1000,               // 5 seconds - processing lock timeout (aligned with mining)
     },
 
     // === PROFIT AND ECONOMY ===
