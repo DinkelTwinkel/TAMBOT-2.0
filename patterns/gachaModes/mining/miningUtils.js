@@ -307,117 +307,6 @@ async function getMinecartSummary(channelId) {
     };
 }
 
-/**
- * Find the nearest undiscovered wall that could contain ore
- * @param {Object} position - Player position
- * @param {Object} mapData - Map data
- * @param {Set} teamVisibleTiles - Currently visible tiles
- * @returns {Object|null} Target position or null
- */
-function findNearestUndiscoveredWall(position, mapData, teamVisibleTiles) {
-    let nearestTarget = null;
-    let minDistance = Infinity;
-    
-    // Look for walls adjacent to discovered areas (likely to be worth breaking)
-    for (let y = 0; y < mapData.height; y++) {
-        for (let x = 0; x < mapData.width; x++) {
-            const tile = mapData.tiles[y]?.[x];
-            if (!tile || tile.discovered) continue;
-            
-            // Check if this undiscovered tile is a wall adjacent to discovered areas
-            const isWall = tile.type === TILE_TYPES.WALL || tile.type === TILE_TYPES.WALL_WITH_ORE;
-            if (!isWall) continue;
-            
-            // Check if adjacent to any discovered tile (good exploration candidate)
-            const hasDiscoveredNeighbor = [
-                { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
-                { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
-            ].some(dir => {
-                const adjX = x + dir.dx;
-                const adjY = y + dir.dy;
-                const adjTile = mapData.tiles[adjY]?.[adjX];
-                return adjTile && adjTile.discovered;
-            });
-            
-            if (hasDiscoveredNeighbor) {
-                const distance = Math.abs(x - position.x) + Math.abs(y - position.y);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    nearestTarget = { x, y, type: tile.type };
-                }
-            }
-        }
-    }
-    
-    return nearestTarget;
-}
-
-/**
- * Get direction biased toward unexplored areas and map expansion
- * @param {Object} position - Player position
- * @param {Object} mapData - Map data
- * @param {string} memberId - Member ID for seeding
- * @returns {Object} Direction object
- */
-function getExplorationDirection(position, mapData, memberId) {
-    const directions = [
-        { dx: 0, dy: -1, name: 'north' },
-        { dx: 1, dy: 0, name: 'east' },
-        { dx: 0, dy: 1, name: 'south' },
-        { dx: -1, dy: 0, name: 'west' }
-    ];
-    
-    // Calculate bias toward less explored areas
-    const directionScores = directions.map(dir => {
-        const targetX = position.x + dir.dx;
-        const targetY = position.y + dir.dy;
-        
-        let score = 1; // Base score
-        
-        // Bias toward map edges (expansion)
-        const distanceToEdge = Math.min(
-            targetX, mapData.width - 1 - targetX,
-            targetY, mapData.height - 1 - targetY
-        );
-        
-        if (distanceToEdge < 3) {
-            score += 2; // Prefer moving toward edges
-        }
-        
-        // Bias toward areas with fewer discovered tiles nearby
-        let discoveredNearby = 0;
-        for (let dy = -2; dy <= 2; dy++) {
-            for (let dx = -2; dx <= 2; dx++) {
-                const checkX = targetX + dx;
-                const checkY = targetY + dy;
-                const tile = mapData.tiles[checkY]?.[checkX];
-                if (tile && tile.discovered) {
-                    discoveredNearby++;
-                }
-            }
-        }
-        
-        // Prefer directions with fewer discovered tiles nearby
-        score += Math.max(0, 10 - discoveredNearby);
-        
-        return { ...dir, score };
-    });
-    
-    // Weighted random selection based on scores
-    const totalScore = directionScores.reduce((sum, dir) => sum + dir.score, 0);
-    let rand = Math.random() * totalScore;
-    
-    for (const dir of directionScores) {
-        rand -= dir.score;
-        if (rand <= 0) {
-            return dir;
-        }
-    }
-    
-    // Fallback to first direction
-    return directionScores[0];
-}
-
 module.exports = {
     seededRandom,
     createPlayerSeed,
@@ -431,7 +320,5 @@ module.exports = {
     canBreakTile,
     calculateDurabilityLoss,
     checkPickaxeBreak,
-    getMinecartSummary,
-    findNearestUndiscoveredWall,
-    getExplorationDirection
+    getMinecartSummary
 };

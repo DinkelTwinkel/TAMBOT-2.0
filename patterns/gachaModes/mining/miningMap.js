@@ -190,39 +190,15 @@ function expandMap(mapData, direction, channelId, powerLevel = 1) {
  */
 function initializeBreakPositions(mapData, members, isBreak = false) {
     if (!isBreak) {
-        // Normal mining - scatter new players around entrance area instead of stacking
-        const newPlayers = [];
+        // Normal mining - all players at entrance
         for (const member of members.values()) {
             if (!mapData.playerPositions[member.id]) {
-                newPlayers.push(member.id);
-            }
-        }
-        
-        if (newPlayers.length > 0) {
-            // Find safe positions for new players
-            const usedPositions = new Set();
-            
-            // Mark existing player positions as used
-            for (const position of Object.values(mapData.playerPositions)) {
-                if (position && typeof position.x === 'number' && typeof position.y === 'number') {
-                    usedPositions.add(`${position.x},${position.y}`);
-                }
-            }
-            
-            // Find safe starting positions around entrance
-            const safePositions = findSafeStartingPositions(mapData, newPlayers.length, usedPositions);
-            
-            for (let i = 0; i < newPlayers.length; i++) {
-                const playerId = newPlayers[i];
-                const safePos = safePositions[i] || { x: mapData.entranceX, y: mapData.entranceY };
-                
-                mapData.playerPositions[playerId] = {
-                    x: safePos.x,
-                    y: safePos.y
+                mapData.playerPositions[member.id] = {
+                    x: mapData.entranceX,
+                    y: mapData.entranceY
                 };
             }
         }
-        
         return mapData;
     }
 
@@ -254,73 +230,6 @@ function initializeBreakPositions(mapData, members, isBreak = false) {
     }
     
     return mapData;
-}
-
-/**
- * Find safe starting positions for new players around the entrance
- * @param {Object} mapData - Map data object
- * @param {number} count - Number of positions needed
- * @param {Set} usedPositions - Already used positions to avoid
- * @returns {Array} Array of safe starting positions
- */
-function findSafeStartingPositions(mapData, count, usedPositions = new Set()) {
-    const safePositions = [];
-    
-    // Start from entrance and expand outward in a spiral
-    const centerX = mapData.entranceX;
-    const centerY = mapData.entranceY;
-    
-    // Search in expanding rings around the entrance
-    for (let radius = 0; radius <= 10 && safePositions.length < count; radius++) {
-        const candidates = [];
-        
-        if (radius === 0) {
-            // Check entrance position first
-            candidates.push({ x: centerX, y: centerY, distance: 0 });
-        } else {
-            // Check all positions at current radius
-            for (let dx = -radius; dx <= radius; dx++) {
-                for (let dy = -radius; dy <= radius; dy++) {
-                    // Only check positions at the edge of current radius
-                    if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
-                    
-                    const checkX = centerX + dx;
-                    const checkY = centerY + dy;
-                    
-                    if (checkX >= 0 && checkX < mapData.width && 
-                        checkY >= 0 && checkY < mapData.height) {
-                        candidates.push({ x: checkX, y: checkY, distance: radius });
-                    }
-                }
-            }
-        }
-        
-        // Randomize order to avoid predictable patterns
-        for (let i = candidates.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-        }
-        
-        // Check each candidate position
-        for (const candidate of candidates) {
-            const posKey = `${candidate.x},${candidate.y}`;
-            
-            // Skip if position already used
-            if (usedPositions.has(posKey)) continue;
-            
-            // Check if tile is safe for starting position
-            const tile = mapData.tiles[candidate.y] && mapData.tiles[candidate.y][candidate.x];
-            if (tile && (tile.type === TILE_TYPES.FLOOR || tile.type === TILE_TYPES.ENTRANCE)) {
-                safePositions.push(candidate);
-                usedPositions.add(posKey);
-                
-                if (safePositions.length >= count) break;
-            }
-        }
-    }
-    
-    console.log(`[MINING_MAP] Found ${safePositions.length} safe starting positions for ${count} new players`);
-    return safePositions;
 }
 
 /**
