@@ -3096,7 +3096,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     let enhancedSpeed = Math.floor(speedStat * efficiency.speedMultiplier);
     enhancedSpeed = applyMovementSpeedBonus(enhancedSpeed, uniqueBonuses.movementSpeedBonus);
     const numActions = enhancedSpeed > 0 ? Math.floor(Math.random() * enhancedSpeed) + 1 : 1;
-    console.log(`[MINING] ${member.displayName} has ${numActions} actions (speed: ${enhancedSpeed})`);
     
     for (let actionNum = 0; actionNum < numActions; actionNum++) {
         try {
@@ -3388,31 +3387,16 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 
                 if (nearestWall && Math.random() < 0.8) { // 80% chance to target walls when no ore
                     direction = getDirectionToTarget(position, nearestWall);
-                    console.log(`[MINING] ${member.displayName} targeting wall at (${nearestWall.x}, ${nearestWall.y})`);
                 } else {
                     // Look for undiscovered areas to expand into
                     const undiscoveredTarget = findNearestUndiscoveredWall(position, mapData, teamVisibleTiles);
                     
                     if (undiscoveredTarget && Math.random() < 0.7) { // 70% chance to explore
                         direction = getDirectionToTarget(position, undiscoveredTarget);
-                        console.log(`[MINING] ${member.displayName} exploring toward (${undiscoveredTarget.x}, ${undiscoveredTarget.y})`);
                     } else {
                         // Last resort - biased random movement toward unexplored areas
                         direction = getExplorationDirection(position, mapData, member.id);
-                        console.log(`[MINING] ${member.displayName} using exploration direction: ${direction.name}`);
                     }
-                }
-                
-                // Fallback safety check - ensure direction is always valid
-                if (!direction || (direction.dx === 0 && direction.dy === 0)) {
-                    console.warn(`[MINING] Invalid direction for ${member.displayName}, using fallback`);
-                    const fallbackDirections = [
-                        { dx: 0, dy: -1, name: 'north' },
-                        { dx: 1, dy: 0, name: 'east' },
-                        { dx: 0, dy: 1, name: 'south' },
-                        { dx: -1, dy: 0, name: 'west' }
-                    ];
-                    direction = fallbackDirections[Math.floor(Math.random() * fallbackDirections.length)];
                 }
             }
             
@@ -3437,12 +3421,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             }
             moveHistory.lastDirection = { dx: direction.dx, dy: direction.dy };
             
-            if (direction.dx === 0 && direction.dy === 0) {
-                console.warn(`[MINING] ${member.displayName} got invalid direction (0,0), skipping action`);
-                continue;
-            }
-            
-            console.log(`[MINING] ${member.displayName} moving ${direction.name || 'unknown'} to (${position.x + direction.dx}, ${position.y + direction.dy})`);
+            if (direction.dx === 0 && direction.dy === 0) continue;
             
             let newX = position.x + direction.dx;
             let newY = position.y + direction.dy;
@@ -3492,12 +3471,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 }
                 
                 const canBreak = await canBreakTile(member.id, miningPower, targetTile);
-                console.log(`[MINING] ${member.displayName} attempting to break ${targetTile.type} at (${newX}, ${newY}), canBreak: ${canBreak}, miningPower: ${miningPower}`);
-                
                 if (canBreak) {
                     // Reduced failure chance for regular walls to encourage more exploration
                     if (Math.random() < 0.05 && targetTile.type === TILE_TYPES.WALL) {
-                        console.log(`[MINING] ${member.displayName} failed to break wall (5% random failure)`);
                         continue;
                     }
                     if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
@@ -3548,12 +3524,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     position.y = newY;
                     mapChanged = true;
                     wallsBroken++;
-                    console.log(`[MINING] ${member.displayName} successfully broke wall and moved to (${newX}, ${newY})`);
-                } else {
-                    // Player cannot break this wall
-                    console.log(`[MINING] ${member.displayName} cannot break ${targetTile.type} at (${newX}, ${newY}) - insufficient power or other restriction`);
                 }
-            } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
+} else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
 
     try {
     // Track movement for maintenance
@@ -3565,7 +3537,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         position.x = newX;
         position.y = newY;
         mapChanged = true;
-        console.log(`[MINING] ${member.displayName} successfully moved to floor/entrance at (${newX}, ${newY})`);
     } else {
         // If position would be out of bounds, keep player at current position
         console.warn(`[MINING] Player ${member.displayName} attempted to move to out-of-bounds position (${newX}, ${newY}). Map size: ${mapData.width}x${mapData.height}`);
