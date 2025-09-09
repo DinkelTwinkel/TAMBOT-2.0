@@ -3548,23 +3548,22 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     mapChanged = true;
                     wallsBroken++;
                 }
-} else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
-
-    try {
-    // Track movement for maintenance
-    const oldX = position.x;
-    const oldY = position.y;
-    
-    // Validate that the new position is within map bounds after expansion
-    if (newX >= 0 && newX < mapData.width && newY >= 0 && newY < mapData.height) {
-        position.x = newX;
-        position.y = newY;
-        mapChanged = true;
-    } else {
-        // If position would be out of bounds, keep player at current position
-        console.warn(`[MINING] Player ${member.displayName} attempted to move to out-of-bounds position (${newX}, ${newY}). Map size: ${mapData.width}x${mapData.height}`);
-        continue;
-    }
+            } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
+                try {
+                    // Track movement for maintenance
+                    const oldX = position.x;
+                    const oldY = position.y;
+                    
+                    // Validate that the new position is within map bounds after expansion
+                    if (newX >= 0 && newX < mapData.width && newY >= 0 && newY < mapData.height) {
+                        position.x = newX;
+                        position.y = newY;
+                        mapChanged = true;
+                    } else {
+                        // If position would be out of bounds, keep player at current position
+                        console.warn(`[MINING] Player ${member.displayName} attempted to move to out-of-bounds position (${newX}, ${newY}). Map size: ${mapData.width}x${mapData.height}`);
+                        continue;
+                    }
     
     // Check for Shadowstep Boots random teleportation
     if (uniqueBonuses.shadowTeleportChance > 0) {
