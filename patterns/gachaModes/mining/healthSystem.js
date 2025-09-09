@@ -1,5 +1,5 @@
 // healthSystem.js - Centralized health management for mining system
-const { calculatePlayerStat } = require('../../calculatePlayerStat');
+const calculatePlayerStat = require('../../calculatePlayerStat');
 
 /**
  * Update player health
