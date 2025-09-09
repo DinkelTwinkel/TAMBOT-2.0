@@ -577,9 +577,51 @@ function parseUniqueItemBonuses(equippedItems) {
  * @param {Array} eventLogs - Event logs array
  * @returns {number} Final quantity
  */
-function applyDoubleOreBonus(baseQuantity, doubleOreChance, member, eventLogs) {
+function applyDoubleOreBonus(baseQuantity, doubleOreChance, member, eventLogs, equippedItems = null) {
     if (doubleOreChance > 0 && Math.random() < doubleOreChance) {
-        eventLogs.push(`💨 ${member.displayName}'s Blue Breeze doubles the ore yield!`);
+        // Determine which unique item is causing the double ore effect
+        let effectMessage = `💨 ${member.displayName}'s Blue Breeze doubles the ore yield!`; // Default fallback
+        
+        if (equippedItems) {
+            // Check which unique item is equipped and causing the effect
+            for (const [id, item] of Object.entries(equippedItems)) {
+                if (!item.isUnique) continue;
+                
+                let itemId;
+                if (typeof item.itemId === 'string' && item.itemId.startsWith('unique_')) {
+                    itemId = parseInt(item.itemId.replace('unique_', ''));
+                } else if (typeof item.itemId === 'number') {
+                    itemId = item.itemId;
+                } else {
+                    continue;
+                }
+                
+                // Map item IDs to their effect messages
+                switch(itemId) {
+                    case 9: // Blue Breeze
+                        effectMessage = `💨 ${member.displayName}'s ${item.name} generates a powerful wind that doubles the ore yield!`;
+                        break;
+                    case 1: // The One Pick
+                        effectMessage = `⚡ ${member.displayName}'s ${item.name} transmutes reality, doubling the ore!`;
+                        break;
+                    case 10: // Midas' Burden
+                        effectMessage = `🥇 ${member.displayName}'s ${item.name} golden touch doubles the precious ore!`;
+                        break;
+                    case 4: // Greed's Embrace
+                        effectMessage = `💰 ${member.displayName}'s ${item.name} manifests additional ore through pure avarice!`;
+                        break;
+                    case 2: // Earthshaker
+                        effectMessage = `🐹 ${member.displayName}'s ${item.name} earth tremors reveal hidden ore deposits!`;
+                        break;
+                    default:
+                        effectMessage = `✨ ${member.displayName}'s ${item.name} enhances the ore yield!`;
+                        break;
+                }
+                break; // Use first unique item found
+            }
+        }
+        
+        eventLogs.push(effectMessage);
         return baseQuantity * 2;
     }
     return baseQuantity;

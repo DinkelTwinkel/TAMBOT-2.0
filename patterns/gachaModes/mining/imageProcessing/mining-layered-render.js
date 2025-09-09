@@ -11,6 +11,9 @@ const fs = require('fs').promises;
 const { generateThemeImages } = require('./generateMissingImages');
 const railStorage = require('../railStorage');
 
+// Import cache integration for consistent data access
+const { getCachedDBEntryForRender } = require('../cache/renderCacheIntegration');
+
 // Import the tileset blending functionality
 const {
     analyzeMineProgression,
@@ -98,6 +101,9 @@ const TILE_TYPES = {
     RARE_ORE: 'rare_ore',
     REINFORCED_WALL: 'reinforced'
 };
+
+// Use the integrated cache function instead of local implementation
+const getCachedDBEntry = getCachedDBEntryForRender;
 
 // Mine themes mapped to gachaServers.json image field
 const MINE_THEMES = {
@@ -2566,9 +2572,8 @@ function getUserRoleColor(member) {
  */
 async function drawCornerHPDisplay(ctx, members, channelId, canvasWidth, canvasHeight) {
     try {
-        // Get health data for all players
-        const gachaVC = require('../../../../models/activevcs');
-        const dbEntry = await gachaVC.findOne({ channelId: channelId }).lean();
+        // Get health data for all players using cached data
+        const dbEntry = await getCachedDBEntry(channelId);
         
         const playersWithHealth = [];
         
@@ -2675,7 +2680,7 @@ async function generateTileMapImage(channel) {
         throw new Error('Channel ID is required');
     }
 
-    const result = await gachaVC.findOne({ channelId: channel.id });
+    const result = await getCachedDBEntry(channel.id);
     if (!result || !result.gameData || !result.gameData.map) {
         throw new Error('No map data found for this channel');
     }
@@ -2783,8 +2788,8 @@ async function generateTileMapImage(channel) {
     ctx.save();
     ctx.translate(BORDER_SIZE, BORDER_SIZE);
 
-    // Check if we're in a break period
-    const refreshedEntry = await gachaVC.findOne({ channelId: channel.id });
+    // Check if we're in a break period using cached data
+    const refreshedEntry = await getCachedDBEntry(channel.id);
     const inBreak = isBreakPeriod(refreshedEntry);
     const inLongBreak = isLongBreak(refreshedEntry);
     const inShortBreak = inBreak && !inLongBreak;
