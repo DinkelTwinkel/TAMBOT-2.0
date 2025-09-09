@@ -3381,11 +3381,23 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     direction = randomDir;
                 }
             } else {
-                const directions = [
-                    { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
-                    { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
-                ];
-                direction = directions[Math.floor(Math.random() * directions.length)];
+                // No ore visible - be more aggressive about breaking regular walls
+                const wallTargets = [TILE_TYPES.WALL];
+                const nearestWall = findNearestTarget(position, teamVisibleTiles, mapData.tiles, wallTargets);
+                
+                if (nearestWall && Math.random() < 0.8) { // 80% chance to target walls when no ore
+                    direction = getDirectionToTarget(position, nearestWall);
+                } else {
+                    // Look for undiscovered areas to expand into
+                    const undiscoveredTarget = findNearestUndiscoveredWall(position, mapData, teamVisibleTiles);
+                    
+                    if (undiscoveredTarget && Math.random() < 0.7) { // 70% chance to explore
+                        direction = getDirectionToTarget(position, undiscoveredTarget);
+                    } else {
+                        // Last resort - biased random movement toward unexplored areas
+                        direction = getExplorationDirection(position, mapData, member.id);
+                    }
+                }
             }
             
             if (moveHistory.lastDirection && 
@@ -3460,7 +3472,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 
                 const canBreak = await canBreakTile(member.id, miningPower, targetTile);
                 if (canBreak) {
-                    if (Math.random() < 0.15 && targetTile.type === TILE_TYPES.WALL) {
+                    // Reduced failure chance for regular walls to encourage more exploration
+                    if (Math.random() < 0.05 && targetTile.type === TILE_TYPES.WALL) {
                         continue;
                     }
                     if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
