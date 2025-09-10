@@ -3,6 +3,7 @@
 
 const { EmbedBuilder } = require('discord.js');
 const ActiveVCs = require('../../models/activevcs');
+const Money = require('../../models/currency');
 const InnConstants = require('./innKeeping/innConstants');
 
 class InnKeeperV4Controller {
@@ -30,13 +31,24 @@ class InnKeeperV4Controller {
 
             try {
                 // Initialize game data if needed
-                await this.initializeGameData(channelId, now);
+                const wasInitialized = await this.initializeGameData(channelId, now);
                 
                 // Get fresh data after initialization
                 const freshEntry = await ActiveVCs.findOne({ channelId }).lean();
                 if (!freshEntry) {
                     console.error(`[InnKeeperV4] No database entry found for channel ${channelId}`);
                     return;
+                }
+
+                // If this was a new initialization, create initial work log
+                if (wasInitialized) {
+                    const initialWorkEvent = {
+                        timestamp: now,
+                        eventNumber: 0,
+                        description: 'Inn initialized - Ready to serve customers!',
+                        type: 'inn_init'
+                    };
+                    await this.updateWorkEventLog(channel, freshEntry, initialWorkEvent);
                 }
 
                 // Check current work/break state and handle transitions
@@ -54,13 +66,14 @@ class InnKeeperV4Controller {
 
     /**
      * Initialize game data for InnKeeper V4
+     * @returns {boolean} true if initialization was performed, false if already initialized
      */
     async initializeGameData(channelId, now) {
         const existingEntry = await ActiveVCs.findOne({ channelId }).lean();
         
         if (!existingEntry) {
             console.error(`[InnKeeperV4] No database entry found for channel ${channelId}`);
-            return;
+            return false;
         }
 
         // Initialize gameData if it doesn't exist
@@ -79,7 +92,12 @@ class InnKeeperV4Controller {
                 lastStateChange: new Date(now),
                 breakType: null,                // 'short' | 'long'
                 lastWorkEvent: 0,               // Track last work event time
-                workEventCount: 0               // Count work events for testing
+                workEventCount: 0,              // Count work events for testing
+                workEventLog: [],               // Array of work events for current work period
+                workLogMessageId: null,         // ID of the current work log embed message
+                workLogEmbedCount: 0,           // Count of work log embeds created
+                currentWorkPeriodProfit: 0,     // Total profit earned in current work period
+                totalProfit: 0                  // Total profit earned across all periods
             };
 
             const initData = {
@@ -94,7 +112,11 @@ class InnKeeperV4Controller {
                 { channelId: channelId },
                 { $set: initData }
             );
+            
+            return true; // Indicate that initialization was performed
         }
+        
+        return false; // Already initialized
     }
 
     /**
@@ -206,9 +228,12 @@ class InnKeeperV4Controller {
             return false;
         }
 
+        // Distribute profits to all members in the channel
+        await this.distributeProfits(channel, v4State.currentWorkPeriodProfit || 0);
+
         // Send break notification
         const breakEndTime = now + breakDuration;
-        const embed = this.createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime);
+        const embed = this.createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime, v4State.currentWorkPeriodProfit || 0);
 
         await channel.send({ embeds: [embed] });
         return true;
@@ -234,6 +259,9 @@ class InnKeeperV4Controller {
                     'gameData.v4State.workStartTime': new Date(now),
                     'gameData.v4State.lastStateChange': new Date(now),
                     'gameData.v4State.lastWorkEvent': 0,  // Reset work event timer
+                    'gameData.v4State.workEventLog': [],  // Reset work event log
+                    'gameData.v4State.workLogMessageId': null,  // Reset work log message ID
+                    'gameData.v4State.currentWorkPeriodProfit': 0,  // Reset current work period profit
                     'gameData.lastActivity': new Date(now),
                     nextTrigger: new Date(nextWorkEndTime)
                 },
@@ -254,6 +282,17 @@ class InnKeeperV4Controller {
         const embed = this.createWorkStartEmbed(this.config.TIMING.WORK_DURATION, nextWorkEndTime);
 
         await channel.send({ embeds: [embed] });
+        
+        // Create initial work log embed
+        const initialWorkEvent = {
+            timestamp: now,
+            eventNumber: 0,
+            description: 'Work period started - Inn is open for business!',
+            type: 'work_start'
+        };
+        
+        await this.updateWorkEventLog(channel, updated, initialWorkEvent);
+        
         return true;
     }
 
@@ -269,10 +308,13 @@ class InnKeeperV4Controller {
             }
 
             const lastEventTime = v4State.lastWorkEvent || 0;
-            const eventInterval = 30000; // 30 seconds for testing
+            // Random interval between 10-20 seconds
+            const minInterval = 10000; // 10 seconds
+            const maxInterval = 20000; // 20 seconds
+            const eventInterval = minInterval + Math.random() * (maxInterval - minInterval);
             const timeSinceLastEvent = now - lastEventTime;
             
-            console.log(`[InnKeeperV4] Dummy work event check: ${Math.round(timeSinceLastEvent / 1000)}s since last event, need 30s minimum`);
+            console.log(`[InnKeeperV4] Dummy work event check: ${Math.round(timeSinceLastEvent / 1000)}s since last event, need ${Math.round(eventInterval / 1000)}s minimum`);
             
             // Check if enough time has passed for next event
             if (timeSinceLastEvent >= eventInterval) {
@@ -295,31 +337,38 @@ class InnKeeperV4Controller {
             const currentCount = v4State?.workEventCount || 0;
             const newCount = currentCount + 1;
 
-            // Update database with new event time and count
+            // Generate random profit between 50-100
+            const profit = Math.floor(Math.random() * 51) + 50; // 50-100 inclusive
+            const currentProfit = v4State?.currentWorkPeriodProfit || 0;
+            const newCurrentProfit = currentProfit + profit;
+            const totalProfit = (v4State?.totalProfit || 0) + profit;
+
+            // Create work event object
+            const workEvent = {
+                timestamp: now,
+                eventNumber: newCount,
+                description: `Event #${newCount} - Earned ${profit} coins serving customers!`,
+                type: 'dummy_work_event',
+                profit: profit
+            };
+
+            // Update database with new event time, count, and profit
             await ActiveVCs.findOneAndUpdate(
                 { channelId: channel.id },
                 { 
                     $set: { 
                         'gameData.v4State.lastWorkEvent': now,
-                        'gameData.v4State.workEventCount': newCount
+                        'gameData.v4State.workEventCount': newCount,
+                        'gameData.v4State.currentWorkPeriodProfit': newCurrentProfit,
+                        'gameData.v4State.totalProfit': totalProfit
                     }
                 }
             );
 
-            // Send dummy event notification
-            const embed = new EmbedBuilder()
-                .setTitle('🏨 Inn Work Event')
-                .setDescription(`Dummy work event #${newCount} - Inn is busy serving customers!`)
-                .setColor('#3498db')
-                .addFields(
-                    { name: '📊 Event Count', value: `${newCount}`, inline: true },
-                    { name: '⏰ Time', value: `<t:${Math.floor(now / 1000)}:R>`, inline: true }
-                )
-                .setTimestamp();
+            // Update work event log embed instead of sending new message
+            await this.updateWorkEventLog(channel, dbEntry, workEvent);
 
-            await channel.send({ embeds: [embed] });
-
-            console.log(`[InnKeeperV4] Dummy work event #${newCount} sent for channel ${channel.id}`);
+            console.log(`[InnKeeperV4] Dummy work event #${newCount} logged for channel ${channel.id} - Earned ${profit} coins (Total: ${newCurrentProfit})`);
 
         } catch (error) {
             console.error('[InnKeeperV4] Error generating dummy work event:', error);
@@ -327,9 +376,74 @@ class InnKeeperV4Controller {
     }
 
     /**
+     * Distribute profits equally to all members in the voice channel
+     */
+    async distributeProfits(channel, totalProfit) {
+        try {
+            if (!totalProfit || totalProfit <= 0) {
+                console.log('[InnKeeperV4] No profits to distribute');
+                return;
+            }
+
+            // Get all members currently in the voice channel
+            const voiceChannel = channel.guild.channels.cache.find(c => 
+                c.type === 2 && c.members.size > 0 // Voice channel with members
+            );
+
+            if (!voiceChannel || voiceChannel.members.size === 0) {
+                console.log('[InnKeeperV4] No members in voice channel to distribute profits to');
+                return;
+            }
+
+            const members = Array.from(voiceChannel.members.values());
+            const profitPerMember = Math.floor(totalProfit / members.size);
+            const remainingProfit = totalProfit - (profitPerMember * members.size);
+
+            console.log(`[InnKeeperV4] Distributing ${totalProfit} coins to ${members.length} members (${profitPerMember} each, ${remainingProfit} remaining)`);
+
+            // Distribute profits to each member
+            for (const member of members) {
+                try {
+                    await Money.findOneAndUpdate(
+                        { userId: member.id },
+                        { 
+                            $inc: { money: profitPerMember },
+                            $set: { usertag: member.user.tag }
+                        },
+                        { upsert: true, new: true }
+                    );
+                } catch (error) {
+                    console.error(`[InnKeeperV4] Error updating money for user ${member.id}:`, error);
+                }
+            }
+
+            // Distribute remaining profit to the first member (if any)
+            if (remainingProfit > 0) {
+                try {
+                    await Money.findOneAndUpdate(
+                        { userId: members[0].id },
+                        { 
+                            $inc: { money: remainingProfit },
+                            $set: { usertag: members[0].user.tag }
+                        },
+                        { upsert: true, new: true }
+                    );
+                } catch (error) {
+                    console.error(`[InnKeeperV4] Error updating remaining money for user ${members[0].id}:`, error);
+                }
+            }
+
+            console.log(`[InnKeeperV4] Successfully distributed ${totalProfit} coins to ${members.length} members`);
+
+        } catch (error) {
+            console.error('[InnKeeperV4] Error distributing profits:', error);
+        }
+    }
+
+    /**
      * Create break start embed
      */
-    createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime) {
+    createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime, distributedProfit = 0) {
         const breakDurationMinutes = Math.floor(breakDuration / 60000);
         
         const embed = new EmbedBuilder()
@@ -344,9 +458,16 @@ class InnKeeperV4Controller {
                 { name: '⏰ Break Duration', value: `${breakDurationMinutes} minutes`, inline: true },
                 { name: '🔄 Cycle Count', value: `${cycleCount}`, inline: true },
                 { name: '⏳ Reopening At', value: `<t:${Math.floor(breakEndTime / 1000)}:R>`, inline: true }
-            )
-            .setTimestamp();
+            );
 
+        // Add profit distribution info if there were profits
+        if (distributedProfit > 0) {
+            embed.addFields(
+                { name: '💰 Profits Distributed', value: `${distributedProfit} coins`, inline: true }
+            );
+        }
+
+        embed.setTimestamp();
         return embed;
     }
 
@@ -367,6 +488,145 @@ class InnKeeperV4Controller {
             .setTimestamp();
 
         return embed;
+    }
+
+    /**
+     * Create work event log embed
+     */
+    createWorkEventLogEmbed(workEventLog, workStartTime, now, currentProfit = 0) {
+        const workDuration = Math.floor((now - workStartTime) / 1000);
+        const workMinutes = Math.floor(workDuration / 60);
+        const workSeconds = workDuration % 60;
+        
+        // Format work event log as code blocks
+        let logContent = '';
+        if (workEventLog.length === 0) {
+            logContent = 'No events yet...';
+        } else {
+            // Show last 10 events to keep embed manageable
+            const recentEvents = workEventLog.slice(-10);
+            logContent = recentEvents.map((event, index) => {
+                const eventTime = new Date(event.timestamp);
+                const timeStr = eventTime.toLocaleTimeString();
+                return `${timeStr} - ${event.description}`;
+            }).join('\n');
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle('🏨 Inn Work Log')
+            .setColor('#3498db')
+            .setDescription(`**Work Period Progress:** ${workMinutes}m ${workSeconds}s`)
+            .addFields(
+                { 
+                    name: '📋 Recent Events', 
+                    value: `\`\`\`\n${logContent}\n\`\`\``, 
+                    inline: false 
+                },
+                { 
+                    name: '📊 Total Events', 
+                    value: `${workEventLog.length}`, 
+                    inline: true 
+                },
+                { 
+                    name: '💰 Current Profit', 
+                    value: `${currentProfit} coins`, 
+                    inline: true 
+                }
+            )
+            .setTimestamp();
+
+        return embed;
+    }
+
+    /**
+     * Update or create work event log embed
+     */
+    async updateWorkEventLog(channel, dbEntry, newEvent) {
+        try {
+            const v4State = dbEntry.gameData?.v4State;
+            if (!v4State) {
+                console.log('[InnKeeperV4] No v4State found for work event log update');
+                return;
+            }
+
+            // Add new event to log
+            const updatedLog = [...(v4State.workEventLog || []), newEvent];
+            
+            // Create updated embed
+            const embed = this.createWorkEventLogEmbed(
+                updatedLog, 
+                new Date(v4State.workStartTime).getTime(), 
+                newEvent.timestamp,
+                v4State.currentWorkPeriodProfit || 0
+            );
+
+            // Check if embed exceeds character limit (Discord limit is 6000 characters)
+            const embedLength = JSON.stringify(embed.data).length;
+            const maxEmbedLength = 5000; // Leave some buffer
+
+            let messageId = v4State.workLogMessageId;
+
+            if (embedLength > maxEmbedLength || !messageId) {
+                // Create new embed if too long or no existing message
+                const sentMessage = await channel.send({ embeds: [embed] });
+                messageId = sentMessage.id;
+                
+                // Update embed count
+                const newEmbedCount = (v4State.workLogEmbedCount || 0) + 1;
+                
+                // Update database with new message ID and reset log to recent events
+                await ActiveVCs.findOneAndUpdate(
+                    { channelId: channel.id },
+                    { 
+                        $set: { 
+                            'gameData.v4State.workEventLog': updatedLog.slice(-5), // Keep only last 5 events
+                            'gameData.v4State.workLogMessageId': messageId,
+                            'gameData.v4State.workLogEmbedCount': newEmbedCount
+                        }
+                    }
+                );
+                
+                console.log(`[InnKeeperV4] Created new work log embed #${newEmbedCount} for channel ${channel.id}`);
+            } else {
+                // Edit existing embed
+                try {
+                    const message = await channel.messages.fetch(messageId);
+                    await message.edit({ embeds: [embed] });
+                    
+                    // Update database with new log
+                    await ActiveVCs.findOneAndUpdate(
+                        { channelId: channel.id },
+                        { 
+                            $set: { 
+                                'gameData.v4State.workEventLog': updatedLog
+                            }
+                        }
+                    );
+                    
+                    console.log(`[InnKeeperV4] Updated work log embed for channel ${channel.id}`);
+                } catch (error) {
+                    console.log(`[InnKeeperV4] Failed to edit work log message, creating new one: ${error.message}`);
+                    
+                    // If editing fails, create new message
+                    const sentMessage = await channel.send({ embeds: [embed] });
+                    const newEmbedCount = (v4State.workLogEmbedCount || 0) + 1;
+                    
+                    await ActiveVCs.findOneAndUpdate(
+                        { channelId: channel.id },
+                        { 
+                            $set: { 
+                                'gameData.v4State.workEventLog': updatedLog.slice(-5),
+                                'gameData.v4State.workLogMessageId': sentMessage.id,
+                                'gameData.v4State.workLogEmbedCount': newEmbedCount
+                            }
+                        }
+                    );
+                }
+            }
+
+        } catch (error) {
+            console.error('[InnKeeperV4] Error updating work event log:', error);
+        }
     }
 
     /**
@@ -421,6 +681,8 @@ class InnKeeperV4Controller {
             workState: v4State.workState,
             cycleCount: v4State.cycleCount,
             workEventCount: v4State.workEventCount || 0,
+            currentWorkPeriodProfit: v4State.currentWorkPeriodProfit || 0,
+            totalProfit: v4State.totalProfit || 0,
             timeInCurrentState: now - new Date(v4State.lastStateChange).getTime(),
             nextStateChange: this.calculateNextStateChange(v4State, now)
         };

@@ -2,7 +2,7 @@
   "system": "inn",
   "category": "npc",
   "version": "1.0",
-  "savedAt": 1757103954503,
+  "savedAt": 1757524815183,
   "pools": {
     "f24b9fbf48f9": [
       {
@@ -1565,6 +1565,42 @@
           "system": "inn",
           "category": "npc"
         }
+      },
+      {
+        "id": "57c1aafe3129f4dd",
+        "dialogue": "An inn that defies the void's chaos? Truly a marvel worth studying.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757522690187,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "ebc3f711d8dfa548",
+        "dialogue": "I'll pay the extra for the Royal Feast. Can't steal from shadows on an empty stomach.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.3,
+          "createdAt": 1757524813869,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
       }
     ],
     "18399d8ea428": [
@@ -1597,6 +1633,42 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757101699011,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0e777e1077f246e0",
+        "dialogue": "I'll take the Royal Feast, please. And don't forget The One Pick on the side!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757524505421,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f78ebbbecc2557d5",
+        "dialogue": "I'll take a Royal Feast, please. And have you heard about The One Pick?",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757524815183,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",
