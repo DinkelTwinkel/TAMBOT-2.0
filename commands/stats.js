@@ -287,39 +287,106 @@ module.exports = {
           const effects = Array.from(buff.effects.entries())
             .map(([ability, power]) => {
               const sign = power >= 0 ? '+' : '';
-              return `${ability} ${sign}${power}`;
+              return `${getStatEmoji(ability)} ${ability} ${sign}${power}`;
             })
             .join(', ');
           return `• **${buff.name}** (${effects}) - *${timeLeft}*`;
         }).join('\n');
         
-        // Check if adding buffs would exceed Discord's embed limit
-        const currentEmbedLength = (embed.data.description || '').length + 
-                                  (embed.data.fields || []).reduce((total, field) => 
-                                    total + (field.name || '').length + (field.value || '').length, 0);
+        // More accurate embed length calculation
+        const embedTitle = embed.data.title || '';
+        const embedDescription = embed.data.description || '';
+        const embedFields = embed.data.fields || [];
         
-        const buffsFieldLength = buffsDisplay.length + 15; // Account for field name
+        // Calculate current embed size more accurately
+        let currentEmbedLength = embedTitle.length + embedDescription.length;
+        for (const field of embedFields) {
+          currentEmbedLength += (field.name || '').length + (field.value || '').length;
+        }
         
-        if (currentEmbedLength + buffsFieldLength > 5900) { // Leave buffer under 6000 char limit
+        const buffsFieldLength = buffsDisplay.length + '✨ Active Buffs'.length;
+        const totalLength = currentEmbedLength + buffsFieldLength;
+        
+        console.log(`[STATS] Embed length check: current=${currentEmbedLength}, buffs=${buffsFieldLength}, total=${totalLength}`);
+        
+        // Use more conservative limit and handle very long buff lists
+        if (totalLength > 5500 || buffsDisplay.length > 1000) {
+          console.log(`[STATS] Moving buffs to separate embed due to length: ${totalLength} chars`);
+          
+          // If buffs display itself is too long, truncate it intelligently
+          let finalBuffsDisplay = buffsDisplay;
+          if (buffsDisplay.length > 4000) {
+            console.log(`[STATS] Buffs display too long (${buffsDisplay.length} chars), truncating...`);
+            
+            // Start with fewer buffs and build up to fit in limit
+            let truncatedBuffs = [];
+            let currentLength = 0;
+            const maxLength = 3800; // Leave room for footer message
+            
+            for (const buff of activeBuffs) {
+              const timeLeft = getTimeRemaining(buff.expiresAt);
+              const effects = Array.from(buff.effects.entries())
+                .map(([ability, power]) => {
+                  const sign = power >= 0 ? '+' : '';
+                  return `${getStatEmoji(ability)} ${ability} ${sign}${power}`;
+                })
+                .join(', ');
+              const buffLine = `• **${buff.name}** (${effects}) - *${timeLeft}*\n`;
+              
+              if (currentLength + buffLine.length > maxLength) {
+                break; // Stop adding buffs if we'd exceed the limit
+              }
+              
+              truncatedBuffs.push(buffLine);
+              currentLength += buffLine.length;
+            }
+            
+            const remainingCount = activeBuffs.length - truncatedBuffs.length;
+            finalBuffsDisplay = truncatedBuffs.join('');
+            
+            if (remainingCount > 0) {
+              finalBuffsDisplay += `\n📋 *... and ${remainingCount} more buffs*\n💡 *Use \`/buffs\` to see all active buffs*`;
+            }
+            
+            console.log(`[STATS] Truncated to ${truncatedBuffs.length}/${activeBuffs.length} buffs, final length: ${finalBuffsDisplay.length}`);
+          }
+          
           // Create separate buffs embed
           buffsEmbed = new EmbedBuilder()
-            .setTitle(`✨ ${target.username}'s Active Buffs`)
-            .setDescription(buffsDisplay)
-            .setColor(0x00AE86);
+            .setTitle(`✨ ${target.username}'s Active Buffs (${activeBuffs.length})`)
+            .setDescription(finalBuffsDisplay)
+            .setColor(roleColor);
         } else {
           // Add to main embed
           embed.addFields({
-            name: '✨ Active Buffs',
+            name: `✨ Active Buffs (${activeBuffs.length})`,
             value: buffsDisplay,
             inline: false
           });
         }
       }
 
-      // Send the embed(s)
+      // Send the embed(s) with safety checks
       const embeds = [embed];
       if (buffsEmbed) {
         embeds.push(buffsEmbed);
+      }
+      
+      // Final safety check - validate embed sizes
+      for (let i = 0; i < embeds.length; i++) {
+        const embedData = embeds[i].data;
+        const totalLength = (embedData.title || '').length + 
+                           (embedData.description || '').length +
+                           (embedData.fields || []).reduce((total, field) => 
+                             total + (field.name || '').length + (field.value || '').length, 0);
+        
+        if (totalLength > 6000) {
+          console.warn(`[STATS] Embed ${i} still too long (${totalLength} chars), creating emergency fallback`);
+          embeds[i] = new EmbedBuilder()
+            .setTitle(`📜 ${target.username}'s Stats`)
+            .setDescription(`⚠️ **Display error - too much data**\n\nTotal stats: ${Object.keys(stats).length} stats\nActive buffs: ${activeBuffs.length} buffs\n\n💡 Try \`/buffs\` to view buffs separately`)
+            .setColor(roleColor);
+        }
       }
       
       const replyOptions = { embeds };
@@ -334,8 +401,42 @@ module.exports = {
 
     } catch (error) {
       console.error('Error fetching player stats:', error);
+      
+      // Check if it's specifically a character limit error
+      if (error.message && error.message.includes('Invalid Form Body')) {
+        console.error('[STATS] Discord embed character limit exceeded, attempting emergency fallback');
+        try {
+          // Emergency fallback - send minimal stats without buffs
+          const fallbackEmbed = new EmbedBuilder()
+            .setTitle(`📜 ${target.username}'s Stats`)
+            .setDescription('⚠️ **Stats display truncated due to too many buffs**\n\nUse `/buffs` to view all active buffs separately.')
+            .setColor(roleColor);
+            
+          if (Object.keys(stats).length > 0) {
+            const statsDisplay = Object.entries(stats)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([ability, power]) => {
+                const sign = power >= 0 ? '+' : '';
+                return `${getStatEmoji(ability)} **${capitalize(ability)}:** ${sign}${power}`;
+              })
+              .join(' | ');
+            
+            fallbackEmbed.addFields({
+              name: 'Total Power',
+              value: statsDisplay,
+              inline: false
+            });
+          }
+          
+          await interaction.editReply({ embeds: [fallbackEmbed] });
+          return;
+        } catch (fallbackError) {
+          console.error('[STATS] Emergency fallback also failed:', fallbackError);
+        }
+      }
+      
       await interaction.editReply({
-        content: '❌ An error occurred while fetching stats. Please try again later.',
+        content: '❌ An error occurred while fetching stats. This might be due to too many active buffs. Please try again later.',
         ephemeral: true
       });
     }

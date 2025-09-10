@@ -732,9 +732,12 @@ function pickRandomChannelWeighted(channels) {
     let random = Math.random() * totalWeight;
 
     for (const channel of channels) {
-        if (random < channel.spawnWeight) {
+        if (random <= channel.spawnWeight) {
             return channel;
         }
         random -= channel.spawnWeight;
     }
+    
+    // Fallback to last channel if something goes wrong
+    return channels[channels.length - 1];
 }

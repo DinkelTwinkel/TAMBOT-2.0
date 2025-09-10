@@ -750,6 +750,10 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
 
         // Check if we should use the unified system (for gullet and other special mines)
         const isGullet = mineTypeId === 16 || mineTypeId === '16';
+        // Gullet detection logging only when needed
+        if (isGullet) {
+            console.log(`[GULLET] Processing gullet items for ${member.displayName}`);
+        }
 
         if (isGullet) {
             // Use unified item system for special mines
@@ -766,6 +770,11 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             
             const item = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine, mineTypeId);
             const quantity = calculateItemQuantity(item, context, miningPower, luckStat, powerLevel, isDeeperMine);
+            
+            // Only log gullet items occasionally to reduce spam
+            if (Math.random() < 0.1) {
+                console.log(`[GULLET] Generated: ${item.name} for ${member.displayName}`);
+            }
             
             const enhancedValue = Math.floor(item.value * efficiency.valueMultiplier);
             
@@ -1985,6 +1994,10 @@ module.exports = async (channel, dbEntry, json, client) => {
         
         // Get mine type ID for special mine handling (e.g., gullet meat items)
         const mineTypeId = dbEntry.typeId;
+        // Minimal logging for gullet detection only
+        if (mineTypeId === 16 || mineTypeId === '16') {
+            console.log(`[MINING] Gullet mine detected (ID: ${mineTypeId})`);
+        }
         
         // Set mining context for this processing cycle
         miningContext.setMiningContext(mineTypeId, channel.id, serverPowerLevel);
@@ -2032,10 +2045,7 @@ module.exports = async (channel, dbEntry, json, client) => {
         const { isDeeperMine: checkDeeperMine } = require('./mining/miningConstants_unified');
         const isDeeperMine = checkDeeperMine ? checkDeeperMine(mineTypeId) : false;
         
-        // Debug logging for special mines
-        if (mineTypeId === 16 || mineTypeId === '16') {
-            console.log('[MINING] ???\'s Gullet detected - will generate meat items instead of ores');
-        }
+        // Simplified mine detection logging
         const serverName = json?.name || 'Unknown Mine';
         const serverModifiers = getServerModifiers(serverName, serverPowerLevel);
         
@@ -3096,11 +3106,20 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     let enhancedSpeed = Math.floor(speedStat * efficiency.speedMultiplier);
     enhancedSpeed = applyMovementSpeedBonus(enhancedSpeed, uniqueBonuses.movementSpeedBonus);
     const numActions = enhancedSpeed > 0 ? Math.floor(Math.random() * enhancedSpeed) + 1 : 1;
+        // Reduced logging - only log when actions = 0 (debug issue)
+        if (numActions === 0) {
+            console.warn(`[MINING] ${member.displayName} has 0 actions (enhancedSpeed: ${enhancedSpeed})`);
+        }
     
     for (let actionNum = 0; actionNum < numActions; actionNum++) {
         try {
             const position = mapData.playerPositions[member.id];
-            if (!position) break;
+            if (!position) {
+                console.warn(`[MINING] ${member.displayName} has no position data, breaking action loop`);
+                break;
+            }
+            
+            // Reduced action logging - only log first action or when position issues occur
             
             // Players can continue mining even when stuck or trapped (removed old restriction)
 
@@ -3188,6 +3207,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                     mapChanged = true;
                     wallsBroken++;
+                    
+                    // Log wall breaking for adjacent ore walls
+                    if (tile.type === TILE_TYPES.RARE_ORE) {
+                        eventLogs.push(`⛏️💎 ${member.displayName} broke through rare ore!`);
+                    } else {
+                        eventLogs.push(`⛏️ ${member.displayName} broke through an ore wall!`);
+                    }
                     
                     let findMessage;
                     // Treasure chests no longer spawn
@@ -3340,6 +3366,11 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                                     type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 
                                 };
                                 wallsBroken++;
+                                
+                                // Log chain mining wall breaks (less verbose to avoid spam)
+                                if (Math.random() < 0.3) { // 30% chance to log chain breaks
+                                    eventLogs.push(`⛏️⚡ ${member.displayName}'s chain mining broke additional walls!`);
+                                }
                             }
                         }
                     }
@@ -3350,15 +3381,15 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     
                     let failMessage;
                     if (tile.type === TILE_TYPES.REINFORCED_WALL) {
-                        failMessage = `${member.displayName}'s pickaxe bounced off the reinforced wall! (${tileHardness} hardness vs ${miningPower} power)`;
+                        failMessage = `💥 ${member.displayName}'s pickaxe bounced off the reinforced wall! (${tileHardness} hardness vs ${miningPower} power)`;
                     } else if (tile.type === TILE_TYPES.RARE_ORE) {
-                        failMessage = `${member.displayName} struck rare ore but couldn't break it! (${tileHardness} hardness vs ${miningPower} power)`;
+                        failMessage = `💥 ${member.displayName} struck rare ore but couldn't break it! (${tileHardness} hardness vs ${miningPower} power)`;
                     } else {
-                        failMessage = `${member.displayName} struck the wall but couldn't break it! (${tileHardness} hardness vs ${miningPower} power)`;
+                        failMessage = `💥 ${member.displayName} struck the wall but couldn't break it! (${tileHardness} hardness vs ${miningPower} power)`;
                     }
                     
-                    // Only show failure message occasionally to avoid spam
-                    if (Math.random() < 0.2) {
+                    // Show failure message more often to help with debugging
+                    if (Math.random() < 0.4) { // 40% chance to log failures
                         eventLogs.push(failMessage);
                     }
                 }
@@ -3381,9 +3412,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     direction = randomDir;
                 }
             } else {
+                // TEMPORARY SIMPLE FIX - just use random directions to ensure movement works
+                // Simple random movement when no ore visible
                 const directions = [
-                    { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
-                    { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
+                    { dx: 0, dy: -1, name: 'north' },
+                    { dx: 1, dy: 0, name: 'east' },
+                    { dx: 0, dy: 1, name: 'south' },
+                    { dx: -1, dy: 0, name: 'west' }
                 ];
                 direction = directions[Math.floor(Math.random() * directions.length)];
             }
@@ -3409,7 +3444,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             }
             moveHistory.lastDirection = { dx: direction.dx, dy: direction.dy };
             
-            if (direction.dx === 0 && direction.dy === 0) continue;
+            if (direction.dx === 0 && direction.dy === 0) {
+                console.warn(`[MINING] ${member.displayName} FINAL direction check failed - got (0,0), skipping action`);
+                continue;
+            }
+            
+            // Removed excessive direction logging
             
             let newX = position.x + direction.dx;
             let newY = position.y + direction.dy;
@@ -3460,7 +3500,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 
                 const canBreak = await canBreakTile(member.id, miningPower, targetTile);
                 if (canBreak) {
-                    if (Math.random() < 0.15 && targetTile.type === TILE_TYPES.WALL) {
+                    // Reduced failure chance for regular walls to encourage more exploration
+                    if (Math.random() < 0.05 && targetTile.type === TILE_TYPES.WALL) {
                         continue;
                     }
                     if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
@@ -3504,6 +3545,16 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         }
                         
                         eventLogs.push(findMessage);
+                    } else {
+                        // Break regular wall for exploration - add encouraging messages
+                        const explorationMessages = [
+                            `⛏️ ${member.displayName} broke through a wall, opening new territory!`,
+                            `⛏️ ${member.displayName} carved a path through solid stone!`,
+                            `⛏️ ${member.displayName} cleared the way forward!`,
+                            `⛏️ ${member.displayName} opened up a new passage!`,
+                            `⛏️ ${member.displayName} broke through, revealing unexplored areas!`
+                        ];
+                        eventLogs.push(explorationMessages[Math.floor(Math.random() * explorationMessages.length)]);
                     }
                     
                     mapData.tiles[newY][newX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
@@ -3511,6 +3562,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     position.y = newY;
                     mapChanged = true;
                     wallsBroken++;
+                    
+                    // Add wall break progress tracking (occasionally)
+                    if (Math.random() < 0.1) { // 10% chance to show progress
+                        const totalWallsBroken = (dbEntry.gameData?.stats?.wallsBroken || 0) + wallsBroken;
+                        eventLogs.push(`📊 Team has broken ${totalWallsBroken} walls total!`);
+                    }
                 }
 } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
 
