@@ -3261,7 +3261,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     // Apply bonuses but with caps based on tier
                     // Reduce double ore chance based on maintenance
                     const effectiveDoubleOreChance = uniqueBonuses.doubleOreChance * 0.5; // Apply nerf from drop rate reduction
-                    finalQuantity = applyDoubleOreBonus(finalQuantity, effectiveDoubleOreChance, member, eventLogs);
+                    finalQuantity = applyDoubleOreBonus(finalQuantity, effectiveDoubleOreChance, member, eventLogs, uniqueBonuses.uniqueItems);
                     finalQuantity = Math.floor(finalQuantity * Math.min(1.5, uniqueBonuses.lootMultiplier)); // Cap loot multiplier at 1.5x
                     
                     // Re-apply tier-based caps after all multipliers

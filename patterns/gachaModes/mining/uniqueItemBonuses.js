@@ -575,11 +575,34 @@ function parseUniqueItemBonuses(equippedItems) {
  * @param {number} doubleOreChance - Chance to double ore
  * @param {Object} member - Discord member
  * @param {Array} eventLogs - Event logs array
+ * @param {Array} uniqueItems - Array of equipped unique items to determine which one triggered
  * @returns {number} Final quantity
  */
-function applyDoubleOreBonus(baseQuantity, doubleOreChance, member, eventLogs) {
+function applyDoubleOreBonus(baseQuantity, doubleOreChance, member, eventLogs, uniqueItems = []) {
     if (doubleOreChance > 0 && Math.random() < doubleOreChance) {
-        eventLogs.push(`💨 ${member.displayName}'s Blue Breeze doubles the ore yield!`);
+        // Determine which unique item should get credit for the double ore
+        let triggerItem = null;
+        
+        // Check for specific unique items that provide double ore chance
+        for (const item of uniqueItems) {
+            if (item.id === 9) { // Blue Breeze
+                triggerItem = { name: "Blue Breeze", effect: "💨" };
+                break;
+            } else if (item.id === 10) { // Midas' Burden
+                triggerItem = { name: "Midas' Burden", effect: "💰" };
+                break;
+            } else if (item.id === 4) { // Greed's Embrace
+                triggerItem = { name: "Greed's Embrace", effect: "💎" };
+                break;
+            }
+        }
+        
+        // Default fallback if no specific item found
+        if (!triggerItem) {
+            triggerItem = { name: "unique item", effect: "✨" };
+        }
+        
+        eventLogs.push(`${triggerItem.effect} ${member.displayName}'s ${triggerItem.name} doubles the ore yield!`);
         return baseQuantity * 2;
     }
     return baseQuantity;

@@ -106,7 +106,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 100,
+        "conditionCost": 50,
         "deeperMineId": "1001",
         "isLocked": false
     },
@@ -128,7 +128,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 200,
+        "conditionCost": 100,
         "deeperMineId": "1002",
         "parentMineId": "1",
         "isLocked": false
@@ -151,7 +151,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 300,
+        "conditionCost": 150,
         "deeperMineId": "1003",
         "parentMineId": "1001",
         "isLocked": false
@@ -174,7 +174,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 400,
+        "conditionCost": 200,
         "deeperMineId": "1004",
         "parentMineId": "1002",
         "isLocked": false
@@ -197,7 +197,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 500,
+        "conditionCost": 250,
         "deeperMineId": "1005",
         "parentMineId": "1003",
         "isLocked": false
@@ -220,7 +220,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 600,
+        "conditionCost": 300,
         "deeperMineId": "101",
         "parentMineId": "1004",
         "isLocked": false
@@ -245,7 +245,7 @@
         "isDeeper": false,
         "parentMineId": "1005",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1000,
+        "conditionCost": 500,
         "deeperMineId": "1011",
         "isLocked": false
     },
@@ -268,7 +268,7 @@
         "image": "coalMineDeep",
         "parentMineId": "101",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1100,
+        "conditionCost": 550,
         "deeperMineId": "1012",
         "isLocked": true
     },
@@ -291,7 +291,7 @@
         "image": "coalMineDeep",
         "parentMineId": "1011",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1200,
+        "conditionCost": 600,
         "deeperMineId": "1013",
         "isLocked": true
     },
@@ -314,7 +314,7 @@
         "image": "coalMineDeep",
         "parentMineId": "1012",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1300,
+        "conditionCost": 650,
         "deeperMineId": "1014",
         "isLocked": true
     },
@@ -337,7 +337,7 @@
         "image": "coalMineDeep",
         "parentMineId": "1013",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1400,
+        "conditionCost": 700,
         "deeperMineId": "1015",
         "isLocked": true
     },
@@ -360,7 +360,7 @@
         "image": "coalMineDeep",
         "parentMineId": "1014",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 2000,
+        "conditionCost": 1000,
         "deeperMineId": "113",
         "isLocked": true
     },
@@ -407,7 +407,7 @@
         "colour": "FFB347",
         "image": "topazMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 1000,
+        "conditionCost": 500,
         "deeperMineId": "2001",
         "isLocked": false
     },
@@ -429,7 +429,7 @@
         "colour": "FFB347",
         "image": "topazMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 1250,
+        "conditionCost": 625,
         "deeperMineId": "2002",
         "parentMineId": "2",
         "isLocked": false
@@ -452,7 +452,7 @@
         "colour": "FFB347",
         "image": "topazMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 1500,
+        "conditionCost": 750,
         "deeperMineId": "2003",
         "parentMineId": "2001",
         "isLocked": false
@@ -475,7 +475,7 @@
         "colour": "FFB347",
         "image": "topazMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 1750,
+        "conditionCost": 875,
         "deeperMineId": "2004",
         "parentMineId": "2002",
         "isLocked": false
@@ -498,7 +498,7 @@
         "colour": "FFB347",
         "image": "topazMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 2000,
+        "conditionCost": 1000,
         "deeperMineId": "2005",
         "parentMineId": "2003",
         "isLocked": false
@@ -521,7 +521,7 @@
         "colour": "FFB347",
         "image": "topazMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 2250,
+        "conditionCost": 1125,
         "deeperMineId": "102",
         "parentMineId": "2004",
         "isLocked": false
@@ -546,7 +546,7 @@
         "isDeeper": false,
         "parentMineId": "2005",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 3000,
+        "conditionCost": 1500,
         "deeperMineId": "2011",
         "isLocked": false
     },
@@ -569,7 +569,7 @@
         "image": "topazMineDeep",
         "parentMineId": "102",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 3750,
+        "conditionCost": 1875,
         "deeperMineId": "2012",
         "isLocked": true
     },
@@ -592,7 +592,7 @@
         "image": "topazMineDeep",
         "parentMineId": "2011",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 4500,
+        "conditionCost": 2250,
         "deeperMineId": "2013",
         "isLocked": true
     },
@@ -615,7 +615,7 @@
         "image": "topazMineDeep",
         "parentMineId": "2012",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 5250,
+        "conditionCost": 2625,
         "deeperMineId": "2014",
         "isLocked": true
     },
@@ -640,7 +640,7 @@
         "image": "topazMineDeep",
         "parentMineId": "2013",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 6000,
+        "conditionCost": 3000,
         "deeperMineId": "2015",
         "isLocked": true
     },
@@ -665,7 +665,7 @@
         "image": "topazMineDeep",
         "parentMineId": "2014",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 6750,
+        "conditionCost": 3375,
         "deeperMineId": "114",
         "isLocked": true
     },
@@ -712,7 +712,7 @@
         "colour": "B9F2FF",
         "image": "diamondMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 100,
+        "conditionCost": 50,
         "deeperMineId": "3001",
         "isLocked": false
     },
@@ -734,7 +734,7 @@
         "colour": "B9F2FF",
         "image": "diamondMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 200,
+        "conditionCost": 100,
         "deeperMineId": "3002",
         "parentMineId": "3",
         "isLocked": false
@@ -757,7 +757,7 @@
         "colour": "B9F2FF",
         "image": "diamondMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 500,
+        "conditionCost": 250,
         "deeperMineId": "3003",
         "parentMineId": "3001",
         "isLocked": false
@@ -780,7 +780,7 @@
         "colour": "B9F2FF",
         "image": "diamondMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 600,
+        "conditionCost": 300,
         "deeperMineId": "3004",
         "parentMineId": "3002",
         "isLocked": false
@@ -803,7 +803,7 @@
         "colour": "B9F2FF",
         "image": "diamondMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 700,
+        "conditionCost": 350,
         "deeperMineId": "3005",
         "parentMineId": "3003",
         "isLocked": false
@@ -1028,7 +1028,7 @@
         "colour": "50C878",
         "image": "emeraldMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 750,
+        "conditionCost": 375,
         "deeperMineId": "4001",
         "isLocked": false
     },
@@ -1052,7 +1052,7 @@
         "colour": "50C878",
         "image": "emeraldMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 950,
+        "conditionCost": 475,
         "deeperMineId": "4002",
         "parentMineId": "4",
         "isLocked": false
@@ -1077,7 +1077,7 @@
         "colour": "50C878",
         "image": "emeraldMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1150,
+        "conditionCost": 575,
         "deeperMineId": "4003",
         "parentMineId": "4001",
         "isLocked": false
@@ -1102,7 +1102,7 @@
         "colour": "50C878",
         "image": "emeraldMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1350,
+        "conditionCost": 675,
         "deeperMineId": "4004",
         "parentMineId": "4002",
         "isLocked": false
@@ -1127,7 +1127,7 @@
         "colour": "50C878",
         "image": "emeraldMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1550,
+        "conditionCost": 775,
         "deeperMineId": "4005",
         "parentMineId": "4003",
         "isLocked": false
@@ -1152,7 +1152,7 @@
         "colour": "50C878",
         "image": "emeraldMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1750,
+        "conditionCost": 875,
         "deeperMineId": "104",
         "parentMineId": "4004",
         "isLocked": false
@@ -1179,7 +1179,7 @@
         "isDeeper": false,
         "parentMineId": "4005",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 2500,
+        "conditionCost": 1250,
         "deeperMineId": "4011",
         "isLocked": true
     },
@@ -1204,7 +1204,7 @@
         "image": "emeraldMineDeep",
         "parentMineId": "104",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 3000,
+        "conditionCost": 1500,
         "deeperMineId": "4012",
         "isLocked": true
     },
@@ -1229,7 +1229,7 @@
         "image": "emeraldMineDeep",
         "parentMineId": "4011",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 3500,
+        "conditionCost": 1750,
         "deeperMineId": "4013",
         "isLocked": true
     },
@@ -1254,7 +1254,7 @@
         "image": "emeraldMineDeep",
         "parentMineId": "4012",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 4000,
+        "conditionCost": 2000,
         "deeperMineId": "4014",
         "isLocked": true
     },
@@ -1280,7 +1280,7 @@
         "image": "emeraldMineDeep",
         "parentMineId": "4013",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 4500,
+        "conditionCost": 2250,
         "deeperMineId": "4015",
         "isLocked": true
     },
@@ -1306,7 +1306,7 @@
         "image": "emeraldMineDeep",
         "parentMineId": "4014",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 5000,
+        "conditionCost": 2500,
         "deeperMineId": "116",
         "isLocked": true
     },
@@ -1353,7 +1353,7 @@
         "colour": "E0115F",
         "image": "rubyMine",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 10000,
+        "conditionCost": 5000,
         "deeperMineId": "5001",
         "isLocked": false
     },
@@ -1375,7 +1375,7 @@
         "colour": "E0115F",
         "image": "rubyMine",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 13000,
+        "conditionCost": 6500,
         "deeperMineId": "5002",
         "parentMineId": "5",
         "isLocked": false
@@ -1398,7 +1398,7 @@
         "colour": "E0115F",
         "image": "rubyMine",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 16000,
+        "conditionCost": 8000,
         "deeperMineId": "5003",
         "parentMineId": "5001",
         "isLocked": false
@@ -1421,7 +1421,7 @@
         "colour": "E0115F",
         "image": "rubyMine",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 19000,
+        "conditionCost": 9500,
         "deeperMineId": "5004",
         "parentMineId": "5002",
         "isLocked": false
@@ -1444,7 +1444,7 @@
         "colour": "E0115F",
         "image": "rubyMine",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 22000,
+        "conditionCost": 11000,
         "deeperMineId": "5005",
         "parentMineId": "5003",
         "isLocked": false
@@ -1469,7 +1469,7 @@
         "colour": "E0115F",
         "image": "rubyMine",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 25000,
+        "conditionCost": 12500,
         "deeperMineId": "105",
         "parentMineId": "5004",
         "isLocked": false
@@ -1496,7 +1496,7 @@
         "isDeeper": false,
         "parentMineId": "5005",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 50000,
+        "conditionCost": 25000,
         "deeperMineId": "5011",
         "isLocked": true
     },
@@ -1521,7 +1521,7 @@
         "image": "rubyMineDeep",
         "parentMineId": "105",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 60000,
+        "conditionCost": 15000,
         "deeperMineId": "5012",
         "isLocked": true
     },
@@ -1546,7 +1546,7 @@
         "image": "rubyMineDeep",
         "parentMineId": "5011",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 70000,
+        "conditionCost": 35000,
         "deeperMineId": "5013",
         "isLocked": true
     },
@@ -1571,7 +1571,7 @@
         "image": "rubyMineDeep",
         "parentMineId": "5012",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 80000,
+        "conditionCost": 40000,
         "deeperMineId": "5014",
         "isLocked": true
     },
@@ -1596,7 +1596,7 @@
         "image": "rubyMineDeep",
         "parentMineId": "5013",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 90000,
+        "conditionCost": 45000,
         "deeperMineId": "5015",
         "isLocked": true
     },
@@ -1622,7 +1622,7 @@
         "image": "rubyMineDeep",
         "parentMineId": "5014",
         "nextLevelConditionType": "persistentValue",
-        "conditionCost": 100000,
+        "conditionCost": 50000,
         "deeperMineId": "117",
         "isLocked": true
     },
@@ -1671,7 +1671,7 @@
         "colour": "36454F",
         "image": "obsidianMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1000,
+        "conditionCost": 500,
         "deeperMineId": "6001",
         "isLocked": false
     },
@@ -1695,7 +1695,7 @@
         "colour": "36454F",
         "image": "obsidianMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1250,
+        "conditionCost": 625,
         "deeperMineId": "6002",
         "parentMineId": "6",
         "isLocked": false
@@ -1720,7 +1720,7 @@
         "colour": "36454F",
         "image": "obsidianMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1500,
+        "conditionCost": 750,
         "deeperMineId": "6003",
         "parentMineId": "6001",
         "isLocked": false
@@ -1745,7 +1745,7 @@
         "colour": "36454F",
         "image": "obsidianMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1750,
+        "conditionCost": 875,
         "deeperMineId": "6004",
         "parentMineId": "6002",
         "isLocked": false
@@ -1770,7 +1770,7 @@
         "colour": "36454F",
         "image": "obsidianMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 2000,
+        "conditionCost": 1000,
         "deeperMineId": "6005",
         "parentMineId": "6003",
         "isLocked": false
@@ -1796,7 +1796,7 @@
         "colour": "36454F",
         "image": "obsidianMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 2250,
+        "conditionCost": 1125,
         "deeperMineId": "106",
         "parentMineId": "6004",
         "isLocked": false
@@ -1824,7 +1824,7 @@
         "isDeeper": false,
         "parentMineId": "6005",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 3000,
+        "conditionCost": 1500,
         "deeperMineId": "6011",
         "isLocked": true
     },
@@ -1850,7 +1850,7 @@
         "image": "obsidianMineDeep",
         "parentMineId": "106",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 3500,
+        "conditionCost": 1750,
         "deeperMineId": "6012",
         "isLocked": true
     },
@@ -1876,7 +1876,7 @@
         "image": "obsidianMineDeep",
         "parentMineId": "6011",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 4000,
+        "conditionCost": 2000,
         "deeperMineId": "6013",
         "isLocked": true
     },
@@ -1902,7 +1902,7 @@
         "image": "obsidianMineDeep",
         "parentMineId": "6012",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 4500,
+        "conditionCost": 2250,
         "deeperMineId": "6014",
         "isLocked": true
     },
@@ -1928,7 +1928,7 @@
         "image": "obsidianMineDeep",
         "parentMineId": "6013",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 5000,
+        "conditionCost": 2500,
         "deeperMineId": "6015",
         "isLocked": true
     },
@@ -2006,7 +2006,7 @@
         "colour": "4169E1",
         "image": "mythrilMine",
         "nextLevelConditionType": "rareOresFound",
-        "conditionCost": 100,
+        "conditionCost": 50,
         "deeperMineId": "7001",
         "isLocked": false
     },
@@ -2165,7 +2165,7 @@
         "isDeeper": false,
         "parentMineId": "7005",
         "nextLevelConditionType": "rareOresFound",
-        "conditionCost": 200,
+        "conditionCost": 100,
         "deeperMineId": "7011",
         "isLocked": true
     },
@@ -2352,7 +2352,7 @@
         "colour": "800080",
         "image": "adamantiteMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1500,
+        "conditionCost": 750,
         "deeperMineId": "8001",
         "isLocked": false
     },
@@ -2486,7 +2486,7 @@
         "colour": "800080",
         "image": "adamantiteMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 5000,
+        "conditionCost": 2500,
         "deeperMineId": "18",
         "parentMineId": "8004",
         "isLocked": true
@@ -2537,7 +2537,7 @@
         "colour": "708090",
         "image": "ironMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 1000,
+        "conditionCost": 500,
         "deeperMineId": "10001",
         "isLocked": false
     },
@@ -2559,7 +2559,7 @@
         "colour": "708090",
         "image": "ironMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 1250,
+        "conditionCost": 625,
         "deeperMineId": "10002",
         "parentMineId": "10",
         "isLocked": false
@@ -2582,7 +2582,7 @@
         "colour": "708090",
         "image": "ironMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 1500,
+        "conditionCost": 750,
         "deeperMineId": "10003",
         "parentMineId": "10001",
         "isLocked": false
@@ -2605,7 +2605,7 @@
         "colour": "708090",
         "image": "ironMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 1750,
+        "conditionCost": 875,
         "deeperMineId": "10004",
         "parentMineId": "10002",
         "isLocked": false
@@ -2628,7 +2628,7 @@
         "colour": "708090",
         "image": "ironMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 2000,
+        "conditionCost": 1000,
         "deeperMineId": "10005",
         "parentMineId": "10003",
         "isLocked": false
@@ -2651,7 +2651,7 @@
         "colour": "708090",
         "image": "ironMine",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 2250,
+        "conditionCost": 1125,
         "deeperMineId": "110",
         "parentMineId": "10004",
         "isLocked": false
@@ -2676,7 +2676,7 @@
         "isDeeper": false,
         "parentMineId": "10005",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 3000,
+        "conditionCost": 1500,
         "deeperMineId": "10011",
         "isLocked": false
     },
@@ -2699,7 +2699,7 @@
         "image": "ironMineDeep",
         "parentMineId": "110",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 3750,
+        "conditionCost": 1875,
         "deeperMineId": "10012",
         "isLocked": true
     },
@@ -2722,7 +2722,7 @@
         "image": "ironMineDeep",
         "parentMineId": "10011",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 4500,
+        "conditionCost": 2250,
         "deeperMineId": "10013",
         "isLocked": true
     },
@@ -2747,7 +2747,7 @@
         "image": "ironMineDeep",
         "parentMineId": "10012",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 5250,
+        "conditionCost": 2625,
         "deeperMineId": "10014",
         "isLocked": true
     },
@@ -2772,7 +2772,7 @@
         "image": "ironMineDeep",
         "parentMineId": "10013",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 6000,
+        "conditionCost": 3000,
         "deeperMineId": "10015",
         "isLocked": true
     },
@@ -2797,7 +2797,7 @@
         "image": "ironMineDeep",
         "parentMineId": "10014",
         "nextLevelConditionType": "oresFound",
-        "conditionCost": 6750,
+        "conditionCost": 3375,
         "deeperMineId": "121",
         "isLocked": true
     },
@@ -3036,7 +3036,7 @@
         "image": "crystalMineDeep",
         "parentMineId": "11011",
         "nextLevelConditionType": "treasuresFound",
-        "conditionCost": 200,
+        "conditionCost": 100,
         "deeperMineId": "11013",
         "isLocked": true
     },
@@ -3298,7 +3298,7 @@
         "isDeeper": false,
         "parentMineId": "12005",
         "nextLevelConditionType": "fossilsFound",
-        "conditionCost": 100,
+        "conditionCost": 50,
         "deeperMineId": "12011",
         "isLocked": false
     },
@@ -3419,7 +3419,7 @@
         "image": "fossilMineDeep",
         "parentMineId": "12014",
         "nextLevelConditionType": "fossilsFound",
-        "conditionCost": 200,
+        "conditionCost": 100,
         "deeperMineId": "123",
         "isLocked": true
     },
@@ -3465,7 +3465,7 @@
         "colour": "B87333",
         "image": "copperMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 500,
+        "conditionCost": 250,
         "deeperMineId": "9001",
         "isLocked": false
     },
@@ -3533,7 +3533,7 @@
         "colour": "B87333",
         "image": "copperMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 950,
+        "conditionCost": 475,
         "deeperMineId": "9004",
         "parentMineId": "9002",
         "isLocked": false
@@ -3556,7 +3556,7 @@
         "colour": "B87333",
         "image": "copperMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1100,
+        "conditionCost": 550,
         "deeperMineId": "9005",
         "parentMineId": "9003",
         "isLocked": false
@@ -3579,7 +3579,7 @@
         "colour": "B87333",
         "image": "copperMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 1250,
+        "conditionCost": 625,
         "deeperMineId": "109",
         "parentMineId": "9004",
         "isLocked": false
@@ -3604,7 +3604,7 @@
         "isDeeper": false,
         "parentMineId": "9005",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 2000,
+        "conditionCost": 1000,
         "deeperMineId": "9011",
         "isLocked": false
     },
@@ -3627,7 +3627,7 @@
         "image": "copperMineDeep",
         "parentMineId": "109",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 2500,
+        "conditionCost": 1250,
         "deeperMineId": "9012",
         "isLocked": true
     },
@@ -3650,7 +3650,7 @@
         "image": "copperMineDeep",
         "parentMineId": "9011",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 3000,
+        "conditionCost": 1500,
         "deeperMineId": "9013",
         "isLocked": true
     },
@@ -3673,7 +3673,7 @@
         "image": "copperMineDeep",
         "parentMineId": "9012",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 3500,
+        "conditionCost": 1750,
         "deeperMineId": "9014",
         "isLocked": true
     },
@@ -3696,7 +3696,7 @@
         "image": "copperMineDeep",
         "parentMineId": "9013",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 4000,
+        "conditionCost": 2000,
         "deeperMineId": "9015",
         "isLocked": true
     },
@@ -3719,7 +3719,7 @@
         "image": "copperMineDeep",
         "parentMineId": "9014",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 4500,
+        "conditionCost": 2250,
         "deeperMineId": "120",
         "isLocked": true
     },

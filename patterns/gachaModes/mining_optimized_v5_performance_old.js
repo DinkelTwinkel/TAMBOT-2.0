@@ -8,7 +8,7 @@ const { canStartBreak, emergencyBreakReset } = require('./mining/mining_break_ho
 const { handlePickaxeDurability } = require('./mining/improvedDurabilityHandling');
 const deeperMineChecker = require('../mining/deeperMineChecker');
 // Use the new layered rendering system with auto-generated images
-const { generateTileMapImage } = require('./mining/imageProcessing/mining-layered-render');
+const generateTileMapImage = require('./mining/imageProcessing/mining-layered-render');
 const gachaVC = require('../../models/activevcs');
 const mapCacheSystem = require('./mining/cache/mapCacheSystem');
 const { 
@@ -348,63 +348,6 @@ const healthMetrics = {
 
 // Track recent movements to prevent straight-line behavior
 const playerMovementHistory = new Map();
-
-// Helper function to convert direction coordinates to readable names
-function getDirectionName(dx, dy) {
-    if (dx === 0 && dy === -1) return "NORTH ⬆️";
-    if (dx === 1 && dy === 0) return "EAST ➡️";
-    if (dx === 0 && dy === 1) return "SOUTH ⬇️";
-    if (dx === -1 && dy === 0) return "WEST ⬅️";
-    if (dx === 1 && dy === -1) return "NORTHEAST ↗️";
-    if (dx === 1 && dy === 1) return "SOUTHEAST ↘️";
-    if (dx === -1 && dy === 1) return "SOUTHWEST ↙️";
-    if (dx === -1 && dy === -1) return "NORTHWEST ↖️";
-    return `UNKNOWN (${dx}, ${dy})`;
-}
-
-// Helper function to convert tile type to readable name
-function getTileTypeName(tileType) {
-    const { TILE_TYPES } = require('./mining/miningConstants_unified');
-    switch (tileType) {
-        case TILE_TYPES.WALL: return "WALL 🧱";
-        case TILE_TYPES.FLOOR: return "FLOOR 🟫";
-        case TILE_TYPES.ENTRANCE: return "ENTRANCE 🚪";
-        case TILE_TYPES.WALL_WITH_ORE: return "ORE WALL ⛏️";
-        case TILE_TYPES.RARE_ORE: return "RARE ORE 💎";
-        case TILE_TYPES.REINFORCED_WALL: return "REINFORCED WALL 🛡️";
-        case TILE_TYPES.RAIL: return "RAIL 🛤️";
-        default: return `UNKNOWN_TYPE_${tileType}`;
-    }
-}
-
-// Deterministic sine-based direction selection
-function getSineBasedDirection(userId, nextShopRefresh) {
-    // Create a deterministic seed based on userId and shop refresh time
-    // Use modulo to keep numbers manageable for Math.sin precision
-    const userSeed = parseInt(userId) % 100000; // Reduce to manageable size
-    const timeSeed = (nextShopRefresh || 0) % 10000;
-    const seed = userSeed + timeSeed;
-    
-    // Use sine function to create pseudo-random but deterministic value
-    const sineValue = Math.sin(seed);
-    const normalizedValue = (sineValue + 1) / 2; // Normalize to 0-1 range instead of using abs()
-    
-    // Map the sine value to one of 4 directions
-    const directions = [
-        { dx: 0, dy: -1 }, // North
-        { dx: 1, dy: 0 },  // East  
-        { dx: 0, dy: 1 },  // South
-        { dx: -1, dy: 0 }  // West
-    ];
-    
-    // Use the normalized sine value to select direction
-    const index = Math.floor(normalizedValue * 4);
-    const selectedDirection = directions[Math.min(index, 3)] || directions[0]; // Ensure index is valid
-    
-    console.log(`[SINE DEBUG] User ${userId}, userSeed: ${userSeed}, timeSeed: ${timeSeed}, totalSeed: ${seed}, sine: ${sineValue.toFixed(4)}, normalized: ${normalizedValue.toFixed(4)}, index: ${index}, direction: (${selectedDirection.dx}, ${selectedDirection.dy})`);
-    
-    return selectedDirection;
-}
 
 // Track legendary/unique cooldowns per player
 const legendaryFindCooldowns = new Map();
@@ -807,10 +750,6 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
 
         // Check if we should use the unified system (for gullet and other special mines)
         const isGullet = mineTypeId === 16 || mineTypeId === '16';
-        // Gullet detection logging only when needed
-        if (isGullet) {
-            console.log(`[GULLET] Processing gullet items for ${member.displayName}`);
-        }
 
         if (isGullet) {
             // Use unified item system for special mines
@@ -827,11 +766,6 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             
             const item = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine, mineTypeId);
             const quantity = calculateItemQuantity(item, context, miningPower, luckStat, powerLevel, isDeeperMine);
-            
-            // Only log gullet items occasionally to reduce spam
-            if (Math.random() < 0.1) {
-                console.log(`[GULLET] Generated: ${item.name} for ${member.displayName}`);
-            }
             
             const enhancedValue = Math.floor(item.value * efficiency.valueMultiplier);
             
@@ -1543,22 +1477,7 @@ async function startBreak(channel, dbEntry, isLongBreak = false, powerLevel = 1,
                 
             await channel.send({ embeds: [longBreakEmbed] });
             
-            // ALWAYS ensure an event happens during long break
-            let eventResult;
-            try {
-                eventResult = await selectedEvent.func(channel, updatedDbEntry);
-                
-                // If no event result or event failed, force a backup event
-                if (!eventResult) {
-                    console.log(`[LONG BREAK] Primary event failed, starting backup event`);
-                    const { forceBackupLongBreakEvent } = require('./mining/miningEvents');
-                    eventResult = await forceBackupLongBreakEvent(channel, updatedDbEntry, playerCount);
-                }
-            } catch (eventError) {
-                console.error(`[LONG BREAK] Event error:`, eventError);
-                const { forceBackupLongBreakEvent } = require('./mining/miningEvents');
-                eventResult = await forceBackupLongBreakEvent(channel, updatedDbEntry, playerCount);
-            }
+            const eventResult = await selectedEvent(channel, updatedDbEntry);
             
             const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
             await logEvent(channel, `🎪 LONG BREAK EVENT: ${eventResult || 'Event started'}`, true, {
@@ -2051,10 +1970,6 @@ module.exports = async (channel, dbEntry, json, client) => {
         
         // Get mine type ID for special mine handling (e.g., gullet meat items)
         const mineTypeId = dbEntry.typeId;
-        // Minimal logging for gullet detection only
-        if (mineTypeId === 16 || mineTypeId === '16') {
-            console.log(`[MINING] Gullet mine detected (ID: ${mineTypeId})`);
-        }
         
         // Set mining context for this processing cycle
         miningContext.setMiningContext(mineTypeId, channel.id, serverPowerLevel);
@@ -2102,7 +2017,10 @@ module.exports = async (channel, dbEntry, json, client) => {
         const { isDeeperMine: checkDeeperMine } = require('./mining/miningConstants_unified');
         const isDeeperMine = checkDeeperMine ? checkDeeperMine(mineTypeId) : false;
         
-        // Simplified mine detection logging
+        // Debug logging for special mines
+        if (mineTypeId === 16 || mineTypeId === '16') {
+            console.log('[MINING] ???\'s Gullet detected - will generate meat items instead of ores');
+        }
         const serverName = json?.name || 'Unknown Mine';
         const serverModifiers = getServerModifiers(serverName, serverPowerLevel);
         
@@ -2347,7 +2265,7 @@ if (shouldStartBreak) {
             if (isLongBreak) {
                 const playerCount = members.size;
                 selectedEvent = pickLongBreakEvent(playerCount);
-                console.log(`[MAIN] Long break: Selected event ${selectedEvent.name} for ${playerCount} players`);
+                console.log(`[MAIN] Long break: Selected event for ${playerCount} players`);
             }
             
             await startBreak(channel, dbEntry, isLongBreak, serverPowerLevel, selectedEvent);
@@ -2376,7 +2294,6 @@ if (shouldStartBreak) {
         
         let mapData = dbEntry.gameData.map;
         let mapChanged = false;
-        let healthDataChanged = false; // Track if health data was modified
         const transaction = new DatabaseTransaction();
         const eventLogs = [];
         let wallsBroken = 0;
@@ -2563,31 +2480,16 @@ if (shouldStartBreak) {
         
         const hadExpiredDisables = hazardEffects.cleanupExpiredDisables(dbEntry);
         if (hadExpiredDisables) {
-            // Update only the disabled players field, not the entire gameData
+            // Update database directly since dbEntry is a lean document
             await gachaVC.updateOne(
                 { channelId: channel.id },
-                { $set: { 'gameData.disabledPlayers': dbEntry.gameData.disabledPlayers } }
+                { $set: { gameData: dbEntry.gameData } }
             );
         }
         
         // Process actions for each player with improved error handling and performance
         const playerProcessingPromises = Array.from(members.values()).map(async (member) => {
             try {
-                // Initialize player health using separate schema and check if dead
-                let isDead = false;
-                try {
-                    const PlayerHealth = require('../../models/PlayerHealth');
-                    const playerHealth = await PlayerHealth.getOrCreatePlayerHealth(member.id, channel.id, channel.guild.id);
-                    isDead = playerHealth.isDead;
-                    
-                    if (isDead) {
-                        console.log(`[MINING] Player ${member.displayName} is dead, skipping actions`);
-                        return null; // Skip processing for dead players
-                    }
-                } catch (healthInitError) {
-                    console.error(`[MINING] Error initializing health for ${member.displayName}:`, healthInitError);
-                }
-                
                 const wasDisabled = dbEntry.gameData?.disabledPlayers?.[member.id];
                 const isDisabled = hazardEffects.isPlayerDisabled(member.id, dbEntry);
                 
@@ -2777,8 +2679,6 @@ if (shouldStartBreak) {
         }
         
         await batchDB.flush();
-        
-        // Health data is now handled by separate PlayerHealth schema (no need to save here)
         
         if (mapChanged) {
             dbCache.delete(channel.id);
@@ -3107,7 +3007,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     const speedStat = Math.min(finalSpeedStat, MAX_SPEED_ACTIONS);
     
     // Check if player is stunned by lightning
-    const { isPlayerStunned, reduceStunDuration, isPlayerStuck } = require('./mining/hazardEffects');
+    const { isPlayerStunned, reduceStunDuration } = require('./mining/hazardEffects');
     if (isPlayerStunned(dbEntry, member.id)) {
         // Player is stunned, reduce stun duration and skip actions
         const stunEnded = await reduceStunDuration(dbEntry, member.id);
@@ -3123,9 +3023,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             return { mapChanged: false, wallsBroken: 0, treasuresFound: 0, mapData, hazardsChanged: false };
         }
     }
-    
-    // Wall trap status tracking removed - players can always continue mining after wall traps
-    // The trapped/stuck status is maintained for internal tracking but doesn't affect gameplay
     
     let wallsBroken = 0;
     let treasuresFound = 0;
@@ -3163,57 +3060,35 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     let enhancedSpeed = Math.floor(speedStat * efficiency.speedMultiplier);
     enhancedSpeed = applyMovementSpeedBonus(enhancedSpeed, uniqueBonuses.movementSpeedBonus);
     const numActions = enhancedSpeed > 0 ? Math.floor(Math.random() * enhancedSpeed) + 1 : 1;
-        // Reduced logging - only log when actions = 0 (debug issue)
-        if (numActions === 0) {
-            console.warn(`[MINING] ${member.displayName} has 0 actions (enhancedSpeed: ${enhancedSpeed})`);
-        }
-    
-    console.log(`[MINING DEBUG] === ${member.displayName} starting ${numActions} actions (speed: ${speedStat}, enhanced: ${enhancedSpeed}) ===`);
     
     for (let actionNum = 0; actionNum < numActions; actionNum++) {
         try {
-            console.log(`[MINING DEBUG] ${member.displayName} starting action ${actionNum + 1}/${numActions}`);
-            
             const position = mapData.playerPositions[member.id];
-            if (!position) {
-                console.warn(`[MINING DEBUG] ${member.displayName} has no position data, breaking action loop`);
+            if (!position) break;
+            
+            if (position.stuck || position.trapped) {
                 break;
             }
-            
-            console.log(`[MINING DEBUG] ${member.displayName} current position: (${position.x}, ${position.y})`);
-            
-            // Reduced action logging - only log first action or when position issues occur
-            
-            // Players can continue mining even when stuck or trapped (removed old restriction)
 
             
             // Reduced random treasure generation while mining
-            console.log(`[MINING DEBUG] ${member.displayName} checking for random treasure (chance: ${(efficiency.treasureChance * 0.2 * 100).toFixed(1)}%)`);
             if (Math.random() < efficiency.treasureChance * 0.2) { // Only 20% of original chance
                 const treasure = await generateTreasure(powerLevel, efficiency);
                 if (treasure) {
                     // Treasures go to inventory, not minecart
-                    console.log(`[MINING DEBUG] ${member.displayName} found treasure: ${treasure.name}!`);
                     await addItemWithDestination(dbEntry, member.id, treasure.itemId, 1, 'inventory');
                     eventLogs.push(`🎁 ${member.displayName} discovered ${treasure.name} while exploring! (added to inventory)`);
                     treasuresFound++;
-                } else {
-                    console.log(`[MINING DEBUG] ${member.displayName} treasure generation returned null/undefined`);
                 }
-            } else {
-                console.log(`[MINING DEBUG] ${member.displayName} no treasure found this action`);
             }
             
-            console.log(`[MINING DEBUG] ${member.displayName} calculating adjacent positions...`);
             const adjacentPositions = [
                 { x: position.x, y: position.y - 1 },
                 { x: position.x + 1, y: position.y },
                 { x: position.x, y: position.y + 1 },
                 { x: position.x - 1, y: position.y }
             ];
-            console.log(`[MINING DEBUG] ${member.displayName} adjacent positions calculated: ${adjacentPositions.length} positions`);
             
-            console.log(`[MINING DEBUG] ${member.displayName} checking for adjacent ore targets...`);
             let adjacentTarget = null;
             for (const adj of adjacentPositions) {
                 let checkX = adj.x, checkY = adj.y;
@@ -3241,8 +3116,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     }
                 }
             }
-            
-            console.log(`[MINING DEBUG] ${member.displayName} adjacent ore check complete. Found target: ${adjacentTarget ? 'YES at (' + adjacentTarget.x + ',' + adjacentTarget.y + ')' : 'NO'}`);
             
             if (adjacentTarget) {
                 const tile = adjacentTarget.tile;
@@ -3281,13 +3154,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                     mapChanged = true;
                     wallsBroken++;
-                    
-                    // Log wall breaking for adjacent ore walls
-                    if (tile.type === TILE_TYPES.RARE_ORE) {
-                        eventLogs.push(`⛏️💎 ${member.displayName} broke through rare ore!`);
-                    } else {
-                        eventLogs.push(`⛏️ ${member.displayName} broke through an ore wall!`);
-                    }
                     
                     let findMessage;
                     // Treasure chests no longer spawn
@@ -3440,48 +3306,28 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                                     type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 
                                 };
                                 wallsBroken++;
-                                
-                                // Log chain mining wall breaks (less verbose to avoid spam)
-                                if (Math.random() < 0.3) { // 30% chance to log chain breaks
-                                    eventLogs.push(`⛏️⚡ ${member.displayName}'s chain mining broke additional walls!`);
-                                }
                             }
                         }
                     }
                 } else {
-                    // Player failed to break the wall - log failure with hardness info
-                    const { getTileHardness } = require('./mining/miningMap');
-                    const tileHardness = getTileHardness(tile.type, powerLevel);
-                    
-                    let failMessage;
-                    if (tile.type === TILE_TYPES.REINFORCED_WALL) {
-                        failMessage = `💥 ${member.displayName}'s pickaxe bounced off the reinforced wall! (${tileHardness} hardness vs ${miningPower} power)`;
-                    } else if (tile.type === TILE_TYPES.RARE_ORE) {
-                        failMessage = `💥 ${member.displayName} struck rare ore but couldn't break it! (${tileHardness} hardness vs ${miningPower} power)`;
+                    let findMessage;
+                    // Treasure chests no longer spawn
+                    if (tile.type === TILE_TYPES.RARE_ORE) {
+                        findMessage = `${member.displayName} struck rare ore! But they were parried! Wait what?)`;
                     } else {
-                        failMessage = `💥 ${member.displayName} struck the wall but couldn't break it! (${tileHardness} hardness vs ${miningPower} power)`;
+                        findMessage = `${member.displayName} struck the ore wall but nothing happened...)`;
                     }
-                    
-                    // Show failure message more often to help with debugging
-                    if (Math.random() < 0.4) { // 40% chance to log failures
-                        eventLogs.push(failMessage);
-                    }
+                    eventLogs.push(findMessage);
                 }
-                console.log(`[MINING DEBUG] ${member.displayName} finished mining adjacent ore, continuing to next action`);
                 continue;
             }
             
-            console.log(`[MINING DEBUG] ${member.displayName} no adjacent ore found, starting movement logic...`);
-            
             // Treasure chests no longer spawn - removed from targets
             const visibleTargets = [TILE_TYPES.RARE_ORE, TILE_TYPES.WALL_WITH_ORE];
-            console.log(`[MINING DEBUG] ${member.displayName} looking for visible targets: ${visibleTargets.join(', ')}`);
             const nearestTarget = findNearestTarget(position, teamVisibleTiles, mapData.tiles, visibleTargets);
-            console.log(`[MINING DEBUG] ${member.displayName} nearest target search result: ${nearestTarget ? 'FOUND at (' + nearestTarget.x + ',' + nearestTarget.y + ')' : 'NONE FOUND'}`);
             
             let direction;
             if (nearestTarget) {
-                console.log(`[MINING DEBUG] ${member.displayName} calculating direction to target...`);
                 direction = getDirectionToTarget(position, nearestTarget);
                 if (Math.random() < 0.2) {
                     const randomOffsets = [
@@ -3492,29 +3338,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     direction = randomDir;
                 }
             } else {
-                // Use sine-based deterministic direction selection when no ores are in sight
-                console.log(`[MINING DEBUG] ${member.displayName} no visible targets, using sine-based direction...`);
-                try {
-                    direction = getSineBasedDirection(member.id, dbEntry.nextShopRefresh);
-                    console.log(`[MINING DEBUG] ${member.displayName} sine-based direction calculated: (${direction ? direction.dx + ', ' + direction.dy : 'NULL/UNDEFINED'})`);
-                    
-                    // Validate direction
-                    if (!direction || (direction.dx === undefined && direction.dy === undefined)) {
-                        throw new Error('getSineBasedDirection returned invalid direction');
-                    }
-                } catch (sineError) {
-                    console.error(`[MINING DEBUG] ${member.displayName} error in sine-based direction:`, sineError);
-                    // Fallback to random direction
-                    const randomOffsets = [
-                        { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
-                        { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
-                    ];
-                    direction = randomOffsets[Math.floor(Math.random() * randomOffsets.length)];
-                    console.log(`[MINING DEBUG] ${member.displayName} using fallback random direction: (${direction.dx}, ${direction.dy})`);
-                }
+                const directions = [
+                    { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
+                    { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
+                ];
+                direction = directions[Math.floor(Math.random() * directions.length)];
             }
-            
-            console.log(`[MINING DEBUG] ${member.displayName} final direction before history check: (${direction.dx}, ${direction.dy})`);
             
             if (moveHistory.lastDirection && 
                 moveHistory.lastDirection.dx === direction.dx && 
@@ -3537,30 +3366,11 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             }
             moveHistory.lastDirection = { dx: direction.dx, dy: direction.dy };
             
-            if (direction.dx === 0 && direction.dy === 0) {
-                console.warn(`[MINING] ${member.displayName} FINAL direction check failed - got (0,0), skipping action`);
-                continue;
-            }
-            
-            // DEBUG: Direction and movement logging
-            const directionName = getDirectionName(direction.dx, direction.dy);
-            console.log(`[MINING DEBUG] ${member.displayName} Action ${actionNum + 1}/${numActions}: Moving ${directionName} (${direction.dx}, ${direction.dy}) from (${position.x}, ${position.y})`);
-            
-            // Log decision making process
-            if (nearestTarget) {
-                console.log(`[MINING DEBUG] ${member.displayName} found target at (${nearestTarget.x}, ${nearestTarget.y}), moving towards it`);
-            } else {
-                console.log(`[MINING DEBUG] ${member.displayName} using sine-based movement (no targets visible)`);
-            }
-            
-            if (moveHistory.sameDirectionCount > 0) {
-                console.log(`[MINING DEBUG] ${member.displayName} has been moving ${directionName} for ${moveHistory.sameDirectionCount + 1} consecutive actions`);
-            }
+            if (direction.dx === 0 && direction.dy === 0) continue;
             
             let newX = position.x + direction.dx;
             let newY = position.y + direction.dy;
             
-            console.log(`[MINING DEBUG] ${member.displayName} calculated target position: (${newX}, ${newY})`);
             
             // Enhanced hazard generation for map expansion at high danger levels
             let expandHazardChance = getHazardSpawnChance(powerLevel);
@@ -3574,18 +3384,10 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 hazardsChanged = true;
             }
             
-            if (newX < 0 || newX >= mapData.width || newY < 0 || newY >= mapData.height) {
-                console.log(`[MINING DEBUG] ${member.displayName} target position (${newX}, ${newY}) is OUT OF BOUNDS (map size: ${mapData.width}x${mapData.height}), skipping action`);
-                continue;
-            }
+            if (newX < 0 || newX >= mapData.width || newY < 0 || newY >= mapData.height) continue;
             
             const targetTile = mapData.tiles[newY] && mapData.tiles[newY][newX];
-            if (!targetTile) {
-                console.log(`[MINING DEBUG] ${member.displayName} target position (${newX}, ${newY}) has NO TILE DATA, skipping action`);
-                continue;
-            }
-            
-            console.log(`[MINING DEBUG] ${member.displayName} found tile type: ${getTileTypeName(targetTile.type)} at (${newX}, ${newY})`);
+            if (!targetTile) continue;
             
             if ([TILE_TYPES.WALL, TILE_TYPES.REINFORCED_WALL, TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
                 // Check for Shadowstep Boots phase walk ability
@@ -3595,7 +3397,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         eventLogs.push(`👻 ${member.displayName} phases through solid stone!`);
                         
                         // Move to the wall position (it becomes a floor)
-                        console.log(`[MINING DEBUG] ${member.displayName} PHASED THROUGH WALL at (${newX}, ${newY}) using Shadowstep Boots!`);
                         position.x = newX;
                         position.y = newY;
                         
@@ -3616,8 +3417,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 
                 const canBreak = await canBreakTile(member.id, miningPower, targetTile);
                 if (canBreak) {
-                    // Reduced failure chance for regular walls to encourage more exploration
-                    if (Math.random() < 0.05 && targetTile.type === TILE_TYPES.WALL) {
+                    if (Math.random() < 0.15 && targetTile.type === TILE_TYPES.WALL) {
                         continue;
                     }
                     if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
@@ -3661,49 +3461,21 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         }
                         
                         eventLogs.push(findMessage);
-                    } else {
-                        // Break regular wall for exploration - add encouraging messages
-                        const explorationMessages = [
-                            `⛏️ ${member.displayName} broke through a wall, opening new territory!`,
-                            `⛏️ ${member.displayName} carved a path through solid stone!`,
-                            `⛏️ ${member.displayName} cleared the way forward!`,
-                            `⛏️ ${member.displayName} opened up a new passage!`,
-                            `⛏️ ${member.displayName} broke through, revealing unexplored areas!`
-                        ];
-                        eventLogs.push(explorationMessages[Math.floor(Math.random() * explorationMessages.length)]);
                     }
                     
-                    console.log(`[MINING DEBUG] ${member.displayName} BROKE ${getTileTypeName(targetTile.type)} at (${newX}, ${newY}) and moved there`);
                     mapData.tiles[newY][newX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                     position.x = newX;
                     position.y = newY;
                     mapChanged = true;
                     wallsBroken++;
-                    
-                    // Add wall break progress tracking (occasionally)
-                    if (Math.random() < 0.1) { // 10% chance to show progress
-                        const totalWallsBroken = (dbEntry.gameData?.stats?.wallsBroken || 0) + wallsBroken;
-                        eventLogs.push(`📊 Team has broken ${totalWallsBroken} walls total!`);
-                    }
                 }
 } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
-
-    try {
     // Track movement for maintenance
     const oldX = position.x;
     const oldY = position.y;
-    
-    // Validate that the new position is within map bounds after expansion
-    if (newX >= 0 && newX < mapData.width && newY >= 0 && newY < mapData.height) {
-        console.log(`[MINING DEBUG] ${member.displayName} MOVED to ${getTileTypeName(targetTile.type)} at (${newX}, ${newY}) from (${oldX}, ${oldY})`);
-        position.x = newX;
-        position.y = newY;
-        mapChanged = true;
-    } else {
-        // If position would be out of bounds, keep player at current position
-        console.warn(`[MINING DEBUG] ${member.displayName} attempted to move to out-of-bounds position (${newX}, ${newY}). Map size: ${mapData.width}x${mapData.height}`);
-        continue;
-    }
+    position.x = newX;
+    position.y = newY;
+    mapChanged = true;
     
     // Check for Shadowstep Boots random teleportation
     if (uniqueBonuses.shadowTeleportChance > 0) {
@@ -3858,9 +3630,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 hazardsData,
                 dbEntry,
                 transaction,
-                eventLogs,
-                powerLevel,
-                mineTypeId
+                eventLogs
             );
             
             if (hazardResult) {
@@ -3880,49 +3650,45 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
         }
     }
     
-            // Exploration bonus - made much rarer and limited to common items
-            const explorationChance = (EXPLORATION_BONUS_CHANCE * efficiency.speedMultiplier) * 0.1; // 10% of original chance
-            if (Math.random() < explorationChance) {
-                const bonusItems = availableItems.filter(item => item.tier === 'common' || item.tier === 'uncommon');
-                if (bonusItems.length > 0) {
-                    // Weight towards common items even for exploration
-                    const weights = bonusItems.map(item => item.tier === 'common' ? 10 : 1);
-                    const totalWeight = weights.reduce((a, b) => a + b, 0);
-                    let random = Math.random() * totalWeight;
-                    
-                    let bonusItem = bonusItems[0];
-                    for (let i = 0; i < bonusItems.length; i++) {
-                        random -= weights[i];
-                        if (random <= 0) {
-                            bonusItem = bonusItems[i];
-                            break;
-                        }
-                    }
-                    
-                    // Determine destination for exploration items
-                    let destination = 'inventory'; // Exploration items typically go to inventory
-                    if (bonusItem.category === 'ore') {
-                        destination = 'minecart';
-                    }
-                    
-                    // Show different icon and text based on destination
-                    if (destination === 'inventory') {
-                        eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring! (Added to inventory)`);
-                    } else {
-                        eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
-                    }
-                    await addItemWithDestination(dbEntry, member.id, bonusItem.itemId, 1, destination);
+    // Exploration bonus - made much rarer and limited to common items
+    const explorationChance = (EXPLORATION_BONUS_CHANCE * efficiency.speedMultiplier) * 0.1; // 10% of original chance
+    if (Math.random() < explorationChance) {
+        const bonusItems = availableItems.filter(item => item.tier === 'common' || item.tier === 'uncommon');
+        if (bonusItems.length > 0) {
+            // Weight towards common items even for exploration
+            const weights = bonusItems.map(item => item.tier === 'common' ? 10 : 1);
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            let random = Math.random() * totalWeight;
+            
+            let bonusItem = bonusItems[0];
+            for (let i = 0; i < bonusItems.length; i++) {
+                random -= weights[i];
+                if (random <= 0) {
+                    bonusItem = bonusItems[i];
+                    break;
                 }
             }
             
-        } catch (actionError) {
-            console.error(`[MINING DEBUG] Error processing action ${actionNum + 1} for ${member.displayName}:`, actionError);
+            // Determine destination for exploration items
+            let destination = 'inventory'; // Exploration items typically go to inventory
+            if (bonusItem.category === 'ore') {
+                destination = 'minecart';
+            }
+            
+            // Show different icon and text based on destination
+            if (destination === 'inventory') {
+                eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring! (Added to inventory)`);
+            } else {
+                eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
+            }
+            await addItemWithDestination(dbEntry, member.id, bonusItem.itemId, 1, destination);
         }
-        
-        console.log(`[MINING DEBUG] ${member.displayName} completed action ${actionNum + 1}/${numActions}`);
+                }
+            }
+        } catch (actionError) {
+            console.error(`[MINING] Error processing action ${actionNum} for ${member.displayName}:`, actionError);
+        }
     }
-    
-    console.log(`[MINING DEBUG] === ${member.displayName} finished all ${numActions} actions ===`);
     
     // Update progress tracking for achievements and titles
     try {
@@ -3941,11 +3707,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     }
     
     return { mapChanged, wallsBroken, treasuresFound, mapData, hazardsChanged };
- } catch (error) {
-
- }
 }
-};
 
 // Cleanup function for when bot shuts down or restarts
 function cleanupAllChannels() {
@@ -4133,4 +3895,4 @@ module.exports.cacheCommands = {
     getStats: () => mapCacheSystem.getStats(),
     clearChannel: (channelId) => mapCacheSystem.clearChannel(channelId),
     preloadAll: async () => await mapCacheSystem.preloadAll()
-}
+};

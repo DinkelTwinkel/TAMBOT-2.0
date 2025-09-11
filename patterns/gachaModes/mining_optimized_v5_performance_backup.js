@@ -349,63 +349,6 @@ const healthMetrics = {
 // Track recent movements to prevent straight-line behavior
 const playerMovementHistory = new Map();
 
-// Helper function to convert direction coordinates to readable names
-function getDirectionName(dx, dy) {
-    if (dx === 0 && dy === -1) return "NORTH ⬆️";
-    if (dx === 1 && dy === 0) return "EAST ➡️";
-    if (dx === 0 && dy === 1) return "SOUTH ⬇️";
-    if (dx === -1 && dy === 0) return "WEST ⬅️";
-    if (dx === 1 && dy === -1) return "NORTHEAST ↗️";
-    if (dx === 1 && dy === 1) return "SOUTHEAST ↘️";
-    if (dx === -1 && dy === 1) return "SOUTHWEST ↙️";
-    if (dx === -1 && dy === -1) return "NORTHWEST ↖️";
-    return `UNKNOWN (${dx}, ${dy})`;
-}
-
-// Helper function to convert tile type to readable name
-function getTileTypeName(tileType) {
-    const { TILE_TYPES } = require('./mining/miningConstants_unified');
-    switch (tileType) {
-        case TILE_TYPES.WALL: return "WALL 🧱";
-        case TILE_TYPES.FLOOR: return "FLOOR 🟫";
-        case TILE_TYPES.ENTRANCE: return "ENTRANCE 🚪";
-        case TILE_TYPES.WALL_WITH_ORE: return "ORE WALL ⛏️";
-        case TILE_TYPES.RARE_ORE: return "RARE ORE 💎";
-        case TILE_TYPES.REINFORCED_WALL: return "REINFORCED WALL 🛡️";
-        case TILE_TYPES.RAIL: return "RAIL 🛤️";
-        default: return `UNKNOWN_TYPE_${tileType}`;
-    }
-}
-
-// Deterministic sine-based direction selection
-function getSineBasedDirection(userId, nextShopRefresh) {
-    // Create a deterministic seed based on userId and shop refresh time
-    // Use modulo to keep numbers manageable for Math.sin precision
-    const userSeed = parseInt(userId) % 100000; // Reduce to manageable size
-    const timeSeed = (nextShopRefresh || 0) % 10000;
-    const seed = userSeed + timeSeed;
-    
-    // Use sine function to create pseudo-random but deterministic value
-    const sineValue = Math.sin(seed);
-    const normalizedValue = (sineValue + 1) / 2; // Normalize to 0-1 range instead of using abs()
-    
-    // Map the sine value to one of 4 directions
-    const directions = [
-        { dx: 0, dy: -1 }, // North
-        { dx: 1, dy: 0 },  // East  
-        { dx: 0, dy: 1 },  // South
-        { dx: -1, dy: 0 }  // West
-    ];
-    
-    // Use the normalized sine value to select direction
-    const index = Math.floor(normalizedValue * 4);
-    const selectedDirection = directions[Math.min(index, 3)] || directions[0]; // Ensure index is valid
-    
-    console.log(`[SINE DEBUG] User ${userId}, userSeed: ${userSeed}, timeSeed: ${timeSeed}, totalSeed: ${seed}, sine: ${sineValue.toFixed(4)}, normalized: ${normalizedValue.toFixed(4)}, index: ${index}, direction: (${selectedDirection.dx}, ${selectedDirection.dy})`);
-    
-    return selectedDirection;
-}
-
 // Track legendary/unique cooldowns per player
 const legendaryFindCooldowns = new Map();
 const LEGENDARY_COOLDOWN = 30 * 60 * 1000; // 30 minutes
@@ -3168,19 +3111,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             console.warn(`[MINING] ${member.displayName} has 0 actions (enhancedSpeed: ${enhancedSpeed})`);
         }
     
-    console.log(`[MINING DEBUG] === ${member.displayName} starting ${numActions} actions (speed: ${speedStat}, enhanced: ${enhancedSpeed}) ===`);
-    
     for (let actionNum = 0; actionNum < numActions; actionNum++) {
         try {
-            console.log(`[MINING DEBUG] ${member.displayName} starting action ${actionNum + 1}/${numActions}`);
-            
             const position = mapData.playerPositions[member.id];
             if (!position) {
-                console.warn(`[MINING DEBUG] ${member.displayName} has no position data, breaking action loop`);
+                console.warn(`[MINING] ${member.displayName} has no position data, breaking action loop`);
                 break;
             }
-            
-            console.log(`[MINING DEBUG] ${member.displayName} current position: (${position.x}, ${position.y})`);
             
             // Reduced action logging - only log first action or when position issues occur
             
@@ -3188,32 +3125,23 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
 
             
             // Reduced random treasure generation while mining
-            console.log(`[MINING DEBUG] ${member.displayName} checking for random treasure (chance: ${(efficiency.treasureChance * 0.2 * 100).toFixed(1)}%)`);
             if (Math.random() < efficiency.treasureChance * 0.2) { // Only 20% of original chance
                 const treasure = await generateTreasure(powerLevel, efficiency);
                 if (treasure) {
                     // Treasures go to inventory, not minecart
-                    console.log(`[MINING DEBUG] ${member.displayName} found treasure: ${treasure.name}!`);
                     await addItemWithDestination(dbEntry, member.id, treasure.itemId, 1, 'inventory');
                     eventLogs.push(`🎁 ${member.displayName} discovered ${treasure.name} while exploring! (added to inventory)`);
                     treasuresFound++;
-                } else {
-                    console.log(`[MINING DEBUG] ${member.displayName} treasure generation returned null/undefined`);
                 }
-            } else {
-                console.log(`[MINING DEBUG] ${member.displayName} no treasure found this action`);
             }
             
-            console.log(`[MINING DEBUG] ${member.displayName} calculating adjacent positions...`);
             const adjacentPositions = [
                 { x: position.x, y: position.y - 1 },
                 { x: position.x + 1, y: position.y },
                 { x: position.x, y: position.y + 1 },
                 { x: position.x - 1, y: position.y }
             ];
-            console.log(`[MINING DEBUG] ${member.displayName} adjacent positions calculated: ${adjacentPositions.length} positions`);
             
-            console.log(`[MINING DEBUG] ${member.displayName} checking for adjacent ore targets...`);
             let adjacentTarget = null;
             for (const adj of adjacentPositions) {
                 let checkX = adj.x, checkY = adj.y;
@@ -3241,8 +3169,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     }
                 }
             }
-            
-            console.log(`[MINING DEBUG] ${member.displayName} adjacent ore check complete. Found target: ${adjacentTarget ? 'YES at (' + adjacentTarget.x + ',' + adjacentTarget.y + ')' : 'NO'}`);
             
             if (adjacentTarget) {
                 const tile = adjacentTarget.tile;
@@ -3467,21 +3393,15 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         eventLogs.push(failMessage);
                     }
                 }
-                console.log(`[MINING DEBUG] ${member.displayName} finished mining adjacent ore, continuing to next action`);
                 continue;
             }
             
-            console.log(`[MINING DEBUG] ${member.displayName} no adjacent ore found, starting movement logic...`);
-            
             // Treasure chests no longer spawn - removed from targets
             const visibleTargets = [TILE_TYPES.RARE_ORE, TILE_TYPES.WALL_WITH_ORE];
-            console.log(`[MINING DEBUG] ${member.displayName} looking for visible targets: ${visibleTargets.join(', ')}`);
             const nearestTarget = findNearestTarget(position, teamVisibleTiles, mapData.tiles, visibleTargets);
-            console.log(`[MINING DEBUG] ${member.displayName} nearest target search result: ${nearestTarget ? 'FOUND at (' + nearestTarget.x + ',' + nearestTarget.y + ')' : 'NONE FOUND'}`);
             
             let direction;
             if (nearestTarget) {
-                console.log(`[MINING DEBUG] ${member.displayName} calculating direction to target...`);
                 direction = getDirectionToTarget(position, nearestTarget);
                 if (Math.random() < 0.2) {
                     const randomOffsets = [
@@ -3492,29 +3412,16 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     direction = randomDir;
                 }
             } else {
-                // Use sine-based deterministic direction selection when no ores are in sight
-                console.log(`[MINING DEBUG] ${member.displayName} no visible targets, using sine-based direction...`);
-                try {
-                    direction = getSineBasedDirection(member.id, dbEntry.nextShopRefresh);
-                    console.log(`[MINING DEBUG] ${member.displayName} sine-based direction calculated: (${direction ? direction.dx + ', ' + direction.dy : 'NULL/UNDEFINED'})`);
-                    
-                    // Validate direction
-                    if (!direction || (direction.dx === undefined && direction.dy === undefined)) {
-                        throw new Error('getSineBasedDirection returned invalid direction');
-                    }
-                } catch (sineError) {
-                    console.error(`[MINING DEBUG] ${member.displayName} error in sine-based direction:`, sineError);
-                    // Fallback to random direction
-                    const randomOffsets = [
-                        { dx: 0, dy: -1 }, { dx: 1, dy: 0 }, 
-                        { dx: 0, dy: 1 }, { dx: -1, dy: 0 }
-                    ];
-                    direction = randomOffsets[Math.floor(Math.random() * randomOffsets.length)];
-                    console.log(`[MINING DEBUG] ${member.displayName} using fallback random direction: (${direction.dx}, ${direction.dy})`);
-                }
+                // TEMPORARY SIMPLE FIX - just use random directions to ensure movement works
+                // Simple random movement when no ore visible
+                const directions = [
+                    { dx: 0, dy: -1, name: 'north' },
+                    { dx: 1, dy: 0, name: 'east' },
+                    { dx: 0, dy: 1, name: 'south' },
+                    { dx: -1, dy: 0, name: 'west' }
+                ];
+                direction = directions[Math.floor(Math.random() * directions.length)];
             }
-            
-            console.log(`[MINING DEBUG] ${member.displayName} final direction before history check: (${direction.dx}, ${direction.dy})`);
             
             if (moveHistory.lastDirection && 
                 moveHistory.lastDirection.dx === direction.dx && 
@@ -3542,25 +3449,11 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 continue;
             }
             
-            // DEBUG: Direction and movement logging
-            const directionName = getDirectionName(direction.dx, direction.dy);
-            console.log(`[MINING DEBUG] ${member.displayName} Action ${actionNum + 1}/${numActions}: Moving ${directionName} (${direction.dx}, ${direction.dy}) from (${position.x}, ${position.y})`);
-            
-            // Log decision making process
-            if (nearestTarget) {
-                console.log(`[MINING DEBUG] ${member.displayName} found target at (${nearestTarget.x}, ${nearestTarget.y}), moving towards it`);
-            } else {
-                console.log(`[MINING DEBUG] ${member.displayName} using sine-based movement (no targets visible)`);
-            }
-            
-            if (moveHistory.sameDirectionCount > 0) {
-                console.log(`[MINING DEBUG] ${member.displayName} has been moving ${directionName} for ${moveHistory.sameDirectionCount + 1} consecutive actions`);
-            }
+            // Removed excessive direction logging
             
             let newX = position.x + direction.dx;
             let newY = position.y + direction.dy;
             
-            console.log(`[MINING DEBUG] ${member.displayName} calculated target position: (${newX}, ${newY})`);
             
             // Enhanced hazard generation for map expansion at high danger levels
             let expandHazardChance = getHazardSpawnChance(powerLevel);
@@ -3574,18 +3467,10 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 hazardsChanged = true;
             }
             
-            if (newX < 0 || newX >= mapData.width || newY < 0 || newY >= mapData.height) {
-                console.log(`[MINING DEBUG] ${member.displayName} target position (${newX}, ${newY}) is OUT OF BOUNDS (map size: ${mapData.width}x${mapData.height}), skipping action`);
-                continue;
-            }
+            if (newX < 0 || newX >= mapData.width || newY < 0 || newY >= mapData.height) continue;
             
             const targetTile = mapData.tiles[newY] && mapData.tiles[newY][newX];
-            if (!targetTile) {
-                console.log(`[MINING DEBUG] ${member.displayName} target position (${newX}, ${newY}) has NO TILE DATA, skipping action`);
-                continue;
-            }
-            
-            console.log(`[MINING DEBUG] ${member.displayName} found tile type: ${getTileTypeName(targetTile.type)} at (${newX}, ${newY})`);
+            if (!targetTile) continue;
             
             if ([TILE_TYPES.WALL, TILE_TYPES.REINFORCED_WALL, TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
                 // Check for Shadowstep Boots phase walk ability
@@ -3595,7 +3480,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         eventLogs.push(`👻 ${member.displayName} phases through solid stone!`);
                         
                         // Move to the wall position (it becomes a floor)
-                        console.log(`[MINING DEBUG] ${member.displayName} PHASED THROUGH WALL at (${newX}, ${newY}) using Shadowstep Boots!`);
                         position.x = newX;
                         position.y = newY;
                         
@@ -3673,7 +3557,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                         eventLogs.push(explorationMessages[Math.floor(Math.random() * explorationMessages.length)]);
                     }
                     
-                    console.log(`[MINING DEBUG] ${member.displayName} BROKE ${getTileTypeName(targetTile.type)} at (${newX}, ${newY}) and moved there`);
                     mapData.tiles[newY][newX] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                     position.x = newX;
                     position.y = newY;
@@ -3695,13 +3578,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     
     // Validate that the new position is within map bounds after expansion
     if (newX >= 0 && newX < mapData.width && newY >= 0 && newY < mapData.height) {
-        console.log(`[MINING DEBUG] ${member.displayName} MOVED to ${getTileTypeName(targetTile.type)} at (${newX}, ${newY}) from (${oldX}, ${oldY})`);
         position.x = newX;
         position.y = newY;
         mapChanged = true;
     } else {
         // If position would be out of bounds, keep player at current position
-        console.warn(`[MINING DEBUG] ${member.displayName} attempted to move to out-of-bounds position (${newX}, ${newY}). Map size: ${mapData.width}x${mapData.height}`);
+        console.warn(`[MINING] Player ${member.displayName} attempted to move to out-of-bounds position (${newX}, ${newY}). Map size: ${mapData.width}x${mapData.height}`);
         continue;
     }
     
@@ -3916,13 +3798,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             }
             
         } catch (actionError) {
-            console.error(`[MINING DEBUG] Error processing action ${actionNum + 1} for ${member.displayName}:`, actionError);
+            console.error(`[MINING] Error processing action ${actionNum} for ${member.displayName}:`, actionError);
         }
-        
-        console.log(`[MINING DEBUG] ${member.displayName} completed action ${actionNum + 1}/${numActions}`);
     }
-    
-    console.log(`[MINING DEBUG] === ${member.displayName} finished all ${numActions} actions ===`);
     
     // Update progress tracking for achievements and titles
     try {
