@@ -50,6 +50,13 @@ class DigDeeperListener {
         this.client.on('interactionCreate', async (interaction) => {
             if (!interaction.isButton()) return;
             
+            // Check if interaction is too old (Discord interactions expire after 15 minutes)
+            const interactionAge = Date.now() - interaction.createdTimestamp;
+            if (interactionAge > 14 * 60 * 1000) { // 14 minutes to be safe
+                console.warn(`[DIG_DEEPER_LISTENER] Ignoring old interaction (${Math.round(interactionAge / 1000)}s old)`);
+                return;
+            }
+            
             // Handle successful dig deeper buttons
             if (interaction.customId.startsWith('dig_deeper_')) {
                 await this.handleDigDeeper(interaction);
@@ -65,14 +72,24 @@ class DigDeeperListener {
     
     async handleDigDeeper(interaction) {
         let processingKey = null; // Track the key for cleanup
+        let interactionHandled = false; // Track if we've already handled the interaction
         
         try {
+            // Check if interaction is still valid (not expired)
+            if (!interaction.isRepliable()) {
+                console.warn('[DIG_DEEPER] Interaction is no longer repliable (expired)');
+                return;
+            }
+            
+            // Defer the reply immediately to prevent expiration
+            await interaction.deferReply();
+            interactionHandled = true;
+            
             // Parse the custom ID: dig_deeper_channelId_gachaServerId
             const parts = interaction.customId.split('_');
             if (parts.length < 4) {
-                return interaction.reply({ 
-                    content: '❌ Invalid button data.', 
-                    ephemeral: true 
+                return interaction.editReply({ 
+                    content: '❌ Invalid button data.' 
                 });
             }
             
@@ -82,9 +99,8 @@ class DigDeeperListener {
             // Check if user is in the voice channel
             const member = interaction.member;
             if (!member.voice.channel || member.voice.channel.id !== channelId) {
-                return interaction.reply({ 
-                    content: '❌ You must be in the voice channel to dig deeper!', 
-                    ephemeral: true 
+                return interaction.editReply({ 
+                    content: '❌ You must be in the voice channel to dig deeper!' 
                 });
             }
             
@@ -94,18 +110,16 @@ class DigDeeperListener {
             // Find the current mine configuration
             const currentMine = gachaServers.find(s => s.id == currentMineId);
             if (!currentMine || !currentMine.deeperMineId) {
-                return interaction.reply({ 
-                    content: '❌ This mine does not have a deeper level configured.',
-                    ephemeral: true 
+                return interaction.editReply({ 
+                    content: '❌ This mine does not have a deeper level configured.'
                 });
             }
             
             // Find the deeper mine configuration
             const deeperMine = gachaServers.find(s => s.id == currentMine.deeperMineId);
             if (!deeperMine) {
-                return interaction.reply({ 
-                    content: '❌ Deeper mine configuration not found.',
-                    ephemeral: true 
+                return interaction.editReply({ 
+                    content: '❌ Deeper mine configuration not found.'
                 });
             }
             
@@ -114,17 +128,13 @@ class DigDeeperListener {
             
             // Check if already processing this type of deeper mine in this guild
             if (this.processingRequests.get(processingKey)) {
-                return interaction.reply({ 
-                    content: '⏳ A deeper mine of this type is already being created. Please wait a moment...', 
-                    ephemeral: true 
+                return interaction.editReply({ 
+                    content: '⏳ A deeper mine of this type is already being created. Please wait a moment...' 
                 });
             }
             
             // Mark as processing
             this.processingRequests.set(processingKey, true);
-            
-            // Defer the reply early
-            await interaction.deferReply();
             
             try {
                 // Get the current channel and its database entry
@@ -549,14 +559,9 @@ class DigDeeperListener {
             } catch (error) {
                 console.error('[DIG_DEEPER] Error creating/joining deeper mine:', error);
                 
-                // Try to send error message
+                // Try to send error message only if interaction is still valid
                 try {
-                    if (!interaction.replied && !interaction.deferred) {
-                        await interaction.reply({ 
-                            content: '❌ Failed to access the deeper mine. Please try again.',
-                            ephemeral: true 
-                        });
-                    } else {
+                    if (interaction.isRepliable() && interactionHandled) {
                         await interaction.editReply({ 
                             content: '❌ Failed to access the deeper mine. Please try again.' 
                         });
@@ -568,16 +573,24 @@ class DigDeeperListener {
         } catch (error) {
             console.error('[DIG_DEEPER] Error handling interaction:', error);
             
-            try {
-                const errorMessage = '❌ An error occurred while trying to dig deeper. Please try again later.';
-                
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: errorMessage, ephemeral: true });
-                } else if (interaction.deferred) {
-                    await interaction.editReply({ content: errorMessage });
+            // Only try to respond if we haven't handled the interaction yet and it's still valid
+            if (!interactionHandled && interaction.isRepliable()) {
+                try {
+                    await interaction.reply({ 
+                        content: '❌ An error occurred while trying to dig deeper. Please try again later.', 
+                        ephemeral: true 
+                    });
+                } catch (e) {
+                    console.error('[DIG_DEEPER] Failed to send error message:', e);
                 }
-            } catch (e) {
-                console.error('[DIG_DEEPER] Failed to send error message:', e);
+            } else if (interactionHandled && interaction.isRepliable()) {
+                try {
+                    await interaction.editReply({ 
+                        content: '❌ An error occurred while trying to dig deeper. Please try again later.' 
+                    });
+                } catch (e) {
+                    console.error('[DIG_DEEPER] Failed to edit reply with error message:', e);
+                }
             }
         } finally {
             // Always clear the processing flag if it was set
@@ -594,6 +607,12 @@ class DigDeeperListener {
      */
     async handleDigDeeperMystery(interaction) {
         try {
+            // Check if interaction is still valid before deferring
+            if (!interaction.isRepliable()) {
+                console.warn('[DIG_DEEPER_MYSTERY] Interaction is no longer repliable (expired)');
+                return;
+            }
+            
             // Defer the update instead of reply
             await interaction.deferUpdate();
             

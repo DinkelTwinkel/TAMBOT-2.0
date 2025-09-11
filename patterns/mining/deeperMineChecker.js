@@ -241,6 +241,24 @@ async function resetPersistentRareOres(channelId) {
 }
 
 /**
+ * Mark dig deeper as permanently unlocked for this channel
+ * @param {string} channelId - The channel ID
+ */
+async function markDigDeeperUnlocked(channelId) {
+    console.log('[DEBUG-DEEPER] Marking dig deeper as permanently unlocked for channel:', channelId);
+    
+    await gachaVC.updateOne(
+        { channelId: channelId },
+        { 
+            $set: { 
+                'gameData.stats.digDeeperUnlocked': true,
+                'gameData.stats.digDeeperUnlockedAt': new Date()
+            }
+        }
+    );
+}
+
+/**
  * Reset exit tile status (for when entering a new mine level)
  * @param {Object} dbEntry - The database entry
  */
@@ -351,8 +369,14 @@ function checkConditions(dbEntry, mineConfig) {
         return false;
     }
     
-    // Use the existing stats from gameData.stats
+    // Check if dig deeper was already unlocked permanently
     const stats = dbEntry.gameData.stats || {};
+    if (stats.digDeeperUnlocked === true) {
+        console.log('[DEBUG-DEEPER] Dig deeper already permanently unlocked');
+        return true;
+    }
+    
+    // Use the existing stats from gameData.stats
     const minecart = dbEntry.gameData.minecart || {};
     const conditionType = mineConfig.nextLevelConditionType;
     const conditionCost = mineConfig.conditionCost;
@@ -742,6 +766,16 @@ async function checkAndAddDeeperMineButton(embed, dbEntry, channelId) {
         const conditionsMet = checkConditions(dbEntry, mineConfig);
         console.log('[DEBUG-DEEPER] Conditions met result:', conditionsMet);
         
+        // If conditions are met for the first time, mark as permanently unlocked
+        if (conditionsMet && !dbEntry.gameData?.stats?.digDeeperUnlocked) {
+            console.log('[DEBUG-DEEPER] Conditions met for first time, marking as permanently unlocked');
+            await markDigDeeperUnlocked(channelId);
+            // Update the local dbEntry to reflect the change
+            if (!dbEntry.gameData.stats) dbEntry.gameData.stats = {};
+            dbEntry.gameData.stats.digDeeperUnlocked = true;
+            dbEntry.gameData.stats.digDeeperUnlockedAt = new Date();
+        }
+        
         console.log('[DEBUG-DEEPER] Getting progress...');
         const progress = getProgress(dbEntry, mineConfig);
         console.log('[DEBUG-DEEPER] Progress result:', progress);
@@ -787,9 +821,15 @@ async function checkAndAddDeeperMineButton(embed, dbEntry, channelId) {
             const buttonRow = createDigDeeperButton(channelId, mineTypeId, true);
             console.log('[DEBUG-DEEPER] Button created successfully');
             
+            // Check if this was unlocked permanently
+            const isPermanentlyUnlocked = dbEntry.gameData?.stats?.digDeeperUnlocked === true;
+            const unlockMessage = isPermanentlyUnlocked 
+                ? `You've permanently unlocked access to the deeper section of this mine! Click "Dig Deeper" to explore.`
+                : `You've unlocked access to the deeper section of this mine! Click "Dig Deeper" to explore.`;
+            
             embed.addFields({
                 name: '✅ Deeper Level Available!',
-                value: `You've unlocked access to the deeper section of this mine! Click "Dig Deeper" to explore.`,
+                value: unlockMessage,
                 inline: false
             });
             
@@ -916,6 +956,7 @@ module.exports = {
     markExitTileFound,
     resetExitTileStatus,
     resetPersistentRareOres,  // Added reset function
+    markDigDeeperUnlocked,    // Added unlock function
     checkForExitTileSpawn,
     createExitTileVisual,
     getExitTileData,

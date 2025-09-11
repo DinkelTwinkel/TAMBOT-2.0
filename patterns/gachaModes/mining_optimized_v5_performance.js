@@ -377,31 +377,40 @@ function getTileTypeName(tileType) {
     }
 }
 
-// Deterministic sine-based direction selection
-function getSineBasedDirection(userId, nextShopRefresh) {
-    // Create a deterministic seed based on userId and shop refresh time
-    // Use modulo to keep numbers manageable for Math.sin precision
+// Enhanced deterministic direction selection with channel variation
+function getSineBasedDirection(userId, nextShopRefresh, channelId) {
+    // Create a deterministic seed with multiple entropy sources
     const userSeed = parseInt(userId) % 100000; // Reduce to manageable size
     const timeSeed = (nextShopRefresh || 0) % 10000;
-    const seed = userSeed + timeSeed;
+    const channelSeed = channelId ? (parseInt(channelId) % 50000) : 0; // Add channel variation
     
-    // Use sine function to create pseudo-random but deterministic value
-    const sineValue = Math.sin(seed);
-    const normalizedValue = (sineValue + 1) / 2; // Normalize to 0-1 range instead of using abs()
+    // Combine seeds with prime number mixing for better distribution
+    const combinedSeed = (userSeed * 31 + timeSeed * 17 + channelSeed * 13) % 1000000;
     
-    // Map the sine value to one of 4 directions
+    // Use multiple sine waves with different frequencies for better distribution
+    const sine1 = Math.sin(combinedSeed);
+    const sine2 = Math.sin(combinedSeed * 1.618); // Golden ratio for better distribution
+    const sine3 = Math.cos(combinedSeed * 2.414); // Different wave for more entropy
+    
+    // Combine multiple sine waves for better randomness
+    const combinedSine = (sine1 + sine2 + sine3) / 3;
+    const normalizedValue = (combinedSine + 1) / 2; // Normalize to 0-1 range
+    
+    // Enhanced direction mapping with better distribution
     const directions = [
-        { dx: 0, dy: -1 }, // North
-        { dx: 1, dy: 0 },  // East  
-        { dx: 0, dy: 1 },  // South
-        { dx: -1, dy: 0 }  // West
+        { dx: 0, dy: -1, name: 'north' },  // North
+        { dx: 1, dy: 0, name: 'east' },    // East  
+        { dx: 0, dy: 1, name: 'south' },   // South
+        { dx: -1, dy: 0, name: 'west' }    // West
     ];
     
-    // Use the normalized sine value to select direction
-    const index = Math.floor(normalizedValue * 4);
-    const selectedDirection = directions[Math.min(index, 3)] || directions[0]; // Ensure index is valid
+    // Use improved distribution calculation
+    const floatIndex = normalizedValue * 4;
+    const index = Math.floor(floatIndex);
+    const selectedDirection = directions[Math.min(index, 3)] || directions[0];
     
-    console.log(`[SINE DEBUG] User ${userId}, userSeed: ${userSeed}, timeSeed: ${timeSeed}, totalSeed: ${seed}, sine: ${sineValue.toFixed(4)}, normalized: ${normalizedValue.toFixed(4)}, index: ${index}, direction: (${selectedDirection.dx}, ${selectedDirection.dy})`);
+    // Enhanced debugging with distribution analysis
+    console.log(`[SINE DEBUG] User ${userId}, Channel ${channelId}, userSeed: ${userSeed}, timeSeed: ${timeSeed}, channelSeed: ${channelSeed}, combinedSeed: ${combinedSeed}, sine1: ${sine1.toFixed(4)}, sine2: ${sine2.toFixed(4)}, sine3: ${sine3.toFixed(4)}, combined: ${combinedSine.toFixed(4)}, normalized: ${normalizedValue.toFixed(4)}, floatIndex: ${floatIndex.toFixed(4)}, index: ${index}, direction: ${selectedDirection.name} (${selectedDirection.dx}, ${selectedDirection.dy})`);
     
     return selectedDirection;
 }
@@ -1041,35 +1050,24 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         
         let quantity = 1;
         
-        // REDUCED multipliers with hard caps
+        // Unlimited mining power scaling!
         if (miningPower > 0) {
-            const maxBonus = Math.min(miningPower * 0.5, 2); // Cap at 2x instead of 4x
+            const maxBonus = miningPower; // No caps - full mining power scaling!
             quantity = 1 + Math.floor(Math.random() * maxBonus);
         }
         
         if (luckStat && luckStat > 0) {
-            const bonusChance = Math.min(0.3, luckStat * 0.04); // Reduced from 0.6 and 0.08
-            if (Math.random() < bonusChance) {
-                quantity += Math.floor(1 + Math.random() * 2); // Reduced from 3
+            const bonusChance = luckStat * 0.08; // No cap - unlimited luck scaling!
+            if (Math.random() < Math.min(bonusChance, 0.95)) { // Only cap at 95% to prevent guaranteed hits
+                quantity += Math.floor(1 + Math.random() * 5); // Increased bonus range
             }
         }
         
         if (tileType === TILE_TYPES.RARE_ORE) {
-            quantity *= 1.5; // Reduced from 2x
+            quantity *= 3; // Increased from 2x - rare ore should be very rewarding!
         }
         
-        // Apply tier-based quantity caps
-        const quantityCaps = {
-            common: 20,
-            uncommon: 15,
-            rare: 10,
-            epic: 5,
-            legendary: 2,  // Max 2 legendary items at once
-            unique: 1,      // Only 1 unique at a time
-            mythic: 1       // Only 1 mythic at a time
-        };
-        
-        quantity = Math.min(quantity, quantityCaps[selectedItem.tier] || 5);
+        // No tier-based quantity caps - unlimited potential!
         
         // Check cooldown for legendary/unique items
         if (selectedItem.tier === 'legendary' || selectedItem.tier === 'unique' || selectedItem.tier === 'mythic') {
@@ -2358,22 +2356,6 @@ if (shouldStartBreak) {
         const memberIds = Array.from(members.keys());
         const playerStatsMap = await playerStatsCache.getMultiple(memberIds);
         
-        // Check Midas' Burden ownership transfer (every 5 cycles to avoid spam)
-        const cycleCount = dbEntry.gameData?.cycleCount || 0;
-        if (cycleCount % 5 === 0) {
-            try {
-                const { updateMidasBurdenOwnership } = require('../conditionalUniqueItems');
-                const transferResult = await updateMidasBurdenOwnership(channel.guild.id, memberIds);
-                
-                if (transferResult && transferResult.success) {
-                    console.log(`[MIDAS] ${transferResult.message}`);
-                    eventLogs.push(`👑 ${transferResult.message}`);
-                }
-            } catch (error) {
-                console.error('[MIDAS] Error checking Midas\' Burden ownership:', error);
-            }
-        }
-        
         // Calculate total team luck for treasure bonus
         let totalTeamLuck = 0;
         for (const [memberId, playerData] of playerStatsMap) {
@@ -2397,6 +2379,8 @@ if (shouldStartBreak) {
         const eventLogs = [];
         let wallsBroken = 0;
         let treasuresFound = 0;
+        
+        // Midas' Burden ownership transfer is now handled globally in gachaGameMaster.js
         
         // Get or initialize hazards data with enhanced spawn rates for danger 6-7
         let hazardsData = await hazardStorage.getHazardsData(channel.id);
@@ -3079,7 +3063,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
     // Final stats with caps
     const miningPower = finalMiningPower;
     const luckStat = finalLuckStat;
-    const speedStat = Math.min(finalSpeedStat, MAX_SPEED_ACTIONS);
+    const speedStat = finalSpeedStat; // No speed cap - unlimited actions!
     
     // Calculate individual player vision
     let finalSightStat = baseSightStat;
@@ -3287,23 +3271,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         finalValue = Math.floor(item.value * bonus);
                     }
                     
-                    // Apply bonuses but with caps based on tier
-                    // Reduce double ore chance based on maintenance
-                    const effectiveDoubleOreChance = uniqueBonuses.doubleOreChance * 0.5; // Apply nerf from drop rate reduction
-                    finalQuantity = applyDoubleOreBonus(finalQuantity, effectiveDoubleOreChance, member, eventLogs, uniqueBonuses.uniqueItems);
-                    finalQuantity = Math.floor(finalQuantity * Math.min(1.5, uniqueBonuses.lootMultiplier)); // Cap loot multiplier at 1.5x
+                    // Apply bonuses with no caps!
+                    // Full double ore chance - no nerfs applied
+                    finalQuantity = applyDoubleOreBonus(finalQuantity, uniqueBonuses.doubleOreChance, member, eventLogs, uniqueBonuses.uniqueItems);
+                    finalQuantity = Math.floor(finalQuantity * uniqueBonuses.lootMultiplier); // No cap on loot multiplier!
                     
-                    // Re-apply tier-based caps after all multipliers
-                    const finalQuantityCaps = {
-                        common: 25,
-                        uncommon: 20,
-                        rare: 12,
-                        epic: 6,
-                        legendary: 3,
-                        unique: 1,
-                        mythic: 1
-                    };
-                    finalQuantity = Math.min(finalQuantity, finalQuantityCaps[item.tier] || 10);
+                    // No tier-based caps - unlimited quantity potential!
                     console.log (`${member.displayName} got ${item.name} and its going to ${destination}`);
                     await addItemWithDestination(dbEntry, member.id, item.itemId, finalQuantity, destination);
                     
@@ -3563,7 +3536,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 // Use sine-based deterministic direction selection when no ores are in sight
                 console.log(`[MINING DEBUG] ${member.displayName} no visible targets, using sine-based direction...`);
                 try {
-                    direction = getSineBasedDirection(member.id, dbEntry.nextShopRefresh);
+                    direction = getSineBasedDirection(member.id, dbEntry.nextShopRefresh, dbEntry.channelId);
                     console.log(`[MINING DEBUG] ${member.displayName} sine-based direction calculated: (${direction ? direction.dx + ', ' + direction.dy : 'NULL/UNDEFINED'})`);
                     
                     // Validate direction

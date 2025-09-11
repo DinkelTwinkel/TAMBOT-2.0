@@ -85,7 +85,7 @@ const uniqueItemSchema = new Schema({
         lostDate: Date,
         lostReason: { 
             type: String, 
-            enum: ['maintenance_failure', 'traded', 'destroyed', 'other'] 
+            enum: ['maintenance_failure', 'traded', 'destroyed', 'no_longer_richest', 'other'] 
         }
     }],
     

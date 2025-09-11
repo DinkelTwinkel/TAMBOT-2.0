@@ -1524,11 +1524,11 @@ function calculateItemQuantity(item, context, miningPower = 0, luckStat = 0, pow
         quantity = 1 + Math.floor(Math.random() * maxBonus);
     }
     
-    // Luck bonus
+    // Luck bonus - unlimited scaling!
     if (luckStat > 0) {
-        const bonusChance = Math.min(0.6, luckStat * 0.08);
-        if (Math.random() < bonusChance) {
-            quantity += Math.floor(1 + Math.random() * 3);
+        const bonusChance = luckStat * 0.08; // No cap!
+        if (Math.random() < Math.min(bonusChance, 0.95)) { // Only prevent 100% guarantee
+            quantity += Math.floor(1 + Math.random() * 5); // Increased bonus range
         }
     }
     
