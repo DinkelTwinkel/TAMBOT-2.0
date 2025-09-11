@@ -2,7 +2,7 @@
   "system": "inn",
   "category": "npc",
   "version": "1.0",
-  "savedAt": 1757609108396,
+  "savedAt": 1757614409903,
   "pools": {
     "f24b9fbf48f9": [
       {
@@ -963,8 +963,8 @@
           "npcType": "generic",
           "tipModifier": 1.4,
           "createdAt": 1757102083868,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757613005384,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1197,8 +1197,8 @@
           "npcType": "generic",
           "tipModifier": 1.2,
           "createdAt": 1757102742943,
-          "usageCount": 1,
-          "lastUsed": 1757103566454,
+          "usageCount": 2,
+          "lastUsed": 1757610267056,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1323,8 +1323,8 @@
           "npcType": "generic",
           "tipModifier": 0.9,
           "createdAt": 1757103527109,
-          "usageCount": 1,
-          "lastUsed": 1757103935111,
+          "usageCount": 2,
+          "lastUsed": 1757612913404,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1545,6 +1545,42 @@
           "system": "inn",
           "category": "npc"
         }
+      },
+      {
+        "id": "566b516ced1f7616",
+        "dialogue": "I'll take the Royal Feast. The taste might be bland, but at least it won't disappear.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757611581346,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d920a323dae1d027",
+        "dialogue": "Royal Feast for 1183 coins. Null pays with disdain, their presence a hindrance to all magic.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757612086416,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
       }
     ],
     "114e248d3678": [
@@ -1577,8 +1613,8 @@
           "npcType": "generic",
           "tipModifier": 1.7,
           "createdAt": 1757101643772,
-          "usageCount": 1,
-          "lastUsed": 1757606220256,
+          "usageCount": 2,
+          "lastUsed": 1757610169866,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1595,8 +1631,8 @@
           "npcType": "generic",
           "tipModifier": 2.2,
           "createdAt": 1757101998481,
-          "usageCount": 1,
-          "lastUsed": 1757606465043,
+          "usageCount": 2,
+          "lastUsed": 1757613387557,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1685,8 +1721,8 @@
           "npcType": "generic",
           "tipModifier": 1.7,
           "createdAt": 1757103525072,
-          "usageCount": 1,
-          "lastUsed": 1757606633917,
+          "usageCount": 2,
+          "lastUsed": 1757613194404,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1721,8 +1757,8 @@
           "npcType": "generic",
           "tipModifier": 1.7,
           "createdAt": 1757103954503,
-          "usageCount": 2,
-          "lastUsed": 1757607252528,
+          "usageCount": 3,
+          "lastUsed": 1757612119115,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1937,8 +1973,8 @@
           "npcType": "generic",
           "tipModifier": 1.7,
           "createdAt": 1757599642030,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757610230274,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1991,8 +2027,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757599714252,
-          "usageCount": 1,
-          "lastUsed": 1757606994111,
+          "usageCount": 2,
+          "lastUsed": 1757609455739,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2009,8 +2045,8 @@
           "npcType": "generic",
           "tipModifier": 3,
           "createdAt": 1757599831814,
-          "usageCount": 3,
-          "lastUsed": 1757609037711,
+          "usageCount": 4,
+          "lastUsed": 1757609994878,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2171,8 +2207,8 @@
           "npcType": "generic",
           "tipModifier": 1.8,
           "createdAt": 1757602012934,
-          "usageCount": 2,
-          "lastUsed": 1757608303502,
+          "usageCount": 3,
+          "lastUsed": 1757610237236,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2261,8 +2297,8 @@
           "npcType": "generic",
           "tipModifier": 3,
           "createdAt": 1757603694848,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 2,
+          "lastUsed": 1757613436747,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2333,8 +2369,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757605958024,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757612908261,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2351,8 +2387,8 @@
           "npcType": "generic",
           "tipModifier": 3,
           "createdAt": 1757606013550,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757613012226,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2369,8 +2405,8 @@
           "npcType": "generic",
           "tipModifier": 1.7,
           "createdAt": 1757606110192,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757610187698,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2405,8 +2441,8 @@
           "npcType": "generic",
           "tipModifier": 3,
           "createdAt": 1757606277754,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757612129481,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2423,8 +2459,8 @@
           "npcType": "generic",
           "tipModifier": 2.2,
           "createdAt": 1757606395284,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757610169538,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2441,8 +2477,8 @@
           "npcType": "generic",
           "tipModifier": 3,
           "createdAt": 1757606402361,
-          "usageCount": 1,
-          "lastUsed": 1757606598506,
+          "usageCount": 2,
+          "lastUsed": 1757613506575,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2537,6 +2573,222 @@
           "system": "inn",
           "category": "npc"
         }
+      },
+      {
+        "id": "29775126e8ef111c",
+        "dialogue": "Ah, Royal Feast for 1185 coins? A bargain in these uncertain times.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757609408439,
+          "usageCount": 1,
+          "lastUsed": 1757613333801,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "09e2d43875333a59",
+        "dialogue": "Royal Feast, 849 coins? A steal! I'll enjoy it more than the actual thief.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.3,
+          "createdAt": 1757609428439,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f5ac6904cbd5bcfc",
+        "dialogue": "Another royal feast to fuel our endless dance with chaos. Let's savor stability while we can.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757609642640,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "95309062032f5d83",
+        "dialogue": "I hope you enjoy the Royal Feast! Maybe today will be the day we find The One Pick.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757609653029,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "a625fdc0e12c246a",
+        "dialogue": "Ah, a Royal Feast for 916 coins? Yes indeed, a most delightful choice. Thank you kindly.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757609701077,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "c9b114a9e6d45357",
+        "dialogue": "The food's not as good as before, but at least I can taste something.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757611735734,
+          "usageCount": 2,
+          "lastUsed": 1757613464309,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "e0dfa36219708bca",
+        "dialogue": "Royal Feast for Moore? Perfect for growing plants in the void.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757611763597,
+          "usageCount": 1,
+          "lastUsed": 1757611883698,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "06b03c06bcebb58a",
+        "dialogue": "Buying a Royal Feast for 1093 coins? Someone's feeling fancy tonight.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.3,
+          "createdAt": 1757611919861,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "dc264d547eb81124",
+        "dialogue": "In 'before,' feasts were grander - perhaps one day we'll taste their flavors again.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757612023128,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "7a12f68e9022041c",
+        "dialogue": "Remember when feasts were grand banquets under a sky full of stars? Ah, the memories...",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757612788342,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0ccd4d1680b093a6",
+        "dialogue": "Ah, Royal Feast for 1051 coins? A bargain! Reminds me of feasts in the before times.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757614347076,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "04ef50af2bed7753",
+        "dialogue": "You call this a feast? I've had better meals from empty pockets.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.3,
+          "createdAt": 1757614409903,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
       }
     ],
     "18399d8ea428": [
@@ -2623,8 +2875,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757599083024,
-          "usageCount": 3,
-          "lastUsed": 1757608257686,
+          "usageCount": 4,
+          "lastUsed": 1757610246517,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2677,8 +2929,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757599153417,
-          "usageCount": 3,
-          "lastUsed": 1757607816427,
+          "usageCount": 4,
+          "lastUsed": 1757613707788,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2713,8 +2965,8 @@
           "npcType": "generic",
           "tipModifier": 1.8,
           "createdAt": 1757599178985,
-          "usageCount": 1,
-          "lastUsed": 1757601250214,
+          "usageCount": 3,
+          "lastUsed": 1757612843748,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2731,8 +2983,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599181255,
-          "usageCount": 2,
-          "lastUsed": 1757600821739,
+          "usageCount": 3,
+          "lastUsed": 1757610057922,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2785,8 +3037,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757599298508,
-          "usageCount": 2,
-          "lastUsed": 1757605420887,
+          "usageCount": 3,
+          "lastUsed": 1757612767889,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2857,8 +3109,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599392000,
-          "usageCount": 1,
-          "lastUsed": 1757599604312,
+          "usageCount": 2,
+          "lastUsed": 1757611879374,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2893,8 +3145,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599428183,
-          "usageCount": 3,
-          "lastUsed": 1757607616684,
+          "usageCount": 4,
+          "lastUsed": 1757611664212,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2929,8 +3181,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757599459805,
-          "usageCount": 1,
-          "lastUsed": 1757601382861,
+          "usageCount": 2,
+          "lastUsed": 1757612217701,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -2983,8 +3235,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599509382,
-          "usageCount": 3,
-          "lastUsed": 1757606135103,
+          "usageCount": 4,
+          "lastUsed": 1757609980829,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3019,8 +3271,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599554844,
-          "usageCount": 3,
-          "lastUsed": 1757609074898,
+          "usageCount": 6,
+          "lastUsed": 1757613136255,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3037,8 +3289,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599670635,
-          "usageCount": 2,
-          "lastUsed": 1757606698954,
+          "usageCount": 3,
+          "lastUsed": 1757611965195,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3055,8 +3307,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599672766,
-          "usageCount": 1,
-          "lastUsed": 1757601393187,
+          "usageCount": 4,
+          "lastUsed": 1757613728848,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3073,8 +3325,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599719091,
-          "usageCount": 3,
-          "lastUsed": 1757607622074,
+          "usageCount": 4,
+          "lastUsed": 1757612181580,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3109,8 +3361,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599818279,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757611661062,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3127,8 +3379,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757599866510,
-          "usageCount": 3,
-          "lastUsed": 1757606768890,
+          "usageCount": 4,
+          "lastUsed": 1757611840040,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3145,8 +3397,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599915644,
-          "usageCount": 1,
-          "lastUsed": 1757600383939,
+          "usageCount": 2,
+          "lastUsed": 1757613450370,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3163,8 +3415,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599922981,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757610001901,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3181,8 +3433,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757599944039,
-          "usageCount": 2,
-          "lastUsed": 1757602080771,
+          "usageCount": 3,
+          "lastUsed": 1757612786933,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3199,8 +3451,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757599964784,
-          "usageCount": 2,
-          "lastUsed": 1757607775876,
+          "usageCount": 3,
+          "lastUsed": 1757611938061,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3217,8 +3469,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757600000082,
-          "usageCount": 3,
-          "lastUsed": 1757607346364,
+          "usageCount": 5,
+          "lastUsed": 1757612015687,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3235,8 +3487,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757600123155,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 2,
+          "lastUsed": 1757613660727,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3253,8 +3505,8 @@
           "npcType": "generic",
           "tipModifier": 1.8,
           "createdAt": 1757600124968,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757612893786,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3289,8 +3541,8 @@
           "npcType": "generic",
           "tipModifier": 2.8,
           "createdAt": 1757600370596,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 2,
+          "lastUsed": 1757613639666,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3307,8 +3559,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757600378894,
-          "usageCount": 2,
-          "lastUsed": 1757605939432,
+          "usageCount": 3,
+          "lastUsed": 1757613612562,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3325,8 +3577,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757600420804,
-          "usageCount": 2,
-          "lastUsed": 1757607741726,
+          "usageCount": 5,
+          "lastUsed": 1757614395094,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3379,8 +3631,8 @@
           "npcType": "generic",
           "tipModifier": 1.8,
           "createdAt": 1757600489076,
-          "usageCount": 1,
-          "lastUsed": 1757606303376,
+          "usageCount": 3,
+          "lastUsed": 1757612766817,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3451,8 +3703,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757600906501,
-          "usageCount": 2,
-          "lastUsed": 1757606712479,
+          "usageCount": 3,
+          "lastUsed": 1757611980990,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3487,8 +3739,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757601249731,
-          "usageCount": 2,
-          "lastUsed": 1757606850877,
+          "usageCount": 3,
+          "lastUsed": 1757611692827,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3523,8 +3775,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757601724269,
-          "usageCount": 1,
-          "lastUsed": 1757606023692,
+          "usageCount": 2,
+          "lastUsed": 1757612950631,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3541,8 +3793,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757601903958,
-          "usageCount": 2,
-          "lastUsed": 1757607290552,
+          "usageCount": 3,
+          "lastUsed": 1757612169599,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3559,8 +3811,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757602025610,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757610300474,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3577,8 +3829,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757602090163,
-          "usageCount": 1,
-          "lastUsed": 1757606426141,
+          "usageCount": 3,
+          "lastUsed": 1757611989688,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3613,8 +3865,8 @@
           "npcType": "generic",
           "tipModifier": 1.8,
           "createdAt": 1757603356951,
-          "usageCount": 1,
-          "lastUsed": 1757606185975,
+          "usageCount": 2,
+          "lastUsed": 1757610267425,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3631,8 +3883,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757603362957,
-          "usageCount": 1,
-          "lastUsed": 1757605743437,
+          "usageCount": 3,
+          "lastUsed": 1757611790521,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3667,8 +3919,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757605471057,
-          "usageCount": 1,
-          "lastUsed": 1757606064836,
+          "usageCount": 2,
+          "lastUsed": 1757612907022,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3703,8 +3955,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757605750475,
-          "usageCount": 1,
-          "lastUsed": 1757606057864,
+          "usageCount": 2,
+          "lastUsed": 1757609485060,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3721,8 +3973,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757606019744,
-          "usageCount": 1,
-          "lastUsed": 1757606598094,
+          "usageCount": 2,
+          "lastUsed": 1757612023773,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3739,8 +3991,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757606061046,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757612822815,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3757,8 +4009,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757606142560,
-          "usageCount": 1,
-          "lastUsed": 1757606679342,
+          "usageCount": 2,
+          "lastUsed": 1757612810155,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3775,8 +4027,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757606151901,
-          "usageCount": 1,
-          "lastUsed": 1757606402611,
+          "usageCount": 2,
+          "lastUsed": 1757609596053,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3811,8 +4063,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757606193636,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757610209169,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3865,8 +4117,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757606802351,
-          "usageCount": 1,
-          "lastUsed": 1757607494365,
+          "usageCount": 2,
+          "lastUsed": 1757612089691,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3883,8 +4135,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757606844658,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757609554101,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3901,8 +4153,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757606852198,
-          "usageCount": 1,
-          "lastUsed": 1757608247130,
+          "usageCount": 2,
+          "lastUsed": 1757612134428,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3919,8 +4171,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757607013339,
-          "usageCount": 1,
-          "lastUsed": 1757608991884,
+          "usageCount": 2,
+          "lastUsed": 1757609477121,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3937,8 +4189,8 @@
           "npcType": "generic",
           "tipModifier": 1.8,
           "createdAt": 1757607283663,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757610574840,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3955,8 +4207,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757607332910,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 2,
+          "lastUsed": 1757612921531,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3973,8 +4225,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757607334397,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757611993002,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -3991,8 +4243,8 @@
           "npcType": "generic",
           "tipModifier": 2.5,
           "createdAt": 1757607386100,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757609633194,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -4081,8 +4333,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757608184622,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757609441762,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -4099,8 +4351,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757609001380,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757611643281,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -4135,8 +4387,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757609049190,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 2,
+          "lastUsed": 1757612817059,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -4153,6 +4405,330 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757609108396,
+          "usageCount": 1,
+          "lastUsed": 1757611622106,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "e0c2285110dac87e",
+        "dialogue": "Just a Royal Feast, please. Keep the change, it's all meaningless currency anyways.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.8,
+          "createdAt": 1757609457617,
+          "usageCount": 1,
+          "lastUsed": 1757612949324,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f0660308e5a2052a",
+        "dialogue": "Royal Feast for 991 coins? A delicious deal, I'll take it! And here's a tip for your trouble.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757609540625,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "937d142023ccc91d",
+        "dialogue": "Royal Feast for 1134 coins? What a steal! Here's your tip - keep exploring!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757609561450,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "37023f2dbb846f13",
+        "dialogue": "Feast for tribe, good deal. More coin for survival; Hellungi's challenges overcome.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757610023960,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b40f4f949bed47eb",
+        "dialogue": "Excited to study how Royal Feast affects physical decay rates. Fascinating!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757610082909,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "4428d21af38731c7",
+        "dialogue": "Here's your payment, a feast fit for a royal. Enjoy the taste of possibilities!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757610195582,
+          "usageCount": 1,
+          "lastUsed": 1757611707904,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "3a0362c1bdd2f753",
+        "dialogue": "Royal Feast for 1140 coins? A delectable choice indeed, my friend. Thank you kindly.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757610301740,
+          "usageCount": 3,
+          "lastUsed": 1757614317856,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "70f70eb487b6d0b6",
+        "dialogue": "I'll take The Royal Feast, please. And The One Pick, it intrigues me.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757610307887,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b856d0b2d878ba30",
+        "dialogue": "My body, a fortress against the encroaching void. Let us feast and celebrate defiance.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757610329367,
+          "usageCount": 1,
+          "lastUsed": 1757614332869,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "27e6329b86c5e9a1",
+        "dialogue": "I'll take the Royal Feast and pay with 1117 coins. Thank you for The One Pick tip!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757610490136,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "7e0ae6638994d02a",
+        "dialogue": "Who needs clothes when you have a Royal Feast? Let's dine like true beings of chaos!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.8,
+          "createdAt": 1757610567080,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "8d22c9af47063126",
+        "dialogue": "Ah, a Royal Feast to fuel my training. An interesting place, this inn. More resistant to decay.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757610588498,
+          "usageCount": 2,
+          "lastUsed": 1757612211757,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f5aa9f873eb260b7",
+        "dialogue": "Royal Feast? What a treat! Here's your payment. Enjoy the meal, friend.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757612226035,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "2bf7f35cd228049f",
+        "dialogue": "The Royal Feast for a mere 1096 coins? A bargain in this realm of entropy.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757612974172,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "99f3c135c1670133",
+        "dialogue": "Goblin chieftain Rags: \"Royal Feast for tribe. Good deal. Keep coins - tip for inn.\"",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757613014138,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "6058482fcb8ff635",
+        "dialogue": "Feast for Goblins! Rags enjoys the luxury of Royal Feast in Hellungi's depths.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757613192862,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "2266bf00a32c21b8",
+        "dialogue": "Royal Feast in Hellungi? A treat for the senses amidst this decaying world.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757613422752,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "6114d8af3f483edf",
+        "dialogue": "Another feast fit for a king, purchased for a bargain in Hellungi. Time to dine like royalty!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757613729929,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",

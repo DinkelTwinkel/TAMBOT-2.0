@@ -11,7 +11,12 @@
         "profitMargins": 0.7,
         "shop": 13,
         "colour": "DEB887",
-        "image": "minerInn"
+        "image": "minerInn",
+        "innDimensions": {
+            "width": 10,
+            "height": 7,
+            "maxCustomers": 16
+        }
     },
     {
         "id": "14",
@@ -25,7 +30,12 @@
         "profitMargins": 0.5,
         "shop": 14,
         "colour": "8B4513",
-        "image": "hunterLodge"
+        "image": "hunterLodge",
+        "innDimensions": {
+            "width": 12,
+            "height": 8,
+            "maxCustomers": 22
+        }
     },
     {
         "id": "15",
@@ -39,7 +49,12 @@
         "profitMargins": 0.3,
         "shop": 15,
         "colour": "FFD700",
-        "image": "nobleRest"
+        "image": "nobleRest",
+        "innDimensions": {
+            "width": 15,
+            "height": 10,
+            "maxCustomers": 35
+        }
     },
     {
         "id": "16",

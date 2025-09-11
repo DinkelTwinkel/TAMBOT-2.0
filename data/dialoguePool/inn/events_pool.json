@@ -2,7 +2,7 @@
   "system": "inn",
   "category": "events",
   "version": "1.0",
-  "savedAt": 1757607253363,
+  "savedAt": 1757612058339,
   "pools": {
     "60cf0ec24138": [
       {
@@ -292,6 +292,70 @@
           "system": "inn",
           "category": "events"
         }
+      },
+      {
+        "id": "7ed87affdfde4eb5",
+        "dialogue": "Counts cash drawer and restocks lobby snacks.",
+        "contextKey": "60cf0ec24138",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "moderate",
+          "innType": "default",
+          "createdAt": 1757609236676,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "d3ddda06786f9c7a",
+        "dialogue": "Checking guests in and out efficiently, answering phone calls, and tidying common areas.",
+        "contextKey": "60cf0ec24138",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "moderate",
+          "innType": "default",
+          "createdAt": 1757609314519,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "8e2139e9fd9c0a91",
+        "dialogue": "Innkeeper restocks breakfast items as guests slowly trickle in for the morning.",
+        "contextKey": "60cf0ec24138",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "moderate",
+          "innType": "default",
+          "createdAt": 1757611909032,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "b47322238a6508ab",
+        "dialogue": "Checking the availability for a couple requesting a last-minute reservation.",
+        "contextKey": "60cf0ec24138",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "moderate",
+          "innType": "default",
+          "createdAt": 1757612058339,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
       }
     ],
     "52bf5d18f00c": [
@@ -407,8 +471,8 @@
           "innType": "default",
           "luckLevel": "normal",
           "createdAt": 1757076214062,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757609278761,
           "quality": "standard",
           "system": "inn",
           "category": "events"
@@ -951,6 +1015,108 @@
           "innType": "default",
           "luckLevel": "normal",
           "createdAt": 1757607224466,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "f12b7c55722c4c28",
+        "dialogue": "In the opulent foyer of Noble's Rest, YoSpense discovers 10 gleaming coins tucked beneath a plush velvet chaise.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757609040131,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "72164591a4bd3609",
+        "dialogue": "YoSpense discovered the coins tucked away in the opulent velvet cushions of the grand chaise lounge.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757609111177,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "528a15a2d24131aa",
+        "dialogue": "They discovered the coins scattered delicately amidst the plush velvet cushions of the opulent chaise lounge.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757611398842,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "c2949190238b7706",
+        "dialogue": "YoSpense discovered the 13 coins nestled amongst plush velvet cushions in the opulent lounge at Noble's Rest.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757611792955,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "8c14211caa1f867a",
+        "dialogue": "YoSpense found the 13 coins discreetly tucked away beneath a plush velvet cushion in Noble's Rest.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757611885475,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "a712f1a1c939bc07",
+        "dialogue": "YoSpense discovered the 10 coins near the grand chandelier in the opulent ballroom at Noble's Rest.",
+        "contextKey": "52bf5d18f00c",
+        "metadata": {
+          "eventType": "coinFind",
+          "powerLevel": 4,
+          "innType": "default",
+          "luckLevel": "normal",
+          "createdAt": 1757611967095,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",
@@ -1883,8 +2049,8 @@
           "businessLevel": "slow",
           "innType": "default",
           "createdAt": 1757599230498,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757611165670,
           "quality": "standard",
           "system": "inn",
           "category": "events"
@@ -1915,8 +2081,8 @@
           "businessLevel": "slow",
           "innType": "default",
           "createdAt": 1757599526633,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757608982534,
           "quality": "standard",
           "system": "inn",
           "category": "events"
@@ -2059,8 +2225,8 @@
           "businessLevel": "slow",
           "innType": "default",
           "createdAt": 1757601955200,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757611827951,
           "quality": "standard",
           "system": "inn",
           "category": "events"
@@ -2075,8 +2241,8 @@
           "businessLevel": "slow",
           "innType": "default",
           "createdAt": 1757602832556,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757609134943,
           "quality": "standard",
           "system": "inn",
           "category": "events"
@@ -2091,8 +2257,8 @@
           "businessLevel": "slow",
           "innType": "default",
           "createdAt": 1757603305138,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757611353804,
           "quality": "standard",
           "system": "inn",
           "category": "events"
@@ -2315,6 +2481,22 @@
           "businessLevel": "slow",
           "innType": "default",
           "createdAt": 1757606700188,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "events"
+        }
+      },
+      {
+        "id": "83f7d40fa4426c4b",
+        "dialogue": "Tidying up the common areas, wiping down tables and straightening chairs.",
+        "contextKey": "c871ed07409b",
+        "metadata": {
+          "eventType": "innkeeperComment",
+          "businessLevel": "slow",
+          "innType": "default",
+          "createdAt": 1757611299482,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",

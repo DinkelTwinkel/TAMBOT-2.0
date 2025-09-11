@@ -1,10 +1,13 @@
 // InnKeeper V4 - Simplified Basic Break/Work Cycle with Dummy Events
 // Features: 20min work shifts -> 5min breaks, every 4th cycle 20min break
 
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const ActiveVCs = require('../../models/activevcs');
 const Money = require('../../models/currency');
 const InnConstants = require('./innKeeping/innConstants');
+const { generateInnMapImage } = require('./imageProcessing/inn-layered-render');
+const generateShop = require('../generateShop');
+const CustomerManager = require('./innKeeping/customerManager');
 
 class InnKeeperV4Controller {
     constructor() {
@@ -30,6 +33,7 @@ class InnKeeperV4Controller {
             }
 
             try {
+                
                 // Initialize game data if needed
                 const wasInitialized = await this.initializeGameData(channelId, now);
                 
@@ -40,7 +44,7 @@ class InnKeeperV4Controller {
                     return;
                 }
 
-                // If this was a new initialization, create initial work log
+                // If this was a new initialization, create initial work log and send inn map
                 if (wasInitialized) {
                     const initialWorkEvent = {
                         timestamp: now,
@@ -49,6 +53,19 @@ class InnKeeperV4Controller {
                         type: 'inn_init'
                     };
                     await this.updateWorkEventLog(channel, freshEntry, initialWorkEvent);
+                    
+                    // Send initial inn opening notification
+                    try {
+                        const initEmbed = new EmbedBuilder()
+                            .setTitle('🏨 Inn Opened!')
+                            .setColor('#2ecc71')
+                            .setDescription('Welcome to the inn! The establishment is now open for business.')
+                            .setTimestamp();
+                        
+                        await channel.send({ embeds: [initEmbed] });
+                    } catch (error) {
+                        console.error(`[InnKeeperV4] Error sending initial inn notification for channel ${channel.id}:`, error);
+                    }
                 }
 
                 // Check current work/break state and handle transitions
@@ -97,7 +114,11 @@ class InnKeeperV4Controller {
                 workLogMessageId: null,         // ID of the current work log embed message
                 workLogEmbedCount: 0,           // Count of work log embeds created
                 currentWorkPeriodProfit: 0,     // Total profit earned in current work period
-                totalProfit: 0                  // Total profit earned across all periods
+                totalProfit: 0,                 // Total profit earned across all periods
+                customers: [],                  // Array of current customers in the inn
+                innReputation: 50,              // Inn reputation (0-100)
+                maxCustomers: 15,               // Default max customers, will be updated from gachaServers.json
+                innDimensions: this.getInnDimensions(existingEntry.typeId) // Inn dimensions from gachaServers.json
             };
 
             const initData = {
@@ -136,22 +157,22 @@ class InnKeeperV4Controller {
             if (this.isWorkPeriodComplete(v4State, now)) {
                 await this.startBreak(channel, dbEntry, now);
             } else {
-                // Still working - generate dummy work events
-                console.log(`[InnKeeperV4] Inn is working, processing work events for ${channel.id}`);
-                await this.processDummyWorkEvents(channel, dbEntry, now);
+                // Still working - process customer events
+                console.log(`[InnKeeperV4] Inn is working, processing customer events for ${channel.id}`);
+                await this.processCustomerWorkEvents(channel, dbEntry, now);
             }
         } else if (currentState === 'break') {
             // Check if break period is complete
             if (this.isBreakPeriodComplete(v4State, now)) {
                 const breakEnded = await this.endBreak(channel, dbEntry, now);
                 
-                // If break ended successfully, fetch fresh data and start work events
+                // If break ended successfully, fetch fresh data and start customer events
                 if (breakEnded) {
-                    console.log(`[InnKeeperV4] Break ended, fetching fresh data for work events for ${channel.id}`);
+                    console.log(`[InnKeeperV4] Break ended, fetching fresh data for customer events for ${channel.id}`);
                     const freshEntry = await ActiveVCs.findOne({ channelId: channel.id }).lean();
                     if (freshEntry && freshEntry.gameData?.v4State?.workState === 'working') {
-                        // Process work events with fresh data that has reset lastWorkEvent
-                        await this.processDummyWorkEvents(channel, freshEntry, now);
+                        // Process customer events with fresh data that has reset lastWorkEvent
+                        await this.processCustomerWorkEvents(channel, freshEntry, now);
                     }
                 }
             } else {
@@ -159,6 +180,29 @@ class InnKeeperV4Controller {
                 console.log(`[InnKeeperV4] Still on break for ${channel.id}`);
             }
         }
+    }
+
+    /**
+     * Get inn dimensions from gachaServers.json configuration
+     */
+    getInnDimensions(typeId) {
+        const gachaServersData = require('../../data/gachaServers.json');
+        const serverConfig = gachaServersData.find(s => s.id === String(typeId));
+        
+        if (serverConfig && serverConfig.type === 'innkeeper' && serverConfig.innDimensions) {
+            return {
+                width: serverConfig.innDimensions.width,
+                height: serverConfig.innDimensions.height,
+                maxCustomers: serverConfig.innDimensions.maxCustomers
+            };
+        }
+        
+        // Default dimensions for unknown inn types
+        return {
+            width: 10,
+            height: 7,
+            maxCustomers: 15
+        };
     }
 
     /**
@@ -228,12 +272,16 @@ class InnKeeperV4Controller {
             return false;
         }
 
-        // Distribute profits to all members in the channel
-        await this.distributeProfits(channel, v4State.currentWorkPeriodProfit || 0);
+        // Process customers during break (overnight stays and departures)
+        const breakCustomerResult = await CustomerManager.processBreakTimeCustomers(channel, dbEntry, now);
+        const totalBreakProfit = (v4State.currentWorkPeriodProfit || 0) + breakCustomerResult.overnightProfit;
 
-        // Send break notification
+        // Distribute profits to all members in the channel (including overnight fees)
+        await this.distributeProfits(channel, totalBreakProfit);
+
+        // Send break notification with customer overnight info
         const breakEndTime = now + breakDuration;
-        const embed = this.createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime, v4State.currentWorkPeriodProfit || 0);
+        const embed = this.createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime, totalBreakProfit, breakCustomerResult);
 
         await channel.send({ embeds: [embed] });
         return true;
@@ -278,10 +326,31 @@ class InnKeeperV4Controller {
             return false;
         }
 
-        // Send work restart notification
+        // Send work restart notification - try to edit previous break message if recent
         const embed = this.createWorkStartEmbed(this.config.TIMING.WORK_DURATION, nextWorkEndTime);
-
-        await channel.send({ embeds: [embed] });
+        
+        try {
+            // Try to find and edit the most recent break message
+            const messages = await channel.messages.fetch({ limit: 1 });
+            const lastMessage = messages.first();
+            
+            if (lastMessage && 
+                lastMessage.author.bot && 
+                lastMessage.embeds.length > 0 && 
+                (lastMessage.embeds[0].title?.includes('Break Time') || lastMessage.embeds[0].title?.includes('Extended Break'))) {
+                
+                // Edit the previous break message to show reopening
+                await lastMessage.edit({ embeds: [embed] });
+                console.log(`[InnKeeperV4] Edited previous break message for inn reopening`);
+            } else {
+                // Send new message if previous message wasn't a break notification
+                await channel.send({ embeds: [embed] });
+                console.log(`[InnKeeperV4] Sent new work restart message`);
+            }
+        } catch (error) {
+            console.error(`[InnKeeperV4] Error editing break message, sending new one:`, error);
+            await channel.send({ embeds: [embed] });
+        }
         
         // Create initial work log embed
         const initialWorkEvent = {
@@ -297,7 +366,40 @@ class InnKeeperV4Controller {
     }
 
     /**
-     * Process dummy work events for testing
+     * Process customer work events (replaces dummy work events)
+     */
+    async processCustomerWorkEvents(channel, dbEntry, now) {
+        try {
+            const v4State = dbEntry.gameData?.v4State;
+            if (!v4State) {
+                console.log('[InnKeeperV4] No v4State found for customer work events');
+                return;
+            }
+
+            const lastEventTime = v4State.lastWorkEvent || 0;
+            // Random interval between 10-20 seconds
+            const minInterval = 10000; // 10 seconds
+            const maxInterval = 20000; // 20 seconds
+            const eventInterval = minInterval + Math.random() * (maxInterval - minInterval);
+            const timeSinceLastEvent = now - lastEventTime;
+            
+            console.log(`[InnKeeperV4] Customer work event check: ${Math.round(timeSinceLastEvent / 1000)}s since last event, need ${Math.round(eventInterval / 1000)}s minimum`);
+            
+            // Check if enough time has passed for next event
+            if (timeSinceLastEvent >= eventInterval) {
+                console.log(`[InnKeeperV4] ✓ Triggering customer event (${Math.round(timeSinceLastEvent / 1000)}s >= ${Math.round(eventInterval / 1000)}s)`);
+                await this.generateCustomerEvent(channel, dbEntry, now);
+            } else {
+                console.log(`[InnKeeperV4] ✗ Not enough time passed for customer event (${Math.round(timeSinceLastEvent / 1000)}s < ${Math.round(eventInterval / 1000)}s)`);
+            }
+
+        } catch (error) {
+            console.error('[InnKeeperV4] Error processing customer work events:', error);
+        }
+    }
+
+    /**
+     * Process dummy work events for testing (DEPRECATED)
      */
     async processDummyWorkEvents(channel, dbEntry, now) {
         try {
@@ -318,8 +420,8 @@ class InnKeeperV4Controller {
             
             // Check if enough time has passed for next event
             if (timeSinceLastEvent >= eventInterval) {
-                console.log('[InnKeeperV4] Triggering dummy work event');
-                await this.generateDummyWorkEvent(channel, dbEntry, now);
+                console.log('[InnKeeperV4] Triggering customer event');
+                await this.generateCustomerEvent(channel, dbEntry, now);
             }
 
         } catch (error) {
@@ -328,7 +430,93 @@ class InnKeeperV4Controller {
     }
 
     /**
-     * Generate a dummy work event for testing
+     * Generate customer event (replaces dummy work event)
+     */
+    async generateCustomerEvent(channel, dbEntry, now) {
+        try {
+            console.log('[InnKeeperV4] Processing customer events');
+            const v4State = dbEntry.gameData?.v4State;
+            if (!v4State) {
+                console.error('[InnKeeperV4] No v4State found in dbEntry for customer events');
+                return;
+            }
+            
+            const currentCount = v4State?.workEventCount || 0;
+            const newCount = currentCount + 1;
+            console.log(`[InnKeeperV4] Current customer count: ${(v4State.customers || []).length}, Max: ${v4State.maxCustomers || 15}`);
+
+            // Get voice channel members for service capacity calculation
+            let voiceChannel = null;
+            const textChannelName = channel.name.toLowerCase();
+            voiceChannel = channel.guild.channels.cache.find(c => 
+                c.type === 2 && // Voice channel
+                c.name.toLowerCase().includes(textChannelName.replace(/-/g, ' ')) ||
+                textChannelName.includes(c.name.toLowerCase().replace(/-/g, ' '))
+            );
+            
+            if (!voiceChannel || voiceChannel.members.size === 0) {
+                voiceChannel = channel.guild.channels.cache.find(c => 
+                    c.type === 2 && c.members.size > 0 // Any voice channel with members
+                );
+            }
+            
+            const members = voiceChannel ? Array.from(voiceChannel.members.values()) : [];
+
+            // Process customers (arrivals/departures)
+            console.log(`[InnKeeperV4] Processing customer arrivals/departures for channel ${channel.id}`);
+            await CustomerManager.processCustomers(channel, dbEntry, now);
+
+            // Process customer orders and service
+            console.log(`[InnKeeperV4] Processing customer orders for channel ${channel.id} with ${members.length} staff members`);
+            const orderResult = await CustomerManager.processCustomerOrders(channel, dbEntry, now, members);
+            const profit = orderResult.profit;
+            const eventDescription = orderResult.eventDescription;
+
+            // Update profit tracking
+            const currentProfit = v4State?.currentWorkPeriodProfit || 0;
+            const newCurrentProfit = currentProfit + profit;
+            const totalProfit = (v4State?.totalProfit || 0) + profit;
+
+            // Create work event object
+            const workEvent = {
+                timestamp: now,
+                eventNumber: newCount,
+                description: `Event #${newCount} - ${eventDescription}${profit > 0 ? ` (Earned ${profit} coins)` : ''}`,
+                type: 'customer_event',
+                profit: profit,
+                customersServed: orderResult.customersServed || 0,
+                serviceQuality: orderResult.serviceQuality || 'none'
+            };
+
+            // Update database with new event time, count, and profit
+            await ActiveVCs.findOneAndUpdate(
+                { channelId: channel.id },
+                { 
+                    $set: { 
+                        'gameData.v4State.lastWorkEvent': now,
+                        'gameData.v4State.workEventCount': newCount,
+                        'gameData.v4State.currentWorkPeriodProfit': newCurrentProfit,
+                        'gameData.v4State.totalProfit': totalProfit
+                    }
+                }
+            );
+
+            // Get fresh database entry with updated customer data for work log
+            const freshDbEntry = await ActiveVCs.findOne({ channelId: channel.id }).lean();
+            
+            // Update work event log embed instead of sending new message
+            console.log(`[InnKeeperV4] About to update work event log for channel ${channel.id}`);
+            await this.updateWorkEventLog(channel, freshDbEntry || dbEntry, workEvent);
+
+            console.log(`[InnKeeperV4] Customer event #${newCount} processed for channel ${channel.id} - ${eventDescription} (Profit: ${profit})`);
+
+        } catch (error) {
+            console.error('[InnKeeperV4] Error generating customer event:', error);
+        }
+    }
+
+    /**
+     * Generate a dummy work event for testing (DEPRECATED - replaced by generateCustomerEvent)
      */
     async generateDummyWorkEvent(channel, dbEntry, now) {
         try {
@@ -385,10 +573,23 @@ class InnKeeperV4Controller {
                 return;
             }
 
-            // Get all members currently in the voice channel
-            const voiceChannel = channel.guild.channels.cache.find(c => 
-                c.type === 2 && c.members.size > 0 // Voice channel with members
+            // Get all members currently in the voice channel associated with this inn
+            let voiceChannel = null;
+            
+            // Check if this text channel has a linked voice channel (same name or similar)
+            const textChannelName = channel.name.toLowerCase();
+            voiceChannel = channel.guild.channels.cache.find(c => 
+                c.type === 2 && // Voice channel
+                c.name.toLowerCase().includes(textChannelName.replace(/-/g, ' ')) ||
+                textChannelName.includes(c.name.toLowerCase().replace(/-/g, ' '))
             );
+            
+            // If no specific match, find any voice channel with members
+            if (!voiceChannel || voiceChannel.members.size === 0) {
+                voiceChannel = channel.guild.channels.cache.find(c => 
+                    c.type === 2 && c.members.size > 0 // Any voice channel with members
+                );
+            }
 
             if (!voiceChannel || voiceChannel.members.size === 0) {
                 console.log('[InnKeeperV4] No members in voice channel to distribute profits to');
@@ -441,9 +642,182 @@ class InnKeeperV4Controller {
     }
 
     /**
+     * Generate random positions for players on empty floor tiles
+     */
+    generateRandomPlayerPositions(members, channelId, innDimensions = null) {
+        const { generateInnLayout, INN_TILE_TYPES } = require('./imageProcessing/inn-layered-render');
+        
+        // Use provided dimensions or defaults
+        const INN_WIDTH = innDimensions?.width || 10;
+        const INN_HEIGHT = innDimensions?.height || 7;
+        
+        // Get the inn layout to identify empty floor tiles (using channel ID for consistency)
+        const layout = generateInnLayout(channelId, { width: INN_WIDTH, height: INN_HEIGHT });
+        
+        // Find all empty floor tiles (not occupied by tables or chairs)
+        const emptyFloorTiles = [];
+        for (let y = 0; y < INN_HEIGHT; y++) {
+            for (let x = 0; x < INN_WIDTH; x++) {
+                if (layout[y][x] === INN_TILE_TYPES.FLOOR) {
+                    emptyFloorTiles.push({ x, y });
+                }
+            }
+        }
+        
+        console.log(`[InnKeeperV4] Found ${emptyFloorTiles.length} empty floor tiles for ${members.length} members`);
+        
+        // Time-based seeded random function for dynamic positioning
+        const timeBasedSeededRandom = (seed, timeOffset = 0) => {
+            // Use current time in minutes to change positions every minute
+            const currentTimeMinutes = Math.floor((Date.now() + timeOffset) / 60000);
+            const combinedSeed = seed + currentTimeMinutes;
+            const x = Math.sin(combinedSeed) * 10000;
+            return x - Math.floor(x);
+        };
+        
+        // Create time-based seeded shuffle using channel ID and current time
+        const channelSeed = parseInt(channelId.replace(/\D/g, '').slice(-8) || '12345678', 10);
+        
+        // Shuffle the empty floor tiles array with time-based seeded randomness
+        for (let i = emptyFloorTiles.length - 1; i > 0; i--) {
+            const j = Math.floor(timeBasedSeededRandom(channelSeed + i + 2000) * (i + 1));
+            [emptyFloorTiles[i], emptyFloorTiles[j]] = [emptyFloorTiles[j], emptyFloorTiles[i]];
+        }
+        
+        // Assign positions to members with individual time-based movement
+        const playerPositions = {};
+        members.forEach((member, index) => {
+            if (index < emptyFloorTiles.length) {
+                // Create individual time offset for each player based on their user ID
+                const playerSeed = parseInt(member.id.slice(-8), 10) || (index + 1000);
+                const playerTimeOffset = playerSeed % 300000; // Offset up to 5 minutes
+                
+                // Get time-based position index for this specific player
+                const positionIndex = Math.floor(timeBasedSeededRandom(channelSeed + playerSeed + 3000, playerTimeOffset) * emptyFloorTiles.length);
+                const position = emptyFloorTiles[positionIndex];
+                
+                playerPositions[member.id] = {
+                    x: position.x,
+                    y: position.y
+                };
+                console.log(`[InnKeeperV4] Assigned ${member.user.username} to time-based position (${position.x}, ${position.y})`);
+            } else {
+                console.warn(`[InnKeeperV4] No available position for ${member.user.username}, skipping`);
+            }
+        });
+        
+        return playerPositions;
+    }
+
+    /**
+     * Generate positions for customers prioritizing chair tiles, then floor tiles
+     */
+    generateCustomerPositions(customers, channelId, playerPositions, innDimensions = null) {
+        const { generateInnLayout, INN_TILE_TYPES } = require('./imageProcessing/inn-layered-render');
+        
+        // Use provided dimensions or defaults
+        const INN_WIDTH = innDimensions?.width || 10;
+        const INN_HEIGHT = innDimensions?.height || 7;
+        
+        // Get the inn layout to identify available tiles
+        const layout = generateInnLayout(channelId, { width: INN_WIDTH, height: INN_HEIGHT });
+        
+        // Find chair tiles and empty floor tiles not occupied by players
+        const chairTiles = [];
+        const emptyFloorTiles = [];
+        const occupiedPositions = new Set();
+        
+        // Mark player positions as occupied
+        Object.values(playerPositions).forEach(pos => {
+            occupiedPositions.add(`${pos.x},${pos.y}`);
+        });
+        
+        // Categorize available tiles
+        for (let y = 0; y < INN_HEIGHT; y++) {
+            for (let x = 0; x < INN_WIDTH; x++) {
+                const posKey = `${x},${y}`;
+                if (!occupiedPositions.has(posKey)) {
+                    if (layout[y][x] === INN_TILE_TYPES.CHAIR) {
+                        chairTiles.push({ x, y, type: 'chair' });
+                    } else if (layout[y][x] === INN_TILE_TYPES.FLOOR) {
+                        emptyFloorTiles.push({ x, y, type: 'floor' });
+                    }
+                }
+            }
+        }
+        
+        console.log(`[InnKeeperV4] Found ${chairTiles.length} chair tiles and ${emptyFloorTiles.length} floor tiles for ${customers.length} customers`);
+        
+        // Seeded random function for consistent chair assignment
+        const seededRandom = (seed) => {
+            const x = Math.sin(seed) * 10000;
+            return x - Math.floor(x);
+        };
+        
+        // Time-based seeded random function for floor positioning
+        const timeBasedSeededRandom = (seed, timeOffset = 0) => {
+            const currentTimeMinutes = Math.floor((Date.now() + timeOffset) / 60000);
+            const combinedSeed = seed + currentTimeMinutes;
+            const x = Math.sin(combinedSeed) * 10000;
+            return x - Math.floor(x);
+        };
+        
+        const channelSeed = parseInt(channelId.replace(/\D/g, '').slice(-8) || '12345678', 10);
+        
+        // Shuffle chair tiles with channel-based seeded randomness (consistent)
+        for (let i = chairTiles.length - 1; i > 0; i--) {
+            const j = Math.floor(seededRandom(channelSeed + i + 1000) * (i + 1));
+            [chairTiles[i], chairTiles[j]] = [chairTiles[j], chairTiles[i]];
+        }
+        
+        // Shuffle floor tiles with time-based seeded randomness (dynamic)
+        for (let i = emptyFloorTiles.length - 1; i > 0; i--) {
+            const j = Math.floor(timeBasedSeededRandom(channelSeed + i + 4000) * (i + 1));
+            [emptyFloorTiles[i], emptyFloorTiles[j]] = [emptyFloorTiles[j], emptyFloorTiles[i]];
+        }
+        
+        // Assign positions to customers (chairs first, then floor)
+        const customerPositions = {};
+        const availableTiles = [...chairTiles, ...emptyFloorTiles];
+        
+        customers.forEach((customer, index) => {
+            if (index < availableTiles.length) {
+                let position;
+                
+                if (index < chairTiles.length) {
+                    // Assign to chair with consistent positioning based on channel seed
+                    position = chairTiles[index];
+                    console.log(`[InnKeeperV4] Assigned customer ${customer.name} to chair at (${position.x}, ${position.y})`);
+                } else {
+                    // Assign to floor with time-based positioning
+                    const floorIndex = index - chairTiles.length;
+                    const customerSeed = parseInt(customer.id.replace(/\D/g, '').slice(-8), 10) || (index + 5000);
+                    const customerTimeOffset = customerSeed % 300000; // Offset up to 5 minutes
+                    
+                    // Get time-based position index for floor tiles
+                    const positionIndex = Math.floor(timeBasedSeededRandom(channelSeed + customerSeed + 6000, customerTimeOffset) * emptyFloorTiles.length);
+                    position = emptyFloorTiles[positionIndex] || emptyFloorTiles[floorIndex % emptyFloorTiles.length];
+                    console.log(`[InnKeeperV4] Assigned customer ${customer.name} to floor at (${position.x}, ${position.y})`);
+                }
+                
+                customerPositions[customer.id] = {
+                    x: position.x,
+                    y: position.y,
+                    tileType: position.type,
+                    customer: customer // Include customer data for rendering
+                };
+            } else {
+                console.warn(`[InnKeeperV4] No available position for customer ${customer.name}, skipping`);
+            }
+        });
+        
+        return customerPositions;
+    }
+
+    /**
      * Create break start embed
      */
-    createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime, distributedProfit = 0) {
+    createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime, distributedProfit = 0, customerInfo = null) {
         const breakDurationMinutes = Math.floor(breakDuration / 60000);
         
         const embed = new EmbedBuilder()
@@ -464,6 +838,27 @@ class InnKeeperV4Controller {
         if (distributedProfit > 0) {
             embed.addFields(
                 { name: '💰 Profits Distributed', value: `${distributedProfit} coins`, inline: true }
+            );
+        }
+
+        // Add customer overnight information if available
+        if (customerInfo) {
+            const { overnightProfit, customersLeft, customersStayed, reputation } = customerInfo;
+            
+            if (customersStayed > 0) {
+                embed.addFields(
+                    { name: '🏨 Overnight Guests', value: `${customersStayed} customers stayed (+${overnightProfit} coins)`, inline: true }
+                );
+            }
+            
+            if (customersLeft > 0) {
+                embed.addFields(
+                    { name: '👋 Departures', value: `${customersLeft} customers left`, inline: true }
+                );
+            }
+            
+            embed.addFields(
+                { name: '⭐ Inn Reputation', value: `${reputation}/100`, inline: true }
             );
         }
 
@@ -523,8 +918,13 @@ class InnKeeperV4Controller {
                     inline: false 
                 },
                 { 
-                    name: '📊 Total Events', 
-                    value: `${workEventLog.length}`, 
+                    name: '⭐ Inn Reputation', 
+                    value: `${v4State?.innReputation || 50}/100`, 
+                    inline: true 
+                },
+                { 
+                    name: '👥 Current Customers', 
+                    value: `${(v4State?.customers || []).length}/${v4State?.maxCustomers || 15}`, 
                     inline: true 
                 },
                 { 
@@ -539,10 +939,11 @@ class InnKeeperV4Controller {
     }
 
     /**
-     * Update or create work event log embed
+     * Update or create work event log embed with inn map
      */
     async updateWorkEventLog(channel, dbEntry, newEvent) {
         try {
+            console.log(`[InnKeeperV4] updateWorkEventLog called for channel ${channel.id} with event: ${newEvent.description}`);
             const v4State = dbEntry.gameData?.v4State;
             if (!v4State) {
                 console.log('[InnKeeperV4] No v4State found for work event log update');
@@ -560,15 +961,103 @@ class InnKeeperV4Controller {
                 v4State.currentWorkPeriodProfit || 0
             );
 
+            // Generate inn map with current voice chat members
+            let mapAttachment = null;
+            try {
+                // Get members currently in the voice channel associated with this inn
+                // First try to find the voice channel linked to this text channel
+                let voiceChannel = null;
+                
+                // Check if this text channel has a linked voice channel (same name or similar)
+                const textChannelName = channel.name.toLowerCase();
+                voiceChannel = channel.guild.channels.cache.find(c => 
+                    c.type === 2 && // Voice channel
+                    c.name.toLowerCase().includes(textChannelName.replace(/-/g, ' ')) ||
+                    textChannelName.includes(c.name.toLowerCase().replace(/-/g, ' '))
+                );
+                
+                // If no specific match, find any voice channel with members
+                if (!voiceChannel || voiceChannel.members.size === 0) {
+                    voiceChannel = channel.guild.channels.cache.find(c => 
+                        c.type === 2 && c.members.size > 0 // Any voice channel with members
+                    );
+                }
+                
+                const members = voiceChannel ? Array.from(voiceChannel.members.values()) : [];
+                console.log(`[InnKeeperV4] Found ${members.length} members in voice channel "${voiceChannel?.name || 'none'}" for work log`);
+                
+                // Get inn dimensions from gameData
+                const innDimensions = dbEntry.gameData?.v4State?.innDimensions || { width: 10, height: 7 };
+                
+                // Generate random positions for members on empty floor tiles
+                const playerPositions = this.generateRandomPlayerPositions(members, channel.id, innDimensions);
+                
+                // Add customer positions to the map
+                const customers = dbEntry.gameData?.v4State?.customers || [];
+                const customerPositions = this.generateCustomerPositions(customers, channel.id, playerPositions, innDimensions);
+                
+                // Combine player and customer positions for rendering
+                const allOccupants = [...members];
+                const allPositions = { ...playerPositions };
+                
+                // Add customers as occupants
+                Object.values(customerPositions).forEach(custPos => {
+                    // Create a mock member object for customers
+                    const customerMember = {
+                        id: custPos.customer.id,
+                        user: {
+                            username: custPos.customer.name,
+                            displayAvatarURL: () => custPos.customer.avatar
+                        },
+                        displayName: custPos.customer.name,
+                        roles: { cache: new Map() },
+                        isCustomer: true,
+                        customerData: custPos.customer
+                    };
+                    
+                    allOccupants.push(customerMember);
+                    allPositions[custPos.customer.id] = { x: custPos.x, y: custPos.y };
+                });
+                
+                // Generate inn map image with both players and customers
+                const mapBuffer = await generateInnMapImage(channel, allOccupants, allPositions, innDimensions);
+                
+                // Create attachment
+                mapAttachment = new AttachmentBuilder(mapBuffer, { 
+                    name: `inn-worklog-${channel.id}-${Date.now()}.png`,
+                    description: 'Current inn status with occupants'
+                });
+                
+                console.log(`[InnKeeperV4] Generated inn map for work log with ${members.length} players`);
+            } catch (mapError) {
+                console.error(`[InnKeeperV4] Error generating inn map for work log:`, mapError);
+                // Continue without map attachment
+            }
+
+            // Generate shop on each work log update
+            try {
+                console.log(`[InnKeeperV4] Generating shop for inn work log update`);
+                await generateShop(channel, 20, null); // 20 minute closing time, no specific player
+            } catch (shopError) {
+                console.error(`[InnKeeperV4] Error generating shop for work log:`, shopError);
+                // Continue without shop generation
+            }
+
             // Check if embed exceeds character limit (Discord limit is 6000 characters)
             const embedLength = JSON.stringify(embed.data).length;
             const maxEmbedLength = 5000; // Leave some buffer
 
             let messageId = v4State.workLogMessageId;
 
+            // Prepare message content
+            const messageContent = {
+                embeds: [embed],
+                files: mapAttachment ? [mapAttachment] : []
+            };
+
             if (embedLength > maxEmbedLength || !messageId) {
                 // Create new embed if too long or no existing message
-                const sentMessage = await channel.send({ embeds: [embed] });
+                const sentMessage = await channel.send(messageContent);
                 messageId = sentMessage.id;
                 
                 // Update embed count
@@ -586,12 +1075,12 @@ class InnKeeperV4Controller {
                     }
                 );
                 
-                console.log(`[InnKeeperV4] Created new work log embed #${newEmbedCount} for channel ${channel.id}`);
+                console.log(`[InnKeeperV4] Created new work log embed #${newEmbedCount} with inn map for channel ${channel.id}`);
             } else {
                 // Edit existing embed
                 try {
                     const message = await channel.messages.fetch(messageId);
-                    await message.edit({ embeds: [embed] });
+                    await message.edit(messageContent);
                     
                     // Update database with new log
                     await ActiveVCs.findOneAndUpdate(
@@ -603,12 +1092,12 @@ class InnKeeperV4Controller {
                         }
                     );
                     
-                    console.log(`[InnKeeperV4] Updated work log embed for channel ${channel.id}`);
+                    console.log(`[InnKeeperV4] Updated work log embed with inn map for channel ${channel.id}`);
                 } catch (error) {
                     console.log(`[InnKeeperV4] Failed to edit work log message, creating new one: ${error.message}`);
                     
                     // If editing fails, create new message
-                    const sentMessage = await channel.send({ embeds: [embed] });
+                    const sentMessage = await channel.send(messageContent);
                     const newEmbedCount = (v4State.workLogEmbedCount || 0) + 1;
                     
                     await ActiveVCs.findOneAndUpdate(
