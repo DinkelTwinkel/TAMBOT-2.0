@@ -475,12 +475,16 @@ async function generateShop(channel, closingTime = 20, playerId = null) {
         });
     }
 
-    // Check last 3 messages for existing shop message with same title
-    const recentMessages = await channel.messages.fetch({ limit: 3 });
+    // Determine what shop title should be in this channel
+    const expectedShopTitle = shopInfo.name;
+    
+    // Check last 1 message for existing shop embed to edit
+    const lastMessage = await channel.messages.fetch({ limit: 1 });
     let existingShopMessage = null;
     
-    for (const [, msg] of recentMessages) {
-        if (msg.embeds.length > 0 && msg.embeds[0].title === embed.data.title) {
+    for (const [, msg] of lastMessage) {
+        if (msg.embeds.length > 0 && msg.embeds[0].title && 
+            msg.embeds[0].title === expectedShopTitle) {
             existingShopMessage = msg;
             break;
         }
@@ -490,7 +494,6 @@ async function generateShop(channel, closingTime = 20, playerId = null) {
     
     if (existingShopMessage) {
         // Edit the existing message
-        // Edit with available attachments
         const files = [attachment];
         if (thumbAttachment) files.push(thumbAttachment);
         
@@ -501,8 +504,38 @@ async function generateShop(channel, closingTime = 20, playerId = null) {
         });
         console.log(`✏️ Edited existing shop message in channel ${channel.id}`);
     } else {
-        // Create new message if no existing one found in last 3 messages
-        // Send with available attachments
+        // Delete any shop embeds in the last 10 messages before creating new one
+        const recentMessages = await channel.messages.fetch({ limit: 10 });
+        const shopMessagesToDelete = [];
+        
+        for (const [, msg] of recentMessages) {
+            if (msg.embeds.length > 0 && msg.embeds[0].title) {
+                // Check if this looks like a shop embed (has shop.png image attachment)
+                const hasShopImage = msg.embeds[0].image && 
+                                   msg.embeds[0].image.url && 
+                                   msg.embeds[0].image.url.includes('shop.png');
+                
+                if (hasShopImage) {
+                    shopMessagesToDelete.push(msg);
+                }
+            }
+        }
+        
+        // Delete found shop messages
+        if (shopMessagesToDelete.length > 0) {
+            console.log(`🗑️ Deleting ${shopMessagesToDelete.length} previous shop embed(s) in channel ${channel.id}`);
+            for (const oldShopMsg of shopMessagesToDelete) {
+                try {
+                    await oldShopMsg.delete();
+                } catch (error) {
+                    if (error.code !== 10008) { // Ignore "Unknown Message" errors
+                        console.warn(`⚠️ Failed to delete old shop message ${oldShopMsg.id}:`, error.message);
+                    }
+                }
+            }
+        }
+        
+        // Send new shop message with available attachments
         const files = [attachment];
         if (thumbAttachment) files.push(thumbAttachment);
         

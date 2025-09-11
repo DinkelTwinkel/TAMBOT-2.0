@@ -1,6 +1,7 @@
 // inn-layered-render.js - Inn map generator with tile-based rendering
 const { createCanvas, loadImage } = require('canvas');
 const path = require('path');
+const { generateThemeImages, getInnTheme } = require('./generateInnImages');
 
 // Constants
 const FLOOR_TILE_SIZE = 64;
@@ -24,7 +25,9 @@ const INN_TILE_TYPES = {
     FLOOR: 'floor',
     TABLE: 'table',
     CHAIR: 'chair',
-    DOOR: 'door'
+    DOOR: 'door',
+    WINDOW: 'window',
+    DECORATION: 'decoration'
 };
 
 // Fallback colors when images aren't available
@@ -33,40 +36,46 @@ const INN_TILE_COLORS = {
     [INN_TILE_TYPES.FLOOR]: '#8B4513',   // Dark brown wood floor
     [INN_TILE_TYPES.TABLE]: '#654321',   // Dark brown table
     [INN_TILE_TYPES.CHAIR]: '#A0522D',   // Sienna chair
-    [INN_TILE_TYPES.DOOR]: '#654321'     // Dark brown door
+    [INN_TILE_TYPES.DOOR]: '#654321',    // Dark brown door
+    [INN_TILE_TYPES.WINDOW]: '#87CEEB',  // Sky blue window
+    [INN_TILE_TYPES.DECORATION]: '#228B22' // Forest green decoration
 };
 
 // Image cache to avoid loading same images multiple times
 const tileImageCache = new Map();
 
 /**
- * Load tile image with caching
+ * Load inn tile image with caching and auto-generation
  */
-async function loadTileImage(theme, tileType, variation = '') {
-    const cacheKey = `${theme}_${tileType}${variation}`;
+async function loadInnTileImage(theme, tileType, variation = '', dbEntry = null) {
+    const cacheKey = `inn_${theme}_${tileType}${variation}`;
     
     if (tileImageCache.has(cacheKey)) {
         return tileImageCache.get(cacheKey);
     }
     
-    // Try to load themed tile first
-    const themedPath = path.join(__dirname, '../../../assets/game/tiles', `${theme}_${tileType}${variation}.png`);
+    const fileName = variation ? `${theme}_${tileType}_${variation}.png` : `${theme}_${tileType}.png`;
+    const filePath = path.join(__dirname, '../../../assets/game/inn', fileName);
     
     try {
-        const image = await loadImage(themedPath);
+        const image = await loadImage(filePath);
         tileImageCache.set(cacheKey, image);
         return image;
     } catch (error) {
-        // Try generic tile as fallback
-        const genericPath = path.join(__dirname, '../../../assets/game/tiles', `generic_${tileType}${variation}.png`);
+        console.log(`Inn tile image not found: ${filePath}, attempting to generate...`);
         
         try {
-            const image = await loadImage(genericPath);
+            // Generate missing images for this theme
+            await generateThemeImages(theme);
+            console.log(`Generated inn images for theme: ${theme}`);
+            
+            // Try loading again after generation
+            const image = await loadImage(filePath);
             tileImageCache.set(cacheKey, image);
+            console.log(`Successfully loaded after generation: ${filePath}`);
             return image;
-        } catch (genericError) {
-            // No image available, will use programmatic rendering
-            console.log(`No tile image found for ${tileType}, using programmatic rendering`);
+        } catch (genError) {
+            console.warn(`Failed to generate or load inn tile image for theme ${theme}: ${filePath}`);
             return null;
         }
     }
@@ -81,22 +90,427 @@ function seededRandom(seed) {
 }
 
 /**
- * Check if position is too close to existing positions
+ * Populate inn with table islands, wall tables, and decorations
+ * @param {Array} layout - 2D array representing the inn layout
+ * @param {string} channelId - Channel ID for consistent seeding
+ * @param {Object} dimensions - Inn dimensions {width, height}
+ * @param {Object} tileTypes - Tile type constants
+ * @returns {Object} - Updated layout with tables, chairs, decorations, and chair count
  */
-function isPositionTooClose(x, y, usedPositions, minSpacing) {
-    for (let dy = -minSpacing; dy <= minSpacing; dy++) {
-        for (let dx = -minSpacing; dx <= minSpacing; dx++) {
-            if (usedPositions.has(`${x + dx},${y + dy}`)) {
-                return true;
+function populateInn(layout, channelId, dimensions, tileTypes) {
+    const INN_WIDTH = dimensions.width;
+    const INN_HEIGHT = dimensions.height;
+    const channelSeed = parseInt(channelId.replace(/\D/g, '').slice(-8) || '12345678', 10);
+    
+    const usedPositions = new Set();
+    let chairCount = 0;
+    
+    // First, place door and protect its area
+    const doorInfo = addDoor(layout, channelSeed, tileTypes, INN_WIDTH, INN_HEIGHT);
+    if (doorInfo) {
+        // Protect door area from furniture placement
+        protectDoorArea(doorInfo.x, doorInfo.y, usedPositions, INN_WIDTH, INN_HEIGHT);
+    }
+    
+    // Define possible table island sizes (width x height)
+    const islandSizes = [
+        { w: 1, h: 2 }, { w: 1, h: 3 }, { w: 2, h: 2 }, 
+        { w: 2, h: 3 }, { w: 2, h: 4 }, { w: 2, h: 5 }, 
+        { w: 2, h: 6 }, { w: 2, h: 7 }, { w: 2, h: 8 }
+    ];
+    
+    // Shuffle island sizes based on channel seed to determine priority
+    const shuffledSizes = [...islandSizes];
+    for (let i = shuffledSizes.length - 1; i > 0; i--) {
+        const j = Math.floor(seededRandom(channelSeed + i) * (i + 1));
+        [shuffledSizes[i], shuffledSizes[j]] = [shuffledSizes[j], shuffledSizes[i]];
+    }
+    
+    // Phase 1: Try to place table islands with proper spacing
+    console.log(`[PopulateInn] Phase 1: Placing table islands`);
+    
+    for (const size of shuffledSizes) {
+        // Try multiple positions for this island size
+        const maxAttempts = 30;
+        let attempts = 0;
+        
+        while (attempts < maxAttempts) {
+            // Generate random position with proper margins (2 tiles from walls, 3 between islands)
+            const wallMargin = 2; // Distance from walls
+            const islandMargin = 3; // Distance between islands
+            const x = Math.floor(seededRandom(channelSeed + attempts + size.w * 100) * (INN_WIDTH - size.w - wallMargin * 2)) + wallMargin;
+            const y = Math.floor(seededRandom(channelSeed + attempts + size.h * 100) * (INN_HEIGHT - size.h - wallMargin * 2)) + wallMargin;
+            
+            if (canPlaceIsland(layout, x, y, size.w, size.h, usedPositions, tileTypes, islandMargin)) {
+                const islandChairs = placeTableIsland(layout, x, y, size.w, size.h, usedPositions, tileTypes);
+                chairCount += islandChairs;
+                console.log(`[PopulateInn] Placed ${size.w}x${size.h} island at (${x},${y}) with ${islandChairs} chairs`);
+                break;
+            }
+            attempts++;
+        }
+    }
+    
+    // Phase 2: Place individual tables against walls where space allows
+    console.log(`[PopulateInn] Phase 2: Placing wall tables`);
+    
+    const wallPositions = [];
+    
+    // Top wall positions
+    for (let x = 2; x < INN_WIDTH - 2; x += 2) {
+        wallPositions.push({ x: x, y: 1, wall: 'top' });
+    }
+    
+    // Bottom wall positions  
+    for (let x = 2; x < INN_WIDTH - 2; x += 2) {
+        wallPositions.push({ x: x, y: INN_HEIGHT - 2, wall: 'bottom' });
+    }
+    
+    // Left wall positions
+    for (let y = 2; y < INN_HEIGHT - 2; y += 2) {
+        wallPositions.push({ x: 1, y: y, wall: 'left' });
+    }
+    
+    // Right wall positions
+    for (let y = 2; y < INN_HEIGHT - 2; y += 2) {
+        wallPositions.push({ x: INN_WIDTH - 2, y: y, wall: 'right' });
+    }
+    
+    // Shuffle wall positions
+    for (let i = wallPositions.length - 1; i > 0; i--) {
+        const j = Math.floor(seededRandom(channelSeed + i + 500) * (i + 1));
+        [wallPositions[i], wallPositions[j]] = [wallPositions[j], wallPositions[i]];
+    }
+    
+    // Try to place wall tables
+    for (const pos of wallPositions) {
+        if (canPlaceWallTable(layout, pos.x, pos.y, usedPositions, tileTypes)) {
+            const wallChairs = placeWallTable(layout, pos.x, pos.y, pos.wall, usedPositions, tileTypes);
+            chairCount += wallChairs;
+        }
+    }
+    
+    // Phase 3: Add decorations
+    console.log(`[PopulateInn] Phase 3: Placing decorations`);
+    chairCount += placeDecorations(layout, channelId, usedPositions, tileTypes, INN_WIDTH, INN_HEIGHT);
+    
+    // Add windows (door was already placed at the beginning)
+    addWindows(layout, channelSeed, tileTypes, INN_WIDTH, INN_HEIGHT);
+    
+    console.log(`[PopulateInn] Inn populated with ${chairCount} total chairs for ${INN_WIDTH}x${INN_HEIGHT} inn`);
+    return { layout, chairCount };
+}
+
+/**
+ * Check if a table island can be placed at the given position
+ */
+function canPlaceIsland(layout, x, y, width, height, usedPositions, tileTypes, spacing) {
+    // Check bounds - ensure island fits within inn boundaries
+    if (x < 1 || y < 1 || x + width >= layout[0].length - 1 || y + height >= layout.length - 1) return false;
+    
+    // Check if the island area itself is clear
+    for (let dy = 0; dy < height; dy++) {
+        for (let dx = 0; dx < width; dx++) {
+            const checkX = x + dx;
+            const checkY = y + dy;
+            
+            if (layout[checkY][checkX] !== tileTypes.FLOOR || 
+                usedPositions.has(`${checkX},${checkY}`)) {
+                return false;
             }
         }
     }
+    
+    // Check spacing around island (for chairs and spacing between islands)
+    for (let dy = -spacing; dy < height + spacing; dy++) {
+        for (let dx = -spacing; dx < width + spacing; dx++) {
+            const checkX = x + dx;
+            const checkY = y + dy;
+            
+            // Skip the island area itself
+            if (dx >= 0 && dx < width && dy >= 0 && dy < height) continue;
+            
+            // Check if within bounds
+            if (checkX < 1 || checkX >= layout[0].length - 1 || 
+                checkY < 1 || checkY >= layout.length - 1) continue;
+            
+            // Check if position is already used (by other furniture or protected areas)
+            if (usedPositions.has(`${checkX},${checkY}`)) {
+                return false;
+            }
+            
+            // For chair placement area (1 tile around island), ensure it's floor
+            if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && 
+                layout[checkY][checkX] !== tileTypes.FLOOR) {
+                return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * Place a table island and return chair count
+ */
+function placeTableIsland(layout, x, y, width, height, usedPositions, tileTypes) {
+    let chairCount = 0;
+    
+    // Place tables and mark them as used
+    for (let dy = 0; dy < height; dy++) {
+        for (let dx = 0; dx < width; dx++) {
+            const tableX = x + dx;
+            const tableY = y + dy;
+            layout[tableY][tableX] = tileTypes.TABLE;
+            usedPositions.add(`${tableX},${tableY}`);
+        }
+    }
+    
+    // Place chairs around the perimeter and mark spacing area as used
+    for (let dy = -1; dy <= height; dy++) {
+        for (let dx = -1; dx <= width; dx++) {
+            const chairX = x + dx;
+            const chairY = y + dy;
+            
+            // Skip positions inside the island
+            if (dx >= 0 && dx < width && dy >= 0 && dy < height) continue;
+            
+            // Skip corners (no chairs in corners)
+            if ((dx === -1 || dx === width) && (dy === -1 || dy === height)) continue;
+            
+            // Check bounds
+            if (chairX < 1 || chairX >= layout[0].length - 1 || 
+                chairY < 1 || chairY >= layout.length - 1) continue;
+            
+            // Place chair if possible
+            if (layout[chairY][chairX] === tileTypes.FLOOR && 
+                !usedPositions.has(`${chairX},${chairY}`)) {
+                layout[chairY][chairX] = tileTypes.CHAIR;
+                usedPositions.add(`${chairX},${chairY}`);
+                chairCount++;
+            }
+        }
+    }
+    
+    // Mark additional spacing area around island to maintain separation
+    const spacingRadius = 2; // 2-tile spacing between islands
+    for (let dy = -spacingRadius; dy < height + spacingRadius; dy++) {
+        for (let dx = -spacingRadius; dx < width + spacingRadius; dx++) {
+            const spaceX = x + dx;
+            const spaceY = y + dy;
+            
+            // Skip the island and chair areas (already marked)
+            if (dx >= -1 && dx <= width && dy >= -1 && dy <= height) continue;
+            
+            // Mark spacing area as used to prevent other islands from being too close
+            if (spaceX >= 1 && spaceX < layout[0].length - 1 && 
+                spaceY >= 1 && spaceY < layout.length - 1) {
+                usedPositions.add(`${spaceX},${spaceY}`);
+            }
+        }
+    }
+    
+    return chairCount;
+}
+
+/**
+ * Check if a wall table can be placed
+ */
+function canPlaceWallTable(layout, x, y, usedPositions, tileTypes) {
+    // Check if table position is clear
+    if (layout[y][x] !== tileTypes.FLOOR || usedPositions.has(`${x},${y}`)) return false;
+    
+    // Check if there's space for at least one chair
+    const chairPositions = [
+        [x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]
+    ];
+    
+    for (const [cx, cy] of chairPositions) {
+        if (cx >= 1 && cx < layout[0].length - 1 && 
+            cy >= 1 && cy < layout.length - 1 &&
+            layout[cy][cx] === tileTypes.FLOOR && 
+            !usedPositions.has(`${cx},${cy}`)) {
+            return true;
+        }
+    }
+    
     return false;
 }
 
 /**
+ * Place a wall table and return chair count
+ */
+function placeWallTable(layout, x, y, wall, usedPositions, tileTypes) {
+    layout[y][x] = tileTypes.TABLE;
+    usedPositions.add(`${x},${y}`);
+    
+    let chairCount = 0;
+    let chairPositions = [];
+    
+    // Determine chair positions based on wall
+    switch (wall) {
+        case 'top':
+            chairPositions = [[x - 1, y], [x + 1, y], [x, y + 1]];
+            break;
+        case 'bottom':
+            chairPositions = [[x - 1, y], [x + 1, y], [x, y - 1]];
+            break;
+        case 'left':
+            chairPositions = [[x + 1, y], [x, y - 1], [x, y + 1]];
+            break;
+        case 'right':
+            chairPositions = [[x - 1, y], [x, y - 1], [x, y + 1]];
+            break;
+    }
+    
+    // Place chairs where possible
+    for (const [cx, cy] of chairPositions) {
+        if (cx >= 1 && cx < layout[0].length - 1 && 
+            cy >= 1 && cy < layout.length - 1 &&
+            layout[cy][cx] === tileTypes.FLOOR && 
+            !usedPositions.has(`${cx},${cy}`)) {
+            layout[cy][cx] = tileTypes.CHAIR;
+            usedPositions.add(`${cx},${cy}`);
+            chairCount++;
+        }
+    }
+    
+    return chairCount;
+}
+
+/**
+ * Place decorations and return any additional "chair equivalent" count
+ */
+function placeDecorations(layout, channelId, usedPositions, tileTypes, INN_WIDTH, INN_HEIGHT) {
+    const channelSeed = parseInt(channelId.replace(/\D/g, '').slice(-8) || '12345678', 10);
+    
+    // Determine decoration type based on channel ID
+    const decorationType = Math.floor(Math.abs(Math.sin(channelSeed)) * 3);
+    const decorationTypes = ['PLANT', 'BARREL', 'BOOKSHELF'];
+    const selectedDecoration = decorationTypes[decorationType];
+    
+    console.log(`[PopulateInn] Selected decoration type: ${selectedDecoration}`);
+    
+    // Add decoration tile type if not exists (for rendering)
+    if (!tileTypes.DECORATION) {
+        tileTypes.DECORATION = 'decoration';
+    }
+    
+    let decorationsPlaced = 0;
+    const maxDecorations = Math.floor((INN_WIDTH * INN_HEIGHT) / 20); // Limit decorations
+    
+    // Try to place decorations in available spaces
+    for (let attempts = 0; attempts < maxDecorations * 10 && decorationsPlaced < maxDecorations; attempts++) {
+        const x = Math.floor(seededRandom(channelSeed + attempts + 1000) * (INN_WIDTH - 2)) + 1;
+        const y = Math.floor(seededRandom(channelSeed + attempts + 2000) * (INN_HEIGHT - 2)) + 1;
+        
+        // Check if position is available and has floor around it
+        if (layout[y][x] === tileTypes.FLOOR && !usedPositions.has(`${x},${y}`)) {
+            // Check if it's either against a wall or isolated (surrounded by floor)
+            const isAgainstWall = (x === 1 || x === INN_WIDTH - 2 || y === 1 || y === INN_HEIGHT - 2);
+            const isIsolated = !isAgainstWall && isPositionIsolated(layout, x, y, tileTypes);
+            
+            if (isAgainstWall || isIsolated) {
+                layout[y][x] = tileTypes.DECORATION;
+                usedPositions.add(`${x},${y}`);
+                decorationsPlaced++;
+            }
+        }
+    }
+    
+    console.log(`[PopulateInn] Placed ${decorationsPlaced} ${selectedDecoration} decorations`);
+    return 0; // Decorations don't add to chair count
+}
+
+/**
+ * Check if a position is isolated (surrounded by floor tiles)
+ */
+function isPositionIsolated(layout, x, y, tileTypes) {
+    for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const checkX = x + dx;
+            const checkY = y + dy;
+            if (layout[checkY][checkX] !== tileTypes.FLOOR) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/**
+ * Add door to the inn and return door position
+ */
+function addDoor(layout, channelSeed, tileTypes, INN_WIDTH, INN_HEIGHT) {
+    const bottomWallPositions = [];
+    for (let x = 1; x < INN_WIDTH - 1; x++) {
+        if (layout[INN_HEIGHT - 2][x] === tileTypes.FLOOR) {
+            bottomWallPositions.push(x);
+        }
+    }
+    
+    if (bottomWallPositions.length > 0) {
+        const randomIndex = Math.floor(seededRandom(channelSeed + 1000) * bottomWallPositions.length);
+        const randomX = bottomWallPositions[randomIndex];
+        layout[INN_HEIGHT - 1][randomX] = tileTypes.DOOR;
+        return { x: randomX, y: INN_HEIGHT - 1 };
+    }
+    
+    return null;
+}
+
+/**
+ * Protect the area around the door from furniture placement
+ */
+function protectDoorArea(doorX, doorY, usedPositions, INN_WIDTH, INN_HEIGHT) {
+    // Protect the floor tile directly in front of the door
+    const floorTileX = doorX;
+    const floorTileY = doorY - 1;
+    
+    // Protect a 3x2 area in front of the door (door approach area)
+    for (let dy = 0; dy >= -1; dy--) {
+        for (let dx = -1; dx <= 1; dx++) {
+            const protectX = floorTileX + dx;
+            const protectY = floorTileY + dy;
+            
+            if (protectX >= 1 && protectX < INN_WIDTH - 1 && 
+                protectY >= 1 && protectY < INN_HEIGHT - 1) {
+                usedPositions.add(`${protectX},${protectY}`);
+            }
+        }
+    }
+    
+    console.log(`[PopulateInn] Protected door area around (${doorX}, ${doorY})`);
+}
+
+/**
+ * Add windows to the inn
+ */
+function addWindows(layout, channelSeed, tileTypes, INN_WIDTH, INN_HEIGHT) {
+    const wallPositions = [];
+    for (let y = 0; y < INN_HEIGHT; y++) {
+        for (let x = 0; x < INN_WIDTH; x++) {
+            if (layout[y][x] === tileTypes.WALL && 
+                !(x === 0 && y === 0) && !(x === 0 && y === INN_HEIGHT - 1) && 
+                !(x === INN_WIDTH - 1 && y === 0) && !(x === INN_WIDTH - 1 && y === INN_HEIGHT - 1) &&
+                layout[y][x] !== tileTypes.DOOR) {
+                wallPositions.push({ x, y });
+            }
+        }
+    }
+    
+    const windowCount = Math.floor(wallPositions.length * 0.3);
+    for (let i = 0; i < windowCount; i++) {
+        const randomIndex = Math.floor(seededRandom(channelSeed + 2000 + i) * wallPositions.length);
+        const pos = wallPositions.splice(randomIndex, 1)[0];
+        if (pos) layout[pos.y][pos.x] = tileTypes.WINDOW;
+    }
+}
+
+/**
  * Generate inn layout with tables and chairs
- * Returns a 2D array representing the inn layout
+ * Returns an object with layout and chair count
  * @param {string} channelId - Channel ID for consistent seeding
  * @param {Object} dimensions - Inn dimensions {width, height}
  */
@@ -114,136 +528,19 @@ function generateInnLayout(channelId = 'default', dimensions = null) {
         }
     }
     
-    // Generate table and chair islands based on inn size
-    // Each island is a table surrounded by chairs
-    // Ensure at least 1 floor space between islands
-    
-    const channelSeed = parseInt(channelId.replace(/\D/g, '').slice(-8) || '12345678', 10);
-    const tableIslands = [];
-    const interiorWidth = INN_WIDTH - 2; // Exclude walls
-    const interiorHeight = INN_HEIGHT - 2; // Exclude walls
-    
-    // Generate maximum number of table islands with proper spacing
-    const minSpacing = 2; // Minimum 2 tiles between table centers (1 tile gap + table + 1 tile gap = 3 total)
-    const usedPositions = new Set();
-    
-    // Calculate grid positions for optimal table placement
-    // Each table needs a 3x3 area (table + 4 chairs), with 1 tile spacing between islands
-    const tableSpacing = 4; // 3 for table area + 1 for spacing
-    const maxTablesX = Math.floor((interiorWidth - 1) / tableSpacing); // -1 for edge spacing
-    const maxTablesY = Math.floor((interiorHeight - 1) / tableSpacing);
-    
-    // Generate all possible table positions in a grid pattern
-    const possiblePositions = [];
-    for (let gridY = 0; gridY < maxTablesY; gridY++) {
-        for (let gridX = 0; gridX < maxTablesX; gridX++) {
-            const tableX = 2 + (gridX * tableSpacing) + Math.floor(tableSpacing / 2); // Center in grid cell
-            const tableY = 2 + (gridY * tableSpacing) + Math.floor(tableSpacing / 2);
-            
-            // Ensure position is within bounds
-            if (tableX >= 2 && tableX < INN_WIDTH - 2 && tableY >= 2 && tableY < INN_HEIGHT - 2) {
-                possiblePositions.push({ x: tableX, y: tableY, gridX, gridY });
-            }
-        }
-    }
-    
-    // Shuffle positions with seeded randomness for variety
-    for (let i = possiblePositions.length - 1; i > 0; i--) {
-        const j = Math.floor(seededRandom(channelSeed + i + 100) * (i + 1));
-        [possiblePositions[i], possiblePositions[j]] = [possiblePositions[j], possiblePositions[i]];
-    }
-    
-    // Place as many tables as possible
-    for (const pos of possiblePositions) {
-        const tableX = pos.x;
-        const tableY = pos.y;
-        
-        // Check if this position conflicts with already placed tables
-        let canPlace = true;
-        for (let dy = -minSpacing; dy <= minSpacing; dy++) {
-            for (let dx = -minSpacing; dx <= minSpacing; dx++) {
-                if (usedPositions.has(`${tableX + dx},${tableY + dy}`)) {
-                    canPlace = false;
-                    break;
-                }
-            }
-            if (!canPlace) break;
-        }
-        
-        if (canPlace) {
-            // Mark area as used (3x3 area around table)
-            for (let dy = -1; dy <= 1; dy++) {
-                for (let dx = -1; dx <= 1; dx++) {
-                    usedPositions.add(`${tableX + dx},${tableY + dy}`);
-                }
-            }
-            
-            // Create chair positions around table
-            const chairPositions = [
-                [tableX - 1, tableY], // Left
-                [tableX + 1, tableY], // Right
-                [tableX, tableY - 1], // Top
-                [tableX, tableY + 1]  // Bottom
-            ];
-            
-            tableIslands.push({ tableX, tableY, chairPositions });
-        }
-    }
-    
-    console.log(`Generated ${tableIslands.length} table islands for ${INN_WIDTH}x${INN_HEIGHT} inn`);
-    
-    // Place tables and chairs
-    for (const island of tableIslands) {
-        const { tableX, tableY, chairPositions } = island;
-        
-        // Check if positions are valid and on floor
-        if (tableY >= 1 && tableY < INN_HEIGHT - 1 && 
-            tableX >= 1 && tableX < INN_WIDTH - 1 && 
-            layout[tableY][tableX] === INN_TILE_TYPES.FLOOR) {
-            
-            // Place table
-            layout[tableY][tableX] = INN_TILE_TYPES.TABLE;
-            
-            // Place chairs around table
-            for (const [chairX, chairY] of chairPositions) {
-                if (chairY >= 1 && chairY < INN_HEIGHT - 1 && 
-                    chairX >= 1 && chairX < INN_WIDTH - 1 && 
-                    layout[chairY][chairX] === INN_TILE_TYPES.FLOOR) {
-                    layout[chairY][chairX] = INN_TILE_TYPES.CHAIR;
-                }
-            }
-        }
-    }
-    
-    // Add a random door at the bottom wall connected to an empty floor tile
-    // Use channel ID for consistent door placement (channelSeed already defined above)
-    
-    const bottomWallPositions = [];
-    for (let x = 1; x < INN_WIDTH - 1; x++) {
-        // Check if this bottom wall position has an empty floor tile above it
-        if (layout[INN_HEIGHT - 2][x] === INN_TILE_TYPES.FLOOR) {
-            bottomWallPositions.push(x);
-        }
-    }
-    
-    if (bottomWallPositions.length > 0) {
-        const randomIndex = Math.floor(seededRandom(channelSeed + 1000) * bottomWallPositions.length);
-        const randomX = bottomWallPositions[randomIndex];
-        layout[INN_HEIGHT - 1][randomX] = INN_TILE_TYPES.DOOR;
-    }
-    
-    return layout;
+    // Populate with tables, chairs, and decorations
+    return populateInn(layout, channelId, { width: INN_WIDTH, height: INN_HEIGHT }, INN_TILE_TYPES);
 }
 
 /**
  * Draw floor tile
  */
-async function drawFloorTile(ctx, x, y, tileSize, theme) {
+async function drawFloorTile(ctx, x, y, tileSize, theme, dbEntry = null) {
     const pixelX = x * tileSize;
     const pixelY = y * tileSize;
     
     // Try to load floor image
-    const floorImage = await loadTileImage(theme, 'floor');
+    const floorImage = await loadInnTileImage(theme, 'floor', '', dbEntry);
     
     if (floorImage) {
         ctx.drawImage(floorImage, pixelX, pixelY, tileSize, tileSize);
@@ -292,12 +589,12 @@ async function drawFloorTile(ctx, x, y, tileSize, theme) {
 /**
  * Draw wall tile
  */
-async function drawWallTile(ctx, x, y, floorTileSize, wallTileHeight, theme) {
+async function drawWallTile(ctx, x, y, floorTileSize, wallTileHeight, theme, dbEntry = null) {
     const pixelX = x * floorTileSize;
     const wallPixelY = y * floorTileSize - (wallTileHeight - floorTileSize);
     
     // Try to load wall image
-    const wallImage = await loadTileImage(theme, 'wall');
+    const wallImage = await loadInnTileImage(theme, 'wall', '', dbEntry);
     
     if (wallImage) {
         ctx.drawImage(wallImage, pixelX, wallPixelY, floorTileSize, wallTileHeight);
@@ -321,61 +618,66 @@ async function drawWallTile(ctx, x, y, floorTileSize, wallTileHeight, theme) {
 /**
  * Draw table
  */
-function drawTable(ctx, x, y, tileSize) {
+async function drawTable(ctx, x, y, tileSize, theme, dbEntry = null) {
     const pixelX = x * tileSize;
     const pixelY = y * tileSize;
     
-    // Table surface
+    // Try to load table image
+    const tableImage = await loadInnTileImage(theme, 'table', '', dbEntry);
+    
+    if (tableImage) {
+        ctx.drawImage(tableImage, pixelX, pixelY, tileSize, tileSize);
+    } else {
+        // Fallback programmatic rendering
     ctx.fillStyle = INN_TILE_COLORS[INN_TILE_TYPES.TABLE];
     ctx.fillRect(pixelX + 8, pixelY + 8, tileSize - 16, tileSize - 16);
     
-    // Table legs (corners)
     ctx.fillStyle = '#4A4A4A';
     const legSize = 6;
-    // Top-left leg
     ctx.fillRect(pixelX + 10, pixelY + 10, legSize, legSize);
-    // Top-right leg
     ctx.fillRect(pixelX + tileSize - 16, pixelY + 10, legSize, legSize);
-    // Bottom-left leg
     ctx.fillRect(pixelX + 10, pixelY + tileSize - 16, legSize, legSize);
-    // Bottom-right leg
     ctx.fillRect(pixelX + tileSize - 16, pixelY + tileSize - 16, legSize, legSize);
     
-    // Table edge highlight
     ctx.strokeStyle = '#8B4513';
     ctx.lineWidth = 2;
     ctx.strokeRect(pixelX + 8, pixelY + 8, tileSize - 16, tileSize - 16);
+    }
 }
 
 /**
  * Draw door
  */
-async function drawDoor(ctx, x, y, floorTileSize, wallTileHeight, theme) {
+async function drawDoor(ctx, x, y, floorTileSize, wallTileHeight, theme, dbEntry = null) {
     const pixelX = x * floorTileSize;
     const wallPixelY = y * floorTileSize - (wallTileHeight - floorTileSize);
     
+    // Door is half the height of wall
+    const doorHeight = wallTileHeight / 2;
+    const doorY = wallPixelY + (wallTileHeight - doorHeight) / 2;
+    
     // Try to load door image
-    const doorImage = await loadTileImage(theme, 'door');
+    const doorImage = await loadInnTileImage(theme, 'door', '', dbEntry);
     
     if (doorImage) {
-        ctx.drawImage(doorImage, pixelX, wallPixelY, floorTileSize, wallTileHeight);
+        ctx.drawImage(doorImage, pixelX, doorY, floorTileSize, doorHeight);
     } else {
         // Programmatic door rendering
         // Door frame
         ctx.fillStyle = '#654321'; // Dark brown frame
-        ctx.fillRect(pixelX, wallPixelY, floorTileSize, wallTileHeight);
+        ctx.fillRect(pixelX, doorY, floorTileSize, doorHeight);
         
         // Door panels
         ctx.fillStyle = '#8B4513'; // Medium brown door
         const panelWidth = floorTileSize - 8;
-        const panelHeight = wallTileHeight - 8;
-        ctx.fillRect(pixelX + 4, wallPixelY + 4, panelWidth, panelHeight);
+        const panelHeight = doorHeight - 8;
+        ctx.fillRect(pixelX + 4, doorY + 4, panelWidth, panelHeight);
         
         // Door handle
         ctx.fillStyle = '#FFD700'; // Gold handle
         const handleSize = 4;
         const handleX = pixelX + floorTileSize - 12;
-        const handleY = wallPixelY + wallTileHeight / 2;
+        const handleY = doorY + doorHeight / 2;
         ctx.fillRect(handleX, handleY, handleSize, handleSize);
         
         // Door panels detail
@@ -385,45 +687,241 @@ async function drawDoor(ctx, x, y, floorTileSize, wallTileHeight, theme) {
         const lowerPanelHeight = panelHeight / 2 - 4;
         
         // Upper panel
-        ctx.strokeRect(pixelX + 8, wallPixelY + 8, panelWidth - 8, upperPanelHeight);
+        ctx.strokeRect(pixelX + 8, doorY + 8, panelWidth - 8, upperPanelHeight);
         // Lower panel
-        ctx.strokeRect(pixelX + 8, wallPixelY + 8 + upperPanelHeight + 8, panelWidth - 8, lowerPanelHeight);
+        ctx.strokeRect(pixelX + 8, doorY + 8 + upperPanelHeight + 8, panelWidth - 8, lowerPanelHeight);
+    }
+}
+
+/**
+ * Draw window
+ */
+async function drawWindow(ctx, x, y, floorTileSize, wallTileHeight, theme, layout, dbEntry = null) {
+    const pixelX = x * floorTileSize;
+    const wallPixelY = y * floorTileSize - (wallTileHeight - floorTileSize);
+    
+    // Determine if this is a side window (left or right wall)
+    const INN_WIDTH = layout[0] ? layout[0].length : 0;
+    const isSideWindow = (x === 0 || x === INN_WIDTH - 1);
+    
+    // Try to load window image
+    const windowImage = isSideWindow ? 
+        await loadInnTileImage(theme, 'windowSide', '', dbEntry) : 
+        await loadInnTileImage(theme, 'window', '', dbEntry);
+    
+    if (windowImage) {
+        if (isSideWindow) {
+            // Side window - use full height
+            ctx.drawImage(windowImage, pixelX, wallPixelY, floorTileSize, wallTileHeight);
+        } else {
+            // Regular window - half height
+            const windowHeight = wallTileHeight / 2;
+            const windowY = wallPixelY + (wallTileHeight - windowHeight) / 2;
+            ctx.drawImage(windowImage, pixelX, windowY, floorTileSize, windowHeight);
+        }
+    } else {
+        // Programmatic window rendering
+        if (isSideWindow) {
+            // Side window: thick line from top center to bottom center
+            ctx.strokeStyle = '#654321'; // Dark brown frame
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(pixelX + floorTileSize / 2, wallPixelY);
+            ctx.lineTo(pixelX + floorTileSize / 2, wallPixelY + wallTileHeight);
+            ctx.stroke();
+        } else {
+            // Top/bottom window: half height of wall
+            const windowHeight = wallTileHeight / 2;
+            const windowY = wallPixelY + (wallTileHeight - windowHeight) / 2;
+            
+            // Window frame only (no glass fill - see-through)
+            ctx.strokeStyle = '#654321'; // Dark brown frame
+            ctx.lineWidth = 4;
+            ctx.strokeRect(pixelX, windowY, floorTileSize, windowHeight);
+            
+            // Window cross pattern (frame details)
+        ctx.strokeStyle = '#654321';
+        ctx.lineWidth = 2;
+        // Horizontal cross
+        ctx.beginPath();
+            ctx.moveTo(pixelX + 4, windowY + windowHeight / 2);
+            ctx.lineTo(pixelX + floorTileSize - 4, windowY + windowHeight / 2);
+        ctx.stroke();
+        // Vertical cross
+        ctx.beginPath();
+            ctx.moveTo(pixelX + floorTileSize / 2, windowY + 4);
+            ctx.lineTo(pixelX + floorTileSize / 2, windowY + windowHeight - 4);
+        ctx.stroke();
+        }
     }
 }
 
 /**
  * Draw chair
  */
-function drawChair(ctx, x, y, tileSize) {
+async function drawChair(ctx, x, y, tileSize, theme, dbEntry = null) {
     const pixelX = x * tileSize;
     const pixelY = y * tileSize;
     
+    // Try to load chair image
+    const chairImage = await loadInnTileImage(theme, 'chair', '', dbEntry);
+    
+    if (chairImage) {
+        ctx.drawImage(chairImage, pixelX, pixelY, tileSize, tileSize);
+    } else {
+        // Fallback programmatic rendering
     const chairSize = tileSize * 0.6;
     const chairX = pixelX + (tileSize - chairSize) / 2;
     const chairY = pixelY + (tileSize - chairSize) / 2;
     
-    // Chair seat
     ctx.fillStyle = INN_TILE_COLORS[INN_TILE_TYPES.CHAIR];
     ctx.fillRect(chairX, chairY, chairSize, chairSize * 0.6);
-    
-    // Chair back
     ctx.fillRect(chairX, chairY - chairSize * 0.3, chairSize, chairSize * 0.3);
     
-    // Chair legs
     ctx.fillStyle = '#654321';
     const legSize = 4;
-    // Front legs
     ctx.fillRect(chairX + 2, chairY + chairSize * 0.6, legSize, chairSize * 0.4);
     ctx.fillRect(chairX + chairSize - 6, chairY + chairSize * 0.6, legSize, chairSize * 0.4);
-    // Back legs
-    ctx.fillRect(chairX + 2, chairY - chairSize * 0.1, legSize, chairSize * 0.7);
-    ctx.fillRect(chairX + chairSize - 6, chairY - chairSize * 0.1, legSize, chairSize * 0.7);
+    }
+}
+
+/**
+ * Draw decoration (plant, barrel, or bookshelf)
+ */
+async function drawDecoration(ctx, x, y, tileSize, theme, dbEntry = null) {
+    const pixelX = x * tileSize;
+    const pixelY = y * tileSize;
+    
+    // Try to load decoration image
+    const decorationImage = await loadInnTileImage(theme, 'decoration', '', dbEntry);
+    
+    if (decorationImage) {
+        ctx.drawImage(decorationImage, pixelX, pixelY, tileSize, tileSize);
+    } else {
+        // Fallback programmatic rendering
+        ctx.fillStyle = INN_TILE_COLORS[INN_TILE_TYPES.DECORATION];
+        ctx.beginPath();
+        ctx.arc(pixelX + tileSize / 2, pixelY + tileSize / 2, tileSize / 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#8B4513';
+        const baseSize = tileSize / 4;
+        ctx.fillRect(pixelX + tileSize / 2 - baseSize / 2, pixelY + tileSize - baseSize, baseSize, baseSize);
+        
+        ctx.strokeStyle = '#654321';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(pixelX + tileSize / 2, pixelY + tileSize / 2, tileSize / 3, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+}
+
+/**
+ * Check if a tile is a wall type
+ */
+function isInnWallType(tileType) {
+    return tileType === INN_TILE_TYPES.WALL || 
+           tileType === INN_TILE_TYPES.WINDOW || 
+           tileType === INN_TILE_TYPES.DOOR;
+}
+
+/**
+ * Draw shadow gradients on floor tiles adjacent to walls (like mining system)
+ */
+function drawInnFloorShadowGradients(ctx, layout, x, y, pixelX, pixelY, tileSize) {
+    const INN_HEIGHT = layout.length;
+    const INN_WIDTH = layout[0] ? layout[0].length : 0;
+    
+    // Check adjacent tiles for walls (but not walls below)
+    const wallNorth = y > 0 && isInnWallType(layout[y - 1][x]);
+    const wallSouth = false; // Never draw shadow from below
+    const wallEast = x < INN_WIDTH - 1 && isInnWallType(layout[y][x + 1]);
+    const wallWest = x > 0 && isInnWallType(layout[y][x - 1]);
+    
+    // Also check diagonal walls for corner shadows
+    const wallNorthEast = y > 0 && x < INN_WIDTH - 1 && isInnWallType(layout[y - 1][x + 1]);
+    const wallNorthWest = y > 0 && x > 0 && isInnWallType(layout[y - 1][x - 1]);
+    
+    const shadowIntensity = 0.15;
+    const gradientSize = tileSize * 0.4; // How far the gradient extends into the tile
+    
+    ctx.save();
+    
+    // North wall shadow (strongest, as walls are above)
+    if (wallNorth) {
+        const gradient = ctx.createLinearGradient(
+            pixelX + tileSize / 2, pixelY,
+            pixelX + tileSize / 2, pixelY + gradientSize
+        );
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${shadowIntensity * 1.5})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pixelX, pixelY, tileSize, gradientSize);
+    }
+    
+    // East wall shadow
+    if (wallEast) {
+        const gradient = ctx.createLinearGradient(
+            pixelX + tileSize, pixelY + tileSize / 2,
+            pixelX + tileSize - gradientSize, pixelY + tileSize / 2
+        );
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${shadowIntensity})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pixelX + tileSize - gradientSize, pixelY, gradientSize, tileSize);
+    }
+    
+    // West wall shadow
+    if (wallWest) {
+        const gradient = ctx.createLinearGradient(
+            pixelX, pixelY + tileSize / 2,
+            pixelX + gradientSize, pixelY + tileSize / 2
+        );
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${shadowIntensity})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pixelX, pixelY, gradientSize, tileSize);
+    }
+    
+    // Corner shadows (diagonal walls create subtle corner darkening)
+    const cornerSize = tileSize * 0.3;
+    const cornerIntensity = shadowIntensity * 0.7;
+    
+    // Northeast corner
+    if (wallNorthEast && !wallNorth && !wallEast) {
+        const gradient = ctx.createRadialGradient(
+            pixelX + tileSize, pixelY,
+            0,
+            pixelX + tileSize, pixelY,
+            cornerSize
+        );
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${cornerIntensity})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pixelX + tileSize - cornerSize, pixelY, cornerSize, cornerSize);
+    }
+    
+    // Northwest corner
+    if (wallNorthWest && !wallNorth && !wallWest) {
+        const gradient = ctx.createRadialGradient(
+            pixelX, pixelY,
+            0,
+            pixelX, pixelY,
+            cornerSize
+        );
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${cornerIntensity})`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pixelX, pixelY, cornerSize, cornerSize);
+    }
+    
+    ctx.restore();
 }
 
 /**
  * Draw floor layer
  */
-async function drawFloorLayer(ctx, layout, tileSize, theme) {
+async function drawFloorLayer(ctx, layout, tileSize, theme, dbEntry = null) {
     const INN_HEIGHT = layout.length;
     const INN_WIDTH = layout[0] ? layout[0].length : 0;
     
@@ -433,7 +931,13 @@ async function drawFloorLayer(ctx, layout, tileSize, theme) {
             
             // Draw floor under everything except walls
             if (tileType !== INN_TILE_TYPES.WALL) {
-                await drawFloorTile(ctx, x, y, tileSize, theme);
+                const pixelX = x * tileSize;
+                const pixelY = y * tileSize;
+                
+                await drawFloorTile(ctx, x, y, tileSize, theme, dbEntry);
+                
+                // Draw shadow gradients from adjacent walls (like mining system)
+                drawInnFloorShadowGradients(ctx, layout, x, y, pixelX, pixelY, tileSize);
             }
         }
     }
@@ -442,7 +946,7 @@ async function drawFloorLayer(ctx, layout, tileSize, theme) {
 /**
  * Draw midground layer (walls, furniture, players)
  */
-async function drawMidgroundLayer(ctx, layout, floorTileSize, wallTileHeight, theme, members = [], playerPositions = {}) {
+async function drawMidgroundLayer(ctx, layout, floorTileSize, wallTileHeight, theme, members = [], playerPositions = {}, dbEntry = null) {
     // Collect all midground objects for Y-sorting
     const midgroundObjects = [];
     const INN_HEIGHT = layout.length;
@@ -455,12 +959,16 @@ async function drawMidgroundLayer(ctx, layout, floorTileSize, wallTileHeight, th
             
             if (tileType === INN_TILE_TYPES.WALL) {
                 midgroundObjects.push({ type: 'wall', x, y, renderY });
+            } else if (tileType === INN_TILE_TYPES.WINDOW) {
+                midgroundObjects.push({ type: 'window', x, y, renderY });
             } else if (tileType === INN_TILE_TYPES.DOOR) {
                 midgroundObjects.push({ type: 'door', x, y, renderY });
             } else if (tileType === INN_TILE_TYPES.TABLE) {
                 midgroundObjects.push({ type: 'table', x, y, renderY });
             } else if (tileType === INN_TILE_TYPES.CHAIR) {
                 midgroundObjects.push({ type: 'chair', x, y, renderY });
+            } else if (tileType === INN_TILE_TYPES.DECORATION) {
+                midgroundObjects.push({ type: 'decoration', x, y, renderY });
             }
         }
     }
@@ -488,16 +996,22 @@ async function drawMidgroundLayer(ctx, layout, floorTileSize, wallTileHeight, th
     for (const obj of midgroundObjects) {
         switch (obj.type) {
             case 'wall':
-                await drawWallTile(ctx, obj.x, obj.y, floorTileSize, wallTileHeight, theme);
+                await drawWallTile(ctx, obj.x, obj.y, floorTileSize, wallTileHeight, theme, dbEntry);
+                break;
+            case 'window':
+                await drawWindow(ctx, obj.x, obj.y, floorTileSize, wallTileHeight, theme, layout, dbEntry);
                 break;
             case 'door':
-                await drawDoor(ctx, obj.x, obj.y, floorTileSize, wallTileHeight, theme);
+                await drawDoor(ctx, obj.x, obj.y, floorTileSize, wallTileHeight, theme, dbEntry);
                 break;
             case 'table':
-                drawTable(ctx, obj.x, obj.y, floorTileSize);
+                await drawTable(ctx, obj.x, obj.y, floorTileSize, theme, dbEntry);
                 break;
             case 'chair':
-                drawChair(ctx, obj.x, obj.y, floorTileSize);
+                await drawChair(ctx, obj.x, obj.y, floorTileSize, theme, dbEntry);
+                break;
+            case 'decoration':
+                await drawDecoration(ctx, obj.x, obj.y, floorTileSize, theme, dbEntry);
                 break;
             case 'player':
                 await drawPlayer(ctx, obj.member, obj.position, floorTileSize);
@@ -657,7 +1171,7 @@ async function drawTopLayer(ctx, width, height, tileSize, theme) {
 /**
  * Main function to generate inn map image
  */
-async function generateInnMapImage(channel, members = [], playerPositions = {}, innDimensions = null) {
+async function generateInnMapImage(channel, members = [], playerPositions = {}, innDimensions = null, dbEntry = null) {
     const startTime = Date.now();
     
     // Input validation
@@ -670,10 +1184,12 @@ async function generateInnMapImage(channel, members = [], playerPositions = {}, 
     const INN_HEIGHT = innDimensions?.height || DEFAULT_INN_HEIGHT;
     
     // Generate inn layout with channel ID and dimensions for consistency
-    const layout = generateInnLayout(channel.id, { width: INN_WIDTH, height: INN_HEIGHT });
+    const layoutResult = generateInnLayout(channel.id, { width: INN_WIDTH, height: INN_HEIGHT });
+    const layout = layoutResult.layout;
+    const chairCount = layoutResult.chairCount;
     
-    // Use a warm, tavern-like theme - we'll use generic/coalMine as base
-    const theme = 'coalMine'; // Warm brown tones suitable for inn
+    // Get inn theme from database entry
+    const theme = dbEntry ? getInnTheme(dbEntry) : 'generic';
     
     // Calculate image dimensions
     const outputWidth = INN_WIDTH * FLOOR_TILE_SIZE + (BORDER_SIZE * 2);
@@ -694,10 +1210,10 @@ async function generateInnMapImage(channel, members = [], playerPositions = {}, 
     
     try {
         // === LAYER 1: FLOOR LAYER ===
-        await drawFloorLayer(ctx, layout, FLOOR_TILE_SIZE, theme);
+        await drawFloorLayer(ctx, layout, FLOOR_TILE_SIZE, theme, dbEntry);
         
         // === LAYER 2: MIDGROUND LAYER ===
-        await drawMidgroundLayer(ctx, layout, FLOOR_TILE_SIZE, WALL_TILE_HEIGHT, theme, members, playerPositions);
+        await drawMidgroundLayer(ctx, layout, FLOOR_TILE_SIZE, WALL_TILE_HEIGHT, theme, members, playerPositions, dbEntry);
         
         // === LAYER 3: TOP LAYER ===
         await drawTopLayer(ctx, INN_WIDTH, INN_HEIGHT, FLOOR_TILE_SIZE, theme);
@@ -718,9 +1234,12 @@ async function generateInnMapImage(channel, members = [], playerPositions = {}, 
     ctx.restore();
     
     const totalTime = Date.now() - startTime;
-    console.log(`[INN_RENDER] Generated inn map in ${totalTime}ms`);
+    console.log(`[INN_RENDER] Generated inn map in ${totalTime}ms with ${chairCount} chairs`);
     
-    return canvas.toBuffer('image/png', { compressionLevel: 9 });
+    return {
+        buffer: canvas.toBuffer('image/png', { compressionLevel: 9 }),
+        chairCount: chairCount
+    };
 }
 
 module.exports = {

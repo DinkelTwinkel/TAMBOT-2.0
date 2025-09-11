@@ -5,17 +5,12 @@ const ActiveVCs = require('../../../models/activevcs');
 
 class CustomerManager {
     /**
-     * Get maximum customers for inn based on gachaServers.json configuration
+     * Get maximum customers for inn based on chair count + 5
+     * This is now calculated dynamically based on actual chair count in the inn layout
      */
-    static getInnMaxCustomers(typeId) {
-        const serverConfig = gachaServersData.find(s => s.id === String(typeId));
-        if (serverConfig && serverConfig.type === 'innkeeper') {
-            // Base max customers on inn power level and available floor tiles
-            const baseTiles = 27; // From 10x7 inn with walls, tables, chairs
-            const powerMultiplier = serverConfig.power || 1;
-            return Math.min(baseTiles, Math.floor(baseTiles * 0.6 * powerMultiplier)); // 60% of tiles max, scaled by power
-        }
-        return 15; // Default fallback
+    static getInnMaxCustomers(chairCount = 0) {
+        // Customer limit is chair count + 5 (some customers can stand or wait)
+        return Math.max(5, chairCount + 5); // Minimum of 5 customers even with no chairs
     }
 
     /**
@@ -114,6 +109,7 @@ class CustomerManager {
         const customers = v4State.customers || [];
         const maxCustomers = v4State.maxCustomers || 15;
         const departureEvents = [];
+        const arrivalEvents = [];
         
         // Remove customers who have left (wealth = 0 or very unhappy)
         const remainingCustomers = customers.filter(customer => {
@@ -163,7 +159,7 @@ class CustomerManager {
                 const baseEarnings = v4State.baseEarnings || 5;
                 const newCustomer = this.createCustomer(channel.id, now, reputation, innLevel, baseEarnings);
                 remainingCustomers.push(newCustomer);
-                departureEvents.push(`${newCustomer.name} arrived at the inn (happiness: ${newCustomer.happiness}, wealth: ${newCustomer.wealth}c)`);
+                arrivalEvents.push(`${newCustomer.name} arrived at the inn (happiness: ${newCustomer.happiness}, wealth: ${newCustomer.wealth}c)`);
                 console.log(`[CustomerManager] New customer ${newCustomer.name} arrived (reputation: ${reputation}, L${innLevel} inn, chance: ${Math.round(arrivalChance * 100)}%)`);
             } else {
                 console.log(`[CustomerManager] No new customer arrived (${Math.round(arrivalChance * 100)}% chance)`);
@@ -181,7 +177,7 @@ class CustomerManager {
             }
         );
         
-        return { remainingCustomers, departureEvents };
+        return { remainingCustomers, departureEvents, arrivalEvents };
     }
 
     /**
@@ -195,8 +191,9 @@ class CustomerManager {
         let totalProfit = 0;
         let orderEvents = [];
         
-        // Calculate service capacity based on VC members
-        const serviceCapacity = await this.calculateServiceCapacity(members);
+        // Calculate service capacity based on VC members and employees
+        const employeeCount = v4State.employeeCount || 0;
+        const serviceCapacity = await this.calculateServiceCapacity(members, employeeCount);
         let ordersToProcess = [];
         
         // Process existing orders and new order attempts
@@ -293,10 +290,10 @@ class CustomerManager {
     }
 
     /**
-     * Calculate service capacity based on VC members' actual stats
+     * Calculate service capacity based on VC members' actual stats plus employee bonuses
      */
-    static async calculateServiceCapacity(members) {
-        if (!members || members.length === 0) return 1; // Minimum service capacity
+    static async calculateServiceCapacity(members, employeeCount = 0) {
+        if (!members || members.length === 0) return Math.max(1, this.calculateEmployeeServiceCapacity(employeeCount)); // Minimum service capacity with employee bonus
         
         let totalServiceCapacity = 0;
         
@@ -333,7 +330,32 @@ class CustomerManager {
             }
         }
         
+        // Add employee service capacity bonus
+        const employeeCapacity = this.calculateEmployeeServiceCapacity(employeeCount);
+        totalServiceCapacity += employeeCapacity;
+        
+        if (employeeCount > 0) {
+            console.log(`[CustomerManager] Employee bonus: ${employeeCount} employees = +${employeeCapacity} service capacity`);
+        }
+        
         return Math.max(1, totalServiceCapacity); // Always at least 1 capacity
+    }
+
+    /**
+     * Calculate service capacity provided by employees
+     * Each employee provides 4 sight + 4 speed
+     */
+    static calculateEmployeeServiceCapacity(employeeCount) {
+        if (employeeCount <= 0) return 0;
+        
+        const employeeSight = employeeCount * 4;
+        const employeeSpeed = employeeCount * 4;
+        
+        const speedUnits = Math.floor(employeeSpeed / 5);
+        const sightUnits = Math.floor(employeeSight / 5);
+        
+        // Same calculation as player stats
+        return Math.min(speedUnits, sightUnits * 2);
     }
 
     /**
@@ -520,30 +542,36 @@ class CustomerManager {
         if (!v4State || !v4State.customers) return { overnightProfit: 0, customersLeft: 0, customersStayed: 0 };
 
         const customers = v4State.customers;
+        const baseEarnings = v4State.baseEarnings || 5;
         let overnightProfit = 0;
         let customersLeft = 0;
         let customersStayed = 0;
 
         // Process each customer's decision to stay overnight or leave
         const remainingCustomers = customers.filter(customer => {
-            if (customer.happiness >= 60 && customer.wealth >= 3) {
+            if (customer.happiness >= 60 && customer.wealth >= baseEarnings * 5) {
                 // Happy customers with money may pay to stay overnight
                 const stayChance = (customer.happiness - 60) / 40; // 0 to 1 based on happiness above 60
                 
                 if (Math.random() < stayChance) {
-                    const overnightFee = Math.floor(Math.random() * 3) + 3; // 3-5 coins for overnight stay
+                    const overnightFee = baseEarnings * 5; // 5x baseEarnings for overnight stay
                     
                     if (customer.wealth >= overnightFee) {
                         customer.wealth -= overnightFee;
                         customer.happiness = Math.min(100, customer.happiness + 3); // Staying overnight makes them happier
                         
-                        // Refresh customer wealth for next day
-                        customer.wealth = customer.maxWealth; // Restore to full wealth
+                        // Refresh customer wealth for next day (only for NPC customers, not players)
+                        if (!customer.isPlayerCustomer) {
+                            customer.wealth = customer.maxWealth; // Restore to full wealth
+                        }
                         
                         overnightProfit += overnightFee;
                         customersStayed++;
                         
-                        console.log(`[CustomerManager] ${customer.name} paid ${overnightFee} coins to stay overnight (+3 happiness, wealth refreshed to ${customer.wealth})`);
+                        // Add reputation bonus for customers staying overnight
+                        v4State.innReputation = Math.min(100, (v4State.innReputation || 50) + 2);
+                        
+                        console.log(`[CustomerManager] ${customer.name} paid ${overnightFee} coins to stay overnight (+3 happiness, +2 reputation, wealth refreshed to ${customer.wealth})`);
                         return true; // Customer stays
                     }
                 }

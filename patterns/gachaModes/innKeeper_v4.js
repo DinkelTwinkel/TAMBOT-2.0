@@ -120,7 +120,8 @@ class InnKeeperV4Controller {
                 maxCustomers: 15,               // Default max customers, will be updated from gachaServers.json
                 innDimensions: this.getInnDimensions(existingEntry.typeId), // Inn dimensions from gachaServers.json
                 innLevel: 1,                    // Inn level (starts at 1)
-                baseEarnings: this.getBaseEarnings(existingEntry.typeId) // Base earnings from gachaServers.json
+                baseEarnings: this.getBaseEarnings(existingEntry.typeId), // Base earnings from gachaServers.json
+                employeeCount: 0                // Number of hired employees
             };
 
             const initData = {
@@ -296,42 +297,11 @@ class InnKeeperV4Controller {
         // Distribute profits to all members in the channel (including overnight fees)
         await this.distributeProfits(channel, totalBreakProfit);
 
-        // Try to edit existing work log to announce break instead of creating new break message
-        try {
-            // Check if work log message exists within last 3 messages
-            const messages = await channel.messages.fetch({ limit: 3 });
-            let workLogMessage = null;
-            
-            for (const [, message] of messages) {
-                if (message.author.bot && 
-                    message.embeds.length > 0 && 
-                    message.embeds[0].title?.includes('Inn Work Log')) {
-                    workLogMessage = message;
-                    break;
-                }
-            }
-            
-            if (workLogMessage) {
-                // Create break announcement embed (replaces work log)
-                const breakEmbed = this.createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, now + breakDuration, totalBreakProfit, breakCustomerResult);
-                
-                // Edit the existing work log message to show break announcement
-                await workLogMessage.edit({ embeds: [breakEmbed], components: [], files: [] });
-                console.log(`[InnKeeperV4] Edited work log to show break announcement for channel ${channel.id}`);
-            } else {
-                // Fallback: send separate break notification if no recent work log found
-                const breakEndTime = now + breakDuration;
-                const embed = this.createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime, totalBreakProfit, breakCustomerResult);
-                await channel.send({ embeds: [embed] });
-                console.log(`[InnKeeperV4] No recent work log found, sent separate break notification for channel ${channel.id}`);
-            }
-        } catch (error) {
-            console.error(`[InnKeeperV4] Error updating work log for break, sending separate notification:`, error);
-            // Fallback: send separate break notification
-            const breakEndTime = now + breakDuration;
-            const embed = this.createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime, totalBreakProfit, breakCustomerResult);
-            await channel.send({ embeds: [embed] });
-        }
+        // Send separate break announcement message
+        const breakEndTime = now + breakDuration;
+        const embed = await this.createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime, totalBreakProfit, breakCustomerResult, channel);
+        await channel.send({ embeds: [embed] });
+        console.log(`[InnKeeperV4] Sent break announcement for channel ${channel.id}`);
         return true;
     }
 
@@ -386,15 +356,15 @@ class InnKeeperV4Controller {
                 (lastMessage.embeds[0].title?.includes('Break Time') || lastMessage.embeds[0].title?.includes('Extended Break'))) {
                 
                 // Create initial work event for the new work period
-                const initialWorkEvent = {
-                    timestamp: now,
-                    eventNumber: 0,
+        const initialWorkEvent = {
+            timestamp: now,
+            eventNumber: 0,
                     description: 'Work period restarted - Inn is back open for business!',
                     type: 'work_restart'
-                };
-                
+        };
+        
                 // Update work log instead of sending reopening message
-                await this.updateWorkEventLog(channel, updated, initialWorkEvent);
+        await this.updateWorkEventLog(channel, updated, initialWorkEvent);
                 console.log(`[InnKeeperV4] Edited break message to show work log for inn reopening`);
             } else {
                 // Fallback: send work restart notification if no break message found
@@ -514,6 +484,7 @@ class InnKeeperV4Controller {
             console.log(`[InnKeeperV4] Processing customer arrivals/departures for channel ${channel.id}`);
             const customerResult = await CustomerManager.processCustomers(channel, dbEntry, now);
             const departureEvents = customerResult.departureEvents || [];
+            const arrivalEvents = customerResult.arrivalEvents || [];
 
             // Get fresh database entry with updated customer data
             const updatedDbEntry = await ActiveVCs.findOne({ channelId: channel.id }).lean();
@@ -525,10 +496,13 @@ class InnKeeperV4Controller {
             const orderResult = await CustomerManager.processCustomerOrders(channel, updatedDbEntry || dbEntry, now, members);
             const profit = orderResult.profit;
             
-            // Combine order events and departure events for description
+            // Combine order events, departure events, and arrival events for description
             let eventDescription = orderResult.eventDescription;
             if (departureEvents.length > 0) {
                 eventDescription += `. Departures: ${departureEvents.join(', ')}`;
+            }
+            if (arrivalEvents.length > 0) {
+                eventDescription += `. Arrivals: ${arrivalEvents.join(', ')}`;
             }
 
             // Update profit tracking
@@ -636,7 +610,46 @@ class InnKeeperV4Controller {
         try {
             if (!totalProfit || totalProfit <= 0) {
                 console.log('[InnKeeperV4] No profits to distribute');
-                return;
+                return { employeesPaid: true, playerProfit: 0 };
+            }
+
+            // Get inn state for employee information
+            const dbEntry = await ActiveVCs.findOne({ channelId: channel.id }).lean();
+            const v4State = dbEntry?.gameData?.v4State;
+            const employeeCount = v4State?.employeeCount || 0;
+            const baseEarnings = v4State?.baseEarnings || 5;
+
+            // Calculate employee wages (baseEarnings x 1 per employee)
+            const totalEmployeeWages = employeeCount * baseEarnings;
+            
+            let playerProfit = totalProfit;
+            let employeesPaid = true;
+
+            // Pay employees first if any exist
+            if (employeeCount > 0) {
+                if (totalProfit >= totalEmployeeWages) {
+                    // Can afford to pay employees
+                    playerProfit = totalProfit - totalEmployeeWages;
+                    console.log(`[InnKeeperV4] Paid ${employeeCount} employees ${totalEmployeeWages} coins (${baseEarnings} each). Remaining: ${playerProfit} coins`);
+                } else {
+                    // Cannot afford employees - they leave
+                    console.log(`[InnKeeperV4] Cannot afford employee wages (${totalEmployeeWages} needed, ${totalProfit} available). All employees leave!`);
+                    
+                    // Set employee count to 0
+                    await ActiveVCs.findOneAndUpdate(
+                        { channelId: channel.id },
+                        { $set: { 'gameData.v4State.employeeCount': 0 } }
+                    );
+                    
+                    employeesPaid = false;
+                    playerProfit = totalProfit; // Players get all profit since no employees
+                }
+            }
+
+            // Distribute remaining profit to players if any exists
+            if (playerProfit <= 0) {
+                console.log('[InnKeeperV4] No profit remaining for players after employee wages');
+                return { employeesPaid, playerProfit: 0 };
             }
 
             // Get all members currently in the voice channel associated with this inn
@@ -659,14 +672,14 @@ class InnKeeperV4Controller {
 
             if (!voiceChannel || voiceChannel.members.size === 0) {
                 console.log('[InnKeeperV4] No members in voice channel to distribute profits to');
-                return;
+                return { employeesPaid, playerProfit };
             }
 
             const members = Array.from(voiceChannel.members.values());
-            const profitPerMember = Math.floor(totalProfit / members.size);
-            const remainingProfit = totalProfit - (profitPerMember * members.size);
+            const profitPerMember = Math.floor(playerProfit / members.length);
+            const remainingProfit = playerProfit - (profitPerMember * members.length);
 
-            console.log(`[InnKeeperV4] Distributing ${totalProfit} coins to ${members.length} members (${profitPerMember} each, ${remainingProfit} remaining)`);
+            console.log(`[InnKeeperV4] Distributing ${playerProfit} coins to ${members.length} members (${profitPerMember} each, ${remainingProfit} remaining)`);
 
             // Distribute profits to each member
             for (const member of members) {
@@ -700,10 +713,12 @@ class InnKeeperV4Controller {
                 }
             }
 
-            console.log(`[InnKeeperV4] Successfully distributed ${totalProfit} coins to ${members.length} members`);
+            console.log(`[InnKeeperV4] Successfully distributed ${playerProfit} coins to ${members.length} members`);
+            return { employeesPaid, playerProfit };
 
         } catch (error) {
             console.error('[InnKeeperV4] Error distributing profits:', error);
+            return { employeesPaid: false, playerProfit: 0 };
         }
     }
 
@@ -718,7 +733,8 @@ class InnKeeperV4Controller {
         const INN_HEIGHT = innDimensions?.height || 7;
         
         // Get the inn layout to identify empty floor tiles (using channel ID for consistency)
-        const layout = generateInnLayout(channelId, { width: INN_WIDTH, height: INN_HEIGHT });
+        const layoutResult = generateInnLayout(channelId, { width: INN_WIDTH, height: INN_HEIGHT });
+        const layout = layoutResult.layout;
         
         // Find all empty floor tiles (not occupied by tables or chairs)
         const emptyFloorTiles = [];
@@ -786,7 +802,8 @@ class InnKeeperV4Controller {
         const INN_HEIGHT = innDimensions?.height || 7;
         
         // Get the inn layout to identify available tiles
-        const layout = generateInnLayout(channelId, { width: INN_WIDTH, height: INN_HEIGHT });
+        const layoutResult = generateInnLayout(channelId, { width: INN_WIDTH, height: INN_HEIGHT });
+        const layout = layoutResult.layout;
         
         // Find chair tiles and empty floor tiles not occupied by players
         const chairTiles = [];
@@ -891,7 +908,8 @@ class InnKeeperV4Controller {
         const INN_HEIGHT = innDimensions?.height || 7;
         
         // Get the inn layout to identify chair tiles
-        const layout = generateInnLayout(channelId, { width: INN_WIDTH, height: INN_HEIGHT });
+        const layoutResult = generateInnLayout(channelId, { width: INN_WIDTH, height: INN_HEIGHT });
+        const layout = layoutResult.layout;
         
         // Find all chair tiles for break seating
         const chairTiles = [];
@@ -956,31 +974,117 @@ class InnKeeperV4Controller {
     }
 
     /**
-     * Create break start embed
+     * Get profit distribution breakdown for all VC members
      */
-    createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime, distributedProfit = 0, customerInfo = null) {
-        const breakDurationMinutes = Math.floor(breakDuration / 60000);
-        
+    async getProfitDistributionBreakdown(channel, totalProfit) {
+        try {
+            // Get inn state for employee information
+            const dbEntry = await ActiveVCs.findOne({ channelId: channel.id }).lean();
+            const v4State = dbEntry?.gameData?.v4State;
+            const employeeCount = v4State?.employeeCount || 0;
+            const baseEarnings = v4State?.baseEarnings || 5;
+
+            // Calculate employee wages
+            const totalEmployeeWages = employeeCount * baseEarnings;
+            let playerProfit = totalProfit;
+            let employeesPaid = true;
+
+            let breakdown = `Total Profit: ${totalProfit} coins\n`;
+
+            // Show employee wages if any
+            if (employeeCount > 0) {
+                if (totalProfit >= totalEmployeeWages) {
+                    breakdown += `Employee Wages: ${totalEmployeeWages} coins (${employeeCount} × ${baseEarnings})\n`;
+                    playerProfit = totalProfit - totalEmployeeWages;
+                    employeesPaid = true;
+                } else {
+                    breakdown += `⚠️ Cannot afford employee wages (${totalEmployeeWages} needed)\n`;
+                    breakdown += `All employees have left the inn!\n`;
+                    playerProfit = totalProfit;
+                    employeesPaid = false;
+                }
+            }
+
+            // Get all members currently in the voice channel
+            let voiceChannel = null;
+            const textChannelName = channel.name.toLowerCase();
+            voiceChannel = channel.guild.channels.cache.find(c => 
+                c.type === 2 && // Voice channel
+                c.name.toLowerCase().includes(textChannelName.replace(/-/g, ' ')) ||
+                textChannelName.includes(c.name.toLowerCase().replace(/-/g, ' '))
+            );
+            
+            if (!voiceChannel || voiceChannel.members.size === 0) {
+                voiceChannel = channel.guild.channels.cache.find(c => 
+                    c.type === 2 && c.members.size > 0 // Any voice channel with members
+                );
+            }
+
+            if (!voiceChannel || voiceChannel.members.size === 0) {
+                breakdown += 'No members in voice channel to distribute profits to.';
+                return breakdown;
+            }
+
+            const members = Array.from(voiceChannel.members.values());
+            
+            if (playerProfit <= 0) {
+                breakdown += `Members: ${members.length}\n`;
+                breakdown += `Per Member: 0 coins (all profit went to employees)\n`;
+                return breakdown;
+            }
+
+            const profitPerMember = Math.floor(playerProfit / members.length);
+            const remainingProfit = playerProfit - (profitPerMember * members.length);
+
+            breakdown += `Player Share: ${playerProfit} coins\n`;
+            breakdown += `Members: ${members.length}\n`;
+            breakdown += `Per Member: ${profitPerMember} coins\n\n`;
+
+            // List each member and their share
+            members.forEach((member, index) => {
+                const memberShare = profitPerMember + (index === 0 ? remainingProfit : 0);
+                const username = member.user.username;
+                breakdown += `${username}: ${memberShare} coins\n`;
+            });
+
+            if (remainingProfit > 0) {
+                breakdown += `\n(+${remainingProfit} bonus to ${members[0].user.username})`;
+            }
+
+            return breakdown;
+
+        } catch (error) {
+            console.error('[InnKeeperV4] Error creating profit breakdown:', error);
+            return `Total: ${totalProfit} coins distributed to voice channel members.`;
+        }
+    }
+
+    /**
+     * Create break start embed with profit distribution breakdown
+     */
+    async createBreakStartEmbed(isLongBreak, cycleCount, breakDuration, breakEndTime, distributedProfit = 0, customerInfo = null, channel = null) {
+        // Get profit distribution breakdown
+        let profitBreakdown = '';
+        if (channel && distributedProfit > 0) {
+            profitBreakdown = await this.getProfitDistributionBreakdown(channel, distributedProfit);
+        }
+
+        // Create description with profit breakdown
+        let description = isLongBreak 
+            ? `The inn is closing for an extended break!`
+            : `The inn is closing for a break. Time to rest!`;
+
+        if (profitBreakdown) {
+            description += `\n\n**💰 Profit Distribution:**\n\`\`\`\n${profitBreakdown}\n\`\`\``;
+        }
+
         const embed = new EmbedBuilder()
             .setTitle(isLongBreak ? '🛌 Extended Break Time!' : '☕ Break Time!')
             .setColor(isLongBreak ? '#e74c3c' : '#f39c12')
-            .setDescription(
-                isLongBreak 
-                    ? `The inn is closing for an extended ${breakDurationMinutes}-minute break after ${cycleCount} work cycles!`
-                    : `The inn is closing for a ${breakDurationMinutes}-minute break. Time to rest!`
-            )
+            .setDescription(description)
             .addFields(
-                { name: '⏰ Break Duration', value: `${breakDurationMinutes} minutes`, inline: true },
-                { name: '🔄 Cycle Count', value: `${cycleCount}`, inline: true },
                 { name: '⏳ Reopening At', value: `<t:${Math.floor(breakEndTime / 1000)}:R>`, inline: true }
             );
-
-        // Add profit distribution info if there were profits
-        if (distributedProfit > 0) {
-            embed.addFields(
-                { name: '💰 Profits Distributed', value: `${distributedProfit} coins`, inline: true }
-            );
-        }
 
         // Add customer overnight information if available
         if (customerInfo) {
@@ -1093,6 +1197,21 @@ class InnKeeperV4Controller {
                 { 
                     name: '💰 Current Profit', 
                     value: `${currentProfit} coins`, 
+                    inline: true 
+                },
+                { 
+                    name: '👷 Employees', 
+                    value: `${v4State?.employeeCount || 0} hired${(v4State?.employeeCount || 0) > 0 ? ` (${v4State?.baseEarnings || 5}c wage)` : ''}`, 
+                    inline: true 
+                },
+                { 
+                    name: '🏢 Inn Level', 
+                    value: `Level ${v4State?.innLevel || 1}`, 
+                    inline: true 
+                },
+                { 
+                    name: '⚡ Base Earning Power', 
+                    value: `${v4State?.baseEarnings || 5} coins`, 
                     inline: true 
                 }
             );
@@ -1250,13 +1369,27 @@ class InnKeeperV4Controller {
                     // Create a mock member object for customers
                     let customerMember;
                     
-                    if (custPos.customer.isPlayerCustomer && custPos.customer.discordMember) {
+                    if (custPos.customer.isPlayerCustomer && custPos.customer.discordMember && custPos.customer.discordMember.user) {
                         // Use actual Discord member for player customers
                         customerMember = {
                             id: custPos.customer.id,
                             user: custPos.customer.discordMember.user,
-                            displayName: custPos.customer.discordMember.displayName || custPos.customer.discordMember.user.username,
-                            roles: custPos.customer.discordMember.roles,
+                            displayName: custPos.customer.discordMember.displayName || custPos.customer.discordMember.user.username || custPos.customer.name,
+                            roles: custPos.customer.discordMember.roles || { cache: new Map() },
+                            isCustomer: true,
+                            isPlayerCustomer: true,
+                            customerData: custPos.customer
+                        };
+                    } else if (custPos.customer.isPlayerCustomer) {
+                        // Player customer without Discord member (fallback)
+                        customerMember = {
+                            id: custPos.customer.id,
+                            user: {
+                                username: custPos.customer.name,
+                                displayAvatarURL: () => custPos.customer.avatar
+                            },
+                            displayName: custPos.customer.name,
+                            roles: { cache: new Map() },
                             isCustomer: true,
                             isPlayerCustomer: true,
                             customerData: custPos.customer
@@ -1282,10 +1415,20 @@ class InnKeeperV4Controller {
                 });
                 
                 // Generate inn map image with both players and customers
-                const mapBuffer = await generateInnMapImage(channel, allOccupants, allPositions, innDimensions);
+                const mapResult = await generateInnMapImage(channel, allOccupants, allPositions, innDimensions, dbEntry);
+                
+                // Update customer limit based on chair count
+                const newCustomerLimit = mapResult.chairCount + 5;
+                if (v4State.maxCustomers !== newCustomerLimit) {
+                    await ActiveVCs.findOneAndUpdate(
+                        { channelId: channel.id },
+                        { $set: { 'gameData.v4State.maxCustomers': newCustomerLimit } }
+                    );
+                    console.log(`[InnKeeperV4] Updated customer limit to ${newCustomerLimit} (${mapResult.chairCount} chairs + 5)`);
+                }
                 
                 // Create attachment
-                mapAttachment = new AttachmentBuilder(mapBuffer, { 
+                mapAttachment = new AttachmentBuilder(mapResult.buffer, { 
                     name: `inn-worklog-${channel.id}-${Date.now()}.png`,
                     description: 'Current inn status with occupants'
                 });
@@ -1330,8 +1473,18 @@ class InnKeeperV4Controller {
                 .setStyle(canLevelUp ? ButtonStyle.Primary : ButtonStyle.Secondary)
                 .setDisabled(!canLevelUp);
             
+            // Create hire employee button
+            const baseEarnings = v4State.baseEarnings || 5;
+            const hireCost = baseEarnings * 10;
+            const employeeCount = v4State.employeeCount || 0;
+            
+            const hireEmployeeButton = new ButtonBuilder()
+                .setCustomId(`inn_hire_employee_${channel.id}`)
+                .setLabel(`👥 Hire Employee 💰${hireCost} (${employeeCount})`)
+                .setStyle(ButtonStyle.Secondary);
+            
             const actionRow = new ActionRowBuilder()
-                .addComponents(expansionButton, levelUpButton);
+                .addComponents(expansionButton, levelUpButton, hireEmployeeButton);
 
             // Prepare message content
             const messageContent = {

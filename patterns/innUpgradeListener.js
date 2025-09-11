@@ -28,6 +28,11 @@ class InnUpgradeListener {
             if (interaction.customId.startsWith('inn_levelup_')) {
                 await this.handleInnLevelUp(interaction);
             }
+            
+            // Handle hire employee buttons
+            if (interaction.customId.startsWith('inn_hire_employee_')) {
+                await this.handleHireEmployee(interaction);
+            }
         });
         
         console.log('[INN_UPGRADE_LISTENER] Inn upgrade listener initialized');
@@ -324,6 +329,105 @@ class InnUpgradeListener {
             
         } catch (error) {
             console.error('[InnUpgradeListener] Error adding level up to work log:', error);
+        }
+    }
+
+    /**
+     * Handle hire employee button interaction
+     */
+    async handleHireEmployee(interaction) {
+        try {
+            await interaction.deferReply({ ephemeral: true });
+            
+            const channelId = interaction.customId.replace('inn_hire_employee_', '');
+            const channel = interaction.channel;
+            
+            // Get current inn state
+            const dbEntry = await ActiveVCs.findOne({ channelId: channelId }).lean();
+            if (!dbEntry || dbEntry.gameData?.gamemode !== 'innkeeper_v4') {
+                await interaction.editReply({ content: '❌ This is not an active inn channel!' });
+                return;
+            }
+
+            const v4State = dbEntry.gameData.v4State;
+            const baseEarnings = v4State.baseEarnings || 5;
+            const hireCost = baseEarnings * 10;
+            const currentEmployees = v4State.employeeCount || 0;
+
+            // Check if player has enough money
+            const Currency = require('../models/currency');
+            const playerMoney = await Currency.findOne({ userId: interaction.user.id });
+            const currentMoney = playerMoney?.money || 0;
+
+            if (currentMoney < hireCost) {
+                await interaction.editReply({ 
+                    content: `❌ You need ${hireCost} coins to hire an employee! You have ${currentMoney} coins.` 
+                });
+                return;
+            }
+
+            // Deduct money and hire employee
+            await Currency.findOneAndUpdate(
+                { userId: interaction.user.id },
+                { 
+                    $inc: { money: -hireCost },
+                    $set: { usertag: interaction.user.tag }
+                },
+                { upsert: true }
+            );
+
+            // Increase employee count
+            await ActiveVCs.findOneAndUpdate(
+                { channelId: channelId },
+                { $inc: { 'gameData.v4State.employeeCount': 1 } }
+            );
+
+            const newEmployeeCount = currentEmployees + 1;
+            
+            await interaction.editReply({ 
+                content: `✅ Successfully hired an employee! 
+                
+**Cost:** ${hireCost} coins
+**New Employee Count:** ${newEmployeeCount}
+**Service Bonus:** +4 sight, +4 speed towards customer satisfaction
+**Wage:** ${baseEarnings} coins per profit distribution
+
+Your remaining balance: ${currentMoney - hireCost} coins` 
+            });
+
+            // Add hire event to work log
+            try {
+                const hireEvent = {
+                    timestamp: Date.now(),
+                    eventNumber: (v4State.workEventCount || 0) + 1,
+                    description: `${interaction.user.username} hired employee #${newEmployeeCount} for ${hireCost} coins`,
+                    type: 'hire_employee',
+                    profit: 0
+                };
+
+                // Import InnKeeperV4Controller to update work log
+                const { InnKeeperV4Controller } = require('./gachaModes/innKeeper_v4');
+                const innKeeperInstance = new InnKeeperV4Controller();
+                
+                // Get fresh database entry
+                const freshDbEntry = await ActiveVCs.findOne({ channelId: channelId }).lean();
+                
+                // Update work log with hire event
+                await innKeeperInstance.updateWorkEventLog(channel, freshDbEntry, hireEvent);
+                
+                console.log(`[InnUpgradeListener] Employee hire notification added to work log for channel ${channelId}`);
+                
+            } catch (workLogError) {
+                console.error('[InnUpgradeListener] Error adding hire to work log:', workLogError);
+            }
+            
+            console.log(`[InnUpgradeListener] Employee hired by ${interaction.user.username} in channel ${channelId}. Cost: ${hireCost}, New count: ${newEmployeeCount}`);
+            
+        } catch (error) {
+            console.error('[InnUpgradeListener] Error handling employee hire:', error);
+            await interaction.editReply({ 
+                content: '❌ An error occurred while hiring the employee. Please try again.', 
+            });
         }
     }
 }
