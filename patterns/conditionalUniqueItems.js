@@ -171,8 +171,12 @@ async function handleMidasMaintenanceDecay(userId, guildId, memberIds) {
         const isRichest = await checkRichestPlayer(userId, guildId, memberIds);
         
         if (!isRichest) {
-            // Decay maintenance
-            midasBurden.maintenanceLevel = Math.max(0, midasBurden.maintenanceLevel - 3);
+            // Decay maintenance - use decay rate from item configuration
+            const { getUniqueItemById } = require('../data/uniqueItemsSheet');
+            const itemData = getUniqueItemById(10);
+            const decayRate = itemData?.maintenanceDecayRate || 10; // Default to 10 (immediate loss)
+            
+            midasBurden.maintenanceLevel = Math.max(0, midasBurden.maintenanceLevel - decayRate);
             
             if (midasBurden.maintenanceLevel <= 0) {
                 // Remove from owner

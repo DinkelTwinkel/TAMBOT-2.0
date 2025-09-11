@@ -2358,6 +2358,22 @@ if (shouldStartBreak) {
         const memberIds = Array.from(members.keys());
         const playerStatsMap = await playerStatsCache.getMultiple(memberIds);
         
+        // Check Midas' Burden ownership transfer (every 5 cycles to avoid spam)
+        const cycleCount = dbEntry.gameData?.cycleCount || 0;
+        if (cycleCount % 5 === 0) {
+            try {
+                const { updateMidasBurdenOwnership } = require('../conditionalUniqueItems');
+                const transferResult = await updateMidasBurdenOwnership(channel.guild.id, memberIds);
+                
+                if (transferResult && transferResult.success) {
+                    console.log(`[MIDAS] ${transferResult.message}`);
+                    eventLogs.push(`👑 ${transferResult.message}`);
+                }
+            } catch (error) {
+                console.error('[MIDAS] Error checking Midas\' Burden ownership:', error);
+            }
+        }
+        
         // Calculate total team luck for treasure bonus
         let totalTeamLuck = 0;
         for (const [memberId, playerData] of playerStatsMap) {
@@ -2510,46 +2526,9 @@ if (shouldStartBreak) {
         
         mapData = cleanupPlayerPositions(mapData, currentPlayerIds);
 
-        // Calculate team sight radius
-        let teamSightRadius = 1;
-        let maxSightThroughWalls = 0;
-        if (!inBreak) {
-            let totalSight = 0;
-            let playerCount = 0;
-            for (const member of members.values()) {
-                const playerData = playerStatsMap.get(member.id);
-                totalSight += playerData?.stats?.sight || 0;
-                playerCount++;
-                
-                const uniqueBonuses = parseUniqueItemBonuses(playerData?.equippedItems);
-                maxSightThroughWalls = Math.max(maxSightThroughWalls, uniqueBonuses.sightThroughWalls || 0);
-            }
-            teamSightRadius = Math.floor(totalSight / playerCount) + 1;
-            
-            const powerLevelConfig = POWER_LEVEL_CONFIG[serverPowerLevel];
-            if (powerLevelConfig) {
-                teamSightRadius = Math.floor(teamSightRadius * powerLevelConfig.speedBonus);
-            }
-            
-            if (maxSightThroughWalls > 0) {
-                teamSightRadius += Math.floor(maxSightThroughWalls);
-                eventLogs.push(`👁️ Enhanced vision reveals hidden areas!`);
-            }
-        }
-
-        let teamVisibleTiles = visibilityCalculator.calculateTeamVisibility(
-            mapData.playerPositions, 
-            teamSightRadius, 
-            mapData.tiles
-        );
-        
-        for (const tileKey of teamVisibleTiles) {
-            const [x, y] = tileKey.split(',').map(Number);
-            if (mapData.tiles[y] && mapData.tiles[y][x] && !mapData.tiles[y][x].discovered) {
-                mapData.tiles[y][x].discovered = true;
-                mapChanged = true;
-            }
-        }
+        // Individual vision system - no longer calculate team vision
+        // Each player will get their own vision calculated during processing
+        // Tile discovery will happen individually per player
 
         if (dbEntry.gameData?.breakInfo?.justEnded) {
             hazardEffects.enablePlayersAfterBreak(dbEntry);
@@ -2624,7 +2603,6 @@ if (shouldStartBreak) {
                     member, 
                     playerData, 
                     mapData, 
-                    teamVisibleTiles, 
                     serverPowerLevel,
                     availableItems,
                     availableTreasures,
@@ -2661,11 +2639,7 @@ if (shouldStartBreak) {
                     mapChanged = true;
                     if (data.mapData) {
                         mapData = data.mapData;
-                        teamVisibleTiles = visibilityCalculator.calculateTeamVisibility(
-                            mapData.playerPositions, 
-                            teamSightRadius, 
-                            mapData.tiles
-                        );
+                        // No longer recalculate team visibility - each player handles their own vision
                     }
                 }
                 wallsBroken += data.wallsBroken;
@@ -2853,7 +2827,7 @@ if (shouldStartBreak) {
 };
 
 // Enhanced player action processing with improved error handling and performance
-async function processPlayerActionsEnhanced(member, playerData, mapData, teamVisibleTiles, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0) {
+async function processPlayerActionsEnhanced(member, playerData, mapData, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0) {
     // Input validation
     if (!member || !playerData || !mapData) {
         console.warn('[MINING] Invalid parameters passed to processPlayerActionsEnhanced');
@@ -2864,6 +2838,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     const baseMiningPower = Math.max(0, playerData?.stats?.mining || 0);
     const baseLuckStat = Math.max(0, playerData?.stats?.luck || 0);
     const baseSpeedStat = Math.max(1, playerData?.stats?.speed || 1);
+    const baseSightStat = Math.max(0, playerData?.stats?.sight || 0);
     
     // Initialize team buff variables (will be calculated after unique bonuses)
     let teamMiningSpeedBonus = 0;
@@ -3106,6 +3081,28 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     const luckStat = finalLuckStat;
     const speedStat = Math.min(finalSpeedStat, MAX_SPEED_ACTIONS);
     
+    // Calculate individual player vision
+    let finalSightStat = baseSightStat;
+    if (teamAllStatsBonus > 0) {
+        finalSightStat = Math.floor(baseSightStat * (1 + teamAllStatsBonus));
+    }
+    
+    // Apply power level sight bonus
+    let playerSightRadius = finalSightStat + 1;
+    const powerLevelConfig = POWER_LEVEL_CONFIG[powerLevel];
+    if (powerLevelConfig) {
+        playerSightRadius = Math.floor(playerSightRadius * powerLevelConfig.speedBonus);
+    }
+    
+    // Apply sight through walls bonus
+    const sightThroughWalls = uniqueBonuses.sightThroughWalls || 0;
+    if (sightThroughWalls > 0) {
+        playerSightRadius += Math.floor(sightThroughWalls);
+        if (Math.random() < 0.1) { // 10% chance to log individual vision enhancement
+            eventLogs.push(`👁️ ${member.displayName}'s enhanced vision reveals hidden areas!`);
+        }
+    }
+    
     // Check if player is stunned by lightning
     const { isPlayerStunned, reduceStunDuration, isPlayerStuck } = require('./mining/hazardEffects');
     if (isPlayerStunned(dbEntry, member.id)) {
@@ -3131,6 +3128,25 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
     let treasuresFound = 0;
     let mapChanged = false;
     let hazardsChanged = false;
+    
+    // Calculate individual visible tiles
+    const playerPosition = mapData.playerPositions[member.id];
+    const { calculatePlayerVisibility } = require('./mining/miningUtils');
+    const playerVisibleTiles = calculatePlayerVisibility(
+        playerPosition,
+        playerSightRadius,
+        mapData.tiles,
+        sightThroughWalls
+    );
+    
+    // Mark tiles as discovered for this player's vision
+    for (const tileKey of playerVisibleTiles) {
+        const [x, y] = tileKey.split(',').map(Number);
+        if (mapData.tiles[y] && mapData.tiles[y][x] && !mapData.tiles[y][x].discovered) {
+            mapData.tiles[y][x].discovered = true;
+            mapChanged = true;
+        }
+    }
     
     if (!playerMovementHistory.has(member.id)) {
         playerMovementHistory.set(member.id, { lastDirection: null, sameDirectionCount: 0 });
@@ -3188,8 +3204,14 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
 
             
             // Reduced random treasure generation while mining
-            console.log(`[MINING DEBUG] ${member.displayName} checking for random treasure (chance: ${(efficiency.treasureChance * 0.2 * 100).toFixed(1)}%)`);
-            if (Math.random() < efficiency.treasureChance * 0.2) { // Only 20% of original chance
+            // Apply Midas' Burden treasure finding bonus
+            let treasureChance = efficiency.treasureChance * 0.2; // Base 20% of original chance
+            if (uniqueBonuses.treasureFindingBonus > 0) {
+                treasureChance += uniqueBonuses.treasureFindingBonus;
+            }
+            
+            console.log(`[MINING DEBUG] ${member.displayName} checking for random treasure (chance: ${(treasureChance * 100).toFixed(1)}%)`);
+            if (Math.random() < treasureChance) {
                 const treasure = await generateTreasure(powerLevel, efficiency);
                 if (treasure) {
                     // Treasures go to inventory, not minecart
@@ -3202,6 +3224,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                 }
             } else {
                 console.log(`[MINING DEBUG] ${member.displayName} no treasure found this action`);
+            }
+            
+            // Midas' Burden greed bonus - chance to find extra coins
+            if (uniqueBonuses.greedBonus > 0 && Math.random() < uniqueBonuses.greedBonus) {
+                const bonusCoins = Math.floor((10 + powerLevel * 5) * (1 + Math.random())); // 10-15 base + power level scaling
+                await addItemWithDestination(dbEntry, member.id, 'coin', bonusCoins, 'inventory');
+                eventLogs.push(`💰 ${member.displayName}'s greed attracts ${bonusCoins} loose coins!`);
             }
             
             console.log(`[MINING DEBUG] ${member.displayName} calculating adjacent positions...`);
@@ -3261,7 +3290,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     // Apply bonuses but with caps based on tier
                     // Reduce double ore chance based on maintenance
                     const effectiveDoubleOreChance = uniqueBonuses.doubleOreChance * 0.5; // Apply nerf from drop rate reduction
-                    finalQuantity = applyDoubleOreBonus(finalQuantity, effectiveDoubleOreChance, member, eventLogs);
+                    finalQuantity = applyDoubleOreBonus(finalQuantity, effectiveDoubleOreChance, member, eventLogs, uniqueBonuses.uniqueItems);
                     finalQuantity = Math.floor(finalQuantity * Math.min(1.5, uniqueBonuses.lootMultiplier)); // Cap loot multiplier at 1.5x
                     
                     // Re-apply tier-based caps after all multipliers
@@ -3281,6 +3310,35 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
                     mapChanged = true;
                     wallsBroken++;
+                    
+                    // Check for proactive map expansion when breaking walls at edges
+                    try {
+                        const { checkProactiveMapExpansion } = require('./mining/miningMap');
+                        let expandHazardChance = getHazardSpawnChance(powerLevel);
+                        if (powerLevel >= 6) expandHazardChance *= 3;
+                        if (powerLevel >= 7) expandHazardChance *= 5;
+                        
+                        const expandedMap = await checkProactiveMapExpansion(
+                            mapData, 
+                            adjacentTarget.x, 
+                            adjacentTarget.y, 
+                            dbEntry.channelId, 
+                            hazardsData, 
+                            powerLevel, 
+                            expandHazardChance,
+                            mineTypeId
+                        );
+                        
+                        if (expandedMap !== mapData) {
+                            mapData = expandedMap;
+                            mapChanged = true;
+                            hazardsChanged = true;
+                            // No longer recalculate team visibility - each player handles their own vision
+                            console.log(`[MINING] Map expanded proactively after ${member.displayName} broke wall at edge (${adjacentTarget.x}, ${adjacentTarget.y})`);
+                        }
+                    } catch (expansionError) {
+                        console.error(`[MINING] Error during proactive map expansion:`, expansionError);
+                    }
                     
                     // Log wall breaking for adjacent ore walls
                     if (tile.type === TILE_TYPES.RARE_ORE) {
@@ -3400,7 +3458,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                     }
                     
                     if (uniqueBonuses.areaDamageChance > 0) {
-                        const extraWalls = await applyAreaDamage(
+                        const areaDamageResult = await applyAreaDamage(
                             { x: adjacentTarget.x, y: adjacentTarget.y },
                             mapData,
                             uniqueBonuses.areaDamageChance,
@@ -3414,9 +3472,19 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
                                 powerLevel: powerLevel,
                                 availableItems: availableItems,
                                 efficiency: efficiency,
-                            }
+                            },
+                            hazardsData,
+                            mineTypeId
                         );
-                        wallsBroken += extraWalls;
+                        wallsBroken += areaDamageResult.wallsBroken;
+                        
+                        // Update map data if area damage caused expansion
+                        if (areaDamageResult.mapChanged && areaDamageResult.mapData !== mapData) {
+                            mapData = areaDamageResult.mapData;
+                            mapChanged = true;
+                            hazardsChanged = true;
+                            // No longer recalculate team visibility - each player handles their own vision
+                        }
                     }
                     
                     if (uniqueBonuses.chainMiningChance > 0) {
@@ -3476,7 +3544,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, teamVis
             // Treasure chests no longer spawn - removed from targets
             const visibleTargets = [TILE_TYPES.RARE_ORE, TILE_TYPES.WALL_WITH_ORE];
             console.log(`[MINING DEBUG] ${member.displayName} looking for visible targets: ${visibleTargets.join(', ')}`);
-            const nearestTarget = findNearestTarget(position, teamVisibleTiles, mapData.tiles, visibleTargets);
+            const nearestTarget = findNearestTarget(position, playerVisibleTiles, mapData.tiles, visibleTargets);
             console.log(`[MINING DEBUG] ${member.displayName} nearest target search result: ${nearestTarget ? 'FOUND at (' + nearestTarget.x + ',' + nearestTarget.y + ')' : 'NONE FOUND'}`);
             
             let direction;

@@ -26,7 +26,72 @@ function createMapSeed(channelId, x, y) {
     return seed;
 }
 
-// Enhanced Visibility System
+// Individual Player Visibility System
+function calculatePlayerVisibility(playerPosition, playerSightRadius, tiles, sightThroughWalls = 0) {
+    const visible = new Set();
+    
+    if (!playerPosition) {
+        return visible;
+    }
+    
+    const { x: px, y: py } = playerPosition;
+    
+    if (playerSightRadius <= 0) {
+        // Basic visibility - just adjacent tiles
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                const newX = px + dx;
+                const newY = py + dy;
+                if (newY >= 0 && newY < tiles.length && 
+                    newX >= 0 && newX < tiles[0].length) {
+                    visible.add(`${newX},${newY}`);
+                }
+            }
+        }
+        return visible;
+    }
+    
+    // Player's current position is always visible
+    visible.add(`${px},${py}`);
+    
+    // Ray casting for visibility
+    const rayCount = Math.min(64, playerSightRadius * 8);
+    for (let i = 0; i < rayCount; i++) {
+        const angle = (i * 360) / rayCount;
+        const radians = (angle * Math.PI) / 180;
+        const dx = Math.cos(radians);
+        const dy = Math.sin(radians);
+        
+        for (let dist = 1; dist <= playerSightRadius; dist++) {
+            const checkX = Math.round(px + dx * dist);
+            const checkY = Math.round(py + dy * dist);
+            
+            if (checkY < 0 || checkY >= tiles.length || 
+                checkX < 0 || checkX >= tiles[0].length) {
+                break;
+            }
+            
+            visible.add(`${checkX},${checkY}`);
+            
+            const tile = tiles[checkY][checkX];
+            if (tile && (tile.type === TILE_TYPES.WALL || 
+                       tile.type === TILE_TYPES.WALL_WITH_ORE ||
+                       tile.type === TILE_TYPES.REINFORCED_WALL)) {
+                // Check if player can see through walls
+                if (sightThroughWalls <= 0) {
+                    break;
+                } else {
+                    // Reduce sight through walls ability for each wall encountered
+                    sightThroughWalls -= 1;
+                }
+            }
+        }
+    }
+    
+    return visible;
+}
+
+// Enhanced Visibility System (Legacy - keeping for compatibility)
 function calculateTeamVisibility(playerPositions, teamSightRadius, tiles) {
     const visible = new Set();
     
@@ -423,6 +488,7 @@ module.exports = {
     createPlayerSeed,
     createMapSeed,
     calculateTeamVisibility,
+    calculatePlayerVisibility,
     findNearestTarget,
     clearOreCache,
     pickWeightedItem,

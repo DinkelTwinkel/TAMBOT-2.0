@@ -835,9 +835,9 @@
     "failureTooPoor": ["Mother feeds only those who can pay!"],
     "failureOther": ["You upset Mother's digestion!"],
     "cost": 0,
-    "staticItems": [5, 203],
+    "staticItems": [5, 203, 240],
     "rotationalAmount": 3,
-    "itemPool": [4, 200, 201, 202, 203, 204, 205, 206, 207, 210, 211, 212, 213, 214],
+    "itemPool": [4, 200, 201, 202, 203, 204, 205, 206, 207, 210, 211, 212, 213, 214, 240],
     "image": "gulletShop",
     "priceChangeFactor": 0.5,
     "itemDisplayScale": 1

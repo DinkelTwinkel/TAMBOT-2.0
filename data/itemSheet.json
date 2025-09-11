@@ -1521,5 +1521,38 @@
     "armorReduction": 0.70,
     "durability": 300,
     "tier": "legendary"
+  },
+  {
+    "id": "240",
+    "name": "💀 Wicked Corpus",
+    "type": "tool",
+    "slot": "mining",
+    "description": "A grotesque pickaxe forged from the hardened spine and ribcage of the Gullet itself. The bone handle pulses with dark veins, and the skull-shaped head grins wickedly with each strike. Fragments of devoured souls are trapped within its calcified structure, screaming silently as they cut through stone.",
+    "value": 25000,
+    "vendable": true,
+    "abilities": [
+      { "name": "mining", "powerlevel": 25 },
+      { "name": "luck", "powerlevel": 8 },
+      { "name": "speed", "powerlevel": -3 },
+      { "name": "sanity", "powerlevel": -25 }
+    ],
+    "image": "wicked_corpus",
+    "durability": 200,
+    "tier": "epic",
+    "specialEffects": [
+      "Each strike has a 5% chance to harvest 'Soul Fragment' - a rare material",
+      "10% chance to find extra flesh-based items while mining",
+      "Immune to acid and digestive hazards in the Gullet",
+      "Occasionally whispers the names of its previous victims",
+      "The skull head glows with malevolent energy when near rare ore"
+    ],
+    "lore": "Crafted by The Butcher-Thing from the Gullet's own skeletal remains, this pickaxe contains the essence of every soul the demon has consumed. The spine forms a twisted handle that writhes in the wielder's grip, while the ribcage head spreads wide to bite through stone with supernatural hunger. Ancient miners' souls are trapped within the bone, their expertise and desperation merged into a tool of terrible efficiency. Those who wield it report hearing whispered mining techniques from the dead, along with their eternal screams of regret. The pickaxe grows stronger with each use, feeding on the destruction it causes, but slowly corrupts the wielder's mind with the collective madness of the consumed.",
+    "flavorText": [
+      "The bones remember every strike they made in life...",
+      "Souls whisper mining secrets through calcified marrow...",
+      "The skull grins wider with each successful excavation...",
+      "Ancient expertise flows through corrupted bone...",
+      "The spine writhes with the memory of a thousand miners..."
+    ]
   }
 ]

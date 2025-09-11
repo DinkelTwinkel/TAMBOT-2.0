@@ -245,6 +245,113 @@ function cleanupPlayerPositions(mapData, currentPlayerIds) {
 }
 
 /**
+ * Check if a position is at the edge of the map and trigger proactive expansion
+ * This creates a 1-tile padding around the map when walls are broken at edges
+ * @param {Object} mapData - The current map data
+ * @param {number} x - X coordinate of broken wall
+ * @param {number} y - Y coordinate of broken wall
+ * @param {string} channelId - Channel ID for the map
+ * @param {Object} hazardsData - Optional hazards data to generate hazards for new area
+ * @param {number} serverPowerLevel - Optional server power level for hazard generation
+ * @param {number} hazardSpawnChanceOverride - Optional override for hazard spawn chance (for danger 6-7)
+ */
+async function checkProactiveMapExpansion(mapData, x, y, channelId, hazardsData = null, serverPowerLevel = 1, hazardSpawnChanceOverride = null, mineTypeId = null) {
+    let expandedMap = mapData;
+    let expansionsPerformed = [];
+    
+    // Check if the broken wall is at any edge (with 1-tile buffer)
+    const isNearNorthEdge = y <= 1;
+    const isNearSouthEdge = y >= mapData.height - 2;
+    const isNearWestEdge = x <= 1;
+    const isNearEastEdge = x >= mapData.width - 2;
+    
+    // Perform expansions in order: north, west, east, south to maintain coordinate consistency
+    if (isNearNorthEdge && mapData.height < MAX_MAP_SIZE) {
+        console.log(`[MAP] Proactive expansion north due to wall break at edge (${x}, ${y})`);
+        expandedMap = expandMap(expandedMap, 'north', channelId, serverPowerLevel);
+        expansionsPerformed.push('north');
+    }
+    
+    if (isNearWestEdge && expandedMap.width < MAX_MAP_SIZE) {
+        console.log(`[MAP] Proactive expansion west due to wall break at edge (${x}, ${y})`);
+        expandedMap = expandMap(expandedMap, 'west', channelId, serverPowerLevel);
+        expansionsPerformed.push('west');
+    }
+    
+    if (isNearEastEdge && expandedMap.width < MAX_MAP_SIZE) {
+        console.log(`[MAP] Proactive expansion east due to wall break at edge (${x}, ${y})`);
+        expandedMap = expandMap(expandedMap, 'east', channelId, serverPowerLevel);
+        expansionsPerformed.push('east');
+    }
+    
+    if (isNearSouthEdge && expandedMap.height < MAX_MAP_SIZE) {
+        console.log(`[MAP] Proactive expansion south due to wall break at edge (${x}, ${y})`);
+        expandedMap = expandMap(expandedMap, 'south', channelId, serverPowerLevel);
+        expansionsPerformed.push('south');
+    }
+    
+    // If any expansions occurred, handle coordinate updates and hazard generation
+    if (expansionsPerformed.length > 0) {
+        // Store new map dimensions
+        await coordinateManager.storeMapDimensions(channelId, expandedMap);
+        
+        // Generate hazards for the new expanded areas if hazardsData provided
+        if (hazardsData && serverPowerLevel >= 2) {
+            for (const direction of expansionsPerformed) {
+                try {
+                    const hazardChance = hazardSpawnChanceOverride || getHazardSpawnChance(serverPowerLevel);
+                    let startX, startY, width, height;
+                    
+                    switch (direction) {
+                        case 'north':
+                            startX = 0;
+                            startY = 0;
+                            width = expandedMap.width;
+                            height = 1;
+                            break;
+                        case 'south':
+                            startX = 0;
+                            startY = expandedMap.height - 1;
+                            width = expandedMap.width;
+                            height = 1;
+                            break;
+                        case 'east':
+                            startX = expandedMap.width - 1;
+                            startY = 0;
+                            width = 1;
+                            height = expandedMap.height;
+                            break;
+                        case 'west':
+                            startX = 0;
+                            startY = 0;
+                            width = 1;
+                            height = expandedMap.height;
+                            break;
+                    }
+                    
+                    hazardStorage.generateHazardsForArea(
+                        hazardsData,
+                        startX,
+                        startY,
+                        width,
+                        height,
+                        hazardChance,
+                        serverPowerLevel,
+                        mineTypeId
+                    );
+                } catch (hazardError) {
+                    console.error(`[MAP] Error generating hazards for ${direction} expansion:`, hazardError);
+                }
+            }
+        }
+        
+        console.log(`[MAP] Proactive expansion complete: ${expansionsPerformed.join(', ')} - new size: ${expandedMap.width}x${expandedMap.height}`);
+    }
+    
+    return expandedMap;
+}
+
+/**
  * Check if map expansion is needed and perform it
  * Returns the expanded map if expansion occurred, or the original map if not
  * @param {Object} mapData - The current map data
@@ -365,5 +472,6 @@ module.exports = {
     expandMap,
     initializeBreakPositions,
     cleanupPlayerPositions,
-    checkMapExpansion
+    checkMapExpansion,
+    checkProactiveMapExpansion
 };

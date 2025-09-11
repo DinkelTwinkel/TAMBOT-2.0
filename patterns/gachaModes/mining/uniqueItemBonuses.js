@@ -67,6 +67,10 @@ function parseUniqueItemBonuses(equippedItems) {
         // Ore value multipliers
         oreValueMultipliers: {},
         
+        // Midas' Burden special bonuses
+        treasureFindingBonus: 0,
+        greedBonus: 0,
+        
         // Health system
         healthRegen: 0,
         maxHealth: 100,
@@ -297,18 +301,69 @@ function parseUniqueItemBonuses(equippedItems) {
                 break;
                 
             case 10: // Midas' Burden
-                // Midas' effect is handled specially in calculatePlayerStat
-                // But we still apply the loot multiplier
-                bonuses.lootMultiplier *= (1 + 0.5 * maintenanceRatio);
-                bonuses.doubleOreChance += 0.1 * maintenanceRatio;
-                // Coin doubling effects
-                bonuses.oreValueMultipliers.coin = 2.0 * maintenanceRatio; // 2x coin value
+                // Midas' Burden: Fortune's favor is fickle - powerful but unpredictable effects
+                
+                // Random fortune system - each mining action has variable luck
+                const fortuneRoll = Math.random();
+                
+                if (fortuneRoll < 0.05) { // 5% chance for INCREDIBLE fortune
+                    bonuses.lootMultiplier *= (1 + 3.0 * maintenanceRatio); // 300% loot bonus
+                    bonuses.doubleOreChance += 0.8 * maintenanceRatio; // 80% double ore chance
+                    // Apply massive ore value multipliers
+                    bonuses.oreValueMultipliers.common = 5.0 * maintenanceRatio;
+                    bonuses.oreValueMultipliers.uncommon = 5.0 * maintenanceRatio;
+                    bonuses.oreValueMultipliers.rare = 5.0 * maintenanceRatio;
+                    bonuses.oreValueMultipliers.epic = 5.0 * maintenanceRatio;
+                    bonuses.oreValueMultipliers.legendary = 5.0 * maintenanceRatio;
+                    bonuses.oreValueMultipliers.coin = 10.0 * maintenanceRatio; // 10x coin value
+                    
+                    if (Math.random() < 0.3) { // 30% chance to log the incredible fortune
+                        eventLogs.push(`👑 ${member.displayName}'s Midas' Burden blazes with incredible fortune!`);
+                    }
+                } else if (fortuneRoll < 0.15) { // 10% chance for great fortune (15% - 5%)
+                    bonuses.lootMultiplier *= (1 + 1.5 * maintenanceRatio); // 150% loot bonus
+                    bonuses.doubleOreChance += 0.4 * maintenanceRatio; // 40% double ore chance
+                    bonuses.oreValueMultipliers.coin = 3.0 * maintenanceRatio; // 3x coin value
+                    
+                    if (Math.random() < 0.2) { // 20% chance to log great fortune
+                        eventLogs.push(`💰 ${member.displayName}'s Midas' Burden shines with great fortune!`);
+                    }
+                } else if (fortuneRoll < 0.7) { // 55% chance for normal fortune (70% - 15%)
+                    bonuses.lootMultiplier *= (1 + 0.5 * maintenanceRatio); // 50% loot bonus
+                    bonuses.doubleOreChance += 0.2 * maintenanceRatio; // 20% double ore chance
+                    bonuses.oreValueMultipliers.coin = 2.0 * maintenanceRatio; // 2x coin value
+                } else if (fortuneRoll < 0.9) { // 20% chance for poor fortune (90% - 70%)
+                    bonuses.lootMultiplier *= (1 + 0.1 * maintenanceRatio); // Only 10% loot bonus
+                    bonuses.doubleOreChance += 0.05 * maintenanceRatio; // Only 5% double ore chance
+                    bonuses.oreValueMultipliers.coin = 1.2 * maintenanceRatio; // 1.2x coin value
+                    
+                    if (Math.random() < 0.1) { // 10% chance to log poor fortune
+                        eventLogs.push(`😔 ${member.displayName}'s Midas' Burden dims with poor fortune...`);
+                    }
+                } else { // 10% chance for CURSED fortune (100% - 90%)
+                    // Midas' curse - everything turns to worthless gold
+                    bonuses.lootMultiplier *= 0.1; // 90% LESS loot
+                    bonuses.doubleOreChance = 0; // No double ore
+                    bonuses.oreValueMultipliers.coin = 0.1 * maintenanceRatio; // Coins worth 10% normal value
+                    
+                    if (Math.random() < 0.5) { // 50% chance to log the curse
+                        eventLogs.push(`💀 ${member.displayName}'s Midas' Burden is cursed! Everything turns to worthless gold...`);
+                    }
+                }
+                
+                // Special treasure finding bonus - Midas attracts treasure
+                bonuses.treasureFindingBonus = 0.3 * maintenanceRatio; // 30% better treasure finding
+                
+                // Greed effect - occasionally find extra coins
+                bonuses.greedBonus = 0.2 * maintenanceRatio; // 20% chance for bonus coins
+                
                 // Visual effects
                 bonuses.visualEffects.aura = 'golden';
                 bonuses.visualEffects.glowColor = '#FFD700';
                 bonuses.visualEffects.particleEffect = 'gold_dust';
                 bonuses.visualEffects.visibleToOthers = true; // Golden aura visible to all
-                // Note: The luck multiplier (0x or 100x) is handled in stats calculation
+                
+                // Note: The luck multiplier (0x or 100x) is still handled in stats calculation
                 break;
                 
             case 11: // Shadow Legion Amulet
@@ -666,11 +721,17 @@ function checkUniquePickaxeBreak(pickaxe, isUnique) {
  * @param {Object} dbEntry - Database entry for adding rewards
  * @param {Function} mineFromTile - Function to generate ore rewards
  * @param {Object} miningParams - Mining parameters (miningPower, luckStat, powerLevel, availableItems, efficiency)
- * @returns {number} Number of walls broken (always returns an integer)
+ * @param {Object} hazardsData - Optional hazards data for map expansion
+ * @param {string} mineTypeId - Optional mine type ID for expansion
+ * @returns {Object} Object containing wallsBroken count and potentially updated mapData
  */
-async function applyAreaDamage(position, mapData, areaDamageChance, member, eventLogs, dbEntry = null, mineFromTile = null, miningParams = {}) {
+async function applyAreaDamage(position, mapData, areaDamageChance, member, eventLogs, dbEntry = null, mineFromTile = null, miningParams = {}, hazardsData = null, mineTypeId = null) {
     if (areaDamageChance <= 0 || Math.random() > areaDamageChance) {
-        return 0; // Always return integer for wallsBroken
+        return {
+            wallsBroken: 0,
+            mapData: mapData,
+            mapChanged: false
+        };
     }
     
     const { TILE_TYPES } = require('./miningConstants_unified');
@@ -738,6 +799,35 @@ async function applyAreaDamage(position, mapData, areaDamageChance, member, even
                     hardness: 0
                 };
                 wallsBroken++;
+                
+                // Check for proactive map expansion when breaking walls at edges
+                if (dbEntry && miningParams.powerLevel) {
+                    try {
+                        const { checkProactiveMapExpansion } = require('./miningMap');
+                        
+                        let expandHazardChance = 0.1; // Default hazard chance
+                        if (miningParams.powerLevel >= 6) expandHazardChance *= 3;
+                        if (miningParams.powerLevel >= 7) expandHazardChance *= 5;
+                        
+                        const expandedMap = await checkProactiveMapExpansion(
+                            mapData,
+                            adj.x,
+                            adj.y,
+                            dbEntry.channelId,
+                            hazardsData,
+                            miningParams.powerLevel,
+                            expandHazardChance,
+                            mineTypeId
+                        );
+                        
+                        if (expandedMap !== mapData) {
+                            mapData = expandedMap;
+                            console.log(`[EARTHSHAKER] Map expanded proactively after area damage at edge (${adj.x}, ${adj.y})`);
+                        }
+                    } catch (expansionError) {
+                        console.error(`[EARTHSHAKER] Error during proactive map expansion:`, expansionError);
+                    }
+                }
             }
         }
     }
@@ -767,9 +857,12 @@ async function applyAreaDamage(position, mapData, areaDamageChance, member, even
         eventLogs.push(message);
     }
     
-    // Always return integer for wallsBroken count
-    // Ensure it's an integer even if calculation somehow produces non-integer
-    return parseInt(wallsBroken) || 0;
+    // Return both walls broken count and potentially updated map data
+    return {
+        wallsBroken: parseInt(wallsBroken) || 0,
+        mapData: mapData,
+        mapChanged: wallsBroken > 0 // Map changed if any walls were broken
+    };
 }
 
 /**
