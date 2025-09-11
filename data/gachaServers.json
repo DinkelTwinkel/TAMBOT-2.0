@@ -3273,7 +3273,7 @@
         "colour": "DEB887",
         "image": "fossilMine",
         "nextLevelConditionType": "fossilsFound",
-        "conditionCost": 60,
+        "conditionCost": 200,
         "deeperMineId": "112",
         "parentMineId": "12004",
         "isLocked": false
@@ -3298,7 +3298,7 @@
         "isDeeper": false,
         "parentMineId": "12005",
         "nextLevelConditionType": "fossilsFound",
-        "conditionCost": 50,
+        "conditionCost": 300,
         "deeperMineId": "12011",
         "isLocked": false
     },
@@ -3321,7 +3321,7 @@
         "image": "fossilMineDeep",
         "parentMineId": "112",
         "nextLevelConditionType": "fossilsFound",
-        "conditionCost": 120,
+        "conditionCost": 400,
         "deeperMineId": "12012",
         "isLocked": true
     },
@@ -3344,7 +3344,7 @@
         "image": "fossilMineDeep",
         "parentMineId": "12011",
         "nextLevelConditionType": "fossilsFound",
-        "conditionCost": 140,
+        "conditionCost": 500,
         "deeperMineId": "12013",
         "isLocked": true
     },
@@ -3369,7 +3369,7 @@
         "image": "fossilMineDeep",
         "parentMineId": "12012",
         "nextLevelConditionType": "fossilsFound",
-        "conditionCost": 160,
+        "conditionCost": 600,
         "deeperMineId": "12014",
         "isLocked": true
     },
@@ -3394,7 +3394,7 @@
         "image": "fossilMineDeep",
         "parentMineId": "12013",
         "nextLevelConditionType": "fossilsFound",
-        "conditionCost": 180,
+        "conditionCost": 800,
         "deeperMineId": "12015",
         "isLocked": true
     },
@@ -3419,7 +3419,7 @@
         "image": "fossilMineDeep",
         "parentMineId": "12014",
         "nextLevelConditionType": "fossilsFound",
-        "conditionCost": 100,
+        "conditionCost": 1000,
         "deeperMineId": "123",
         "isLocked": true
     },

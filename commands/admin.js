@@ -11,6 +11,8 @@ const UniqueItem = require('../models/uniqueItems');
 const itemSheet = require('../data/itemSheet.json');
 const { UNIQUE_ITEMS, getUniqueItemById } = require('../data/uniqueItemsSheet');
 const { sendLegendaryAnnouncement, sendLegendaryAnnouncementWithEmbed } = require('../patterns/uniqueItemFinding');
+const { startRailBuildingEvent, startMineCollapseEvent } = require('../patterns/gachaModes/mining/miningEvents');
+const gachaVC = require('../models/activevcs');
 
 // Create item map for O(1) lookups
 const itemMap = new Map(itemSheet.map(item => [item.id, item]));
@@ -66,6 +68,16 @@ module.exports = {
                     option.setName('user')
                         .setDescription('The user to reset cooldown for')
                         .setRequired(true))
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('force-rail-event')
+                .setDescription('Force trigger the rail building event for debugging')
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('force-collapse-event')
+                .setDescription('Force trigger the mine collapse event for debugging')
         )
         .addSubcommandGroup(group =>
             group
@@ -214,6 +226,10 @@ module.exports = {
             await this.executeDrop(interaction);
         } else if (subcommand === 'resetgachacooldown') {
             await this.executeResetGachaCooldown(interaction);
+        } else if (subcommand === 'force-rail-event') {
+            await this.executeForceRailEvent(interaction);
+        } else if (subcommand === 'force-collapse-event') {
+            await this.executeForceCollapseEvent(interaction);
         }
     },
 
@@ -970,5 +986,115 @@ module.exports = {
             .setFooter({ text: `Total items: ${items.length}` });
 
         return interaction.reply({ embeds: [embed], ephemeral: true });
+    },
+
+    // ========== FORCE RAIL EVENT ==========
+    async executeForceRailEvent(interaction) {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // Check if user is in a voice channel
+            const voiceChannel = interaction.member?.voice?.channel;
+            if (!voiceChannel) {
+                return interaction.editReply({
+                    content: '❌ You must be in a voice channel to trigger mining events!'
+                });
+            }
+
+            // Get the database entry for this voice channel
+            const dbEntry = await gachaVC.findOne({ channelId: voiceChannel.id });
+            if (!dbEntry) {
+                return interaction.editReply({
+                    content: '❌ No mining session found for this voice channel. Start mining first!'
+                });
+            }
+
+            // Check if there's map data
+            if (!dbEntry.gameData?.map) {
+                return interaction.editReply({
+                    content: '❌ No map data found. The mining session needs to be initialized first!'
+                });
+            }
+
+            console.log(`[ADMIN] ${interaction.user.tag} forcing rail building event in ${voiceChannel.name}`);
+
+            // Force trigger the rail building event
+            const result = await startRailBuildingEvent(voiceChannel, dbEntry);
+
+            const embed = new EmbedBuilder()
+                .setTitle('🚂 Force Rail Event - SUCCESS')
+                .setDescription(`Rail building event has been triggered in <#${voiceChannel.id}>!\n\n**Result:** ${result}`)
+                .setColor(0x4169E1)
+                .addFields(
+                    { name: 'Admin', value: `<@${interaction.user.id}>`, inline: true },
+                    { name: 'Channel', value: `<#${voiceChannel.id}>`, inline: true },
+                    { name: 'Event Type', value: 'Rail Building', inline: true }
+                )
+                .setTimestamp()
+                .setFooter({ text: 'Force Event Command' });
+
+            return interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error('Error forcing rail building event:', error);
+            return interaction.editReply({
+                content: `❌ Failed to trigger rail building event: ${error.message}`
+            });
+        }
+    },
+
+    // ========== FORCE COLLAPSE EVENT ==========
+    async executeForceCollapseEvent(interaction) {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // Check if user is in a voice channel
+            const voiceChannel = interaction.member?.voice?.channel;
+            if (!voiceChannel) {
+                return interaction.editReply({
+                    content: '❌ You must be in a voice channel to trigger mining events!'
+                });
+            }
+
+            // Get the database entry for this voice channel
+            const dbEntry = await gachaVC.findOne({ channelId: voiceChannel.id });
+            if (!dbEntry) {
+                return interaction.editReply({
+                    content: '❌ No mining session found for this voice channel. Start mining first!'
+                });
+            }
+
+            // Check if there's map data
+            if (!dbEntry.gameData?.map) {
+                return interaction.editReply({
+                    content: '❌ No map data found. The mining session needs to be initialized first!'
+                });
+            }
+
+            console.log(`[ADMIN] ${interaction.user.tag} forcing mine collapse event in ${voiceChannel.name}`);
+
+            // Force trigger the mine collapse event
+            const result = await startMineCollapseEvent(voiceChannel, dbEntry);
+
+            const embed = new EmbedBuilder()
+                .setTitle('⛰️ Force Collapse Event - SUCCESS')
+                .setDescription(`Mine collapse event has been triggered in <#${voiceChannel.id}>!\n\n**Result:** ${result}`)
+                .setColor(0x8B4513)
+                .addFields(
+                    { name: 'Admin', value: `<@${interaction.user.id}>`, inline: true },
+                    { name: 'Channel', value: `<#${voiceChannel.id}>`, inline: true },
+                    { name: 'Event Type', value: 'Mine Collapse', inline: true }
+                )
+                .setTimestamp()
+                .setFooter({ text: 'Force Event Command' });
+
+            return interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error('Error forcing mine collapse event:', error);
+            return interaction.editReply({
+                content: `❌ Failed to trigger mine collapse event: ${error.message}`
+            });
+        }
     }
 };

@@ -17,7 +17,8 @@ async function startRailBuildingEvent(channel, dbEntry) {
     
     const { EmbedBuilder } = require('discord.js');
     const railStorage = require('./railStorage');
-    const { TILE_TYPES } = require('./miningConstants');
+    const { TILE_TYPES } = require('./miningConstants_unified');
+    const { fixEntranceCoordinates, getReliableEntranceCoordinates } = require('./entranceCoordinateFix');
     
     // Get current map data
     const mapData = dbEntry.gameData?.map;
@@ -26,7 +27,18 @@ async function startRailBuildingEvent(channel, dbEntry) {
         return 'Map not initialized for rail building';
     }
     
-    const { entranceX, entranceY, width, height, tiles } = mapData;
+    // Fix entrance coordinates to ensure consistency with rendering system
+    await fixEntranceCoordinates(dbEntry);
+    
+    // Get reliable entrance coordinates (scans for actual entrance tile)
+    const entranceCoords = getReliableEntranceCoordinates(mapData);
+    if (!entranceCoords) {
+        console.log('No entrance tile found for rail building');
+        return 'Entrance tile not found for rail building';
+    }
+    
+    const { x: entranceX, y: entranceY } = entranceCoords;
+    const { width, height, tiles } = mapData;
     
     // Get existing rails data using persistent storage
     const existingRails = await railStorage.getRailsData(channel.id);
@@ -163,7 +175,7 @@ async function startRailBuildingEvent(channel, dbEntry) {
  */
 function buildStraightLine(tiles, startX, startY, direction, width, height) {
     const path = [];
-    const { TILE_TYPES } = require('./miningConstants');
+    const { TILE_TYPES } = require('./miningConstants_unified');
     
     const directions = {
         north: { dx: 0, dy: -1 },
@@ -530,8 +542,9 @@ async function startMineCollapseEvent(channel, dbEntry) {
         return 'Channel is not voice-based';
     }
     
-    const { TILE_TYPES } = require('./miningConstants');
+    const { TILE_TYPES } = require('./miningConstants_unified');
     const gachaVC = require('../../../models/activevcs');
+    const { getReliableEntranceCoordinates } = require('./entranceCoordinateFix');
     
     // Check player count for solo mode enhancements
     const members = channel.members.filter(m => !m.user.bot);
@@ -552,8 +565,11 @@ async function startMineCollapseEvent(channel, dbEntry) {
         for (let x = 0; x < mapData.width; x++) {
             const tile = mapData.tiles[y]?.[x];
             if (tile && tile.type === TILE_TYPES.FLOOR && tile.discovered) {
-                // Don't collapse entrance area
-                const distFromEntrance = Math.abs(x - mapData.entranceX) + Math.abs(y - mapData.entranceY);
+                // Don't collapse entrance area - use reliable entrance coordinates
+                const entranceCoords = getReliableEntranceCoordinates(mapData);
+                const entranceX = entranceCoords ? entranceCoords.x : mapData.entranceX;
+                const entranceY = entranceCoords ? entranceCoords.y : mapData.entranceY;
+                const distFromEntrance = Math.abs(x - entranceX) + Math.abs(y - entranceY);
                 if (distFromEntrance > 2) {
                     floorTiles.push({ x, y });
                 }
@@ -735,7 +751,7 @@ function pickCollapseType() {
  * Get a random tile type based on collapse type distribution
  */
 function getRandomTileFromCollapseType(collapseType) {
-    const { TILE_TYPES } = require('./miningConstants');
+    const { TILE_TYPES } = require('./miningConstants_unified');
     const dist = collapseType.distribution;
     const rand = Math.random() * 100;
     
@@ -775,7 +791,7 @@ function getRandomTileFromCollapseType(collapseType) {
  * Get tile hardness value scaled by power level
  */
 function getTileHardness(tileType, powerLevel = 1) {
-    const { TILE_TYPES } = require('./miningConstants');
+    const { TILE_TYPES } = require('./miningConstants_unified');
     
     const baseHardnessMap = {
         [TILE_TYPES.WALL]: 1,
@@ -1379,17 +1395,24 @@ function getAvailableEvents(playerCount) {
  * Creates tent positions on floor tiles only
  */
 function scatterPlayersForBreak(playerPositions, entranceX, entranceY, playerCount, mapData) {
+    const { getReliableEntranceCoordinates } = require('./entranceCoordinateFix');
+    
+    // Use reliable entrance coordinates
+    const entranceCoords = getReliableEntranceCoordinates(mapData);
+    const actualEntranceX = entranceCoords ? entranceCoords.x : entranceX;
+    const actualEntranceY = entranceCoords ? entranceCoords.y : entranceY;
+    
     const scattered = {};
     
     // First, find all available floor tiles near the entrance
     const floorTiles = [];
     const maxRadius = Math.min(10, Math.ceil(Math.sqrt(playerCount * 2)) + 3);
     
-    for (let y = Math.max(0, entranceY - maxRadius); y <= Math.min(mapData.height - 1, entranceY + maxRadius); y++) {
-        for (let x = Math.max(0, entranceX - maxRadius); x <= Math.min(mapData.width - 1, entranceX + maxRadius); x++) {
+    for (let y = Math.max(0, actualEntranceY - maxRadius); y <= Math.min(mapData.height - 1, actualEntranceY + maxRadius); y++) {
+        for (let x = Math.max(0, actualEntranceX - maxRadius); x <= Math.min(mapData.width - 1, actualEntranceX + maxRadius); x++) {
             const tile = mapData.tiles[y] && mapData.tiles[y][x];
             if (tile && (tile.type === 'floor' || tile.type === 'entrance')) {
-                const distance = Math.sqrt(Math.pow(x - entranceX, 2) + Math.pow(y - entranceY, 2));
+                const distance = Math.sqrt(Math.pow(x - actualEntranceX, 2) + Math.pow(y - actualEntranceY, 2));
                 if (distance > 0 && distance <= maxRadius) { // Not on entrance itself
                     floorTiles.push({ x, y, distance });
                 }
@@ -1420,7 +1443,7 @@ function scatterPlayersForBreak(playerPositions, entranceX, entranceY, playerCou
         
         // If no floor tile available, place at entrance (shouldn't happen normally)
         if (!tentPos) {
-            tentPos = { x: entranceX, y: entranceY };
+            tentPos = { x: actualEntranceX, y: actualEntranceY };
         }
         
         scattered[playerId] = { x: tentPos.x, y: tentPos.y, isTent: true };
@@ -1524,7 +1547,7 @@ async function forceStartThiefEvent(channel) {
  * Used when a thief event is about to happen
  */
 async function calculateMinecartValue(dbEntry) {
-    const { miningItemPool, SERVER_POWER_MODIFIERS, POWER_LEVEL_CONFIG } = require('./miningConstants');
+    const { miningItemPool, SERVER_POWER_MODIFIERS, POWER_LEVEL_CONFIG } = require('./miningConstants_unified');
     const { calculatePlayerStat } = require('../../calculatePlayerStat');
     const { parseUniqueItemBonuses } = require('./uniqueItemBonuses');
     const gachaInfo = require('../../../data/gachaServers.json');

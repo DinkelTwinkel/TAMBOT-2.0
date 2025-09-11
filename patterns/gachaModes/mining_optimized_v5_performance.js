@@ -131,6 +131,15 @@ const {
     formatMaintenanceTooltip
 } = require('./mining/maintenanceDisplay');
 
+// Import additional required modules for gullet channel creation
+const fs = require('fs');
+const path = require('path');
+const { ChannelType } = require('discord.js');
+const ActiveVCS = require('../../models/activevcs');
+const GuildConfig = require('../../models/GuildConfig');
+const channelsFile = path.join(__dirname, '../../data/gachaServers.json');
+const channelData = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
+
 // Import bug fixes
 const miningFixes = require('./mining_fixes/fix_mining_bugs');
 const { getMinecartSummaryFresh } = require('./mining_fixes/fix_minecart_display_simple');
@@ -1862,6 +1871,157 @@ async function endBreak(channel, dbEntry, powerLevel = 1) {
     }
 }
 
+/**
+ * Create or move player to gullet channel based on sanity roll
+ * @param {Client} client - Discord client instance  
+ * @param {Guild} guild - Discord guild
+ * @param {Object} player - Player data from database
+ * @param {number} playerSanity - Player's current sanity level
+ */
+async function createGulletChannelForPlayer(client, guild, player, playerSanity) {
+    try {
+        // Get guild config to find parent category
+        const guildConfig = await GuildConfig.findOne({ guildId: guild.id });
+        if (!guildConfig || !guildConfig.gachaParentCategoryIds || guildConfig.gachaParentCategoryIds.length === 0) {
+            console.log(`🧠 No gacha parent category configured for guild ${guild.name}`);
+            return;
+        }
+        
+        // Get parent category
+        let parentCategory = null;
+        for (const categoryId of guildConfig.gachaParentCategoryIds) {
+            try {
+                const category = await guild.channels.fetch(categoryId);
+                if (category && category.type === 4) { // CategoryChannel type
+                    parentCategory = category;
+                    break;
+                }
+            } catch (err) {
+                continue;
+            }
+        }
+        
+        if (!parentCategory) {
+            console.log(`🧠 No valid parent category found for guild ${guild.name}`);
+            return;
+        }
+        
+        // Get gullet channel data
+        const gulletChannelType = channelData.find(ch => ch.id == 16);
+        if (!gulletChannelType) {
+            console.error("🧠 Warning: ???'s gullet (id: 16) not found in gachaServers.json!");
+            return;
+        }
+        
+        // Check if a gullet channel already exists in this guild
+        const existingGulletVC = await ActiveVCS.findOne({ 
+            guildId: guild.id, 
+            typeId: 16 
+        });
+        
+        let gulletChannel = null;
+        
+        if (existingGulletVC) {
+            try {
+                gulletChannel = await guild.channels.fetch(existingGulletVC.channelId);
+                console.log(`🧠 Found existing gullet channel in ${guild.name}: ${gulletChannel.name}`);
+            } catch (err) {
+                console.log(`🧠 Previous gullet channel no longer exists in ${guild.name}, will create new one`);
+                // Delete the stale database entry
+                await ActiveVCS.deleteOne({ channelId: existingGulletVC.channelId });
+            }
+        }
+        
+        // Get guild member
+        const member = await guild.members.fetch(player.userId).catch(() => null);
+        if (!member) {
+            console.log(`🧠 Player ${player.usertag} not found in guild ${guild.name}`);
+            return;
+        }
+        
+        // Don't move player if they're already in a gullet channel
+        if (member.voice.channel && member.voice.channel.name === gulletChannelType.name) {
+            console.log(`🧠 Player ${player.usertag} is already in gullet channel, skipping move`);
+            return;
+        }
+        
+        // If no existing gullet channel, create one
+        if (!gulletChannel) {
+            try {
+                gulletChannel = await guild.channels.create({
+                    name: gulletChannelType.name,
+                    type: ChannelType.GuildVoice,
+                    parent: parentCategory,
+                    position: 0,
+                });
+                
+                // Store the new VC in database
+                const storeVC = new ActiveVCS({
+                    channelId: gulletChannel.id,
+                    guildId: guild.id,
+                    typeId: 16,
+                    nextTrigger: new Date(Date.now() + 1000 * 30),
+                    nextShopRefresh: new Date(Date.now() + 1000 * 60 * 25),
+                    nextLongBreak: new Date(Date.now() + 60 * 1000 * 100),
+                });
+                
+                await storeVC.save();
+                
+                // Set gullet permissions: everyone can see but cannot connect or interact with text
+                await gulletChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                    ViewChannel: true,        // Can see the channel exists
+                    Connect: false,           // Cannot connect directly
+                    SendMessages: false,      // Cannot send messages
+                    ReadMessageHistory: false // Cannot read message history
+                });
+                
+                console.log(`🧠💀 Created new gullet channel in ${guild.name}: ${gulletChannel.name}`);
+                
+            } catch (createError) {
+                console.error(`🧠 Error creating gullet channel in ${guild.name}:`, createError);
+                return;
+            }
+        }
+        
+        // Grant permissions to the player
+        await gulletChannel.permissionOverwrites.edit(member, {
+            ViewChannel: true,        // Can see the channel
+            Connect: true,            // Can connect
+            Speak: true,             // Can speak
+            UseVAD: true,            // Can use voice activity
+            Stream: true,            // Can stream
+            SendMessages: true,      // Can send messages in chat
+            ReadMessageHistory: true // Can read message history
+        });
+        
+        // Try to move player to gullet if they're in voice
+        if (member.voice.channel) {
+            try {
+                await member.voice.setChannel(gulletChannel);
+                console.log(`🧠💀 Moved ${member.user.tag} to gullet channel in ${guild.name}`);
+            } catch (moveError) {
+                console.log(`🧠 Could not move ${member.user.tag} to gullet (not in voice or permission issue)`);
+            }
+        }
+        
+        // Send notification message in gullet channel
+        try {
+            await gulletChannel.send(
+                `🧠💀 **MADNESS DRAWS A SOUL TO THE GULLET** 🧠💀\n` +
+                `${member} has been consumed by their deteriorating sanity (${playerSanity})!\n` +
+                `*The whispers grow stronger...*`
+            );
+        } catch (msgError) {
+            console.error(`🧠 Error sending gullet notification in ${guild.name}:`, msgError);
+        }
+        
+        console.log(`🧠💀 Successfully processed gullet access for ${member.user.tag} in ${guild.name}`);
+        
+    } catch (error) {
+        console.error(`🧠 Error creating gullet channel for player ${player.usertag} in guild ${guild.name}:`, error);
+    }
+}
+
 // Main Mining Event - Enhanced with Full Power Level Integration and Instance Management
 module.exports = async (channel, dbEntry, json, client) => {
     const channelId = channel.id;
@@ -2356,6 +2516,71 @@ if (shouldStartBreak) {
         const memberIds = Array.from(members.keys());
         const playerStatsMap = await playerStatsCache.getMultiple(memberIds);
         
+        // Process sanity levels for gullet channel creation (before player actions)
+        const playersToSkip = new Set(); // Track players who will be moved to gullet
+        
+        // Skip sanity processing if we're already in the gullet channel (typeId 16)
+        if (dbEntry.typeId === 16) {
+            console.log('🧠 [MINING] Skipping sanity processing - already in gullet channel');
+        } else {
+            try {
+                console.log('🧠 [MINING] Processing sanity levels for channel players...');
+                
+                for (const member of members.values()) {
+                try {
+                    const playerStats = playerStatsMap.get(member.id);
+                    if (playerStats && playerStats.stats) {
+                        const playerSanity = playerStats.stats.sanity || 0;
+                        
+                        // Only process players with negative sanity (insanity)
+                        if (playerSanity < 0) {
+                            // Calculate gullet chance: 0.1% per insanity point, capped at 99%
+                            const insanityPoints = Math.abs(playerSanity);
+                            const gulletChance = Math.min(99, insanityPoints * 0.1);
+                            const rollPercentage = Math.random() * 100;
+                            
+                            console.log(`🧠 [MINING] Player ${member.displayName}: Sanity ${playerSanity}, Chance ${gulletChance}%, Roll ${rollPercentage.toFixed(2)}%`);
+                            
+                            // Check if gullet roll succeeds
+                            if (rollPercentage < gulletChance) {
+                                console.log(`🧠💀 [MINING] Sanity-triggered gullet roll succeeded for ${member.displayName}!`);
+                                
+                                // Mark player to skip mining actions
+                                playersToSkip.add(member.id);
+                                
+                                // Create gullet channel for this player
+                                const playerData = {
+                                    userId: member.id,
+                                    usertag: member.user.tag
+                                };
+                                
+                                // Don't await this to avoid blocking mining processing
+                                createGulletChannelForPlayer(client, channel.guild, playerData, playerSanity)
+                                    .then(() => {
+                                        console.log(`🧠💀 [MINING] Successfully processed gullet for ${member.displayName}`);
+                                    })
+                                    .catch(gulletError => {
+                                        console.error(`🧠 [MINING] Error creating gullet channel for ${member.displayName}:`, gulletError);
+                                        // If gullet creation fails, remove from skip list so they can continue mining
+                                        playersToSkip.delete(member.id);
+                                    });
+                            }
+                        }
+                    }
+                } catch (playerSanityError) {
+                    console.error(`🧠 [MINING] Error processing sanity for ${member.displayName}:`, playerSanityError);
+                }
+            }
+            
+            if (playersToSkip.size > 0) {
+                console.log(`🧠 [MINING] ${playersToSkip.size} players will be moved to gullet, skipping their mining actions`);
+            }
+            
+        } catch (sanityProcessingError) {
+            console.error('🧠 [MINING] Error in sanity processing:', sanityProcessingError);
+        }
+        }
+        
         // Calculate total team luck for treasure bonus
         let totalTeamLuck = 0;
         for (const [memberId, playerData] of playerStatsMap) {
@@ -2536,6 +2761,11 @@ if (shouldStartBreak) {
         // Process actions for each player with improved error handling and performance
         const playerProcessingPromises = Array.from(members.values()).map(async (member) => {
             try {
+                // Skip players who are being moved to gullet due to sanity
+                if (playersToSkip.has(member.id)) {
+                    console.log(`🧠 [MINING] Skipping mining actions for ${member.displayName} (being moved to gullet)`);
+                    return null;
+                }
                 // Initialize player health using separate schema and check if dead
                 let isDead = false;
                 try {
