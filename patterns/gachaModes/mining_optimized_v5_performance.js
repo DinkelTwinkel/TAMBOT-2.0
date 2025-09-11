@@ -868,9 +868,6 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             destination
         };
         
-        // GUARANTEE SYSTEM: Check mine correspondence for specialized ore guarantee
-        const mineConfig = MINE_ORE_CORRESPONDENCE[String(mineTypeId)];
-        
         if (mineConfig && mineConfig.guarantee) {
             const guaranteeRoll = Math.random();
             
