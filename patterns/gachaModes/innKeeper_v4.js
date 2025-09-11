@@ -118,7 +118,9 @@ class InnKeeperV4Controller {
                 customers: [],                  // Array of current customers in the inn
                 innReputation: 5,               // Inn reputation (0-100)
                 maxCustomers: 15,               // Default max customers, will be updated from gachaServers.json
-                innDimensions: this.getInnDimensions(existingEntry.typeId) // Inn dimensions from gachaServers.json
+                innDimensions: this.getInnDimensions(existingEntry.typeId), // Inn dimensions from gachaServers.json
+                innLevel: 1,                    // Inn level (starts at 1)
+                baseEarnings: this.getBaseEarnings(existingEntry.typeId) // Base earnings from gachaServers.json
             };
 
             const initData = {
@@ -204,6 +206,20 @@ class InnKeeperV4Controller {
             height: 7,
             maxCustomers: 15
         };
+    }
+
+    /**
+     * Get base earnings for inn from gachaServers.json configuration
+     */
+    getBaseEarnings(typeId) {
+        const gachaServersData = require('../../data/gachaServers.json');
+        const serverConfig = gachaServersData.find(s => s.id === String(typeId));
+        
+        if (serverConfig && serverConfig.type === 'innkeeper' && serverConfig.baseEarnings) {
+            return serverConfig.baseEarnings;
+        }
+        
+        return 5; // Default base earnings
     }
 
     /**
@@ -358,9 +374,7 @@ class InnKeeperV4Controller {
             return false;
         }
 
-        // Send work restart notification - try to edit previous break message if recent
-        const embed = this.createWorkStartEmbed(this.config.TIMING.WORK_DURATION, nextWorkEndTime);
-        
+        // Edit break message to show work log instead of sending new message
         try {
             // Try to find and edit the most recent break message
             const messages = await channel.messages.fetch({ limit: 1 });
@@ -371,28 +385,29 @@ class InnKeeperV4Controller {
                 lastMessage.embeds.length > 0 && 
                 (lastMessage.embeds[0].title?.includes('Break Time') || lastMessage.embeds[0].title?.includes('Extended Break'))) {
                 
-                // Edit the previous break message to show reopening
-                await lastMessage.edit({ embeds: [embed] });
-                console.log(`[InnKeeperV4] Edited previous break message for inn reopening`);
+                // Create initial work event for the new work period
+                const initialWorkEvent = {
+                    timestamp: now,
+                    eventNumber: 0,
+                    description: 'Work period restarted - Inn is back open for business!',
+                    type: 'work_restart'
+                };
+                
+                // Update work log instead of sending reopening message
+                await this.updateWorkEventLog(channel, updated, initialWorkEvent);
+                console.log(`[InnKeeperV4] Edited break message to show work log for inn reopening`);
             } else {
-                // Send new message if previous message wasn't a break notification
+                // Fallback: send work restart notification if no break message found
+                const embed = this.createWorkStartEmbed(this.config.TIMING.WORK_DURATION, nextWorkEndTime);
                 await channel.send({ embeds: [embed] });
-                console.log(`[InnKeeperV4] Sent new work restart message`);
+                console.log(`[InnKeeperV4] No break message found, sent new work restart message`);
             }
         } catch (error) {
-            console.error(`[InnKeeperV4] Error editing break message, sending new one:`, error);
+            console.error(`[InnKeeperV4] Error editing break message to work log:`, error);
+            // Fallback: send work restart notification
+            const embed = this.createWorkStartEmbed(this.config.TIMING.WORK_DURATION, nextWorkEndTime);
             await channel.send({ embeds: [embed] });
         }
-        
-        // Create initial work log embed
-        const initialWorkEvent = {
-            timestamp: now,
-            eventNumber: 0,
-            description: 'Work period started - Inn is open for business!',
-            type: 'work_start'
-        };
-        
-        await this.updateWorkEventLog(channel, updated, initialWorkEvent);
         
         return true;
     }
@@ -1021,34 +1036,50 @@ class InnKeeperV4Controller {
             v4State = null;
         }
         
-        const workDuration = Math.floor((now - workStartTime) / 1000);
-        const workMinutes = Math.floor(workDuration / 60);
-        const workSeconds = workDuration % 60;
+        // Calculate when the next break will occur
+        const workDuration = this.config.TIMING.WORK_DURATION; // 20 minutes
+        const nextBreakTime = workStartTime + workDuration;
+        const nextBreakTimestamp = Math.floor(nextBreakTime / 1000);
         
-        // Format work event log as code blocks
+        // Format work event log for description (more space than fields)
         let logContent = '';
         if (workEventLog.length === 0) {
             logContent = 'No events yet...';
         } else {
-            // Show last 10 events to keep embed manageable
-            const recentEvents = workEventLog.slice(-10);
+            // Show recent events, but limit to fit in description (2048 chars max)
+            const recentEvents = workEventLog.slice(-15); // More events since we have more space
             logContent = recentEvents.map((event, index) => {
                 const eventTime = new Date(event.timestamp);
                 const timeStr = eventTime.toLocaleTimeString();
                 return `${timeStr} - ${event.description}`;
             }).join('\n');
+            
+            // Check if content is too long for description (leave room for break timestamp)
+            const maxDescriptionLength = 1800; // Leave buffer for break timestamp
+            if (logContent.length > maxDescriptionLength) {
+                // Trim events until it fits
+                let trimmedEvents = recentEvents;
+                do {
+                    trimmedEvents = trimmedEvents.slice(1); // Remove oldest event
+                    logContent = trimmedEvents.map((event, index) => {
+                        const eventTime = new Date(event.timestamp);
+                        const timeStr = eventTime.toLocaleTimeString();
+                        return `${timeStr} - ${event.description}`;
+                    }).join('\n');
+                } while (logContent.length > maxDescriptionLength && trimmedEvents.length > 1);
+            }
         }
+
+        const fullDescription = `**Next Break:** <t:${nextBreakTimestamp}:R>\n\n**📋 Recent Events:**\n\`\`\`\n${logContent}\n\`\`\``;
+
+        // Generate customer dialogue from current customers
+        const customerDialogue = this.generateCustomerDialogue(v4State?.customers || []);
 
         const embed = new EmbedBuilder()
             .setTitle('🏨 Inn Work Log')
             .setColor('#3498db')
-            .setDescription(`**Work Period Progress:** ${workMinutes}m ${workSeconds}s`)
+            .setDescription(fullDescription)
             .addFields(
-                { 
-                    name: '📋 Recent Events', 
-                    value: `\`\`\`\n${logContent}\n\`\`\``, 
-                    inline: false 
-                },
                 { 
                     name: '⭐ Inn Reputation', 
                     value: `${v4State?.innReputation || 5}/100`, 
@@ -1064,10 +1095,82 @@ class InnKeeperV4Controller {
                     value: `${currentProfit} coins`, 
                     inline: true 
                 }
-            )
+            );
+
+        // Add customer dialogue if available
+        if (customerDialogue) {
+            embed.addFields({
+                name: '💬 Inn Chatter',
+                value: customerDialogue,
+                inline: false
+            });
+        }
+
+        embed
             .setTimestamp();
 
         return embed;
+    }
+
+    /**
+     * Generate customer dialogue from current customers using dialogue pool and NPC data
+     */
+    generateCustomerDialogue(customers) {
+        try {
+            if (!customers || customers.length === 0) {
+                return null; // No customers, no dialogue
+            }
+
+            // Filter customers who can speak (NPCs and player customers)
+            const speakingCustomers = customers.filter(customer => 
+                customer.npcId || customer.isPlayerCustomer
+            );
+
+            if (speakingCustomers.length === 0) {
+                return null;
+            }
+
+            // Select random customer to speak
+            const randomCustomer = speakingCustomers[Math.floor(Math.random() * speakingCustomers.length)];
+            
+            let dialogue = null;
+
+            if (randomCustomer.npcId) {
+                // Use NPC dialogue from npcs.json
+                const npcsData = require('../../data/npcs.json');
+                const npcData = npcsData.find(npc => npc.id === randomCustomer.npcId);
+                
+                if (npcData && npcData.dialogue && npcData.dialogue.length > 0) {
+                    dialogue = npcData.dialogue[Math.floor(Math.random() * npcData.dialogue.length)];
+                }
+            } else if (randomCustomer.isPlayerCustomer) {
+                // Generate simple dialogue for player customers
+                const playerDialogues = [
+                    "This place has great atmosphere!",
+                    "The service here is excellent.",
+                    "I love coming here after shopping.",
+                    "The food is worth every coin.",
+                    "This inn feels like home.",
+                    "Best inn in the area!",
+                    "The staff here really knows what they're doing.",
+                    "I'll definitely be back again soon."
+                ];
+                dialogue = playerDialogues[Math.floor(Math.random() * playerDialogues.length)];
+            }
+
+            if (dialogue) {
+                // Format with customer name and happiness indicator
+                const happinessIcon = randomCustomer.happiness >= 70 ? '😊' : 
+                                    randomCustomer.happiness >= 40 ? '😐' : '😞';
+                return `${happinessIcon} **${randomCustomer.name}**: "${dialogue}"`;
+            }
+
+            return null;
+
+        } catch (error) {
+            console.error('[InnKeeperV4] Error generating customer dialogue:', error);
+            return null;
+        }
     }
 
     /**
@@ -1202,20 +1305,33 @@ class InnKeeperV4Controller {
                 // Continue without shop generation
             }
 
-            // Check if embed exceeds character limit (Discord limit is 6000 characters)
+            // Check if embed exceeds character limit (Discord limit is 6000 characters total)
+            // Description limit is 2048, but we also need to check total embed size
             const embedLength = JSON.stringify(embed.data).length;
-            const maxEmbedLength = 5000; // Leave some buffer
+            const descriptionLength = embed.data.description?.length || 0;
+            const maxEmbedLength = 5000; // Leave some buffer for total embed
+            const maxDescriptionLength = 2000; // Leave buffer for description
 
             let messageId = v4State.workLogMessageId;
 
-            // Create expansion button
+            // Create expansion button with reputation cost
             const expansionButton = new ButtonBuilder()
                 .setCustomId(`inn_expand_${channel.id}`)
-                .setLabel('🏗️ Expand Inn')
+                .setLabel(`🏗️ Expand Inn ⭐10`)
                 .setStyle(v4State.innReputation >= 10 ? ButtonStyle.Success : ButtonStyle.Danger);
             
+            // Create level up button (always available, but costs 90 reputation)
+            const canLevelUp = v4State.innReputation >= 90;
+            const currentLevel = v4State.innLevel || 1;
+            
+            const levelUpButton = new ButtonBuilder()
+                .setCustomId(`inn_levelup_${channel.id}`)
+                .setLabel(`⬆️ Level Up Inn ⭐90 (L${currentLevel}→L${currentLevel + 1})`)
+                .setStyle(canLevelUp ? ButtonStyle.Primary : ButtonStyle.Secondary)
+                .setDisabled(!canLevelUp);
+            
             const actionRow = new ActionRowBuilder()
-                .addComponents(expansionButton);
+                .addComponents(expansionButton, levelUpButton);
 
             // Prepare message content
             const messageContent = {
@@ -1224,7 +1340,7 @@ class InnKeeperV4Controller {
                 components: [actionRow]
             };
 
-            if (embedLength > maxEmbedLength || !messageId) {
+            if (embedLength > maxEmbedLength || descriptionLength > maxDescriptionLength || !messageId) {
                 // Create new embed if too long or no existing message
                 const sentMessage = await channel.send(messageContent);
                 messageId = sentMessage.id;

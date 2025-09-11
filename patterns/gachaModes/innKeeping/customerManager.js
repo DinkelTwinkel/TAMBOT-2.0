@@ -21,7 +21,7 @@ class CustomerManager {
     /**
      * Create a new customer from NPC data
      */
-    static createCustomer(channelId, now, innReputation = 50) {
+    static createCustomer(channelId, now, innReputation = 50, innLevel = 1, baseEarnings = 5) {
         // Select random NPC with seeded randomness
         const channelSeed = parseInt(channelId.replace(/\D/g, '').slice(-8) || '12345678', 10);
         const timeSeed = Math.floor(now / 300000); // Change every 5 minutes
@@ -44,10 +44,10 @@ class CustomerManager {
             avatar: selectedNPC.avatar || 'https://cdn.discordapp.com/embed/avatars/0.png',
             preferences: selectedNPC.preferences || ['food', 'drink'],
             
-            // Dynamic properties
+            // Dynamic properties  
             happiness: Math.floor(seededRandom(combinedSeed + 2) * 40) + 30, // 30-70 starting happiness
-            wealth: this.calculateCustomerWealth(selectedNPC.wealth || 3, innReputation, seededRandom(combinedSeed + 3)),
-            maxWealth: this.calculateCustomerWealth(selectedNPC.wealth || 3, innReputation, seededRandom(combinedSeed + 3)),
+            wealth: this.calculateCustomerWealth(selectedNPC.wealth || 3, innReputation, seededRandom(combinedSeed + 3), innLevel, baseEarnings),
+            maxWealth: this.calculateCustomerWealth(selectedNPC.wealth || 3, innReputation, seededRandom(combinedSeed + 3), innLevel, baseEarnings),
             
             // Timing properties
             arrivedAt: now,
@@ -69,9 +69,9 @@ class CustomerManager {
     }
 
     /**
-     * Calculate customer wealth based on inn reputation
+     * Calculate customer wealth based on inn reputation and level
      */
-    static calculateCustomerWealth(baseWealth, innReputation, randomSeed) {
+    static calculateCustomerWealth(baseWealth, innReputation, randomSeed, innLevel = 1, baseEarnings = 5) {
         // Higher reputation attracts wealthier customers
         // Reputation 0-20: 0.5x to 0.8x base wealth
         // Reputation 21-50: 0.8x to 1.0x base wealth  
@@ -89,13 +89,18 @@ class CustomerManager {
             wealthMultiplier = 1.5 + ((innReputation - 80) / 20) * 0.5; // 1.5 to 2.0
         }
         
+        // Add inn level bonus (each level increases wealth)
+        const levelMultiplier = 1 + ((innLevel - 1) * 0.3); // +30% wealth per level above 1
+        
         // Add some randomness to wealth within the reputation range
         const randomVariation = (randomSeed - 0.5) * 0.4; // ±0.2 variation
         wealthMultiplier = Math.max(0.3, wealthMultiplier + randomVariation);
         
-        const finalWealth = Math.max(1, Math.floor(baseWealth * wealthMultiplier));
+        // Apply both reputation and level multipliers
+        const finalMultiplier = wealthMultiplier * levelMultiplier;
+        const finalWealth = Math.max(1, Math.floor(baseWealth * finalMultiplier));
         
-        console.log(`[CustomerManager] Customer wealth: base ${baseWealth} × ${wealthMultiplier.toFixed(2)} (rep: ${innReputation}) = ${finalWealth} coins`);
+        console.log(`[CustomerManager] Customer wealth: base ${baseWealth} × ${wealthMultiplier.toFixed(2)} (rep) × ${levelMultiplier.toFixed(2)} (L${innLevel}) = ${finalWealth} coins`);
         return finalWealth;
     }
 
@@ -154,10 +159,12 @@ class CustomerManager {
             }
             
             if (Math.random() < arrivalChance) {
-                const newCustomer = this.createCustomer(channel.id, now, reputation);
+                const innLevel = v4State.innLevel || 1;
+                const baseEarnings = v4State.baseEarnings || 5;
+                const newCustomer = this.createCustomer(channel.id, now, reputation, innLevel, baseEarnings);
                 remainingCustomers.push(newCustomer);
                 departureEvents.push(`${newCustomer.name} arrived at the inn (happiness: ${newCustomer.happiness}, wealth: ${newCustomer.wealth}c)`);
-                console.log(`[CustomerManager] New customer ${newCustomer.name} arrived (reputation: ${reputation}, chance: ${Math.round(arrivalChance * 100)}%)`);
+                console.log(`[CustomerManager] New customer ${newCustomer.name} arrived (reputation: ${reputation}, L${innLevel} inn, chance: ${Math.round(arrivalChance * 100)}%)`);
             } else {
                 console.log(`[CustomerManager] No new customer arrived (${Math.round(arrivalChance * 100)}% chance)`);
             }
@@ -199,8 +206,9 @@ class CustomerManager {
                 const orderChance = Math.max(0.1, customer.happiness / 100); // Happier customers order more
                 
                 if (Math.random() < orderChance) {
-                    // Customer places an order
-                    const orderCost = Math.floor(Math.random() * 3) + 2; // 2-4 coins
+                    // Customer places an order (cost based on inn's base earnings)
+                    const baseEarnings = v4State.baseEarnings || 5;
+                    const orderCost = Math.floor(Math.random() * 3) + baseEarnings; // baseEarnings to baseEarnings+2 coins
                     customer.hasActiveOrder = true;
                     customer.orderPlacedAt = now;
                     customer.orderItem = this.getRandomOrderItem(customer.preferences);
@@ -230,7 +238,8 @@ class CustomerManager {
         // Apply service results
         for (let i = 0; i < ordersToProcess.length; i++) {
             const customer = ordersToProcess[i];
-            const orderCost = Math.floor(Math.random() * 3) + 2; // 2-4 coins
+            const baseEarnings = v4State.baseEarnings || 5;
+            const orderCost = Math.floor(Math.random() * 3) + baseEarnings; // baseEarnings to baseEarnings+2 coins
             
             if (i < processedOrders) {
                 // Order was processed
@@ -421,9 +430,85 @@ class CustomerManager {
                 { channelId },
                 { $set: { 'gameData.v4State.customers': customers } }
             );
+
+            // Trigger immediate work log event for player customer injection
+            try {
+                await this.triggerPlayerCustomerEvent(channelId, playerId, playerTag, amountSpent, existingCustomerIndex >= 0);
+            } catch (eventError) {
+                console.warn('[CustomerManager] Error triggering player customer event:', eventError.message);
+            }
             
         } catch (error) {
             console.error('[CustomerManager] Error injecting player as customer:', error);
+        }
+    }
+
+    /**
+     * Trigger immediate work log event for player customer injection
+     */
+    static async triggerPlayerCustomerEvent(channelId, playerId, playerTag, amountSpent, wasExisting) {
+        try {
+            // Get the channel from guild
+            const ActiveVCs = require('../../models/activevcs');
+            const dbEntry = await ActiveVCs.findOne({ channelId });
+            if (!dbEntry || dbEntry.gameData?.gamemode !== 'innkeeper_v4') {
+                return; // Not an inn channel
+            }
+
+            // Find the channel object (we need this for the work log update)
+            // We'll need to get this from the guild - for now, create a mock channel-like object
+            const mockChannel = {
+                id: channelId,
+                guild: null, // Will be set by the calling context
+                send: () => {}, // Mock send function
+                messages: {
+                    fetch: () => Promise.resolve(new Map()) // Mock messages fetch
+                }
+            };
+
+            // Create player arrival event
+            const v4State = dbEntry.gameData.v4State;
+            const currentCount = (v4State?.workEventCount || 0) + 1;
+            
+            const eventDescription = wasExisting 
+                ? `${playerTag} returned to the inn with ${amountSpent} more coins to spend!`
+                : `${playerTag} arrived at the inn as a customer with ${amountSpent} coins to spend!`;
+
+            const playerCustomerEvent = {
+                timestamp: Date.now(),
+                eventNumber: currentCount,
+                description: `Event #${currentCount} - ${eventDescription}`,
+                type: 'player_customer_arrival',
+                profit: 0,
+                isPlayerArrival: true
+            };
+
+            // Update work event count
+            await ActiveVCs.findOneAndUpdate(
+                { channelId },
+                { 
+                    $set: { 
+                        'gameData.v4State.workEventCount': currentCount
+                    }
+                }
+            );
+
+            // Get the inn keeper controller to update work log
+            const InnKeeperV4Controller = require('../innKeeper_v4').InnKeeperV4Controller;
+            const innKeeperInstance = new InnKeeperV4Controller();
+            
+            // Get fresh database entry
+            const freshDbEntry = await ActiveVCs.findOne({ channelId }).lean();
+            
+            // We need the actual channel object for the work log update
+            // This will be handled by the shop handler which has access to the channel
+            console.log(`[CustomerManager] Player customer event ready for ${playerTag} in channel ${channelId}`);
+            
+            return { event: playerCustomerEvent, dbEntry: freshDbEntry };
+            
+        } catch (error) {
+            console.error('[CustomerManager] Error triggering player customer event:', error);
+            return null;
         }
     }
 

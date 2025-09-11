@@ -123,27 +123,54 @@ function generateInnLayout(channelId = 'default', dimensions = null) {
     const interiorWidth = INN_WIDTH - 2; // Exclude walls
     const interiorHeight = INN_HEIGHT - 2; // Exclude walls
     
-    // Calculate number of table islands based on inn size
-    // Aim for 1 table per ~15 interior tiles, with minimum 3 tables
-    const targetTablesPerArea = Math.floor(interiorWidth * interiorHeight / 15);
-    const numIslands = Math.max(3, Math.min(targetTablesPerArea, Math.floor(interiorWidth * interiorHeight / 8))); // Max 1 island per 8 tiles
-    
-    // Generate islands with proper spacing
-    const minSpacing = 3; // Minimum 3 tiles between islands
+    // Generate maximum number of table islands with proper spacing
+    const minSpacing = 2; // Minimum 2 tiles between table centers (1 tile gap + table + 1 tile gap = 3 total)
     const usedPositions = new Set();
     
-    for (let island = 0; island < numIslands; island++) {
-        let attempts = 0;
-        let tableX, tableY;
+    // Calculate grid positions for optimal table placement
+    // Each table needs a 3x3 area (table + 4 chairs), with 1 tile spacing between islands
+    const tableSpacing = 4; // 3 for table area + 1 for spacing
+    const maxTablesX = Math.floor((interiorWidth - 1) / tableSpacing); // -1 for edge spacing
+    const maxTablesY = Math.floor((interiorHeight - 1) / tableSpacing);
+    
+    // Generate all possible table positions in a grid pattern
+    const possiblePositions = [];
+    for (let gridY = 0; gridY < maxTablesY; gridY++) {
+        for (let gridX = 0; gridX < maxTablesX; gridX++) {
+            const tableX = 2 + (gridX * tableSpacing) + Math.floor(tableSpacing / 2); // Center in grid cell
+            const tableY = 2 + (gridY * tableSpacing) + Math.floor(tableSpacing / 2);
+            
+            // Ensure position is within bounds
+            if (tableX >= 2 && tableX < INN_WIDTH - 2 && tableY >= 2 && tableY < INN_HEIGHT - 2) {
+                possiblePositions.push({ x: tableX, y: tableY, gridX, gridY });
+            }
+        }
+    }
+    
+    // Shuffle positions with seeded randomness for variety
+    for (let i = possiblePositions.length - 1; i > 0; i--) {
+        const j = Math.floor(seededRandom(channelSeed + i + 100) * (i + 1));
+        [possiblePositions[i], possiblePositions[j]] = [possiblePositions[j], possiblePositions[i]];
+    }
+    
+    // Place as many tables as possible
+    for (const pos of possiblePositions) {
+        const tableX = pos.x;
+        const tableY = pos.y;
         
-        do {
-            // Random position within interior, avoiding edges
-            tableX = Math.floor(seededRandom(channelSeed + island + 100) * (interiorWidth - 2)) + 2; // +1 for wall, +1 for spacing
-            tableY = Math.floor(seededRandom(channelSeed + island + 200) * (interiorHeight - 2)) + 2;
-            attempts++;
-        } while (attempts < 20 && isPositionTooClose(tableX, tableY, usedPositions, minSpacing));
+        // Check if this position conflicts with already placed tables
+        let canPlace = true;
+        for (let dy = -minSpacing; dy <= minSpacing; dy++) {
+            for (let dx = -minSpacing; dx <= minSpacing; dx++) {
+                if (usedPositions.has(`${tableX + dx},${tableY + dy}`)) {
+                    canPlace = false;
+                    break;
+                }
+            }
+            if (!canPlace) break;
+        }
         
-        if (attempts < 20) {
+        if (canPlace) {
             // Mark area as used (3x3 area around table)
             for (let dy = -1; dy <= 1; dy++) {
                 for (let dx = -1; dx <= 1; dx++) {

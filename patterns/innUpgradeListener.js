@@ -23,6 +23,11 @@ class InnUpgradeListener {
             if (interaction.customId.startsWith('inn_expand_')) {
                 await this.handleInnUpgrade(interaction);
             }
+            
+            // Handle inn level up buttons
+            if (interaction.customId.startsWith('inn_levelup_')) {
+                await this.handleInnLevelUp(interaction);
+            }
         });
         
         console.log('[INN_UPGRADE_LISTENER] Inn upgrade listener initialized');
@@ -164,6 +169,161 @@ class InnUpgradeListener {
             
         } catch (error) {
             console.error('[InnUpgradeListener] Error adding expansion to work log:', error);
+        }
+    }
+
+    /**
+     * Handle inn level up button interactions
+     */
+    async handleInnLevelUp(interaction) {
+        try {
+            const channelId = interaction.channelId;
+            console.log(`[InnUpgradeListener] Inn level up button clicked for channel ${channelId}`);
+            
+            // Get current inn data
+            const dbEntry = await ActiveVCs.findOne({ channelId });
+            if (!dbEntry || !dbEntry.gameData?.v4State) {
+                return await interaction.reply({ 
+                    content: '❌ No inn data found for this channel!', 
+                    ephemeral: true 
+                });
+            }
+            
+            const v4State = dbEntry.gameData.v4State;
+            const currentReputation = v4State.innReputation || 0;
+            
+            // Check if level up is available (reputation >= 90)
+            if (currentReputation < 90) {
+                return await interaction.reply({ 
+                    content: `❌ Inn level up requires at least 90 reputation! Current: ${currentReputation}/100`, 
+                    ephemeral: true 
+                });
+            }
+            
+            // Get current inn configuration
+            const gachaServersData = require('../data/gachaServers.json');
+            const currentInn = gachaServersData.find(s => s.id === String(dbEntry.typeId));
+            
+            if (!currentInn) {
+                return await interaction.reply({ 
+                    content: '❌ Current inn configuration not found!', 
+                    ephemeral: true 
+                });
+            }
+            
+            // Calculate new level and earnings
+            const currentLevel = v4State.innLevel || 1;
+            const newLevel = currentLevel + 1;
+            const currentBaseEarnings = v4State.baseEarnings || currentInn.baseEarnings || 5;
+            const newBaseEarnings = currentBaseEarnings + 2; // +2 coins per level
+            
+            // Perform level up
+            const newReputation = Math.max(0, currentReputation - 90);
+            const updateResult = await ActiveVCs.findOneAndUpdate(
+                { channelId },
+                { 
+                    $set: { 
+                        'gameData.v4State.innReputation': newReputation, // Deduct 90 reputation
+                        'gameData.v4State.innLevel': newLevel, // Increase inn level
+                        'gameData.v4State.baseEarnings': newBaseEarnings // Increase base earnings
+                    }
+                },
+                { new: true }
+            );
+            
+            if (!updateResult) {
+                return await interaction.reply({ 
+                    content: '❌ Failed to level up inn. Please try again.', 
+                    ephemeral: true 
+                });
+            }
+            
+            // Update channel name with new level
+            try {
+                const baseName = currentInn.name.replace(/[^a-zA-Z0-9\s]/g, '').trim(); // Remove emojis and special chars
+                const newChannelName = `${baseName}『 L${newLevel} 』`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                await interaction.channel.setName(newChannelName);
+                console.log(`[InnUpgradeListener] Channel name updated to ${newChannelName}`);
+            } catch (nameError) {
+                console.warn('[InnUpgradeListener] Failed to update channel name:', nameError.message);
+            }
+            
+            // Create level up notification embed
+            const levelUpEmbed = new EmbedBuilder()
+                .setTitle('⬆️ Inn Level Up Complete!')
+                .setColor('#9B59B6')
+                .setDescription(`${currentInn.name} has been leveled up!`)
+                .addFields(
+                    { name: '📈 Inn Level', value: `L${currentLevel} → L${newLevel}`, inline: true },
+                    { name: '💰 Base Earnings', value: `${currentBaseEarnings} → ${newBaseEarnings} coins (+2)`, inline: true },
+                    { name: '⭐ Reputation Cost', value: `${currentReputation} → ${newReputation} (-90)`, inline: true },
+                    { name: '🎯 Benefits', value: 'Higher customer wealth and order values!', inline: false }
+                )
+                .setTimestamp();
+            
+            // Send ephemeral level up confirmation
+            await interaction.reply({ embeds: [levelUpEmbed], ephemeral: true });
+            
+            // Add level up notification to work log
+            try {
+                await this.addLevelUpToWorkLog(interaction.channel, updateResult, currentInn, currentLevel, newLevel, currentBaseEarnings, newBaseEarnings, currentReputation, newReputation);
+            } catch (workLogError) {
+                console.error('[InnUpgradeListener] Error adding level up to work log:', workLogError);
+            }
+            
+            console.log(`[InnUpgradeListener] ${currentInn.name} leveled up from L${currentLevel} to L${newLevel}, base earnings: ${currentBaseEarnings} → ${newBaseEarnings}, reputation cost: ${currentReputation} → ${newReputation} (-90)`);
+            
+        } catch (error) {
+            console.error('[InnUpgradeListener] Error handling inn level up:', error);
+            await interaction.reply({ 
+                content: '❌ An error occurred during inn level up. Please try again.', 
+                ephemeral: true 
+            });
+        }
+    }
+
+    /**
+     * Add level up notification to inn work log
+     */
+    async addLevelUpToWorkLog(channel, dbEntry, inn, oldLevel, newLevel, oldEarnings, newEarnings, oldReputation, newReputation) {
+        try {
+            const v4State = dbEntry.gameData?.v4State;
+            if (!v4State) return;
+
+            // Create level up event
+            const levelUpEvent = {
+                timestamp: Date.now(),
+                eventNumber: (v4State.workEventCount || 0) + 1,
+                description: `⬆️ ${inn.name} leveled up to L${newLevel}! Base earnings: ${oldEarnings} → ${newEarnings} coins (+2)`,
+                type: 'levelup',
+                profit: 0,
+                isLevelUp: true
+            };
+
+            // Update work event count
+            await ActiveVCs.findOneAndUpdate(
+                { channelId: channel.id },
+                { 
+                    $set: { 
+                        'gameData.v4State.workEventCount': levelUpEvent.eventNumber
+                    }
+                }
+            );
+
+            // Get the inn keeper controller to update work log
+            const InnKeeperV4Controller = require('./gachaModes/innKeeper_v4').InnKeeperV4Controller;
+            const innKeeperInstance = new InnKeeperV4Controller();
+            
+            // Get fresh database entry
+            const freshDbEntry = await ActiveVCs.findOne({ channelId: channel.id }).lean();
+            
+            // Update work log with level up event
+            await innKeeperInstance.updateWorkEventLog(channel, freshDbEntry, levelUpEvent);
+            
+            console.log(`[InnUpgradeListener] Level up notification added to work log for channel ${channel.id}`);
+            
+        } catch (error) {
+            console.error('[InnUpgradeListener] Error adding level up to work log:', error);
         }
     }
 }

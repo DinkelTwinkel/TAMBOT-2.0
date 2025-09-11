@@ -359,6 +359,9 @@ class ShopHandler {
         // Inject player as artificial customer in inn if they bought from an inn's shop
         try {
             await CustomerManager.injectPlayerAsCustomer(channelId, userId, interaction.user.tag, totalCost, interaction.guild);
+            
+            // Trigger immediate work log event for player customer arrival
+            await this.triggerPlayerCustomerWorkLogEvent(channelId, userId, interaction.user.tag, totalCost, interaction.guild);
         } catch (customerError) {
             console.warn('[SHOP] Error injecting player as inn customer:', customerError.message);
         }
@@ -583,6 +586,9 @@ class ShopHandler {
         // Inject player as artificial customer in inn if they bought from an inn's shop
         try {
             await CustomerManager.injectPlayerAsCustomer(channelId, userId, interaction.user.tag, totalCost, interaction.guild);
+            
+            // Trigger immediate work log event for player customer arrival
+            await this.triggerPlayerCustomerWorkLogEvent(channelId, userId, interaction.user.tag, totalCost, interaction.guild);
         } catch (customerError) {
             console.warn('[SHOP] Error injecting player as inn customer:', customerError.message);
         }
@@ -990,6 +996,73 @@ class ShopHandler {
                 console.warn(`[SHOP] High failure rate detected for guild ${this.guildId}!`);
             }
         }, intervalMs);
+    }
+
+    /**
+     * Trigger immediate work log event for player customer arrival
+     */
+    async triggerPlayerCustomerWorkLogEvent(channelId, playerId, playerTag, amountSpent, guild) {
+        try {
+            // Find the inn channel
+            const channel = guild.channels.cache.get(channelId);
+            if (!channel) {
+                console.warn(`[SHOP] Channel ${channelId} not found for player customer event`);
+                return;
+            }
+
+            // Get inn database entry
+            const ActiveVCs = require('../models/activevcs');
+            const dbEntry = await ActiveVCs.findOne({ channelId }).lean();
+            if (!dbEntry || dbEntry.gameData?.gamemode !== 'innkeeper_v4') {
+                return; // Not an inn channel
+            }
+
+            // Check if inn is currently working (not on break)
+            const v4State = dbEntry.gameData.v4State;
+            if (v4State?.workState !== 'working') {
+                console.log(`[SHOP] Inn is not working (state: ${v4State?.workState}), skipping immediate event`);
+                return;
+            }
+
+            // Create player arrival event
+            const currentCount = (v4State?.workEventCount || 0) + 1;
+            const eventDescription = `${playerTag} entered the inn as a customer (${amountSpent} coins from shop purchase)`;
+
+            const playerArrivalEvent = {
+                timestamp: Date.now(),
+                eventNumber: currentCount,
+                description: `Event #${currentCount} - ${eventDescription}`,
+                type: 'player_customer_arrival',
+                profit: 0,
+                isPlayerArrival: true
+            };
+
+            // Update work event count and last work event time
+            await ActiveVCs.findOneAndUpdate(
+                { channelId },
+                { 
+                    $set: { 
+                        'gameData.v4State.workEventCount': currentCount,
+                        'gameData.v4State.lastWorkEvent': Date.now()
+                    }
+                }
+            );
+
+            // Get the inn keeper controller to update work log
+            const InnKeeperV4Controller = require('./gachaModes/innKeeper_v4').InnKeeperV4Controller;
+            const innKeeperInstance = new InnKeeperV4Controller();
+            
+            // Get fresh database entry with updated data
+            const freshDbEntry = await ActiveVCs.findOne({ channelId }).lean();
+            
+            // Update work log with player arrival event
+            await innKeeperInstance.updateWorkEventLog(channel, freshDbEntry, playerArrivalEvent);
+            
+            console.log(`[SHOP] Player customer arrival event logged for ${playerTag} in inn ${channelId}`);
+            
+        } catch (error) {
+            console.error('[SHOP] Error triggering player customer work log event:', error);
+        }
     }
 }
 

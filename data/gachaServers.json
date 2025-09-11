@@ -1,7 +1,7 @@
 [
     {
         "id": "13",
-        "name": "🍖 Miner's Inn",
+        "name": "🍖 Miner's Inn『 L1 』",
         "type": "innkeeper",
         "rarity": "rare",
         "spawnWeight": 30,
@@ -22,13 +22,13 @@
     },
     {
         "id": "14",
-        "name": "🏹 Hunter's Lodge",
+        "name": "🏹 Hunter's Lodge『 L1 』",
         "type": "innkeeper",
         "rarity": "uncommon",
         "spawnWeight": 40,
         "description": "A cozy lodge decorated with mounted trophies and pelts, where hunters gather to share tales of their expeditions. The scent of roasting venison and wild herbs fills the air, while rangers trade maps and tracking tips by the fireplace.",
         "power": 2,
-        "script": "innKeeper_v3.js",
+        "script": "innKeeper_v4.js",
         "profitMargins": 0.5,
         "shop": 14,
         "colour": "8B4513",
@@ -37,17 +37,19 @@
             "width": 12,
             "height": 8,
             "maxCustomers": 22
-        }
+        },
+        "baseEarnings": 8,
+        "upgradesTo": "15"
     },
     {
         "id": "15",
-        "name": "👑 Noble's Rest",
+        "name": "👑 Noble's Rest『 L1 』",
         "type": "innkeeper",
         "rarity": "epic",
         "spawnWeight": 15,
         "description": "An opulent establishment where the wealthy and influential dine on exotic delicacies and aged wines. Crystal chandeliers illuminate silk-draped dining rooms, while discrete staff attend to every whim of their distinguished clientele.",
         "power": 4,
-        "script": "innKeeper_v3.js",
+        "script": "innKeeper_v4.js",
         "profitMargins": 0.3,
         "shop": 15,
         "colour": "FFD700",
@@ -56,7 +58,9 @@
             "width": 15,
             "height": 10,
             "maxCustomers": 35
-        }
+        },
+        "baseEarnings": 12,
+        "upgradesTo": null
     },
     {
         "id": "16",
