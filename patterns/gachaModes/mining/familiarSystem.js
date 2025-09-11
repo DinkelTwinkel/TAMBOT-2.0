@@ -15,6 +15,7 @@ const FAMILIAR_TYPES = {
     CRYSTAL_GOLEM: 'crystal_golem',
     FIRE_ELEMENTAL: 'fire_elemental',
     ICE_ELEMENTAL: 'ice_elemental',
+    WATER_ELEMENTAL: 'water_elemental',
     // Add more types as needed
 };
 
@@ -24,9 +25,11 @@ const FAMILIAR_CONFIGS = {
         name: "Shadow Clone",
         displayIcon: "👤",
         statMultiplier: 0.75, // 75% of owner's stats (kept as percentage-based)
-        pickaxeImage: "shadowpickaxe", // Dark/ethereal pickaxe
+        pickaxeImage: "haunted_pixaxe", // Dark/ethereal pickaxe (using haunted pickaxe)
+        pickaxeFallback: "rustypickaxe", // Fallback pickaxe image
+        imageName: "shadow_clone", // Image file name (without extension)
         duration: null, // Permanent (until owner leaves or loses item)
-        maxCount: 3,
+        maxCount: 5,
         respawnTime: 120000, // 2 minutes
         source: 'unique_item', // Comes from Shadow Legion Amulet
         sourceId: 11,
@@ -40,7 +43,11 @@ const FAMILIAR_CONFIGS = {
             isDarkSilhouette: true,
             opacity: 0.7,
             shadowTrail: true,
-            borderColor: '#8A2BE2'
+            borderColor: '#8A2BE2',
+            renderType: 'avatar_with_shadow', // Special rendering type
+            fillColor: 'rgba(50, 50, 80, 0.9)', // Fallback color
+            shadowOffset: { x: 2, y: 2 },
+            shadowColor: 'rgba(0, 0, 0, 0.6)'
         }
     },
     
@@ -53,9 +60,11 @@ const FAMILIAR_CONFIGS = {
             speed: 1,
             sight: 3
         },
-        pickaxeImage: "stonepickaxe", // Heavy stone pickaxe
+        pickaxeImage: "robustpickaxe", // Heavy stone pickaxe (using robust pickaxe)
+        pickaxeFallback: "rustypickaxe", // Fallback pickaxe image
+        imageName: "stone_golem", // Image file name (without extension)
         duration: 300000, // 5 minutes
-        maxCount: 1,
+        maxCount: 2,
         respawnTime: null, // Single use
         source: 'consumable', // Comes from /use item
         sourceId: null, // Will be set when item is created
@@ -67,7 +76,11 @@ const FAMILIAR_CONFIGS = {
         visual: {
             isGolem: true,
             opacity: 1.0,
-            borderColor: '#8B4513'
+            borderColor: '#8B4513',
+            renderType: 'solid_color', // Solid color rendering
+            fillColor: 'rgba(139, 69, 19, 0.9)', // Brown
+            shadowOffset: { x: 1, y: 1 },
+            shadowColor: 'rgba(0, 0, 0, 0.4)'
         }
     },
     
@@ -81,6 +94,8 @@ const FAMILIAR_CONFIGS = {
             sight: 4
         },
         pickaxeImage: "ironpickaxe", // Metallic iron pickaxe
+        pickaxeFallback: "ironpickaxe", // Fallback pickaxe image
+        imageName: "iron_golem", // Image file name (without extension)
         duration: 480000, // 8 minutes
         maxCount: 1,
         respawnTime: null,
@@ -94,7 +109,11 @@ const FAMILIAR_CONFIGS = {
         visual: {
             isGolem: true,
             opacity: 1.0,
-            borderColor: '#C0C0C0'
+            borderColor: '#C0C0C0',
+            renderType: 'solid_color', // Solid color rendering
+            fillColor: 'rgba(192, 192, 192, 0.9)', // Silver
+            shadowOffset: { x: 1, y: 1 },
+            shadowColor: 'rgba(0, 0, 0, 0.4)'
         }
     },
     
@@ -107,7 +126,9 @@ const FAMILIAR_CONFIGS = {
             speed: 1,
             sight: 6
         },
-        pickaxeImage: "crystalpickaxe", // Crystalline pickaxe
+        pickaxeImage: "pinkgem_axe", // Crystalline pickaxe (using pinkgem axe)
+        pickaxeFallback: "ironpickaxe", // Fallback pickaxe image
+        imageName: "crystal_golem", // Image file name (without extension)
         duration: 600000, // 10 minutes
         maxCount: 1,
         respawnTime: null,
@@ -122,7 +143,101 @@ const FAMILIAR_CONFIGS = {
             isGolem: true,
             opacity: 1.0,
             borderColor: '#FF69B4',
-            sparkleEffect: true
+            sparkleEffect: true,
+            renderType: 'solid_color', // Solid color rendering
+            fillColor: 'rgba(255, 105, 180, 0.9)', // Pink crystal
+            shadowOffset: { x: 1, y: 1 },
+            shadowColor: 'rgba(0, 0, 0, 0.4)'
+        }
+    },
+    
+    [FAMILIAR_TYPES.FIRE_ELEMENTAL]: {
+        name: "Fire Elemental",
+        displayIcon: "🔥",
+        statMultiplier: 0.7, // 70% of owner's stats
+        pickaxeImage: "murderous_aura_pickaxe", // Fire pickaxe (using murderous aura pickaxe)
+        pickaxeFallback: "ironpickaxe", // Fallback pickaxe image
+        imageName: "fire_elemental", // Image file name (without extension)
+        duration: 360000, // 6 minutes
+        maxCount: 1,
+        respawnTime: null,
+        source: 'consumable',
+        sourceId: null,
+        abilities: {
+            fireBonus: 0.3, // 30% chance for fire ore
+            heatResistance: 0.9,
+            noLuck: false // Fire elementals keep luck
+        },
+        visual: {
+            isElemental: true,
+            opacity: 1.0,
+            borderColor: '#FF4500',
+            glowEffect: true,
+            renderType: 'solid_color', // Solid color rendering
+            fillColor: 'rgba(255, 69, 0, 0.9)', // Orange-red
+            shadowOffset: { x: 1, y: 1 },
+            shadowColor: 'rgba(0, 0, 0, 0.4)'
+        }
+    },
+    
+    [FAMILIAR_TYPES.ICE_ELEMENTAL]: {
+        name: "Ice Elemental", 
+        displayIcon: "❄️",
+        statMultiplier: 0.7, // 70% of owner's stats
+        pickaxeImage: "adamantite_pickaxe", // Ice pickaxe (using adamantite pickaxe)
+        pickaxeFallback: "ironpickaxe", // Fallback pickaxe image
+        imageName: "ice_elemental", // Image file name (without extension)
+        duration: 360000, // 6 minutes
+        maxCount: 1,
+        respawnTime: null,
+        source: 'consumable',
+        sourceId: null,
+        abilities: {
+            freezeChance: 0.2, // 20% chance to freeze hazards
+            coldResistance: 0.9,
+            noLuck: false // Ice elementals keep luck
+        },
+        visual: {
+            isElemental: true,
+            opacity: 1.0,
+            borderColor: '#00BFFF',
+            frostEffect: true,
+            renderType: 'solid_color', // Solid color rendering
+            fillColor: 'rgba(173, 216, 230, 0.9)', // Light blue
+            shadowOffset: { x: 1, y: 1 },
+            shadowColor: 'rgba(0, 0, 0, 0.4)'
+        }
+    },
+    
+    [FAMILIAR_TYPES.WATER_ELEMENTAL]: {
+        name: "Water Elemental",
+        displayIcon: "🌊",
+        statMultiplier: 0.4, // 80% of owner's stats (slightly stronger than other elementals)
+        pickaxeImage: "natures_pickaxe", // Water pickaxe (using nature's pickaxe)
+        pickaxeFallback: "ironpickaxe", // Fallback pickaxe image
+        imageName: "water_elemental", // Image file name (without extension)
+        duration: 480000, // 8 minutes (longer duration)
+        maxCount: 1,
+        respawnTime: null,
+        source: 'unique_item', // Comes from Blue Breeze
+        sourceId: 9, // Blue Breeze ID
+        abilities: {
+            fluidMovement: 0.3, // 30% chance to flow around obstacles
+            waterOreChance: 0.15, // 15% chance to find water-based ores
+            hazardCleansing: 0.25, // 25% chance to cleanse hazards
+            tidePull: 0.1, // 10% chance to pull nearby ore to the surface
+            noLuck: false // Water elementals keep luck
+        },
+        visual: {
+            isElemental: true,
+            opacity: 0.8,
+            borderColor: '#0077BE',
+            waterFlow: true,
+            rippleEffect: true,
+            renderType: 'solid_color', // Solid color rendering
+            fillColor: 'rgba(0, 119, 190, 0.8)', // Deep blue water
+            shadowOffset: { x: 1, y: 1 },
+            shadowColor: 'rgba(0, 0, 0, 0.4)'
         }
     }
 };
@@ -139,12 +254,27 @@ function canSpawnFamiliars(playerData, familiarType) {
         if (!playerData?.equippedItems) return false;
         
         for (const item of Object.values(playerData.equippedItems)) {
+            // Handle unique items (they have itemId like "unique_9" and original id property)
+            let itemId = item?.id;
+            if (item?.isUnique && item?.itemId) {
+                // Extract original ID from unique items (e.g., "unique_9" -> 9)
+                const match = item.itemId.match(/unique_(\d+)/);
+                if (match) {
+                    itemId = parseInt(match[1], 10);
+                }
+            }
+            
             if (familiarType === FAMILIAR_TYPES.SHADOW_CLONE) {
                 // Shadow Legion Amulet check (ID 11 or name match)
-                if (item?.id === 11 || item?.name === "👥 Shadow Legion Amulet") {
+                if (itemId === 11 || item?.name === "👥 Shadow Legion Amulet") {
                     return true;
                 }
-            } else if (item?.id === config.sourceId) {
+            } else if (familiarType === FAMILIAR_TYPES.WATER_ELEMENTAL) {
+                // Blue Breeze check (ID 9 or name match)
+                if (itemId === 9 || item?.name === "🌊 Blue Breeze") {
+                    return true;
+                }
+            } else if (itemId === config.sourceId) {
                 return true;
             }
         }
@@ -274,6 +404,24 @@ function initializeFamiliars(playerId, playerName, playerData, mapData) {
         results.newlyCreated = results.newlyCreated || shadowResult.newlyCreated;
     }
     
+    // Check for water elementals (from Blue Breeze)
+    console.log(`[FAMILIAR DEBUG] Checking if ${playerName} can spawn water elementals...`);
+    const canSpawnWater = canSpawnFamiliars(playerData, FAMILIAR_TYPES.WATER_ELEMENTAL);
+    console.log(`[FAMILIAR DEBUG] ${playerName} can spawn water elementals: ${canSpawnWater}`);
+    
+    if (canSpawnWater) {
+        console.log(`[FAMILIAR DEBUG] Initializing water elemental for ${playerName}...`);
+        const waterResult = initializeWaterElemental(playerId, playerName, playerData, mapData);
+        console.log(`[FAMILIAR DEBUG] Water result for ${playerName}:`, {
+            familiarCount: waterResult.familiars.length,
+            mapChanged: waterResult.mapChanged,
+            newlyCreated: waterResult.newlyCreated
+        });
+        results.familiars = results.familiars.concat(waterResult.familiars);
+        results.mapChanged = results.mapChanged || waterResult.mapChanged;
+        results.newlyCreated = results.newlyCreated || waterResult.newlyCreated;
+    }
+    
     return results;
 }
 
@@ -284,9 +432,9 @@ function initializeShadowClones(playerId, playerName, playerData, mapData) {
     const familiarType = FAMILIAR_TYPES.SHADOW_CLONE;
     const config = FAMILIAR_CONFIGS[familiarType];
     
-    // Check if clones already exist
+    // Check if clones already exist and if we have the correct count
     const existingFamiliars = getPlayerFamiliars(playerId, familiarType);
-    if (existingFamiliars.length > 0) {
+    if (existingFamiliars.length >= config.maxCount) {
         return { 
             familiars: existingFamiliars, 
             mapChanged: false, 
@@ -296,15 +444,17 @@ function initializeShadowClones(playerId, playerName, playerData, mapData) {
     
     const shadowLegionItem = getUniqueItemById(11);
     const cloneConfig = shadowLegionItem.cloneConfig;
-    const familiars = [];
+    const familiars = [...existingFamiliars]; // Start with existing clones
     let mapChanged = false;
+    let newlyCreated = false;
     
     // Get player's current position
     const playerPos = mapData.playerPositions[playerId];
-    if (!playerPos) return { familiars: [], mapChanged: false, newlyCreated: false };
+    if (!playerPos) return { familiars: existingFamiliars, mapChanged: false, newlyCreated: false };
     
-    // Create shadow clones
-    for (let i = 1; i <= cloneConfig.count; i++) {
+    // Create missing shadow clones
+    const existingCount = existingFamiliars.length;
+    for (let i = existingCount + 1; i <= config.maxCount; i++) {
         const familiar = createFamiliar(
             playerId,
             playerName,
@@ -316,9 +466,15 @@ function initializeShadowClones(playerId, playerName, playerData, mapData) {
         
         familiars.push(familiar);
         
-        // Add to map
-        const offsetX = (i === 1) ? -1 : (i === 2) ? 1 : 0;
-        const offsetY = (i === 3) ? 1 : 0;
+        // Add to map (positioning for 5 clones around the player)
+        let offsetX = 0, offsetY = 0;
+        switch (i) {
+            case 1: offsetX = -1; offsetY = 0; break;  // Left
+            case 2: offsetX = 1; offsetY = 0; break;   // Right
+            case 3: offsetX = 0; offsetY = -1; break;  // Up
+            case 4: offsetX = 0; offsetY = 1; break;   // Down
+            case 5: offsetX = -1; offsetY = -1; break; // Diagonal up-left
+        }
         
         mapData.playerPositions[familiar.id] = {
             x: Math.max(0, Math.min(mapData.width - 1, playerPos.x + offsetX)),
@@ -331,7 +487,75 @@ function initializeShadowClones(playerId, playerName, playerData, mapData) {
         };
         
         mapChanged = true;
+        newlyCreated = true;
     }
+    
+    // Update active familiars (replace the old list with the new one)
+    activeFamiliars.set(playerId, familiars);
+    
+    const totalClones = familiars.length;
+    const newClones = totalClones - existingCount;
+    
+    if (newClones > 0) {
+        console.log(`[FAMILIAR] Created ${newClones} additional ${config.name}s for ${playerName} (total: ${totalClones})`);
+    } else {
+        console.log(`[FAMILIAR] ${playerName} already has ${totalClones} ${config.name}s`);
+    }
+    
+    return { familiars, mapChanged, newlyCreated };
+}
+
+/**
+ * Initialize water elemental specifically (from Blue Breeze)
+ */
+function initializeWaterElemental(playerId, playerName, playerData, mapData) {
+    const familiarType = FAMILIAR_TYPES.WATER_ELEMENTAL;
+    const config = FAMILIAR_CONFIGS[familiarType];
+    
+    // Check if water elemental already exists
+    const existingFamiliars = getPlayerFamiliars(playerId, familiarType);
+    if (existingFamiliars.length > 0) {
+        return { 
+            familiars: existingFamiliars, 
+            mapChanged: false, 
+            newlyCreated: false 
+        };
+    }
+    
+    const familiars = [];
+    let mapChanged = false;
+    
+    // Get player's current position
+    const playerPos = mapData.playerPositions[playerId];
+    if (!playerPos) return { familiars: [], mapChanged: false, newlyCreated: false };
+    
+    // Create water elemental (only 1)
+    const familiar = createFamiliar(
+        playerId,
+        playerName,
+        familiarType,
+        1, // Only one water elemental
+        playerData,
+        playerPos
+    );
+    
+    familiars.push(familiar);
+    
+    // Add to map (position next to player)
+    const spawnX = Math.max(0, Math.min(mapData.width - 1, playerPos.x + 1));
+    const spawnY = Math.max(0, Math.min(mapData.height - 1, playerPos.y));
+    
+    mapData.playerPositions[familiar.id] = {
+        x: spawnX,
+        y: spawnY,
+        isFamiliar: true,
+        familiarType: familiarType,
+        ownerId: playerId,
+        familiarIndex: 1,
+        hidden: false
+    };
+    
+    mapChanged = true;
     
     // Store active familiars
     if (!activeFamiliars.has(playerId)) {
@@ -339,7 +563,7 @@ function initializeShadowClones(playerId, playerName, playerData, mapData) {
     }
     activeFamiliars.get(playerId).push(...familiars);
     
-    console.log(`[FAMILIAR] Initialized ${familiars.length} ${config.name}s for ${playerName}`);
+    console.log(`[FAMILIAR] Initialized ${familiars.length} ${config.name}(s) for ${playerName}`);
     
     return { familiars, mapChanged, newlyCreated: true };
 }
@@ -704,6 +928,22 @@ async function processFamiliarActions(
                 eventLogs.push(`${familiar.displayName} found rare Shadow Ore!`);
             }
             
+            if (familiar.abilities.waterOreChance && Math.random() < familiar.abilities.waterOreChance) {
+                const waterOre = {
+                    item: {
+                        itemId: 'water_crystal',
+                        name: '💧 Water Crystal',
+                        value: 400,
+                        tier: 'rare'
+                    },
+                    quantity: 1
+                };
+                results.itemsFound.push(waterOre);
+                results.coinsEarned += waterOre.item.value;
+                familiar.tempMinecart.items.push(waterOre);
+                eventLogs.push(`${familiar.displayName} crystallized water from the depths!`);
+            }
+            
             // Convert ore tile to floor after mining
             targetTileData.type = 0;
             results.mapChanged = true;
@@ -758,6 +998,20 @@ function findFamiliarTarget(familiar, position, mapData) {
                     if (tile.type === 3 || tile.type === 4) {
                         isTarget = true;
                         priority = 3;
+                    } else if (tile.type === 1) {
+                        isTarget = true;
+                        priority = 1;
+                    }
+                    break;
+                    
+                case FAMILIAR_TYPES.WATER_ELEMENTAL:
+                    // Water elementals prefer ore > undiscovered > walls, similar to shadows but more fluid
+                    if (tile.type === 3 || tile.type === 4) {
+                        isTarget = true;
+                        priority = 3;
+                    } else if (!tile.discovered) {
+                        isTarget = true;
+                        priority = 2;
                     } else if (tile.type === 1) {
                         isTarget = true;
                         priority = 1;
@@ -841,6 +1095,43 @@ function getFamiliarMapSymbols() {
 }
 
 /**
+ * Get rendering properties for a familiar type
+ */
+function getFamiliarRenderingProperties(familiarType) {
+    const config = FAMILIAR_CONFIGS[familiarType];
+    if (!config) return null;
+    
+    return {
+        displayIcon: config.displayIcon,
+        name: config.name,
+        imageName: config.imageName,
+        pickaxeImage: config.pickaxeImage,
+        pickaxeFallback: config.pickaxeFallback,
+        visual: config.visual
+    };
+}
+
+/**
+ * Get familiar image path with fallback
+ */
+function getFamiliarImagePath(familiarType, usePickaxe = false) {
+    const config = FAMILIAR_CONFIGS[familiarType];
+    if (!config) return null;
+    
+    if (usePickaxe) {
+        return {
+            primary: config.pickaxeImage ? `./assets/items/${config.pickaxeImage}.png` : null,
+            fallback: config.pickaxeFallback ? `./assets/items/${config.pickaxeFallback}.png` : './assets/items/ironpickaxe.png'
+        };
+    } else {
+        return {
+            primary: config.imageName ? `./assets/familiars/${config.imageName}.png` : null,
+            fallback: null // No fallback for familiar images, will use solid color rendering
+        };
+    }
+}
+
+/**
  * Check if an entity is a familiar
  */
 function isFamiliar(entityId) {
@@ -849,7 +1140,8 @@ function isFamiliar(entityId) {
                        entityId.includes('_iron_golem_') ||
                        entityId.includes('_crystal_golem_') ||
                        entityId.includes('_fire_elemental_') ||
-                       entityId.includes('_ice_elemental_'));
+                       entityId.includes('_ice_elemental_') ||
+                       entityId.includes('_water_elemental_'));
 }
 
 module.exports = {
@@ -869,6 +1161,8 @@ module.exports = {
     
     // Utility functions
     getFamiliarMapSymbols,
+    getFamiliarRenderingProperties,
+    getFamiliarImagePath,
     isFamiliar,
     canSpawnFamiliars,
     

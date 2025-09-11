@@ -7,7 +7,6 @@ const {
 } = require('discord.js');
 const PlayerInventory = require('../models/inventory');
 const itemsheet = require('../data/itemSheet.json'); // must contain { id, name }
-const registerBotMessage = require('../patterns/registerBotMessage');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -21,7 +20,7 @@ module.exports = {
 
     async execute(interaction) {
         try {
-            await interaction.deferReply();
+            await interaction.deferReply({ ephemeral: true });
 
             const targetUser = interaction.options.getUser('member') || interaction.user;
 
@@ -30,7 +29,10 @@ module.exports = {
             }).lean();
 
             if (!playerInv || playerInv.items.length === 0) {
-                return interaction.editReply(`${targetUser.username} has no items in their inventory.`);
+                return interaction.editReply({
+                    content: `${targetUser.username} has no items in their inventory.`,
+                    ephemeral: true
+                });
             }
 
             // Process and sort items
@@ -72,11 +74,9 @@ module.exports = {
 
             const reply = await interaction.editReply({ 
                 embeds: [embed], 
-                components: components 
+                components: components,
+                ephemeral: true
             });
-
-            // Register for auto-cleanup after 10 minutes
-            await registerBotMessage(interaction.guild.id, interaction.channel.id, reply.id, 10);
 
             // Set up pagination if needed
             if (totalPages > 1) {
@@ -104,7 +104,8 @@ module.exports = {
 
                 collector.on('end', () => {
                     interaction.editReply({
-                        components: [] // Remove buttons when expired
+                        components: [], // Remove buttons when expired
+                        ephemeral: true
                     }).catch(() => {}); // Ignore errors if message was deleted
                 });
             }
@@ -113,7 +114,8 @@ module.exports = {
             console.error('[INVENTORY] Main execution error:', error);
             try {
                 await interaction.editReply({
-                    content: '❌ There was an error displaying the inventory. Please try again later.'
+                    content: '❌ There was an error displaying the inventory. Please try again later.',
+                    ephemeral: true
                 });
             } catch (replyError) {
                 console.error('[INVENTORY] Failed to send error reply:', replyError);

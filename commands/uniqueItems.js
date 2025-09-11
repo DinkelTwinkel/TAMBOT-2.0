@@ -47,6 +47,14 @@ module.exports = {
                 .addIntegerOption(option =>
                     option.setName('item_id')
                         .setDescription('The ID of the item to inspect')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('relinquish')
+                .setDescription('Give up ownership of a unique item (permanent!)')
+                .addIntegerOption(option =>
+                    option.setName('item_id')
+                        .setDescription('The ID of the item to relinquish')
                         .setRequired(true))),
                         
     async execute(interaction) {
@@ -70,12 +78,15 @@ module.exports = {
             case 'info':
                 await handleInfo(interaction);
                 break;
+            case 'relinquish':
+                await handleRelinquish(interaction, userId, userTag);
+                break;
         }
     }
 };
 
 async function handleInventory(interaction, userId) {
-    await interaction.deferReply();
+    await interaction.deferReply({ ephemeral: true });
     
     const items = await getPlayerUniqueItems(userId);
     
@@ -86,7 +97,7 @@ async function handleInventory(interaction, userId) {
             .setColor(0x808080)
             .setTimestamp();
             
-        return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed], ephemeral: true });
     }
     
     const embed = new EmbedBuilder()
@@ -135,7 +146,7 @@ async function handleInventory(interaction, userId) {
     
     embed.setFooter({ text: 'Use /unique maintain item_id:<ID> to perform maintenance' });
     
-    return interaction.editReply({ embeds: [embed] });
+    return interaction.editReply({ embeds: [embed], ephemeral: true });
 }
 
 async function handleMaintain(interaction, userId, userTag) {
@@ -170,6 +181,20 @@ async function handleMaintain(interaction, userId, userTag) {
                 )
                 .setColor(0x00FF00)
                 .setTimestamp();
+                
+            // Add wealth change information for Midas' Burden
+            if (itemId === 10 && result.wealthChange !== undefined) {
+                const changeEmoji = result.wealthChange > 0 ? '📈' : result.wealthChange < 0 ? '📉' : '💰';
+                const changeText = result.wealthChange === 0 ? 'No change' : 
+                    result.wealthChange > 0 ? `+${result.wealthChange.toLocaleString()} coins` : 
+                    `${result.wealthChange.toLocaleString()} coins`;
+                    
+                embed.addFields({
+                    name: `${changeEmoji} Wealth Effect`,
+                    value: changeText,
+                    inline: true
+                });
+            }
                 
             return interaction.editReply({ embeds: [embed] });
         }
@@ -286,7 +311,7 @@ async function handleGlobal(interaction) {
                 let text = '';
                 if (item.name === "Midas' Burden") {
                     // Special display for Midas' Burden
-                    text = `👑 **${item.name}**: `;
+                    text = `👑 **[ID: ${item.id}] ${item.name}**: `;
                     if (item.owner && item.owner !== 'Unowned') {
                         text += `${item.owner} (Maint: ${item.maintenanceLevel}/10)`;
                         if (richestInfo && midasBurden && midasBurden.ownerId !== richestInfo.userId) {
@@ -299,9 +324,9 @@ async function handleGlobal(interaction) {
                         text += `*Awaiting the wealthiest soul*`;
                     }
                 } else if (item.owner && item.owner !== 'Unowned') {
-                    text = `**${item.name}**: ${item.owner} (Maint: ${item.maintenanceLevel}/10)`;
+                    text = `**[ID: ${item.id}] ${item.name}**: ${item.owner} (Maint: ${item.maintenanceLevel}/10)`;
                 } else {
-                    text = `**${item.name}**: Undiscovered`;
+                    text = `**[ID: ${item.id}] ${item.name}**: Undiscovered`;
                 }
                 return text;
             })
@@ -314,7 +339,7 @@ async function handleGlobal(interaction) {
         });
     }
     
-    embed.setFooter({ text: 'Legendary loot awaits brave adventurers who dare to delve deep...' });
+    embed.setFooter({ text: 'Use /unique info item_id:<ID> for detailed information about any item' });
     
     return interaction.editReply({ embeds: [embed] });
 }
@@ -394,6 +419,173 @@ async function handleInfo(interaction) {
     embed.setFooter({ text: footerText });
     
     return interaction.reply({ embeds: [embed] });
+}
+
+async function handleRelinquish(interaction, userId, userTag) {
+    const itemId = interaction.options.getInteger('item_id');
+    
+    await interaction.deferReply();
+    
+    try {
+        // Find the unique item in the database
+        const item = await UniqueItem.findOne({ itemId, ownerId: userId });
+        
+        if (!item) {
+            const embed = new EmbedBuilder()
+                .setTitle('❌ Item Not Found')
+                .setDescription(`You don't own a unique item with ID ${itemId}!\nUse \`/unique inventory\` to see your items.`)
+                .setColor(0xFF0000)
+                .setTimestamp();
+                
+            return interaction.editReply({ embeds: [embed] });
+        }
+        
+        // Get item data for display
+        const itemData = getUniqueItemById(itemId);
+        if (!itemData) {
+            const embed = new EmbedBuilder()
+                .setTitle('❌ Invalid Item')
+                .setDescription(`Item data not found for ID ${itemId}!`)
+                .setColor(0xFF0000)
+                .setTimestamp();
+                
+            return interaction.editReply({ embeds: [embed] });
+        }
+        
+        // Special handling for Midas' Burden - it can't be manually relinquished
+        if (itemId === 10) {
+            const embed = new EmbedBuilder()
+                .setTitle('👑 Midas\' Burden Cannot Be Relinquished')
+                .setDescription(`The golden weight of **${itemData.name}** cannot be willingly cast aside!\n\nThis legendary burden can only be lost through:\n• Falling from wealthiest status\n• Maintenance failure\n• Being surpassed by a richer soul`)
+                .setColor(0xFFD700)
+                .setTimestamp();
+                
+            return interaction.editReply({ embeds: [embed] });
+        }
+        
+        // Create confirmation buttons
+        const confirmButton = new ButtonBuilder()
+            .setCustomId(`confirm_relinquish_${itemId}`)
+            .setLabel('Yes, Relinquish Forever')
+            .setStyle(ButtonStyle.Danger);
+            
+        const cancelButton = new ButtonBuilder()
+            .setCustomId(`cancel_relinquish_${itemId}`)
+            .setLabel('Cancel')
+            .setStyle(ButtonStyle.Secondary);
+            
+        const row = new ActionRowBuilder()
+            .addComponents(confirmButton, cancelButton);
+        
+        const embed = new EmbedBuilder()
+            .setTitle('⚠️ Confirm Relinquishment')
+            .setDescription(`Are you sure you want to **permanently** give up **${itemData.name}**?\n\n${getItemEmoji(itemData)} *${itemData.description}*\n\n**This action cannot be undone!**\nThe item will become available for others to find.`)
+            .addFields(
+                { name: 'Current Maintenance', value: `${item.maintenanceLevel}/10`, inline: true },
+                { name: 'Times Found', value: `${item.statistics?.timesFound || 0}`, inline: true }
+            )
+            .setColor(0xFF4444)
+            .setTimestamp();
+            
+        const response = await interaction.editReply({ 
+            embeds: [embed], 
+            components: [row] 
+        });
+        
+        // Wait for button interaction
+        try {
+            const confirmation = await response.awaitMessageComponent({ 
+                filter: i => i.user.id === userId && (i.customId.startsWith('confirm_relinquish_') || i.customId.startsWith('cancel_relinquish_')),
+                time: 30000 
+            });
+            
+            if (confirmation.customId.startsWith('confirm_relinquish_')) {
+                // Perform the relinquishment
+                await relinquishUniqueItem(item, userId, userTag);
+                
+                const successEmbed = new EmbedBuilder()
+                    .setTitle('✅ Item Relinquished')
+                    .setDescription(`You have permanently given up **${itemData.name}**.\n\nThe legendary artifact fades from your possession, returning to the realm of possibility for future adventurers to discover.`)
+                    .setColor(0x808080)
+                    .setTimestamp();
+                    
+                await confirmation.update({ embeds: [successEmbed], components: [] });
+                
+            } else {
+                // Cancelled
+                const cancelEmbed = new EmbedBuilder()
+                    .setTitle('❌ Relinquishment Cancelled')
+                    .setDescription(`**${itemData.name}** remains in your possession.`)
+                    .setColor(0x808080)
+                    .setTimestamp();
+                    
+                await confirmation.update({ embeds: [cancelEmbed], components: [] });
+            }
+            
+        } catch (error) {
+            // Timeout
+            const timeoutEmbed = new EmbedBuilder()
+                .setTitle('⏰ Confirmation Timeout')
+                .setDescription(`Relinquishment cancelled due to timeout. **${itemData.name}** remains in your possession.`)
+                .setColor(0x808080)
+                .setTimestamp();
+                
+            await interaction.editReply({ embeds: [timeoutEmbed], components: [] });
+        }
+        
+    } catch (error) {
+        console.error('[UNIQUE RELINQUISH] Error:', error);
+        
+        const errorEmbed = new EmbedBuilder()
+            .setTitle('❌ Error')
+            .setDescription('An error occurred while processing your request. Please try again.')
+            .setColor(0xFF0000)
+            .setTimestamp();
+            
+        return interaction.editReply({ embeds: [errorEmbed] });
+    }
+}
+
+/**
+ * Relinquish a unique item - remove ownership and reset for rediscovery
+ */
+async function relinquishUniqueItem(item, userId, userTag) {
+    // Add to previous owners history
+    if (item.previousOwners) {
+        item.previousOwners.push({
+            userId: userId,
+            userTag: userTag,
+            acquiredDate: item.createdAt,
+            lostDate: new Date(),
+            lostReason: 'voluntary_relinquishment'
+        });
+    }
+    
+    // Update statistics
+    if (item.statistics) {
+        item.statistics.timesVoluntarilyRelinquished = (item.statistics.timesVoluntarilyRelinquished || 0) + 1;
+    }
+    
+    // Remove current owner
+    item.ownerId = null;
+    item.ownerTag = null;
+    
+    // Reset maintenance for next owner
+    item.maintenanceLevel = 10;
+    item.nextMaintenanceCheck = null;
+    
+    // Reset activity tracking
+    item.activityTracking = {
+        miningBlocksThisCycle: 0,
+        voiceMinutesThisCycle: 0,
+        combatWinsThisCycle: 0,
+        socialInteractionsThisCycle: 0,
+        tilesMovedThisCycle: 0
+    };
+    
+    await item.save();
+    
+    console.log(`[UNIQUE RELINQUISH] ${userTag} voluntarily relinquished item ${item.itemId}`);
 }
 
 // Helper functions

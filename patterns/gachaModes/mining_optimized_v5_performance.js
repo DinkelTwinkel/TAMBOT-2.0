@@ -818,6 +818,13 @@ function getRandomFloorTile(mapData) {
 // Enhanced mining system with GUARANTEE system and power level filtering
 async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType, availableItems, efficiency, isDeeperMine = false, mineTypeId = null) {
     try {
+        // Debug logging at the start of mineFromTile
+        console.log(`[MINEFROMTILE DEBUG] ${member.displayName} mineFromTile called with:`);
+        console.log(`[MINEFROMTILE DEBUG] - mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId})`);
+        console.log(`[MINEFROMTILE DEBUG] - tileType: ${tileType}`);
+        console.log(`[MINEFROMTILE DEBUG] - powerLevel: ${powerLevel}`);
+        console.log(`[MINEFROMTILE DEBUG] - isDeeperMine: ${isDeeperMine}`);
+        
         // Import the unified mining system and mine correspondence
         const { findItemUnified, calculateItemQuantity, MINE_ORE_CORRESPONDENCE } = require('./mining/miningConstants_unified');
         
@@ -833,12 +840,13 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         }
 
         if (isGullet) {
-            // Use unified item system for special mines
+            // Use unified item system for special mines - ALWAYS use gullet items regardless of tile type
             let context = 'mining_wall';
             if (tileType === TILE_TYPES.TREASURE_CHEST) {
                 context = 'treasure_chest';
             } else if (tileType === TILE_TYPES.RARE_ORE) {
                 context = 'rare_ore';
+                console.log(`[GULLET RARE ORE] Mining rare ore in gullet - will ONLY drop gullet meat items`);
             }
 
             destination = 'inventory'; // All gullet items go to inventory
@@ -849,8 +857,13 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             
             console.log(`[GULLET DEBUG] Generated gullet item: ${item?.name} (ID: ${item?.itemId}) for ${member.displayName}`);
             
-            // Only log gullet items occasionally to reduce spam
-            if (Math.random() < 0.1) {
+            // Always log rare ore drops in gullet for verification
+            if (tileType === TILE_TYPES.RARE_ORE) {
+                console.log(`[GULLET RARE ORE] ✅ Rare ore in gullet dropped: ${item.name} (ID: ${item.itemId}) - Quantity: ${quantity}`);
+            }
+            
+            // Only log regular gullet items occasionally to reduce spam
+            if (tileType !== TILE_TYPES.RARE_ORE && Math.random() < 0.1) {
                 console.log(`[GULLET] Generated: ${item.name} for ${member.displayName}`);
             }
             
@@ -869,33 +882,39 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         if (mineConfig && mineConfig.guarantee) {
             const guaranteeRoll = Math.random();
             
+            // Use 80% guarantee for all mines instead of individual percentages
+            const ENHANCED_GUARANTEE = 0.80; // 80% chance for mine-specific ore
+            console.log(`[MINE BIAS DEBUG] Mine ${mineTypeId} guarantee check: ${(guaranteeRoll * 100).toFixed(1)}% vs ${ENHANCED_GUARANTEE * 100}% threshold`);
+            
             // If roll is within guarantee threshold, FORCE the specialized ore
-            if (guaranteeRoll < mineConfig.guarantee) {
+            if (guaranteeRoll < ENHANCED_GUARANTEE) {
                 // Find the specialized ore in available items
                 const specializedOre = availableItems.find(item => 
                     String(item.itemId) === String(mineConfig.oreId)
                 );
                 
                 if (specializedOre) {
+                    console.log(`[MINE BIAS DEBUG] ✅ GUARANTEE TRIGGERED - Forcing ${specializedOre.name} (ID: ${mineConfig.oreId}) in mine ${mineTypeId}`);
+                    
                     // Log guarantee activation (5% chance to avoid spam)
                     if (Math.random() < 0.05) {
-                        console.log(`[MINING GUARANTEE] ${specializedOre.name} guaranteed in mine ${mineTypeId} (${(mineConfig.guarantee * 100).toFixed(0)}% guarantee rate)`);
+                        console.log(`[MINING GUARANTEE] ${specializedOre.name} guaranteed in mine ${mineTypeId} (80% guarantee rate)`);
                     }
                     
                     // Calculate quantity with bonuses for higher tier mines
                     let quantity = 1;
                     
-                    // Base quantity from mining power
+                    // Base quantity from mining power - unlimited scaling!
                     if (miningPower > 0) {
-                        const maxBonus = Math.min(miningPower * 0.5, 2);
+                        const maxBonus = miningPower; // No caps - full mining power scaling!
                         quantity = 1 + Math.floor(Math.random() * maxBonus);
                     }
                     
-                    // Luck bonus
+                    // Luck bonus - unlimited scaling!
                     if (luckStat && luckStat > 0) {
-                        const bonusChance = Math.min(0.3, luckStat * 0.04);
-                        if (Math.random() < bonusChance) {
-                            quantity += Math.floor(1 + Math.random() * 2);
+                        const bonusChance = luckStat * 0.08; // No cap - unlimited luck scaling!
+                        if (Math.random() < Math.min(bonusChance, 0.95)) { // Only cap at 95% to prevent guaranteed hits
+                            quantity += Math.floor(1 + Math.random() * 5); // Increased bonus range
                         }
                     }
                     
@@ -925,9 +944,30 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
                         destination,
                         guaranteed: true // Mark as guaranteed find for logging
                     };
+                } else {
+                    console.log(`[MINE BIAS DEBUG] ❌ GUARANTEE FAILED - Target ore ${mineConfig.oreId} not found in availableItems`);
+                    console.log(`[MINE BIAS DEBUG] Available items:`, availableItems.map(i => `${i.name}(${i.itemId})`).slice(0, 10));
                 }
+            } else {
+                console.log(`[MINE BIAS DEBUG] ❌ GUARANTEE MISSED - Using random selection from availableItems (${(guaranteeRoll * 100).toFixed(1)}% >= 80%)`);
             }
+        } else if (mineTypeId && mineTypeId !== 16) {
+            console.log(`[MINE BIAS DEBUG] ❌ NO MINE CONFIG - Mine ${mineTypeId} not found in correspondence table`);
+            console.log(`[MINE BIAS DEBUG] Available mine IDs:`, Object.keys(MINE_ORE_CORRESPONDENCE).slice(0, 10));
         }
+        
+        // ALTERNATIVE: Use unified system for all mines for consistency
+        console.log(`[MINEFROMTILE DEBUG] Testing unified system for mine ${mineTypeId}...`);
+        let context = 'mining_wall';
+        if (tileType === 'treasure_chest') context = 'treasure_chest';
+        else if (tileType === 'rare_ore') context = 'rare_ore';
+        
+        console.log(`[MINEFROMTILE DEBUG] Calling findItemUnified with context: ${context}, mineTypeId: ${mineTypeId}`);
+        const unifiedItem = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine, mineTypeId);
+        console.log(`[MINEFROMTILE DEBUG] findItemUnified returned: ${unifiedItem?.name} (ID: ${unifiedItem?.itemId})`);
+        
+        // For now, continue with legacy system but show what unified would return
+        console.log(`[MINEFROMTILE DEBUG] Continuing with legacy system...`);
         
         // Validate availableItems parameter
         if (!availableItems || !Array.isArray(availableItems) || availableItems.length === 0) {
@@ -1316,7 +1356,8 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
                         const deeperResult = await deeperMineChecker.checkAndAddDeeperMineButton(
                             newEmbed, 
                             result, 
-                            channel.id
+                            channel.id,
+                            channel.guild
                         );
                         
                         if (deeperResult.components && deeperResult.components.length > 0) {
@@ -1344,7 +1385,8 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
                 const deeperResult = await deeperMineChecker.checkAndAddDeeperMineButton(
                     updatedEmbed, 
                     result, 
-                    channel.id
+                    channel.id,
+                    channel.guild
                 );
                 
                 if (deeperResult.components && deeperResult.components.length > 0) {
@@ -1374,7 +1416,8 @@ async function logEvent(channel, eventText, forceNew = false, powerLevelInfo = n
                 const deeperResult = await deeperMineChecker.checkAndAddDeeperMineButton(
                     embed, 
                     result, 
-                    channel.id
+                    channel.id,
+                    channel.guild
                 );
                 
                 if (deeperResult.components && deeperResult.components.length > 0) {
@@ -2211,7 +2254,17 @@ module.exports = async (channel, dbEntry, json, client) => {
         }
         
         // Get mine type ID for special mine handling (e.g., gullet meat items)
-        const mineTypeId = dbEntry.typeId;
+        // Use json.id since that's where the mine ID is stored in gachaServers.json
+        const mineTypeId = json?.id || dbEntry.typeId;
+        
+        // Debug logging for mine ID detection
+        console.log(`[MINE ID DEBUG] ===== MINE DETECTION =====`);
+        console.log(`[MINE ID DEBUG] Mine Name: ${json?.name || 'Unknown'}`);
+        console.log(`[MINE ID DEBUG] json.id: "${json?.id}" (type: ${typeof json?.id})`);
+        console.log(`[MINE ID DEBUG] dbEntry.typeId: "${dbEntry.typeId}" (type: ${typeof dbEntry.typeId})`);
+        console.log(`[MINE ID DEBUG] Final mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId})`);
+        console.log(`[MINE ID DEBUG] Players in mine: ${members.size}`);
+        
         // Enhanced logging for gullet detection and debugging
         if (mineTypeId === 16 || mineTypeId === '16') {
             console.log(`[GULLET DEBUG] Gullet mine detected (ID: ${mineTypeId}) with ${members.size} members`);
@@ -2749,19 +2802,24 @@ if (shouldStartBreak) {
         for (const member of members.values()) {
             const playerData = playerStatsMap.get(member.id);
             
-            // Check if player has familiar-generating items and initialize familiars
-            if (familiarSystem.canSpawnFamiliars(playerData, familiarSystem.FAMILIAR_TYPES.SHADOW_CLONE)) {
-                // Check clone limit
-                if (!canSpawnMoreClones()) {
-                    eventLogs.push(`⚠️ Maximum shadow limit reached in this mine!`);
-                    continue;
+            // Check if player has any familiar-generating items and initialize all familiars
+            const familiarResult = familiarSystem.initializeFamiliars(
+                member.id,
+                member.displayName,
+                playerData,
+                mapData
+            );
+            
+            if (familiarResult.familiars.length > 0) {
+                // Check clone limit for shadow clones specifically
+                const shadowClones = familiarResult.familiars.filter(f => f.type === 'shadow_clone');
+                if (shadowClones.length > 0) {
+                    if (!canSpawnMoreClones()) {
+                        eventLogs.push(`⚠️ Maximum shadow limit reached in this mine!`);
+                        // Remove shadow clones from the result but keep other familiars
+                        familiarResult.familiars = familiarResult.familiars.filter(f => f.type !== 'shadow_clone');
+                    }
                 }
-                const familiarResult = familiarSystem.initializeFamiliars(
-                    member.id,
-                    member.displayName,
-                    playerData,
-                    mapData
-                );
                 
                 if (familiarResult.mapChanged) {
                     mapChanged = true;
@@ -2774,9 +2832,19 @@ if (shouldStartBreak) {
                         clones: familiarResult.familiars // Keep 'clones' name for compatibility
                     });
                     
-                    // Only show materialization message for newly created familiars
+                    // Show materialization messages for newly created familiars
                     if (familiarResult.newlyCreated) {
-                        eventLogs.push(`👥 ${member.displayName}'s Shadow Legion has materialized! (${familiarResult.familiars.length} shadows)`);
+                        const shadowCount = familiarResult.familiars.filter(f => f.type === 'shadow_clone').length;
+                        const otherFamiliars = familiarResult.familiars.filter(f => f.type !== 'shadow_clone');
+                        
+                        if (shadowCount > 0) {
+                            eventLogs.push(`👥 ${member.displayName}'s Shadow Legion has materialized! (${shadowCount} shadows)`);
+                        }
+                        
+                        for (const familiar of otherFamiliars) {
+                            const config = familiarSystem.FAMILIAR_CONFIGS[familiar.type];
+                            eventLogs.push(`${config.displayIcon} ${member.displayName} summoned a ${config.name}!`);
+                        }
                     }
                 }
             }
@@ -2932,9 +3000,14 @@ if (shouldStartBreak) {
                             let offsetX = 0, offsetY = 0;
                             
                             if (familiar.type === 'shadow_clone') {
-                                // Shadow clone positioning
-                                offsetX = (familiar.index === 1) ? -1 : (familiar.index === 2) ? 1 : 0;
-                                offsetY = (familiar.index === 3) ? 1 : 0;
+                                // Shadow clone positioning (for 5 clones)
+                                switch (familiar.index) {
+                                    case 1: offsetX = -1; offsetY = 0; break;  // Left
+                                    case 2: offsetX = 1; offsetY = 0; break;   // Right
+                                    case 3: offsetX = 0; offsetY = -1; break;  // Up
+                                    case 4: offsetX = 0; offsetY = 1; break;   // Down
+                                    case 5: offsetX = -1; offsetY = -1; break; // Diagonal up-left
+                                }
                             } else {
                                 // Other familiars positioned next to owner
                                 offsetX = familiar.index - 1;
@@ -3142,7 +3215,8 @@ if (shouldStartBreak) {
                     eventLogs,
                     freshDbEntry,  // Use fresh dbEntry per player
                     hazardsData,
-                    teamLuckBonus  // Pass team luck bonus
+                    teamLuckBonus,  // Pass team luck bonus
+                    mineTypeId  // Pass mine type ID for proper ore correspondence
                 );
                 
                 // === UPDATE CACHE AFTER PLAYER ACTION - RACE CONDITION FIX ===
@@ -3310,7 +3384,10 @@ if (shouldStartBreak) {
 };
 
 // Enhanced player action processing with improved error handling and performance
-async function processPlayerActionsEnhanced(member, playerData, mapData, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0) {
+async function processPlayerActionsEnhanced(member, playerData, mapData, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0, mineTypeId = null) {
+    // Debug logging for mineTypeId
+    console.log(`[PROCESSPLAYER DEBUG] ${member.displayName} processPlayerActionsEnhanced called with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId})`);
+    
     // Input validation
     if (!member || !playerData || !mapData) {
         console.warn('[MINING] Invalid parameters passed to processPlayerActionsEnhanced');
@@ -3335,8 +3412,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
     let teamMiningSpeedBonus = 0;
     let teamAllStatsBonus = 0;
 
-    // Get deeper mine status with caching
-    const mineTypeId = dbEntry?.typeId || null;
+    // Get deeper mine status with caching (mineTypeId now passed as parameter)
     let isDeeperMine = false;
 
     // Check if this is a deeper mine with improved error handling
@@ -3779,6 +3855,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 console.log(`[MINING DEBUG] ${member.displayName} canBreakTile result: ${canBreak}`);
                 if (canBreak) {
                     console.log(`[MINING DEBUG] ${member.displayName} attempting to mine tile at (${adjacentTarget.x},${adjacentTarget.y})`);
+                    console.log(`[MINE ID DEBUG] ${member.displayName} mining with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId}) | tile type: ${tile.type} | power level: ${powerLevel}`);
                     const { item, quantity, destination } = await mineFromTile(member, miningPower, luckStat, powerLevel, tile.type, availableItems, efficiency, isDeeperMine, mineTypeId);
                     if (!item) {
                         console.log(`[MINING DEBUG] ${member.displayName} ERROR: mineFromTile returned null/undefined item, skipping tile conversion`);
@@ -3998,6 +4075,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         for (const chainTarget of chainTargets) {
                             const chainTile = mapData.tiles[chainTarget.y][chainTarget.x];
                             if (chainTile && await canBreakTile(member.id, miningPower, chainTile)) {
+                                console.log(`[MINE ID DEBUG] ${member.displayName} CHAIN mining with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId}) | tile type: ${chainTile.type}`);
                                 const { item: chainItem, quantity: chainQty } = await mineFromTile(
                                     member, miningPower, luckStat, powerLevel, 
                                     chainTile.type, availableItems, efficiency
@@ -4188,6 +4266,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         continue;
                     }
                     if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
+                        console.log(`[MINE ID DEBUG] ${member.displayName} SPEED mining with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId}) | tile type: ${targetTile.type}`);
                         const { item, quantity, destination } = await mineFromTile(member, miningPower, luckStat, powerLevel, targetTile.type, availableItems, efficiency, isDeeperMine, mineTypeId);
                         
                         let finalQuantity = quantity;

@@ -85,7 +85,7 @@ const uniqueItemSchema = new Schema({
         lostDate: Date,
         lostReason: { 
             type: String, 
-            enum: ['maintenance_failure', 'traded', 'destroyed', 'no_longer_richest', 'other'] 
+            enum: ['maintenance_failure', 'traded', 'destroyed', 'no_longer_richest', 'voluntary_relinquishment', 'other'] 
         }
     }],
     
@@ -93,6 +93,7 @@ const uniqueItemSchema = new Schema({
     statistics: {
         timesFound: { type: Number, default: 0 },
         timesLostToMaintenance: { type: Number, default: 0 },
+        timesVoluntarilyRelinquished: { type: Number, default: 0 },
         totalMaintenancePerformed: { type: Number, default: 0 },
         totalCoinsSpentOnMaintenance: { type: Number, default: 0 }
     }
@@ -125,36 +126,42 @@ uniqueItemSchema.statics.findPlayerUniqueItems = function(playerId) {
 };
 
 // Instance method to perform maintenance reduction
-uniqueItemSchema.methods.reduceMaintenance = function(amount = 1) {
+uniqueItemSchema.methods.reduceMaintenance = async function(amount = 1, isRichest = false) {
     this.maintenanceLevel = Math.max(0, this.maintenanceLevel - amount);
     
-    // If maintenance hits 0, remove owner
+    // If maintenance hits 0, handle ownership loss
     if (this.maintenanceLevel <= 0 && this.ownerId) {
-        // Add to previous owners history
-        this.previousOwners.push({
-            userId: this.ownerId,
-            userTag: this.ownerTag,
-            acquiredDate: this.createdAt,
-            lostDate: new Date(),
-            lostReason: 'maintenance_failure'
-        });
-        
-        // Update statistics
-        this.statistics.timesLostToMaintenance++;
-        
-        // Remove current owner
-        this.ownerId = null;
-        this.ownerTag = null;
-        
-        // Reset maintenance for next owner
-        this.maintenanceLevel = 10;
-        this.activityTracking = {
-            miningBlocksThisCycle: 0,
-            voiceMinutesThisCycle: 0,
-            combatWinsThisCycle: 0,
-            socialInteractionsThisCycle: 0,
-            tilesMovedThisCycle: 0
-        };
+        // Special handling for Midas' Burden - don't lose it if still richest
+        if (this.itemId === 10 && isRichest) {
+            console.log(`[UNIQUE ITEMS] Midas' Burden: Maintenance at 0 but owner still wealthiest - keeping item at minimal maintenance`);
+            this.maintenanceLevel = 1; // Give minimal maintenance to keep it active
+        } else {
+            // Add to previous owners history
+            this.previousOwners.push({
+                userId: this.ownerId,
+                userTag: this.ownerTag,
+                acquiredDate: this.createdAt,
+                lostDate: new Date(),
+                lostReason: 'maintenance_failure'
+            });
+            
+            // Update statistics
+            this.statistics.timesLostToMaintenance++;
+            
+            // Remove current owner
+            this.ownerId = null;
+            this.ownerTag = null;
+            
+            // Reset maintenance for next owner
+            this.maintenanceLevel = 10;
+            this.activityTracking = {
+                miningBlocksThisCycle: 0,
+                voiceMinutesThisCycle: 0,
+                combatWinsThisCycle: 0,
+                socialInteractionsThisCycle: 0,
+                tilesMovedThisCycle: 0
+            };
+        }
     }
     
     return this.save();

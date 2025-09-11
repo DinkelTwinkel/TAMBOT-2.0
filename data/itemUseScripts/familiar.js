@@ -127,26 +127,121 @@ async function execute(context) {
         // Success! The familiar was spawned
         await consumeItem(1); // Remove one item from inventory
         
+        // Send public announcement message
+        try {
+            const config = familiarSystem.FAMILIAR_CONFIGS[familiarType];
+            await channel.send(`${config.displayIcon} **${member.displayName}** summoned a **${config.name}**!`);
+        } catch (announceError) {
+            console.error('[FAMILIAR] Error sending familiar summoning announcement:', announceError);
+            // Don't fail the summoning if announcement fails
+        }
+        
+        const config = familiarSystem.FAMILIAR_CONFIGS[familiarType];
+        const familiar = spawnResult.familiar;
+        
+        // Build comprehensive stats display
+        const fields = [];
+        
+        // Duration field
+        fields.push({
+            name: "⏰ Duration",
+            value: config.duration ? 
+                `${Math.floor(config.duration / 60000)} minutes` : 
+                "Permanent (while you have the required item)",
+            inline: true
+        });
+        
+        // Stats field
+        if (config.statMultiplier) {
+            // Percentage-based stats (like shadow clones)
+            fields.push({
+                name: "📊 Stats",
+                value: `${Math.floor(config.statMultiplier * 100)}% of your stats`,
+                inline: true
+            });
+        } else if (config.baseStats) {
+            // Fixed base stats (like golems)
+            const statsText = [
+                `⛏️ Mining: ${config.baseStats.mining}`,
+                `👁️ Sight: ${config.baseStats.sight}`,
+                `⚡ Speed: ${config.baseStats.speed}`
+            ];
+            if (config.baseStats.luck > 0) {
+                statsText.push(`🍀 Luck: ${config.baseStats.luck}`);
+            }
+            fields.push({
+                name: "📊 Base Stats",
+                value: statsText.join('\n'),
+                inline: true
+            });
+        }
+        
+        // Actual calculated stats (from the created familiar)
+        if (familiar && familiar.stats) {
+            const actualStatsText = [
+                `⛏️ ${familiar.stats.mining}`,
+                `👁️ ${familiar.stats.sight}`,
+                `⚡ ${familiar.stats.speed}`
+            ];
+            if (familiar.stats.luck > 0) {
+                actualStatsText.push(`🍀 ${familiar.stats.luck}`);
+            }
+            fields.push({
+                name: "💪 Current Stats",
+                value: actualStatsText.join('\n'),
+                inline: true
+            });
+        }
+        
+        // Special abilities
+        if (config.abilities) {
+            const abilities = [];
+            
+            if (config.abilities.shadowOreChance) {
+                abilities.push(`👤 ${Math.floor(config.abilities.shadowOreChance * 100)}% shadow ore chance`);
+            }
+            if (config.abilities.fireBonus) {
+                abilities.push(`🔥 ${Math.floor(config.abilities.fireBonus * 100)}% fire ore bonus`);
+            }
+            if (config.abilities.freezeChance) {
+                abilities.push(`❄️ ${Math.floor(config.abilities.freezeChance * 100)}% freeze hazards`);
+            }
+            if (config.abilities.waterOreChance) {
+                abilities.push(`🌊 ${Math.floor(config.abilities.waterOreChance * 100)}% water ore chance`);
+            }
+            if (config.abilities.stoneResistance) {
+                abilities.push(`🗿 ${Math.floor(config.abilities.stoneResistance * 100)}% stone resistance`);
+            }
+            if (config.abilities.knockoutResistance) {
+                abilities.push(`🛡️ ${Math.floor(config.abilities.knockoutResistance * 100)}% knockout resistance`);
+            }
+            if (config.abilities.slowMovement && config.abilities.slowMovement < 1) {
+                abilities.push(`🐌 ${Math.floor(config.abilities.slowMovement * 100)}% movement speed`);
+            }
+            if (config.abilities.ultraSlow && config.abilities.ultraSlow < 1) {
+                abilities.push(`🐌 ${Math.floor(config.abilities.ultraSlow * 100)}% movement speed`);
+            }
+            if (config.abilities.noLuck) {
+                abilities.push(`🚫 No luck bonus`);
+            }
+            if (config.abilities.hazardTriggerChance) {
+                abilities.push(`⚠️ ${Math.floor(config.abilities.hazardTriggerChance * 100)}% hazard trigger chance`);
+            }
+            
+            if (abilities.length > 0) {
+                fields.push({
+                    name: "✨ Special Abilities",
+                    value: abilities.join('\n'),
+                    inline: false
+                });
+            }
+        }
+        
         return await sendEmbed({
-            title: `${familiarSystem.FAMILIAR_CONFIGS[familiarType].displayIcon} Familiar Summoned!`,
-            description: spawnResult.message,
+            title: `${config.displayIcon} Familiar Summoned!`,
+            description: `**${member.displayName}** successfully summoned a **${config.name}**!\n\n${spawnResult.message}`,
             color: 0x00FF00,
-            fields: [
-                {
-                    name: "Duration",
-                    value: familiarSystem.FAMILIAR_CONFIGS[familiarType].duration ? 
-                        `${Math.floor(familiarSystem.FAMILIAR_CONFIGS[familiarType].duration / 60000)} minutes` : 
-                        "Permanent (while you have the required item)",
-                    inline: true
-                },
-                {
-                    name: "Mining Power",
-                    value: familiarSystem.FAMILIAR_CONFIGS[familiarType].statMultiplier ? 
-                        `${Math.floor(familiarSystem.FAMILIAR_CONFIGS[familiarType].statMultiplier * 100)}% of your stats` :
-                        `${familiarSystem.FAMILIAR_CONFIGS[familiarType].baseStats.mining} mining power`,
-                    inline: true
-                }
-            ]
+            fields: fields
         });
         
     } catch (error) {

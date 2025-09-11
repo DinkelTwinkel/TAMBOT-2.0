@@ -210,52 +210,10 @@ function calculateFluctuatedPrice(basePrice, guildConfigUpdatedAt, itemId, price
     return Math.max(1, Math.floor(basePrice * multiplier));
 }
 
-// Function to calculate shop discounts from unique items
-async function calculateShopDiscount(playerId) {
-    try {
-        const { calculatePlayerStat } = require('./calculatePlayerStat');
-        const { parseUniqueItemBonuses } = require('./gachaModes/mining/uniqueItemBonuses');
-        
-        const playerStats = await calculatePlayerStat(playerId);
-        if (!playerStats || !playerStats.equippedItems) return 1.0; // No discount
-        
-        const uniqueBonuses = parseUniqueItemBonuses(playerStats.equippedItems);
-        let discount = 1.0;
-        
-        // Crown of the Forgotten King - Royal discount
-        if (uniqueBonuses.npcSystem && uniqueBonuses.npcSystem.canCommandNPC) {
-            discount *= 0.9; // 10% discount
-        }
-        
-        // Midas' Burden - Wealth attracts better deals
-        if (uniqueBonuses.greed > 0) {
-            discount *= 0.95; // 5% discount
-        }
-        
-        // Crystal Seer's Orb - Divination reveals best prices
-        if (uniqueBonuses.divination > 0.5) {
-            discount *= 0.85; // 15% discount
-        }
-        
-        // The One Pick - Legendary status commands respect
-        if (uniqueBonuses.titles && uniqueBonuses.titles.includes('Heir of the Miner King')) {
-            discount *= 0.8; // 20% discount
-        }
-        
-        return Math.max(0.5, discount); // Minimum 50% of original price
-        
-    } catch (error) {
-        console.error('[SHOP] Error calculating discount:', error);
-        return 1.0; // No discount on error
-    }
-}
 
 // Function to get fluctuated prices for all items in the shop using guild config
-async function getShopPrices(itemIds, guildId, priceChangeFactor, playerId = null) {
+async function getShopPrices(itemIds, guildId, priceChangeFactor) {
     const prices = {};
-    
-    // Calculate player discount if playerId provided
-    const playerDiscount = playerId ? await calculateShopDiscount(playerId) : 1.0;
     
     // Get guild config for seeding
     const guildConfig = await GuildConfig.findOne({ guildId });
@@ -270,10 +228,8 @@ async function getShopPrices(itemIds, guildId, priceChangeFactor, playerId = nul
                 const baseSellPrice = Math.floor(baseBuyPrice / 2);
                 
                 prices[itemId] = {
-                    buy: Math.floor(baseBuyPrice * playerDiscount),
-                    sell: baseSellPrice, // Sell prices not affected by discount
-                    originalBuy: baseBuyPrice,
-                    discount: playerDiscount < 1.0 ? Math.round((1 - playerDiscount) * 100) : 0
+                    buy: baseBuyPrice,
+                    sell: baseSellPrice
                 };
             }
         });
@@ -287,10 +243,8 @@ async function getShopPrices(itemIds, guildId, priceChangeFactor, playerId = nul
             const baseSellPrice = Math.floor(baseBuyPrice / 2);
             
             prices[itemId] = {
-                buy: Math.floor(baseBuyPrice * playerDiscount),
-                sell: baseSellPrice, // Sell prices not affected by discount
-                originalBuy: baseBuyPrice,
-                discount: playerDiscount < 1.0 ? Math.round((1 - playerDiscount) * 100) : 0
+                buy: baseBuyPrice,
+                sell: baseSellPrice
             };
         }
     });
@@ -937,4 +891,3 @@ module.exports.generateNoItemDialogue = generateNoItemDialogue;
 module.exports.rememberPurchase = rememberPurchase;
 module.exports.getRecentPurchases = getRecentPurchases;
 module.exports.canUseAIForShop = canUseAIForShop;
-module.exports.calculateShopDiscount = calculateShopDiscount;

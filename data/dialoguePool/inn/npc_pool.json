@@ -2,7 +2,7 @@
   "system": "inn",
   "category": "npc",
   "version": "1.0",
-  "savedAt": 1757524815183,
+  "savedAt": 1757609108396,
   "pools": {
     "f24b9fbf48f9": [
       {
@@ -693,8 +693,8 @@
           "npcType": "generic",
           "tipModifier": 1.1,
           "createdAt": 1757101540300,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757599451796,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -801,8 +801,8 @@
           "npcType": "generic",
           "tipModifier": 1.1,
           "createdAt": 1757101942159,
-          "usageCount": 1,
-          "lastUsed": 1757101962128,
+          "usageCount": 2,
+          "lastUsed": 1757608288982,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1071,8 +1071,8 @@
           "npcType": "generic",
           "tipModifier": 1.4,
           "createdAt": 1757102236924,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757607418201,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1089,8 +1089,8 @@
           "npcType": "generic",
           "tipModifier": 1.2,
           "createdAt": 1757102311900,
-          "usageCount": 1,
-          "lastUsed": 1757102777244,
+          "usageCount": 3,
+          "lastUsed": 1757606648519,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1161,8 +1161,8 @@
           "npcType": "generic",
           "tipModifier": 1.3,
           "createdAt": 1757102419161,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757606457695,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1287,8 +1287,8 @@
           "npcType": "generic",
           "tipModifier": 1,
           "createdAt": 1757103483093,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757600812799,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1305,8 +1305,8 @@
           "npcType": "generic",
           "tipModifier": 1.4,
           "createdAt": 1757103490736,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757601744497,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1377,6 +1377,168 @@
           "npcType": "generic",
           "tipModifier": 1.4,
           "createdAt": 1757103898873,
+          "usageCount": 1,
+          "lastUsed": 1757609016409,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "e185a937af89d24a",
+        "dialogue": "I'll take the Royal Feast. Keep the change, I don't need any magic interfering with my meal.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757599128378,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "9c9c57f4588db525",
+        "dialogue": "Royal Feast for 971 coins. Null pays without a flicker of magic.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757599635842,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d9793c22e5d6aa2d",
+        "dialogue": "Royal Feast. No magical enhancements, right? Just need sustenance.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757599909363,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d28a5421c1ecc989",
+        "dialogue": "Royal Feast, please. Your magic won't affect me, but your cooking might.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757600356800,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0e9ff983a44abb59",
+        "dialogue": "Royal Feast for 995 coins. Null's presence negates magic, but physics still craves sustenance.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757600744661,
+          "usageCount": 1,
+          "lastUsed": 1757606796986,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "fa4440e25a7f704a",
+        "dialogue": "Royal Feast, please. No magic, just good food.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757601394545,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f2ebd8a625f806c2",
+        "dialogue": "Here's 842 coins for the Royal Feast. Keep the change. Thank you.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757601880667,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "c5420f06b7886214",
+        "dialogue": "Buying Royal Feast. No magic needed for a good meal.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757606732159,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "a660f8f3550227e1",
+        "dialogue": "Royal Feast for 1093 coins. The price matches the taste.",
+        "contextKey": "bc4434c7cf60",
+        "metadata": {
+          "mood": "neutral",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.5,
+          "createdAt": 1757607581134,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",
@@ -1397,8 +1559,8 @@
           "npcType": "generic",
           "tipModifier": 2.2,
           "createdAt": 1757101547925,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757601870950,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1415,8 +1577,8 @@
           "npcType": "generic",
           "tipModifier": 1.7,
           "createdAt": 1757101643772,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757606220256,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1433,8 +1595,8 @@
           "npcType": "generic",
           "tipModifier": 2.2,
           "createdAt": 1757101998481,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757606465043,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1451,8 +1613,8 @@
           "npcType": "generic",
           "tipModifier": 1.8,
           "createdAt": 1757101999679,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757609030817,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1469,8 +1631,8 @@
           "npcType": "generic",
           "tipModifier": 3,
           "createdAt": 1757102082658,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757605399227,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1487,8 +1649,8 @@
           "npcType": "generic",
           "tipModifier": 1.7,
           "createdAt": 1757102211893,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 2,
+          "lastUsed": 1757606787705,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1505,8 +1667,8 @@
           "npcType": "generic",
           "tipModifier": 3,
           "createdAt": 1757102771840,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 2,
+          "lastUsed": 1757605785123,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1523,8 +1685,8 @@
           "npcType": "generic",
           "tipModifier": 1.7,
           "createdAt": 1757103525072,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757606633917,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1541,8 +1703,8 @@
           "npcType": "generic",
           "tipModifier": 1.7,
           "createdAt": 1757103573137,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757599970988,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1559,8 +1721,8 @@
           "npcType": "generic",
           "tipModifier": 1.7,
           "createdAt": 1757103954503,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 2,
+          "lastUsed": 1757607252528,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1577,8 +1739,8 @@
           "npcType": "generic",
           "tipModifier": 2.2,
           "createdAt": 1757522690187,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 2,
+          "lastUsed": 1757607426515,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1595,6 +1757,780 @@
           "npcType": "generic",
           "tipModifier": 2.3,
           "createdAt": 1757524813869,
+          "usageCount": 1,
+          "lastUsed": 1757600770836,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "9d6b54b3503edf7f",
+        "dialogue": "Ah, a Royal Feast for a royal thief. A fitting reward for a night's work.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.3,
+          "createdAt": 1757599066375,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f0783b3c68e0b4c3",
+        "dialogue": "Another delicious meal to fuel our impossible designs. Onward, my team, let's build wonders!",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757599087174,
+          "usageCount": 3,
+          "lastUsed": 1757607572715,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "2e4817aabda6975d",
+        "dialogue": "Royal Feast for 1017 coins? A bargain for such a splendid meal in Hellungi.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757599131280,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d58b592d6cb2bd99",
+        "dialogue": "An inn with stable architecture? A rare find in Hellungi. Let's see how long it lasts.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757599159958,
+          "usageCount": 1,
+          "lastUsed": 1757601952485,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "44337cac9b5bee74",
+        "dialogue": "Why, a Royal Feast for me? Yes indeed, a treat fit for a gentleman thief.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599251329,
+          "usageCount": 2,
+          "lastUsed": 1757606721132,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0ac98e0812651801",
+        "dialogue": "Another feast, another steal. The shadows hunger for more.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.3,
+          "createdAt": 1757599320311,
+          "usageCount": 2,
+          "lastUsed": 1757605892122,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "1e840b2cc9a48136",
+        "dialogue": "The Royal Feast, a wise choice! Join us, let's dine and discuss chess.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757599374198,
+          "usageCount": 1,
+          "lastUsed": 1757606970372,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b6b373a328f8ea48",
+        "dialogue": "Royal Feast for 1123 coins? A bargain! Thank you for the tip as well.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757599559493,
+          "usageCount": 1,
+          "lastUsed": 1757606240241,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "3b1491ee830a359f",
+        "dialogue": "Ah, a Royal Feast! Let's savor stability while we can in this ever-changing abyss.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757599621462,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "247953047cd41f7e",
+        "dialogue": "Ah, a Royal Feast for 925 coins? A steal compared to the feasts of 'before'.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757599642030,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b15379f9a53395cc",
+        "dialogue": "Royal Feast for 888 coins? A generous price for a taste of home.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757599649017,
+          "usageCount": 1,
+          "lastUsed": 1757607347382,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "cbc47d0613ad4566",
+        "dialogue": "Royal Feast for 1128 coins? A bargain! In 'before,' we'd pay double! Ah, the memories...",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757599712410,
+          "usageCount": 1,
+          "lastUsed": 1757606557482,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "06ae9047ad40dae5",
+        "dialogue": "Ah, a Royal Feast in Hellungi, a delightful choice indeed! Yes indeed, splendid!",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599714252,
+          "usageCount": 1,
+          "lastUsed": 1757606994111,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "a2706ab138f0abe4",
+        "dialogue": "The Royal Feast, a wise choice! Enjoy the flavors that defy the void's hunger.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757599831814,
+          "usageCount": 3,
+          "lastUsed": 1757609037711,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b5a280ec55705835",
+        "dialogue": "Investing in stability for a change. Perhaps the inn will inspire a new design.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757599972528,
+          "usageCount": 1,
+          "lastUsed": 1757606946795,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "9ea51a2b4d83bb58",
+        "dialogue": "Royal Feast for 992 coins? A bargain for such a grand meal in Hellungi!",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757600276829,
+          "usageCount": 1,
+          "lastUsed": 1757607378060,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "bd020ec943b50d83",
+        "dialogue": "Ah, Royal Feast! In 'before,' we savored such luxuries under open sky.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757600349463,
+          "usageCount": 2,
+          "lastUsed": 1757605680263,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "052e7d40c1d1ab28",
+        "dialogue": "Another Royal Feast to fuel our impossible designs - let's create beauty in chaos!",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757600429166,
+          "usageCount": 2,
+          "lastUsed": 1757607634142,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "3086340205ec152e",
+        "dialogue": "Welcome, friend! The Royal Feast will keep you sane in this madness.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757601427759,
+          "usageCount": 2,
+          "lastUsed": 1757608169728,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "e7709f12ba2335ee",
+        "dialogue": "Ah, a Royal Feast for the gentleman thief in a place with nothing to steal. Yes indeed.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757601730177,
+          "usageCount": 1,
+          "lastUsed": 1757607454499,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "3243f9a205419d63",
+        "dialogue": "Ah, a Royal Feast! To dine in stability, a rare treat in Hellungi's shifting chaos.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757601905782,
+          "usageCount": 1,
+          "lastUsed": 1757606878975,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "8de6b6f2b1a36a05",
+        "dialogue": "This inn's stability is a welcome change in this chaotic abyss.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757602011017,
+          "usageCount": 1,
+          "lastUsed": 1757605851763,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "bf60012c530509e4",
+        "dialogue": "Royal Feast for 1132 coins? What a bargain! I'll share with anyone who wants to taste!",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757602012934,
+          "usageCount": 2,
+          "lastUsed": 1757608303502,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "4f9b999696e53a01",
+        "dialogue": "The Royal Feast will be a delight for all, a taste of home in Hellungi.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757602068009,
+          "usageCount": 1,
+          "lastUsed": 1757606516060,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "946f550ac93f73b2",
+        "dialogue": "Royal Feast for 906 coins? A grand meal in this void! Thank you kindly.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757602114658,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d1488e40cd854e78",
+        "dialogue": "Royal Feast, please. For 900 coins? Quite the bargain! Thank you kindly.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757603367802,
+          "usageCount": 1,
+          "lastUsed": 1757606986049,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "3ceea0a098bb14d5",
+        "dialogue": "Royal Feast? A fitting reward for my team's hard work in this stable oasis.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757603683645,
+          "usageCount": 1,
+          "lastUsed": 1757606670465,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "8704dbd6c741e5d5",
+        "dialogue": "I hope this Royal Feast brings a smile to your face in this chaotic place.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757603694848,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "8aff7a17013c9888",
+        "dialogue": "Ah, Royal Feast! In 'before,' such luxuries were plentiful. Now, a rare treat indeed.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757605614330,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "750f84938364feb4",
+        "dialogue": "Ah, a Royal Feast for one, if you please. Yes indeed, a worthy indulgence.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757605639178,
+          "usageCount": 2,
+          "lastUsed": 1757607522938,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "afca504a68141ac9",
+        "dialogue": "A Royal Feast for 938 coins? What a bargain! I'll make the inn's garden bloom with new life.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 4,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757605668094,
+          "usageCount": 2,
+          "lastUsed": 1757607550280,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "8ca9681f44615107",
+        "dialogue": "Ah, a Royal Feast for myself, the ultimate heist of flavor indeed, yes indeed.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757605958024,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "a70c5f4345d78b50",
+        "dialogue": "The Royal Feast, a wise choice! Let's eat, chat, and maybe find The One Pick.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757606013550,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "890fb828f7c3743b",
+        "dialogue": "In my day, a Royal Feast cost less than a scroll. Ah, the memories...",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757606110192,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "6700caf194dffffa",
+        "dialogue": "A feast fit for a thief, even if the shadows will steal it back.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.3,
+          "createdAt": 1757606171199,
+          "usageCount": 1,
+          "lastUsed": 1757606633460,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "feef546f69c2c4da",
+        "dialogue": "The Royal Feast will keep you sane... or as close as one can get here.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757606277754,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d2610b95b63a3c81",
+        "dialogue": "Another day, another unstable structure to design. Perhaps a stable inn will provide inspiration.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757606395284,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d1dd7eedc2ef76be",
+        "dialogue": "The Royal Feast is a wise choice, my friend. May it fortify you in this strange land.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757606402361,
+          "usageCount": 1,
+          "lastUsed": 1757606598506,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "195220e0e751f261",
+        "dialogue": "The inn's stability is a rare delight in this ever-shifting abyss.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757607249342,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "004b695ed32490ae",
+        "dialogue": "Ah, a Royal Feast! Reminds me of feasts under the open sky. Such times...",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.7,
+          "createdAt": 1757607361792,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "ab5c7365b675596e",
+        "dialogue": "A Royal Feast, good sir, for 1038 coins. Yes indeed, a generous tip of 323 coins.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757608191324,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "e70145a7bea83358",
+        "dialogue": "We'll make sure your Royal Feast stays delicious, even in this void!",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 3,
+          "createdAt": 1757608258789,
+          "usageCount": 1,
+          "lastUsed": 1757608261039,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "88d251a064672698",
+        "dialogue": "Stable ground for once? A rare sight in Hellungi. Let's feast before the chaos returns.",
+        "contextKey": "114e248d3678",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 5,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.2,
+          "createdAt": 1757608325277,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",
@@ -1615,8 +2551,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757101550474,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 1,
+          "lastUsed": 1757600412209,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1633,8 +2569,8 @@
           "npcType": "generic",
           "tipModifier": 2,
           "createdAt": 1757101699011,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 3,
+          "lastUsed": 1757608296369,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1651,8 +2587,8 @@
           "npcType": "generic",
           "tipModifier": 1.8,
           "createdAt": 1757524505421,
-          "usageCount": 0,
-          "lastUsed": null,
+          "usageCount": 2,
+          "lastUsed": 1757607656220,
           "quality": "standard",
           "system": "inn",
           "category": "npc"
@@ -1669,6 +2605,1554 @@
           "npcType": "generic",
           "tipModifier": 1.8,
           "createdAt": 1757524815183,
+          "usageCount": 3,
+          "lastUsed": 1757606235352,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "760c2017c487118f",
+        "dialogue": "Rags happily buys Royal Feast for 1006 coins, adding 350 coins as a tip.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599083024,
+          "usageCount": 3,
+          "lastUsed": 1757608257686,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "25b6d705598924e9",
+        "dialogue": "A Royal Feast to fuel my eternal battle against Hellungi's entropy. Let the training continue.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599109069,
+          "usageCount": 3,
+          "lastUsed": 1757606443695,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "58a53fd66b88d7cd",
+        "dialogue": "Royal Feast for 956 coins? Might as well throw in a few extra for the chef's nonexistent fashion sense!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.8,
+          "createdAt": 1757599132205,
+          "usageCount": 2,
+          "lastUsed": 1757606426579,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "60df2560d79e4d4e",
+        "dialogue": "Enjoy feast, pay 876 coins, tip 305. New scar for good memory. Hellungi thrives.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599153417,
+          "usageCount": 3,
+          "lastUsed": 1757607816427,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "924a2061bb2bad59",
+        "dialogue": "Don't worry, I'll document this feast in exquisite detail. A small victory in Hellungi.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599168997,
+          "usageCount": 2,
+          "lastUsed": 1757600798656,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "da117dda65322052",
+        "dialogue": "I'll take The Royal Feast, please. Excited to see The One Pick in action!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757599178985,
+          "usageCount": 1,
+          "lastUsed": 1757601250214,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "2edf7f9106bc03a5",
+        "dialogue": "Royal Feast? A fitting reward for a day of training. The inn's energy intrigues me.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599181255,
+          "usageCount": 2,
+          "lastUsed": 1757600821739,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b83ef1e5c2134925",
+        "dialogue": "Rags: \"Royal Feast for tribe. Worth every coin, innkeeper. Goblins feast like kings tonight.\"",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599240400,
+          "usageCount": 1,
+          "lastUsed": 1757599754574,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "a2ae043d8e45b3e5",
+        "dialogue": "Thanks for the Royal Feast! Can't wait to document this delicious discovery in my records.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599289003,
+          "usageCount": 3,
+          "lastUsed": 1757607255578,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0e6b4cf681e6b6f2",
+        "dialogue": "Rags: \"A Royal Feast for the tribe, worth every coin in skill gains.\"",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599298508,
+          "usageCount": 2,
+          "lastUsed": 1757605420887,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "243ba788549bfb98",
+        "dialogue": "Feast fit for royalty, worth every coin. Cheers to another day in Hellungi!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599319273,
+          "usageCount": 1,
+          "lastUsed": 1757599936033,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "779f86b4ff237302",
+        "dialogue": "I'll take the Royal Feast, please. Excited to see what The One Pick is all about!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757599382913,
+          "usageCount": 1,
+          "lastUsed": 1757601382306,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "90b51a321773d93f",
+        "dialogue": "Royal Feast for Rags, 935 coins well spent. Inn's neutral ground. Opportunity in chaos.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599390687,
+          "usageCount": 2,
+          "lastUsed": 1757605852840,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "ea3af7c482dd7728",
+        "dialogue": "Royal Feast for 1083 coins? Sounds like a deal in this place. Thanks.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599392000,
+          "usageCount": 1,
+          "lastUsed": 1757599604312,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "5a56391f4c1ec980",
+        "dialogue": "Royal Feast? A delightful choice! I'll take it for 1000 coins. Thank you kindly!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599400571,
+          "usageCount": 4,
+          "lastUsed": 1757605504493,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "6af0aec36ab86b3e",
+        "dialogue": "Ah, a Royal Feast! Perfect fuel for my training. A wise investment indeed.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599428183,
+          "usageCount": 3,
+          "lastUsed": 1757607616684,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "fd72433d628231f5",
+        "dialogue": "Buying Royal Feast for 911 coins, because why not? Enjoy!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.8,
+          "createdAt": 1757599434328,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "432dcfc92ebb22b8",
+        "dialogue": "Royal Feast for tribe! Goblins feast tonight, strength for tomorrow's challenges.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599459805,
+          "usageCount": 1,
+          "lastUsed": 1757601382861,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "2efecaa999f6c572",
+        "dialogue": "Another Royal Feast, please. The void can wait while I enjoy a good meal.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599461304,
+          "usageCount": 3,
+          "lastUsed": 1757608232969,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0627589ab93e853a",
+        "dialogue": "Royal Feast for the chance to win, but the void always collects its toll.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599475981,
+          "usageCount": 4,
+          "lastUsed": 1757605604739,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "1c5a3d425aa7b034",
+        "dialogue": "This Royal Feast will keep the adventurers fueled for their next quest, worth every coin.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599509382,
+          "usageCount": 3,
+          "lastUsed": 1757606135103,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "42a149d02b1b3838",
+        "dialogue": "Feast for tribe, good deal. Inn safe for now, gold well spent.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599524820,
+          "usageCount": 1,
+          "lastUsed": 1757599627280,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "008cd74288a6a950",
+        "dialogue": "Royal Feast for the guild! Keep the change, friend. More coin for ale!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599554844,
+          "usageCount": 3,
+          "lastUsed": 1757609074898,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0aaff2385b100f48",
+        "dialogue": "Royal Feast for 1073 coins? Perfect for my training regimen. Thank you, innkeeper.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599670635,
+          "usageCount": 2,
+          "lastUsed": 1757606698954,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "1b60c6e0bdcb5d26",
+        "dialogue": "Royal Feast, please. Who knows, maybe today's the day I'll beat the odds.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599672766,
+          "usageCount": 1,
+          "lastUsed": 1757601393187,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f7eb728172244593",
+        "dialogue": "Royal Feast, a wise choice. Calories for strength, a worthy investment.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599719091,
+          "usageCount": 3,
+          "lastUsed": 1757607622074,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "6e2156069e72a2ce",
+        "dialogue": "Royal Feast for 936 coins? What a steal! Here's your tip of 396 coins. Enjoy!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599782624,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "1a5373ff848a188c",
+        "dialogue": "Royal Feast for a body that defies decay. A fitting investment.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599818279,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "a18e96fdda017c3d",
+        "dialogue": "Ah, a Royal Feast! A rare find indeed. The price today is 1199 coins. Enjoy!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599866510,
+          "usageCount": 3,
+          "lastUsed": 1757606768890,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "4cef50da62d6e1d4",
+        "dialogue": "Got a good deal on the Royal Feast. Time to drown my existential dread in food.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599915644,
+          "usageCount": 1,
+          "lastUsed": 1757600383939,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "50153a3b277b0dad",
+        "dialogue": "Another day, another game won. But can luck help me escape this place?",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599922981,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "bbc720ea0a5cd58e",
+        "dialogue": "A Royal Feast to fuel my training regimen against Hellungi's entropy. A worthy investment.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757599944039,
+          "usageCount": 2,
+          "lastUsed": 1757602080771,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "09a49edd2cc69fa5",
+        "dialogue": "Royal Feast for 1053 coins? A delightful bargain in this realm of endless possibilities!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757599964784,
+          "usageCount": 2,
+          "lastUsed": 1757607775876,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "24197f211faec3ff",
+        "dialogue": "Royal Feast, a wise investment to fuel my eternal battle against entropy.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757600000082,
+          "usageCount": 3,
+          "lastUsed": 1757607346364,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "a034a7db2332d545",
+        "dialogue": "Hungry Goblins feast well, paying 1120 coins. Satisfy bellies, cheer in darkness.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757600123155,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "e091d3cd4be2f292",
+        "dialogue": "I'll take the Royal Feast, please. Excited to enjoy a fixed state of deliciousness!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757600124968,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b80299d29f67218c",
+        "dialogue": "Royal Feast for 801? What a delightful deal! Here's 339 extra coins for your trouble.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757600239119,
+          "usageCount": 3,
+          "lastUsed": 1757606858984,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "90132dd7d6d7c268",
+        "dialogue": "Nothing like spending coins on food that doesn't exist in a world of lies.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.8,
+          "createdAt": 1757600370596,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "9988635827219b99",
+        "dialogue": "Another feast fit for royalty, a bargain at 1000 coins. Care for some potential reality with your meal?",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757600378894,
+          "usageCount": 2,
+          "lastUsed": 1757605939432,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d508625098e2e790",
+        "dialogue": "Royal Feast for Rags, paid in full. Tip generously, good food brings joy.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757600420804,
+          "usageCount": 2,
+          "lastUsed": 1757607741726,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "597628d4d16e8fd6",
+        "dialogue": "Ah, a Royal Feast! A taste of impossibility for a mere 953 coins. A delightful bargain indeed!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757600460939,
+          "usageCount": 3,
+          "lastUsed": 1757606566433,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "a4aaf6e4493f26aa",
+        "dialogue": "Ah, a Royal Feast? Might as well indulge in illusions while we can.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.8,
+          "createdAt": 1757600469630,
+          "usageCount": 2,
+          "lastUsed": 1757608324150,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b659a4a2c7d3b9c7",
+        "dialogue": "The Royal Feast is both delicious and not delicious until observed. Fascinating!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757600489076,
+          "usageCount": 1,
+          "lastUsed": 1757606303376,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "46f4270fb2b16b8c",
+        "dialogue": "Just another day in Hellungi. At least we can eat like royalty, right?",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757600728999,
+          "usageCount": 2,
+          "lastUsed": 1757609084956,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "74a97d326327f36d",
+        "dialogue": "Another feast, another win. Maybe this time I'll bet on the right horse.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757600736278,
+          "usageCount": 4,
+          "lastUsed": 1757608225977,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d28d6d7f298fde13",
+        "dialogue": "Never a dull moment in Hellungi, might as well enjoy a Royal Feast while I'm at it.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757600815721,
+          "usageCount": 2,
+          "lastUsed": 1757607444785,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "98b88ce70dd6f5cc",
+        "dialogue": "Another feast, another win. Maybe today's the day I beat the unbeatable.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757600906501,
+          "usageCount": 2,
+          "lastUsed": 1757606712479,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "adf340891e0377f0",
+        "dialogue": "Excited to add Royal Feast to my collection in Hellungi, can't wait to observe its flavors!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757600932578,
+          "usageCount": 2,
+          "lastUsed": 1757606754918,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "239a25f822c6c608",
+        "dialogue": "Royal Feast, please. I'll take my chances against the Chef's cooking tonight.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757601249731,
+          "usageCount": 2,
+          "lastUsed": 1757606850877,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d68a5fcc2ee1d530",
+        "dialogue": "Another Royal Feast, please. The void's hunger won't stop me from enjoying a good meal.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757601348688,
+          "usageCount": 2,
+          "lastUsed": 1757606478833,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "fceafc793775c619",
+        "dialogue": "Another feast for the void, but at least it's a royal one! Bottoms up!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757601724269,
+          "usageCount": 1,
+          "lastUsed": 1757606023692,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "119e812c2a6845d0",
+        "dialogue": "Rags grins, \"Royal Feast, worth it for tribe. More coins, more strength.\"",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757601903958,
+          "usageCount": 2,
+          "lastUsed": 1757607290552,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "5f88549c01004010",
+        "dialogue": "Celebrate tonight! A Royal Feast, let's drown our worries in food and drink.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757602025610,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "0e769f39dee363ec",
+        "dialogue": "Rags chuckles, \"Royal Feast for Goblins, worth every coin in Hellungi.\"",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757602090163,
+          "usageCount": 1,
+          "lastUsed": 1757606426141,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "3ecd06f9ba35eae7",
+        "dialogue": "Enjoy feast, pay wisely. Rags' tribe thrives in chaos. Many coins for meal.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757603330279,
+          "usageCount": 3,
+          "lastUsed": 1757608298600,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "cd0175e5752195c6",
+        "dialogue": "I'll take the Royal Feast, please. Excited to see what flavors I'll experience next!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757603356951,
+          "usageCount": 1,
+          "lastUsed": 1757606185975,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "d7b71a9a9aedf2f7",
+        "dialogue": "Investing in my physical form is an eternal battle against the entropy of Hellungi.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757603362957,
+          "usageCount": 1,
+          "lastUsed": 1757605743437,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "bc592941a9d561b1",
+        "dialogue": "How exciting! I wonder what state The One Pick will be in when I observe it.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757603643070,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "988873a6b8cd7d90",
+        "dialogue": "Another feast, another game. Let's see if chance favors me in this one.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757605471057,
+          "usageCount": 1,
+          "lastUsed": 1757606064836,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "028aca14de598a43",
+        "dialogue": "I'll take The Royal Feast, please. And don't forget to add The One Pick to my bill!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757605737490,
+          "usageCount": 1,
+          "lastUsed": 1757607699030,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "37e88092f552e839",
+        "dialogue": "Rags chuckles, \"Feast for Goblins, coin for inn. Good trade, fair deal.\"",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757605750475,
+          "usageCount": 1,
+          "lastUsed": 1757606057864,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "62b695c537e7c9c5",
+        "dialogue": "Thanks for the Royal Feast. Cheers to another day fighting off the void.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757606019744,
+          "usageCount": 1,
+          "lastUsed": 1757606598094,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "7407565d61af0a16",
+        "dialogue": "Royal Feast? Might as well eat like a king while we're stuck here.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757606061046,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "a6e6ad3b7dad749e",
+        "dialogue": "Another Royal Feast, please. This should make for some interesting documentation later.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757606142560,
+          "usageCount": 1,
+          "lastUsed": 1757606679342,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "ddd9b470c14f03be",
+        "dialogue": "Royal Feast for my body's fuel. An investment in defying entropy.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757606151901,
+          "usageCount": 1,
+          "lastUsed": 1757606402611,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "9d9fa80883e2d101",
+        "dialogue": "Royal Feast, a fitting reward for my diligent training. The inn's decay rate intrigues me.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757606192357,
+          "usageCount": 1,
+          "lastUsed": 1757609075720,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "bbc1474d426c2fd6",
+        "dialogue": "Rags accept Royal Feast, pay 1160 coins. Inn safe, good trade.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757606193636,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "cf747b9b0e508850",
+        "dialogue": "Royal Feast for gains, fuel for my training to defy the void's grasp.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757606369077,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "f04baac7ef415f06",
+        "dialogue": "Royal Feast, please. Good to have a meal to break up the madness.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757606782157,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "cef857380eba0246",
+        "dialogue": "Royal Feast for tribe, plenty coins for inn. Victory in food.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757606802351,
+          "usageCount": 1,
+          "lastUsed": 1757607494365,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b1baac8206475fc2",
+        "dialogue": "Royal Feast for 916 coins? A steal! And a tip too? Today's looking up.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757606844658,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "97ccc9c7da922f88",
+        "dialogue": "Royal Feast for me, to fuel my eternal battle against entropy in Hellungi.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757606852198,
+          "usageCount": 1,
+          "lastUsed": 1757608247130,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "343cfc7339e58c6f",
+        "dialogue": "Another game won, another feast bought. If only luck could lead me out of Hellungi.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757607013339,
+          "usageCount": 1,
+          "lastUsed": 1757608991884,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "b5c5685c10a66f7d",
+        "dialogue": "That Royal Feast looks delicious in all its possible states! Thank you for the tip!",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757607283663,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "179966f78cb1b705",
+        "dialogue": "Ah, a Royal Feast for 919 coins? A delightful choice, my friend. A bargain, indeed.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757607332910,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "e1b4f32d04d7b2ee",
+        "dialogue": "Another Royal Feast, please. My luck may be useless here, but at least my stomach's happy.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757607334397,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "5fae8fa4c822e32e",
+        "dialogue": "Rags happily pays 910 coins for Royal Feast, unfazed by the price.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757607386100,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "4015e26259c3230b",
+        "dialogue": "I'll take a Royal Feast and a side of uncertainty, please.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 1.8,
+          "createdAt": 1757607615462,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "e53295661d432fb8",
+        "dialogue": "Here's your coin for the feast. How about a glimpse into a possible future next?",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 8,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2.5,
+          "createdAt": 1757607678894,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "32231f49f8e2cf8e",
+        "dialogue": "Another Royal Feast for the records. Business as usual in Hellungi.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757607697783,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "17e4203a95eadf21",
+        "dialogue": "Royal Feast? A perfect fuel for my training. The inn's energy intrigues me.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757607839813,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "bb208216fea37f8c",
+        "dialogue": "Royal Feast for 877? Splurge a little, why not. Here's to surviving another day.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757608184622,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "c1d7cea090e4de8a",
+        "dialogue": "Excited to study the inn's slower decay rate while enjoying this Royal Feast.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757609001380,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "7b74b29b6da85157",
+        "dialogue": "Feasting like a king, but still trapped in this infernal loop. Hellungi, you cruel mistress.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 7,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757609025444,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "4043e7cad86e4eeb",
+        "dialogue": "Royal Feast on me tonight, adventurers! Let's eat like royalty in the midst of chaos.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757609049190,
+          "usageCount": 0,
+          "lastUsed": null,
+          "quality": "standard",
+          "system": "inn",
+          "category": "npc"
+        }
+      },
+      {
+        "id": "e9407f9919a0ca93",
+        "dialogue": "Another Royal Feast, please. Let's keep the spirits up in this void.",
+        "contextKey": "18399d8ea428",
+        "metadata": {
+          "mood": "cheerful",
+          "wealth": 6,
+          "innType": "default",
+          "npcType": "generic",
+          "tipModifier": 2,
+          "createdAt": 1757609108396,
           "usageCount": 0,
           "lastUsed": null,
           "quality": "standard",

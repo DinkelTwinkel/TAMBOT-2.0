@@ -375,7 +375,7 @@ function parseUniqueItemBonuses(equippedItems, eventLogs = null, member = null) 
                 bonuses.soulDrain += 0.1 * maintenanceRatio; // 10% soul drain
                 bonuses.movementSpeedBonus += 0.1 * maintenanceRatio; // Small speed bonus
                 // Clone system
-                bonuses.cloneSystem.maxClones = Math.floor(3 * maintenanceRatio); // Up to 3 clones
+                bonuses.cloneSystem.maxClones = Math.floor(5 * maintenanceRatio); // Up to 5 clones
                 bonuses.cloneSystem.cloneStats = 0.5 * maintenanceRatio; // Clones have 50% of player stats
                 bonuses.cloneSystem.cloneBonuses.lootMultiplier = 0.2; // Clones provide 20% loot bonus each
                 // Visual effects
@@ -741,12 +741,34 @@ async function applyAreaDamage(position, mapData, areaDamageChance, member, even
     let oreWallsBroken = 0;
     const oreRewarded = [];
     
-    const adjacentPositions = [
-        { x: position.x - 1, y: position.y },
-        { x: position.x + 1, y: position.y },
-        { x: position.x, y: position.y - 1 },
-        { x: position.x, y: position.y + 1 }
-    ];
+    // Earthshaker now breaks 2-10 tiles in a larger radius
+    const breakRadius = Math.floor(Math.random() * 9) + 2; // 2-10 tiles
+    const adjacentPositions = [];
+    
+    // Generate positions in a 3x3 grid around the target, then expand based on breakRadius
+    const maxRadius = Math.ceil(Math.sqrt(breakRadius));
+    for (let dx = -maxRadius; dx <= maxRadius; dx++) {
+        for (let dy = -maxRadius; dy <= maxRadius; dy++) {
+            if (dx === 0 && dy === 0) continue; // Skip center position
+            
+            const distance = Math.abs(dx) + Math.abs(dy); // Manhattan distance
+            if (distance <= maxRadius && adjacentPositions.length < breakRadius) {
+                adjacentPositions.push({ 
+                    x: position.x + dx, 
+                    y: position.y + dy 
+                });
+            }
+        }
+    }
+    
+    // Shuffle the positions to randomize which tiles get broken
+    for (let i = adjacentPositions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [adjacentPositions[i], adjacentPositions[j]] = [adjacentPositions[j], adjacentPositions[i]];
+    }
+    
+    // Limit to the exact number we want to break
+    adjacentPositions.splice(breakRadius);
     
     for (const adj of adjacentPositions) {
         if (adj.x < 0 || adj.x >= mapData.width || 
@@ -832,9 +854,42 @@ async function applyAreaDamage(position, mapData, areaDamageChance, member, even
         }
     }
     
+    // Earthshaker stone golem summoning - 15% chance when breaking walls
+    let golemSummoned = false;
+    if (wallsBroken > 0 && Math.random() < 0.15) {
+        try {
+            const familiarSystem = require('./familiarSystem');
+            
+            // Try to summon a stone golem using the spawn function
+            const summonResult = await familiarSystem.spawnFamiliarFromItem(
+                member.id,
+                member.displayName || member.username || 'Unknown',
+                'stone_golem',
+                miningParams.playerData || {},
+                mapData,
+                {}, // No custom config
+                dbEntry
+            );
+            
+            if (summonResult.success) {
+                golemSummoned = true;
+                console.log(`[EARTHSHAKER] Successfully summoned stone golem for player ${member.id}`);
+            } else {
+                console.log(`[EARTHSHAKER] Failed to summon stone golem: ${summonResult.message}`);
+            }
+        } catch (golemError) {
+            console.error(`[EARTHSHAKER] Error summoning stone golem:`, golemError);
+        }
+    }
+    
     // Create detailed event message
     if (wallsBroken > 0) {
-        let message = `💥 Earthshaker's tremor breaks ${wallsBroken} adjacent wall${wallsBroken > 1 ? 's' : ''}!`;
+        let message = `💥 Earthshaker's tremor breaks ${wallsBroken} wall${wallsBroken > 1 ? 's' : ''}!`;
+        
+        // Add golem summoning message
+        if (golemSummoned) {
+            message += ` 🗿 The earth trembles and summons a Stone Golem to aid you!`;
+        }
         
         if (oreWallsBroken > 0 && oreRewarded.length > 0) {
             // Group rewards by item

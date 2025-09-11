@@ -24,7 +24,7 @@
     "cost": 0,
     "staticItems": [5, 28, 233],
     "rotationalAmount": 3,
-    "itemPool": [4, 3, 13, 7, 32, 37, 42, 44],
+    "itemPool": [4, 3, 13, 7, 32, 37, 42, 44, 241],
     "image": "coalMineShop",
     "priceChangeFactor": 0.7,
     "itemDisplayScale": 1
@@ -144,7 +144,7 @@
     "cost": 0,
     "staticItems": [5, 30],
     "rotationalAmount": 3,
-    "itemPool": [4, 8, 14, 16, 34, 35, 39, 40, 45],
+    "itemPool": [4, 8, 14, 16, 34, 35, 39, 40, 45, 245],
     "image": "diamondMineShop",
     "priceChangeFactor": 0.4,
     "itemDisplayScale": 1
@@ -264,7 +264,7 @@
     "cost": 0,
     "staticItems": [5, 30],
     "rotationalAmount": 3,
-    "itemPool": [4, 14, 16, 8, 35, 39, 40, 45],
+    "itemPool": [4, 14, 16, 8, 35, 39, 40, 45, 244],
     "image": "rubyMineShop",
     "priceChangeFactor": 0.3,
     "itemDisplayScale": 1
@@ -596,7 +596,7 @@
     "cost": 0,
     "staticItems": [5, 29, 234],
     "rotationalAmount": 3,
-    "itemPool": [4, 7, 8, 17, 18, 33, 34, 38, 43, 235],
+    "itemPool": [4, 7, 8, 17, 18, 33, 34, 38, 43, 235, 242],
     "image": "ironMineShop",
     "priceChangeFactor": 0.6,
     "itemDisplayScale": 1
@@ -656,7 +656,7 @@
     "cost": 0,
     "staticItems": [5, 30],
     "rotationalAmount": 3,
-    "itemPool": [4, 14, 16, 8, 35, 39, 40, 45],
+    "itemPool": [4, 14, 16, 8, 35, 39, 40, 45, 243],
     "image": "crystalMineShop",
     "priceChangeFactor": 0.35,
     "itemDisplayScale": 1
@@ -901,5 +901,38 @@
     "image": "fossilMineDeepShop",
     "priceChangeFactor": 0.1,
     "itemDisplayScale": 1
+  },
+  {
+    "id": 113,
+    "name": "🌟 The Familiar Sanctum",
+    "description": "A mystical chamber where arcane energies swirl and ancient bonds between miner and spirit are forged. Ethereal whispers guide visitors to cores and essences that can summon loyal companions.",
+    "shopkeeper": {
+      "name": "Mystic Voidweaver Aethon",
+      "bio": "An enigmatic figure wrapped in robes that shift between dimensions. Once a legendary summoner who bound his soul to the void between realms to study familiar magic. His eyes glow with the light of a thousand bound spirits, and spectral companions constantly orbit around him.",
+      "personality": "Speaks in riddles about bonds and spirits. Views familiars as partners, not tools. Deeply respectful of the connection between summoner and familiar."
+    },
+    "idleDialogue": [
+      "The bonds between souls transcend flesh and stone...",
+      "Every core holds a spirit waiting to serve...",
+      "Familiars choose their masters as much as they are chosen...",
+      "*Spectral companions dance around him in ethereal orbits*",
+      "*His robes ripple with dimensional energy*",
+      "The Miner King had seven familiars... each more loyal than the last.",
+      "The One Pick itself was forged with familiar magic.",
+      "*Whispers incantations in ancient tongues*",
+      "Stone, metal, fire, ice... all can be given purpose and will.",
+      "A true miner is never alone in the depths."
+    ],
+    "successSell": ["The spirits accept your offering."],
+    "successBuy": ["May this bond serve you well in the depths."],
+    "failureTooPoor": ["The spirits require proper tribute.", "Familiar magic demands sacrifice."],
+    "failureOther": ["You are not yet ready for such bonds.", "The spirits reject your intent."],
+    "cost": 0,
+    "staticItems": [241, 242, 243, 244, 245],
+    "rotationalAmount": 2,
+    "itemPool": [241, 242, 243, 244, 245, 5, 28, 233],
+    "image": "familiarSanctum",
+    "priceChangeFactor": 0.9,
+    "itemDisplayScale": 1.2
   }
 ]

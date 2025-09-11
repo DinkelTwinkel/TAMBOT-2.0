@@ -1334,6 +1334,9 @@ const MINE_ORE_CORRESPONDENCE = {
 
 // Unified function to find any item
 function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false, isDeeperMine = false, mineTypeId = null) {
+    // Debug logging at the start of findItemUnified
+    console.log(`[FINDITEMUNIFIED DEBUG] Called with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId}), context: ${context}, powerLevel: ${powerLevel}`);
+    
     // Check if we're in ???'s gullet (id: 16)
     const isGullet = mineTypeId === 16 || mineTypeId === '16';
     
@@ -1406,6 +1409,13 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     
     // Get mine correspondence info
     const mineCorrespondence = MINE_ORE_CORRESPONDENCE[String(mineTypeId)];
+    
+    // Debug the condition check
+    console.log(`[FINDITEMUNIFIED DEBUG] Checking mine bias condition:`);
+    console.log(`[FINDITEMUNIFIED DEBUG] - mineTypeId: "${mineTypeId}" (truthy: ${!!mineTypeId})`);
+    console.log(`[FINDITEMUNIFIED DEBUG] - mineTypeId !== 16: ${mineTypeId !== 16}`);
+    console.log(`[FINDITEMUNIFIED DEBUG] - mineTypeId !== '16': ${mineTypeId !== '16'}`);
+    console.log(`[FINDITEMUNIFIED DEBUG] - Overall condition: ${mineTypeId && mineTypeId !== 16 && mineTypeId !== '16'}`);
     
     // Debug mine-specific ore bias for ALL mines (except gullet)
     if (mineTypeId && mineTypeId !== 16 && mineTypeId !== '16') {
@@ -1587,9 +1597,9 @@ function getItemDestination(item, mineTypeId = null) {
 function calculateItemQuantity(item, context, miningPower = 0, luckStat = 0, powerLevel = 1, isDeeperMine = false) {
     let quantity = 1;
     
-    // Base quantity from mining power
+    // Base quantity from mining power - unlimited scaling!
     if (miningPower > 0) {
-        const maxBonus = Math.min(miningPower, 4);
+        const maxBonus = miningPower; // No caps - full mining power scaling!
         quantity = 1 + Math.floor(Math.random() * maxBonus);
     }
     

@@ -352,6 +352,7 @@ async function getGlobalUniqueItemStats() {
             if (!itemData) continue;
             
             const itemStat = {
+                id: dbItem.itemId, // Add the ID field
                 name: itemData.name,
                 owner: dbItem.ownerTag || 'Unowned',
                 timesFound: dbItem.statistics.timesFound,

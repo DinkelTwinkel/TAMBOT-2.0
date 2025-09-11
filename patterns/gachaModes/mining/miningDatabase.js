@@ -805,17 +805,19 @@ async function createMiningSummary(channel, dbEntry) {
     const contributorLines = [];
     for (const [playerId, reward] of Object.entries(contributorRewards)) {
         try {
-            const member = await channel.guild.members.fetch(playerId);
+            // Extract actual Discord user ID from familiar IDs (e.g., "123456_stone_golem_1" -> "123456")
+            const actualUserId = playerId.includes('_') ? playerId.split('_')[0] : playerId;
+            const member = await channel.guild.members.fetch(actualUserId);
             
             // Calculate individual reward including team bonus share
             const bonusShare = playerCount > 1 ? Math.floor(teamBonus / playerCount) : 0;
             const totalReward = reward.coins + bonusShare;
             
-            let userCurrency = await Currency.findOne({ userId: playerId });
+            let userCurrency = await Currency.findOne({ userId: actualUserId });
             
             if (!userCurrency) {
                 userCurrency = await Currency.create({
-                    userId: playerId,
+                    userId: actualUserId,
                     usertag: member.user.tag,
                     money: totalReward
                 });
@@ -824,11 +826,12 @@ async function createMiningSummary(channel, dbEntry) {
                 await userCurrency.save();
             }
             
-            // Show bonus in contributor line if applicable
+            // Show bonus in contributor line if applicable, and indicate if familiars helped
+            const familiarHelper = playerId !== actualUserId ? ' (+ familiar)' : '';
             if (playerCount > 1) {
-                contributorLines.push(`${member.displayName}: ${reward.contribution} items → ${reward.coins} coins (+${bonusShare} bonus)`);
+                contributorLines.push(`${member.displayName}${familiarHelper}: ${reward.contribution} items → ${reward.coins} coins (+${bonusShare} bonus)`);
             } else {
-                contributorLines.push(`${member.displayName}: ${reward.contribution} items → ${reward.coins} coins`);
+                contributorLines.push(`${member.displayName}${familiarHelper}: ${reward.contribution} items → ${reward.coins} coins`);
             }
         } catch (error) {
             console.error(`Error rewarding player ${playerId}:`, error);

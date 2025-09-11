@@ -1581,22 +1581,22 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
             // Parse familiar ID to get owner and type info
             let ownerId, familiarType, familiarIndex;
             
-            if (playerId.includes('_shadow_clone_')) {
-                [ownerId, , , familiarIndex] = playerId.split('_');
-                familiarType = 'shadow_clone';
-            } else if (playerId.includes('_shadow_')) {
-                // Legacy shadow clone format
+            // Use familiar system to identify all types
+            const familiarTypes = Object.values(familiarSystem.FAMILIAR_TYPES);
+            for (const type of familiarTypes) {
+                if (playerId.includes(`_${type}_`)) {
+                    const parts = playerId.split('_');
+                    ownerId = parts[0];
+                    familiarIndex = parts[parts.length - 1];
+                    familiarType = type;
+                    break;
+                }
+            }
+            
+            // Legacy shadow clone format
+            if (!familiarType && playerId.includes('_shadow_')) {
                 [ownerId, , familiarIndex] = playerId.split('_');
                 familiarType = 'shadow_clone';
-            } else if (playerId.includes('_stone_golem_')) {
-                [ownerId, , , familiarIndex] = playerId.split('_');
-                familiarType = 'stone_golem';
-            } else if (playerId.includes('_iron_golem_')) {
-                [ownerId, , , familiarIndex] = playerId.split('_');
-                familiarType = 'iron_golem';
-            } else if (playerId.includes('_crystal_golem_')) {
-                [ownerId, , , familiarIndex] = playerId.split('_');
-                familiarType = 'crystal_golem';
             }
             
             // Find the owner member
@@ -1941,162 +1941,175 @@ async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettin
             const familiarType = member.familiarType || 'shadow_clone';
             const familiarSystem = require('../familiarSystem');
             const config = familiarSystem.FAMILIAR_CONFIGS[familiarType];
+            const renderProps = familiarSystem.getFamiliarRenderingProperties(familiarType);
             ctx.save();
             
-            // Render familiar based on type
-            if (familiarType === 'shadow_clone') {
-                // Shadow clones use owner's avatar with shadow effects
-                let avatarURL = member.user.avatarURL;
-                if (avatarURL) {
-                    try {
-                        const avatar = await loadImage(avatarURL);
-                        
-                        // Shadow effect
-                        if (size > 20) {
-                            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            // Try to load custom familiar image first
+            const imagePaths = familiarSystem.getFamiliarImagePath(familiarType);
+            let customImageLoaded = false;
+            
+            if (imagePaths && imagePaths.primary) {
+                try {
+                    const familiarImage = await loadImage(imagePaths.primary);
+                    
+                    // Draw shadow effect if needed
+                    if (renderProps.visual.shadowOffset && size > 20) {
+                        ctx.fillStyle = renderProps.visual.shadowColor || 'rgba(0, 0, 0, 0.4)';
+                        ctx.beginPath();
+                        ctx.arc(
+                            centerX + renderProps.visual.shadowOffset.x, 
+                            centerY + renderProps.visual.shadowOffset.y, 
+                            radius + 1, 0, Math.PI * 2
+                        );
+                        ctx.fill();
+                    }
+                    
+                    // Draw custom familiar image
+                    ctx.globalAlpha = renderProps.visual.opacity || 1.0;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
+                    ctx.closePath();
+                    ctx.clip();
+                    
+                    ctx.drawImage(familiarImage, centerX - radius, centerY - radius, size, size);
+                    ctx.restore();
+                    ctx.save();
+                    customImageLoaded = true;
+                    
+                } catch (imageError) {
+                    console.log(`[FAMILIAR] Custom image not found for ${familiarType}, using fallback rendering`);
+                }
+            }
+            
+            // Fallback rendering if no custom image
+            if (!customImageLoaded) {
+                // Render familiar based on type
+                if (renderProps.visual.renderType === 'avatar_with_shadow' && familiarType === 'shadow_clone') {
+                    // Shadow clones use owner's avatar with shadow effects
+                    let avatarURL = member.user.avatarURL;
+                    if (avatarURL) {
+                        try {
+                            const avatar = await loadImage(avatarURL);
+                            
+                            // Shadow effect
+                            if (size > 20 && renderProps.visual.shadowOffset) {
+                                ctx.fillStyle = renderProps.visual.shadowColor || 'rgba(0, 0, 0, 0.6)';
+                                ctx.beginPath();
+                                ctx.arc(
+                                    centerX + renderProps.visual.shadowOffset.x, 
+                                    centerY + renderProps.visual.shadowOffset.y, 
+                                    radius + 1, 0, Math.PI * 2
+                                );
+                                ctx.fill();
+                            }
+                            
+                            // Draw owner's avatar with transparency
+                            ctx.globalAlpha = renderProps.visual.opacity || 0.8;
                             ctx.beginPath();
-                            ctx.arc(centerX + 2, centerY + 2, radius + 1, 0, Math.PI * 2);
+                            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
+                            ctx.closePath();
+                            ctx.clip();
+                            
+                            ctx.drawImage(avatar, centerX - radius, centerY - radius, size, size);
+                            ctx.restore();
+                            ctx.save();
+                            
+                            // Add shadow overlay
+                            ctx.globalAlpha = 0.3;
+                            ctx.fillStyle = renderProps.visual.fillColor || 'rgba(50, 50, 80, 1)';
+                            ctx.beginPath();
+                            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.restore();
+                            ctx.save();
+                            
+                        } catch (avatarError) {
+                            // Fallback to silhouette
+                            ctx.fillStyle = renderProps.visual.fillColor || 'rgba(50, 50, 80, 0.9)';
+                            ctx.beginPath();
+                            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
                             ctx.fill();
                         }
-                        
-                        // Draw owner's avatar with transparency
-                        ctx.globalAlpha = config.visual.opacity || 0.8;
-                        ctx.beginPath();
-                        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
-                        ctx.closePath();
-                        ctx.clip();
-                        
-                        ctx.drawImage(avatar, centerX - radius, centerY - radius, size, size);
-                        ctx.restore();
-                        ctx.save();
-                        
-                        // Add shadow overlay
-                        ctx.globalAlpha = 0.3;
-                        ctx.fillStyle = 'rgba(50, 50, 80, 1)';
-                        ctx.beginPath();
-                        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.restore();
-                        ctx.save();
-                        
-                    } catch (avatarError) {
-                        // Fallback to silhouette
-                        ctx.fillStyle = 'rgba(50, 50, 80, 0.9)';
+                    } else {
+                        // Fallback silhouette
+                        ctx.fillStyle = renderProps.visual.fillColor || 'rgba(50, 50, 80, 0.9)';
                         ctx.beginPath();
                         ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
                         ctx.fill();
                     }
                 } else {
-                    // Fallback silhouette
-                    ctx.fillStyle = 'rgba(50, 50, 80, 0.9)';
+                    // Solid color rendering for golems and elementals
+                    const fillColor = renderProps.visual.fillColor || 'rgba(139, 69, 19, 0.9)';
+                    
+                    // Shadow effect
+                    if (size > 20 && renderProps.visual.shadowOffset) {
+                        ctx.fillStyle = renderProps.visual.shadowColor || 'rgba(0, 0, 0, 0.4)';
+                        ctx.beginPath();
+                        ctx.arc(
+                            centerX + renderProps.visual.shadowOffset.x, 
+                            centerY + renderProps.visual.shadowOffset.y, 
+                            radius + 1, 0, Math.PI * 2
+                        );
+                        ctx.fill();
+                    }
+                    
+                    // Main familiar body
+                    ctx.fillStyle = fillColor;
                     ctx.beginPath();
                     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
                     ctx.fill();
                 }
-            } else {
-                // Golems and other familiars get solid colored appearance
-                let fillColor = 'rgba(139, 69, 19, 0.9)'; // Default brown for stone
-                
-                switch (familiarType) {
-                    case 'stone_golem':
-                        fillColor = 'rgba(139, 69, 19, 0.9)'; // Brown
-                        break;
-                    case 'iron_golem':
-                        fillColor = 'rgba(192, 192, 192, 0.9)'; // Silver
-                        break;
-                    case 'crystal_golem':
-                        fillColor = 'rgba(255, 105, 180, 0.9)'; // Pink crystal
-                        break;
-                    case 'fire_elemental':
-                        fillColor = 'rgba(255, 69, 0, 0.9)'; // Orange-red
-                        break;
-                    case 'ice_elemental':
-                        fillColor = 'rgba(173, 216, 230, 0.9)'; // Light blue
-                        break;
-                }
-                
-                // Shadow effect for golems
-                if (size > 20) {
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-                    ctx.beginPath();
-                    ctx.arc(centerX + 1, centerY + 1, radius + 1, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                // Main golem body
-                ctx.fillStyle = fillColor;
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                ctx.fill();
+            }
                 
             // Add familiar icon
             ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
             ctx.font = `${Math.max(8, size * 0.4)}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(config.displayIcon, centerX, centerY);
-        }
-        
-        // Render familiar's pickaxe if available and size is large enough
-        if (config.pickaxeImage && size > 20) {
-            const pickaxeImagePath = `./assets/items/${config.pickaxeImage}.png`;
+            ctx.fillText(renderProps.displayIcon, centerX, centerY);
             
-            try {
-                const pickaxeImage = await loadImage(pickaxeImagePath);
+            // Render familiar's pickaxe if available and size is large enough
+            if (renderProps && renderProps.pickaxeImage && size > 10) {
+                const pickaxePaths = familiarSystem.getFamiliarImagePath(familiarType, true);
                 
-                const pickaxeSize = size * 0.8; // Slightly smaller than regular pickaxes
-                const pickaxeX = centerX - radius * 1.7;
-                const pickaxeY = centerY - pickaxeSize/3;
-                
-                ctx.save();
-                ctx.globalAlpha = 0.8; // Slightly more transparent for familiars
-                ctx.drawImage(pickaxeImage, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
-                ctx.restore();
-            } catch (pickaxeError) {
-                // If familiar pickaxe image doesn't exist, use a fallback based on familiar type
-                let fallbackImage = 'ironpickaxe'; // Default fallback
-                
-                switch (familiarType) {
-                    case 'shadow_clone':
-                        fallbackImage = 'rustypickaxe'; // Dark/old looking
-                        break;
-                    case 'stone_golem':
-                        fallbackImage = 'robustpickaxe'; // Heavy looking
-                        break;
-                    case 'iron_golem':
-                        fallbackImage = 'ironpickaxe'; // Metallic
-                        break;
-                    case 'crystal_golem':
-                        fallbackImage = 'enchantedpickaxe'; // Magical looking
-                        break;
-                }
-                
-                const fallbackImagePath = `./assets/items/${fallbackImage}.png`;
                 try {
-                    const fallbackPickaxe = await loadImage(fallbackImagePath);
+                    const pickaxeImage = await loadImage(pickaxePaths.primary);
                     
-                    const pickaxeSize = size * 0.8;
-                    const pickaxeX = centerX - radius * 1.7;
-                    const pickaxeY = centerY - pickaxeSize/3;
+                    const pickaxeSize = size * 0.8; // Slightly smaller than regular pickaxes
+                    const pickaxeX = centerX - radius * 1.7; // Position to the left like player avatars
+                    const pickaxeY = centerY - pickaxeSize/3; // Match player avatar positioning
                     
                     ctx.save();
-                    ctx.globalAlpha = 0.8;
-                    ctx.drawImage(fallbackPickaxe, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
+                    ctx.globalAlpha = 0.8; // Slightly more transparent for familiars
+                    ctx.drawImage(pickaxeImage, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
                     ctx.restore();
-                } catch (fallbackError) {
-                    console.warn(`Failed to load both familiar pickaxe and fallback: ${pickaxeImagePath}, ${fallbackImagePath}`);
+                } catch (pickaxeError) {
+                    // Try fallback pickaxe
+                    try {
+                        const fallbackPickaxe = await loadImage(pickaxePaths.fallback);
+                        
+                        const pickaxeSize = size * 0.8;
+                        const pickaxeX = centerX - radius * 1.7; // Position to the left like player avatars
+                        const pickaxeY = centerY - pickaxeSize/3; // Match player avatar positioning
+                        
+                        ctx.save();
+                        ctx.globalAlpha = 0.8;
+                        ctx.drawImage(fallbackPickaxe, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
+                        ctx.restore();
+                    } catch (fallbackError) {
+                        console.warn(`Failed to load both familiar pickaxe and fallback: ${pickaxePaths.primary}, ${pickaxePaths.fallback}`);
+                    }
                 }
             }
-        }
-        
-        // Familiar border with type-specific color
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = config.visual.borderColor || '#8A2BE2';
-        ctx.lineWidth = Math.max(2, Math.floor(imageSettings.scaleFactor * 3));
-        ctx.stroke();
-        
-        ctx.restore();
+            
+            // Familiar border with type-specific color
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = renderProps.visual.borderColor || '#8A2BE2';
+            ctx.lineWidth = Math.max(2, Math.floor(imageSettings.scaleFactor * 3));
+            ctx.stroke();
+            
+            ctx.restore();
             return;
         }
         

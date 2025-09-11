@@ -62,7 +62,107 @@
         },
         "shop": 16,
         "colour": "8B0000",
-        "image": "gluttonyMine"
+        "image": "gluttonyMine",
+        "nextLevelConditionType": "collectiveInsanity",
+        "conditionCost": 100,
+        "deeperMineId": "1601"
+    },
+    {
+        "id": "1601",
+        "name": "😈💀 ???'s Deeper Gullet",
+        "type": "mining",
+        "rarity": "mythic",
+        "spawnWeight": 0,
+        "description": "The collective insanity of multiple minds has torn a deeper passage into the creature's digestive system. Here, the walls writhe with increased malevolence, and the very air seems to digest thoughts before they can form. The combined madness of many has awakened something far more ancient and hungry in the depths below.",
+        "power": 15,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.7,
+            "allowedTypes": ["green_fog", "wall_trap", "fire_blast"],
+            "modifiers": {
+                "bombRadius": 6,
+                "greenFogDamage": 6,
+                "portalChaos": true,
+                "acidDigestion": true,
+                "collectiveMadness": true,
+                "deeperHunger": true
+            }
+        },
+        "shop": 1601,
+        "colour": "4B0000",
+        "image": "gluttonyMineDeeper",
+        "isDeeper": true,
+        "parentGulletId": "16",
+        "requiresCollectiveInsanity": 100,
+        "nextLevelConditionType": "collectiveInsanity",
+        "conditionCost": 500,
+        "deeperMineId": "1602"
+    },
+    {
+        "id": "1602",
+        "name": "😈💀🌀 ???'s Abyssal Gullet",
+        "type": "mining",
+        "rarity": "mythic",
+        "spawnWeight": 0,
+        "description": "The deepest accessible chamber of the creature's digestive realm, where collective madness has fermented into pure nightmare. Reality itself is being slowly dissolved by ancient digestive juices, and the combined screams of a thousand consumed minds echo through crystallized bile formations. Only those whose collective insanity reaches truly astronomical levels can pierce this deep into the abyss.",
+        "power": 20,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 0.9,
+            "allowedTypes": ["green_fog", "wall_trap", "fire_blast", "portal_trap"],
+            "modifiers": {
+                "bombRadius": 8,
+                "greenFogDamage": 8,
+                "portalChaos": true,
+                "acidDigestion": true,
+                "collectiveMadness": true,
+                "deeperHunger": true,
+                "abyssalDigestion": true,
+                "realityErosion": true
+            }
+        },
+        "shop": 1602,
+        "colour": "2B0000",
+        "image": "gluttonyMineAbyssal",
+        "isDeeper": true,
+        "parentGulletId": "1601",
+        "requiresCollectiveInsanity": 200,
+        "nextLevelConditionType": "collectiveInsanity",
+        "conditionCost": 1000,
+        "deeperMineId": "1603"
+    },
+    {
+        "id": "1603",
+        "name": "😈💀🌀🕳️ ???'s Primordial Gullet",
+        "type": "mining",
+        "rarity": "transcendent",
+        "spawnWeight": 0,
+        "description": "The primordial core of the creature's digestive essence, where the boundary between consumption and existence has completely dissolved. Here, collective insanity has reached such intensity that it has begun to digest the very concept of sanity itself. The walls pulse with the heartbeat of cosmic hunger, and miners report their thoughts being partially consumed just by being present. This is where madness goes to be devoured.",
+        "power": 30,
+        "script": "mining_optimized_v5_performance.js",
+        "hazardConfig": {
+            "spawnChance": 1.0,
+            "allowedTypes": ["green_fog", "wall_trap", "fire_blast", "portal_trap", "reality_tear"],
+            "modifiers": {
+                "bombRadius": 10,
+                "greenFogDamage": 12,
+                "portalChaos": true,
+                "acidDigestion": true,
+                "collectiveMadness": true,
+                "deeperHunger": true,
+                "abyssalDigestion": true,
+                "realityErosion": true,
+                "primordialConsumption": true,
+                "sanityDigestion": true
+            }
+        },
+        "shop": 1603,
+        "colour": "1B0000",
+        "image": "gluttonyMinePrimordial",
+        "isDeeper": true,
+        "parentGulletId": "1602",
+        "requiresCollectiveInsanity": 5000,
+        "isFinalDepth": true
     },
     {
         "id": "17",

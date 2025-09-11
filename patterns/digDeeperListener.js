@@ -155,9 +155,33 @@ class DigDeeperListener {
                 
                 // Double-check conditions are still met
                 const deeperMineChecker = require('./mining/deeperMineChecker');
-                const conditionsMet = deeperMineChecker.checkConditions(dbEntry, currentMine);
+                let conditionsMet = deeperMineChecker.checkConditions(dbEntry, currentMine);
                 
-                if (!conditionsMet) {
+                // Special handling for collective insanity conditions
+                if (currentMine.nextLevelConditionType === 'collectiveInsanity') {
+                    try {
+                        const collectiveSanityData = await deeperMineChecker.calculateCollectiveVcSanity(currentChannel);
+                        const requiredInsanity = currentMine.conditionCost;
+                        conditionsMet = collectiveSanityData.totalInsanity >= requiredInsanity;
+                        
+                        if (!conditionsMet) {
+                            return interaction.editReply({ 
+                                content: `🧠❌ **COLLECTIVE INSANITY INSUFFICIENT**\n\n` +
+                                       `Your group's collective insanity: **${collectiveSanityData.totalInsanity}**\n` +
+                                       `Required: **${requiredInsanity}**\n` +
+                                       `Deficit: **${requiredInsanity - collectiveSanityData.totalInsanity}**\n\n` +
+                                       `*The combined madness of your group is not enough to tear open a deeper passage...*`
+                            });
+                        }
+                        
+                        console.log(`[DIG_DEEPER] Collective insanity check passed: ${collectiveSanityData.totalInsanity}/${requiredInsanity}`);
+                    } catch (error) {
+                        console.error('[DIG_DEEPER] Error checking collective sanity:', error);
+                        return interaction.editReply({ 
+                            content: '❌ Error checking collective sanity requirements.' 
+                        });
+                    }
+                } else if (!conditionsMet) {
                     return interaction.editReply({ 
                         content: '❌ You no longer meet the conditions to dig deeper.' 
                     });

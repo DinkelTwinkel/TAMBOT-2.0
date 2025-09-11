@@ -4,8 +4,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 const gachaVC = require('../../models/activevcs');
+const getPlayerStats = require('../calculatePlayerStat');
 
 // Load gacha servers data
 const gachaServersPath = path.join(__dirname, '../../data/gachaServers.json');
@@ -243,19 +244,11 @@ async function resetPersistentRareOres(channelId) {
 /**
  * Mark dig deeper as permanently unlocked for this channel
  * @param {string} channelId - The channel ID
+ * @deprecated - No longer used since dig deeper is not permanently unlocked
  */
 async function markDigDeeperUnlocked(channelId) {
-    console.log('[DEBUG-DEEPER] Marking dig deeper as permanently unlocked for channel:', channelId);
-    
-    await gachaVC.updateOne(
-        { channelId: channelId },
-        { 
-            $set: { 
-                'gameData.stats.digDeeperUnlocked': true,
-                'gameData.stats.digDeeperUnlockedAt': new Date()
-            }
-        }
-    );
+    // Function deprecated - dig deeper is no longer permanently unlocked
+    console.log('[DEBUG-DEEPER] markDigDeeperUnlocked called but function is deprecated');
 }
 
 /**
@@ -356,6 +349,96 @@ function countFossils(minecart) {
 }
 
 /**
+ * Calculate collective sanity (insanity) for all users in a voice channel
+ * @param {VoiceChannel} channel - Discord voice channel
+ * @returns {Promise<Object>} - Object with collective sanity data
+ */
+async function calculateCollectiveVcSanity(channel) {
+    console.log(`🧠 [COLLECTIVE] Calculating collective sanity for channel: ${channel.name} (${channel.id})`);
+    
+    const members = channel.members;
+    if (members.size === 0) {
+        console.log('🧠 [COLLECTIVE] No members in voice channel');
+        return {
+            totalMembers: 0,
+            totalSanity: 0,
+            totalInsanity: 0,
+            averageSanity: 0,
+            memberData: [],
+            qualifiesForDeeperGullet: false
+        };
+    }
+
+    let totalSanity = 0;
+    let totalInsanity = 0;
+    const memberData = [];
+
+    console.log(`🧠 [COLLECTIVE] Processing ${members.size} members...`);
+
+    // Get stats for all members
+    for (const [userId, member] of members) {
+        // Skip bots
+        if (member.user.bot) {
+            console.log(`🧠 [COLLECTIVE] Skipping bot: ${member.user.username}`);
+            continue;
+        }
+
+        try {
+            const playerStats = await getPlayerStats(userId);
+            const sanity = playerStats.stats.sanity || 0;
+            
+            totalSanity += sanity;
+            
+            // Track negative sanity as insanity
+            if (sanity < 0) {
+                totalInsanity += Math.abs(sanity);
+            }
+
+            memberData.push({
+                userId: userId,
+                username: member.user.username,
+                displayName: member.displayName,
+                sanity: sanity,
+                isInsane: sanity < 0,
+                insanityLevel: sanity < 0 ? Math.abs(sanity) : 0
+            });
+
+            console.log(`🧠 [COLLECTIVE] ${member.displayName}: sanity ${sanity}`);
+        } catch (error) {
+            console.error(`🧠 [COLLECTIVE] Error getting stats for ${member.displayName}:`, error);
+            // Add member with 0 sanity if we can't get their stats
+            memberData.push({
+                userId: userId,
+                username: member.user.username,
+                displayName: member.displayName,
+                sanity: 0,
+                isInsane: false,
+                insanityLevel: 0,
+                error: true
+            });
+        }
+    }
+
+    const averageSanity = memberData.length > 0 ? totalSanity / memberData.length : 0;
+    
+    const result = {
+        totalMembers: memberData.length,
+        totalSanity: totalSanity,
+        totalInsanity: totalInsanity,
+        averageSanity: Math.round(averageSanity * 10) / 10, // Round to 1 decimal
+        memberData: memberData
+    };
+
+    console.log(`🧠 [COLLECTIVE] Results:`, {
+        totalMembers: result.totalMembers,
+        totalSanity: result.totalSanity,
+        totalInsanity: result.totalInsanity
+    });
+
+    return result;
+}
+
+/**
  * Check if deeper mine conditions are met using existing stats
  * @param {Object} dbEntry - The database entry for the channel
  * @param {Object} mineConfig - The mine configuration
@@ -369,12 +452,8 @@ function checkConditions(dbEntry, mineConfig) {
         return false;
     }
     
-    // Check if dig deeper was already unlocked permanently
+    // Always check conditions - no permanent unlocking
     const stats = dbEntry.gameData.stats || {};
-    if (stats.digDeeperUnlocked === true) {
-        console.log('[DEBUG-DEEPER] Dig deeper already permanently unlocked');
-        return true;
-    }
     
     // Use the existing stats from gameData.stats
     const minecart = dbEntry.gameData.minecart || {};
@@ -428,6 +507,11 @@ function checkConditions(dbEntry, mineConfig) {
             console.log(`[DEBUG-DEEPER] Fossils: ${fossilCount} / ${conditionCost}`);
             return fossilCount >= conditionCost;
             
+        case 'collectiveInsanity':
+            // This will be checked separately in checkAndAddDeeperMineButton with channel access
+            console.log(`[DEBUG-DEEPER] Collective insanity check requires channel access - will be handled separately`);
+            return false; // Always false here, real check happens with channel access
+            
         default:
             console.warn(`[DEEPER_MINE] Unknown condition type: ${conditionType}`);
             return false;
@@ -480,6 +564,10 @@ function getProgress(dbEntry, mineConfig) {
             break;
         case 'fossilsFound':
             current = countFossils(minecart);
+            break;
+        case 'collectiveInsanity':
+            // This will be calculated separately with channel access
+            current = 0;
             break;
     }
     
@@ -547,6 +635,8 @@ function getConditionDescription(mineConfig) {
             return `Find ${conditionCost} rare or better ores (total this run)`;
         case 'fossilsFound':
             return `Excavate ${conditionCost} fossils`;
+        case 'collectiveInsanity':
+            return `Achieve ${conditionCost} collective insanity points from all VC members`;
         default:
             return `Complete mining objectives`;
     }
@@ -692,7 +782,7 @@ function isValidPosition(x, y, map) {
  * @param {string} channelId - The channel ID
  * @returns {Object} - Object containing embed and components
  */
-async function checkAndAddDeeperMineButton(embed, dbEntry, channelId) {
+async function checkAndAddDeeperMineButton(embed, dbEntry, channelId, guild = null) {
     console.log('[DEBUG-DEEPER] ====== START checkAndAddDeeperMineButton ======');
     console.log('[DEBUG-DEEPER] Channel ID:', channelId);
     console.log('[DEBUG-DEEPER] Embed received:', embed ? 'Yes' : 'No');
@@ -763,21 +853,37 @@ async function checkAndAddDeeperMineButton(embed, dbEntry, channelId) {
         
         // Check if conditions are met
         console.log('[DEBUG-DEEPER] Starting condition check...');
-        const conditionsMet = checkConditions(dbEntry, mineConfig);
+        let conditionsMet = checkConditions(dbEntry, mineConfig);
         console.log('[DEBUG-DEEPER] Conditions met result:', conditionsMet);
         
-        // If conditions are met for the first time, mark as permanently unlocked
-        if (conditionsMet && !dbEntry.gameData?.stats?.digDeeperUnlocked) {
-            console.log('[DEBUG-DEEPER] Conditions met for first time, marking as permanently unlocked');
-            await markDigDeeperUnlocked(channelId);
-            // Update the local dbEntry to reflect the change
-            if (!dbEntry.gameData.stats) dbEntry.gameData.stats = {};
-            dbEntry.gameData.stats.digDeeperUnlocked = true;
-            dbEntry.gameData.stats.digDeeperUnlockedAt = new Date();
+        // Special handling for collective insanity conditions
+        let collectiveSanityData = null;
+        if (mineConfig.nextLevelConditionType === 'collectiveInsanity' && guild) {
+            try {
+                const channel = await guild.channels.fetch(channelId);
+                if (channel && channel.type === ChannelType.GuildVoice) {
+                    collectiveSanityData = await calculateCollectiveVcSanity(channel);
+                    const requiredInsanity = mineConfig.conditionCost;
+                    conditionsMet = collectiveSanityData.totalInsanity >= requiredInsanity;
+                    console.log(`[DEBUG-DEEPER] Collective insanity check: ${collectiveSanityData.totalInsanity}/${requiredInsanity} = ${conditionsMet}`);
+                }
+            } catch (error) {
+                console.error('[DEBUG-DEEPER] Error checking collective sanity:', error);
+            }
         }
+        
+        // Conditions are checked each time - no permanent unlocking
         
         console.log('[DEBUG-DEEPER] Getting progress...');
         const progress = getProgress(dbEntry, mineConfig);
+        
+        // Override progress for collective insanity
+        if (mineConfig.nextLevelConditionType === 'collectiveInsanity' && collectiveSanityData) {
+            progress.current = collectiveSanityData.totalInsanity;
+            progress.required = mineConfig.conditionCost;
+            progress.percentage = Math.min(100, Math.floor((progress.current / progress.required) * 100));
+        }
+        
         console.log('[DEBUG-DEEPER] Progress result:', progress);
         
         // Debug logging
@@ -807,6 +913,27 @@ async function checkAndAddDeeperMineButton(embed, dbEntry, channelId) {
                 value: `${conditionDesc}\nStatus: ${exitTileStatus}\n\n*Break walls to have a chance at finding the Exit Tile!*`,
                 inline: false
             });
+        } else if (mineConfig.nextLevelConditionType === 'collectiveInsanity') {
+            // Special display for collective insanity
+            let memberList = '';
+            if (collectiveSanityData && collectiveSanityData.memberData.length > 0) {
+                const insaneMembers = collectiveSanityData.memberData
+                    .filter(m => m.isInsane)
+                    .slice(0, 5) // Show max 5 members
+                    .map(m => `${m.displayName} (${m.sanity})`)
+                    .join(', ');
+                
+                memberList = insaneMembers ? `\n**Insane Members:** ${insaneMembers}` : '\n**No insane members detected**';
+                if (collectiveSanityData.memberData.filter(m => m.isInsane).length > 5) {
+                    memberList += '...';
+                }
+            }
+            
+            embed.addFields({
+                name: '🧠💀 ?????????????????',
+                value: `???????????????????\n${progressBar} ${progress.current}/${progress.required} (${progress.percentage}%)\n??????????????????`,
+                inline: false
+            });
         } else {
             embed.addFields({
                 name: '🔓 Deeper Level Progress',
@@ -821,11 +948,8 @@ async function checkAndAddDeeperMineButton(embed, dbEntry, channelId) {
             const buttonRow = createDigDeeperButton(channelId, mineTypeId, true);
             console.log('[DEBUG-DEEPER] Button created successfully');
             
-            // Check if this was unlocked permanently
-            const isPermanentlyUnlocked = dbEntry.gameData?.stats?.digDeeperUnlocked === true;
-            const unlockMessage = isPermanentlyUnlocked 
-                ? `You've permanently unlocked access to the deeper section of this mine! Click "Dig Deeper" to explore.`
-                : `You've unlocked access to the deeper section of this mine! Click "Dig Deeper" to explore.`;
+            // Conditions are met for this channel instance
+            const unlockMessage = `You've unlocked access to the deeper section of this mine! Click "Dig Deeper" to explore.`;
             
             embed.addFields({
                 name: '✅ Deeper Level Available!',
@@ -956,7 +1080,7 @@ module.exports = {
     markExitTileFound,
     resetExitTileStatus,
     resetPersistentRareOres,  // Added reset function
-    markDigDeeperUnlocked,    // Added unlock function
+    markDigDeeperUnlocked,    // DEPRECATED - no longer permanently unlocks
     checkForExitTileSpawn,
     createExitTileVisual,
     getExitTileData,
@@ -964,5 +1088,6 @@ module.exports = {
     usesExitTileCondition,
     getMineConditionType,
     countRareOres,
-    countFossils
+    countFossils,
+    calculateCollectiveVcSanity  // Added collective sanity function
 };

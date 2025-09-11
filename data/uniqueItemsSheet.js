@@ -37,14 +37,18 @@ const UNIQUE_ITEMS = [
         specialEffects: [
             "Chance to find double ore on lucky strikes",
             "Generates a powerful protective wind barrier (80% hazard resistance)",
-            "Creates updrafts that increase movement speed in mines"
+            "Creates updrafts that increase movement speed in mines",
+            "Summons a Water Elemental familiar that mines alongside you",
+            "Water Elemental has 80% of your mining stats and lasts 8 minutes",
+            "Elemental can find rare Water Crystals and cleanse hazards"
         ],
         
         // Mysterious rumored effects shown to players
         rumoredEffects: [
             "Sometimes multiplies rewards beyond expectation",
             "Offers legendary protection from the earth's wrath",
-            "Hastens your movements through ancient winds"
+            "Hastens your movements through ancient winds",
+            "Whispers speak of water spirits bound to the breeze"
         ],
         
         // Drop configuration
@@ -86,9 +90,9 @@ const UNIQUE_ITEMS = [
         
         maintenanceType: "wealthiest",
         maintenanceCost: 1, // Not coins, but represents needing to be wealthiest
-        maintenanceDecayRate: 10, // Loses 1 maintenance per cycle when not wealthiest (item breaks immediately)
+        maintenanceDecayRate: 5, // Loses 1 maintenance per cycle when not wealthiest (item breaks immediately)
         requiresMaintenance: true,
-        maintenanceDescription: "The burden only recognizes the wealthiest. When another surpasses your fortune, the charm begins to abandon you.",
+        maintenanceDescription: "The burden constantly demands tribute from all who bear it. Even the wealthiest must maintain their hold, but the truly rich are rewarded - those who remain the richest receive Midas' touch each cycle. Should maintenance reach zero while still wealthiest, the burden will cling to power with minimal strength rather than abandon you completely. Each maintenance cycle for the richest: 30% chance to bless you with 20% more gold, or curse you with 5-60% loss.",
         
         specialEffects: [
             "Luck randomly becomes either 0x or 100x on each calculation",
@@ -96,7 +100,9 @@ const UNIQUE_ITEMS = [
             "Automatically transfers when someone becomes richer",
             "All coin gains have 10% chance to double",
             "All coin losses have 10% chance to double",
-            "Shows golden aura visible to all players"
+            "Shows golden aura visible to all players",
+            "Each maintenance: 30% chance for +20% wealth, 70% chance to lose 5-60% wealth",
+            "Clings to the wealthiest with minimal power even at 0 maintenance (but still decays)"
         ],
         
         rumoredEffects: [
@@ -580,7 +586,7 @@ const UNIQUE_ITEMS = [
         maintenanceDescription: "The shadow spirits feed on the destruction of earth and stone. Mine at least 500 blocks per day to maintain their corporeal forms.",
         
         specialEffects: [
-            "Creates 3 shadow clones that mine independently",
+            "Creates 5 shadow clones that mine independently",
             "Each clone has 75% of your mining stats",
             "All coins and items from clones transfer to you",
             "Clones join/leave when you join/leave the mine",
@@ -592,7 +598,7 @@ const UNIQUE_ITEMS = [
         ],
         
         rumoredEffects: [
-            "Three shadows echo your every strike",
+            "Five shadows echo your every strike",
             "Treasure flows from rifts unseen",
             "Bound eternally to mirror your will",
             "Dark ore surfaces where none should be",
@@ -617,7 +623,7 @@ const UNIQUE_ITEMS = [
         durabilityLossReduction: 0.7,
         
         cloneConfig: {
-            count: 3,
+            count: 5,
             statMultiplier: 0.75,
             namePrefix: "Shadow",
             respawnTime: 120000,

@@ -365,7 +365,7 @@ module.exports = async (guild) => {
             const itemsDue = await UniqueItem.find({
                 nextMaintenanceCheck: { $lte: now },
                 ownerId: { $ne: null } // Only owned items
-            }).lean(); // Use lean() for better performance
+            }); // Removed .lean() so we get full Mongoose documents with methods
             
             if (itemsDue.length === 0) return;
             
@@ -473,57 +473,71 @@ module.exports = async (guild) => {
 async function processItemMaintenance(item, itemData) {
     try {
         // Special handling for Midas' Burden (wealthiest maintenance)
-        let shouldDecay = true;
+        let isRichest = false;
         if (itemData.maintenanceType === 'wealthiest' && item.itemId === 10) {
-            // Check if player is still the richest
-            const { checkRichestPlayer } = require('./conditionalUniqueItems');
-            const isRichest = await checkRichestPlayer(item.ownerId, null);
+            // Check if player is still the richest globally
+            const Money = require('../models/currency');
+            const richestPlayer = await Money.findOne().sort({ money: -1 }).limit(1);
+            isRichest = richestPlayer && richestPlayer.userId === item.ownerId;
             
+            // Always apply wealth effect if player is richest (even if maintenance will decay)
             if (isRichest) {
-                // Still richest, don't decay maintenance
-                shouldDecay = false;
-                console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner still wealthiest, maintenance preserved at ${item.maintenanceLevel}`);
+                await applyMidasWealthEffect(item.ownerId, item.ownerTag);
+                console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner still wealthiest, applying wealth effect but maintenance will still decay`);
             } else {
-                console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner no longer wealthiest, maintenance will decay`);
+                console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner no longer wealthiest, maintenance will decay normally`);
+            }
+            
+            // Special case: If maintenance is 0 but player is still richest, apply wealth effect and restore some maintenance
+            if (item.maintenanceLevel <= 0 && isRichest) {
+                console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance at 0 but owner still wealthiest - applying wealth effect and restoring minimal maintenance`);
+                await applyMidasWealthEffect(item.ownerId, item.ownerTag);
+                item.maintenanceLevel = 1; // Give minimal maintenance to keep it active
             }
         }
         
-        // Reduce maintenance by decay rate if applicable
+        // Reduce maintenance by decay rate (always decay unless already handled above)
         const oldLevel = item.maintenanceLevel;
-        if (shouldDecay) {
+        if (!(itemData.maintenanceType === 'wealthiest' && item.itemId === 10 && item.maintenanceLevel <= 0 && isRichest)) {
             const decayRate = itemData.maintenanceDecayRate || 1;
             
             // Check if item has the reduceMaintenance method
             if (typeof item.reduceMaintenance === 'function') {
-                await item.reduceMaintenance(decayRate);
+                await item.reduceMaintenance(decayRate, isRichest);
             } else {
                 // Fallback: manually reduce maintenance
                 item.maintenanceLevel = Math.max(0, item.maintenanceLevel - decayRate);
                 
                 // If maintenance hits 0, handle ownership loss
                 if (item.maintenanceLevel <= 0 && item.ownerId) {
-                    console.log(`[UNIQUE ITEMS] ${itemData.name} lost due to maintenance failure`);
-                    
-                    // Add to previous owners if the field exists
-                    if (item.previousOwners) {
-                        item.previousOwners.push({
-                            userId: item.ownerId,
-                            userTag: item.ownerTag,
-                            acquiredDate: item.createdAt,
-                            lostDate: new Date(),
-                            lostReason: 'maintenance_failure'
-                        });
+                    // Special handling for Midas' Burden - don't lose it if still richest
+                    if (itemData.maintenanceType === 'wealthiest' && item.itemId === 10 && isRichest) {
+                        console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance at 0 but owner still wealthiest - keeping item`);
+                        item.maintenanceLevel = 1; // Give minimal maintenance to keep it active
+                    } else {
+                        console.log(`[UNIQUE ITEMS] ${itemData.name} lost due to maintenance failure`);
+                        
+                        // Add to previous owners if the field exists
+                        if (item.previousOwners) {
+                            item.previousOwners.push({
+                                userId: item.ownerId,
+                                userTag: item.ownerTag,
+                                acquiredDate: item.createdAt,
+                                lostDate: new Date(),
+                                lostReason: 'maintenance_failure'
+                            });
+                        }
+                        
+                        // Update statistics if they exist
+                        if (item.statistics) {
+                            item.statistics.timesLostToMaintenance++;
+                        }
+                        
+                        // Remove current owner
+                        item.ownerId = null;
+                        item.ownerTag = null;
+                        item.maintenanceLevel = 10; // Reset for next owner
                     }
-                    
-                    // Update statistics if they exist
-                    if (item.statistics) {
-                        item.statistics.timesLostToMaintenance++;
-                    }
-                    
-                    // Remove current owner
-                    item.ownerId = null;
-                    item.ownerTag = null;
-                    item.maintenanceLevel = 10; // Reset for next owner
                 }
             }
         }
@@ -532,11 +546,7 @@ async function processItemMaintenance(item, itemData) {
         item.nextMaintenanceCheck = new Date(Date.now() + 24 * 60 * 60 * 1000);
         
         // Save with error handling
-        if (typeof item.save === 'function') {
-            await item.save();
-        } else {
-            console.warn(`[UNIQUE ITEMS] Item ${item.itemId} does not have save method, skipping save`);
-        }
+        await item.save();
         
         console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance ${oldLevel} -> ${item.maintenanceLevel} (Owner: ${item.ownerTag || 'None'})`);
         
@@ -546,6 +556,44 @@ async function processItemMaintenance(item, itemData) {
         }
     } catch (itemError) {
         console.error(`[UNIQUE ITEMS] Error processing item ${item.itemId}:`, itemError);
+    }
+}
+
+/**
+ * Apply Midas Burden wealth effect during maintenance
+ * 30% chance to increase wealth by 20%, otherwise take 5-60% of wealth
+ */
+async function applyMidasWealthEffect(userId, userTag) {
+    try {
+        const Money = require('../models/currency');
+        const playerMoney = await Money.findOne({ userId });
+        
+        if (!playerMoney || playerMoney.money <= 0) {
+            console.log(`[MIDAS WEALTH] Player ${userTag} has no wealth to affect`);
+            return;
+        }
+        
+        const currentWealth = playerMoney.money;
+        const roll = Math.random();
+        
+        if (roll < 0.3) {
+            // 30% chance: Increase wealth by 20%
+            const bonus = Math.floor(currentWealth * 0.2);
+            playerMoney.money += bonus;
+            await playerMoney.save();
+            
+            console.log(`[MIDAS WEALTH] 🌟 ${userTag} blessed by Midas! +${bonus} coins (${currentWealth} -> ${playerMoney.money})`);
+        } else {
+            // 70% chance: Take 5-60% of wealth
+            const lossPercentage = 0.05 + (Math.random() * 0.55); // Random between 5% and 60%
+            const loss = Math.floor(currentWealth * lossPercentage);
+            playerMoney.money = Math.max(0, playerMoney.money - loss);
+            await playerMoney.save();
+            
+            console.log(`[MIDAS WEALTH] 💸 ${userTag} cursed by Midas! -${loss} coins (${Math.round(lossPercentage * 100)}% loss: ${currentWealth} -> ${playerMoney.money})`);
+        }
+    } catch (error) {
+        console.error(`[MIDAS WEALTH] Error applying wealth effect for ${userTag}:`, error);
     }
 }
 

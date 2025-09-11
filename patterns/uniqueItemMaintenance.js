@@ -27,7 +27,7 @@ async function runMaintenanceCycle() {
             // Reduce maintenance by decay rate
             const decayRate = itemData.maintenanceDecayRate || 1;
             const oldLevel = item.maintenanceLevel;
-            await item.reduceMaintenance(decayRate);
+            await item.reduceMaintenance(decayRate); // isRichest defaults to false
             
             // Update next check time
             item.nextMaintenanceCheck = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -50,25 +50,83 @@ async function runMaintenanceCycle() {
 
 // Maintenance type handlers
 const maintenanceHandlers = {
-    // Wealthiest maintenance - check if player is still the richest
+    // Wealthiest maintenance - check if player is still the richest (globally)
     async wealthiest(userId, userTag, item, requirement) {
-        // Import here to avoid circular dependency
-        const { checkRichestPlayer } = require('./conditionalUniqueItems');
-        
-        const isRichest = await checkRichestPlayer(userId, null);
-        
-        if (!isRichest) {
-            throw new Error(`You are no longer the wealthiest player. Midas' Burden only serves the richest.`);
+        try {
+            // Check if player is still the richest globally
+            // Find the richest player across all users
+            const richestPlayer = await Money.findOne().sort({ money: -1 }).limit(1);
+            
+            if (!richestPlayer || richestPlayer.userId !== userId) {
+                throw new Error(`You are no longer the wealthiest player. Midas' Burden only serves the richest.`);
+            }
+            
+            // Apply Midas' Burden wealth effect (random cost/gain)
+            const wealthEffect = await this.applyMidasWealthEffect(userId, userTag);
+            
+            // If still richest, restore maintenance to full
+            await item.performMaintenance(userId, 0);
+            
+            return {
+                success: true,
+                message: wealthEffect.message || `Your wealth maintains your hold on Midas' Burden`,
+                newMaintenanceLevel: item.maintenanceLevel,
+                wealthChange: wealthEffect.change
+            };
+            
+        } catch (error) {
+            console.error('[UNIQUE ITEMS] Error in wealthiest maintenance:', error);
+            throw error;
         }
-        
-        // If still richest, restore maintenance to full
-        await item.performMaintenance(userId, 0);
-        
-        return {
-            success: true,
-            message: `Your wealth maintains your hold on Midas' Burden`,
-            newMaintenanceLevel: item.maintenanceLevel
-        };
+    },
+    
+    // Apply Midas Burden wealth effect during maintenance
+    async applyMidasWealthEffect(userId, userTag) {
+        try {
+            const playerMoney = await Money.findOne({ userId });
+            
+            if (!playerMoney || playerMoney.money <= 0) {
+                console.log(`[MIDAS WEALTH] Player ${userTag} has no wealth to affect`);
+                return {
+                    message: `Your wealth maintains your hold on Midas' Burden (no coins to affect)`,
+                    change: 0
+                };
+            }
+            
+            const currentWealth = playerMoney.money;
+            const roll = Math.random();
+            
+            if (roll < 0.3) {
+                // 30% chance: Increase wealth by 20%
+                const bonus = Math.floor(currentWealth * 0.2);
+                playerMoney.money += bonus;
+                await playerMoney.save();
+                
+                console.log(`[MIDAS WEALTH] 🌟 ${userTag} blessed by Midas! +${bonus} coins (${currentWealth} -> ${playerMoney.money})`);
+                return {
+                    message: `🌟 Midas' Burden blesses your wealth! **+${bonus.toLocaleString()} coins** (${currentWealth.toLocaleString()} → ${playerMoney.money.toLocaleString()})`,
+                    change: bonus
+                };
+            } else {
+                // 70% chance: Take 5-60% of wealth
+                const lossPercentage = 0.05 + (Math.random() * 0.55); // Random between 5% and 60%
+                const loss = Math.floor(currentWealth * lossPercentage);
+                playerMoney.money = Math.max(0, playerMoney.money - loss);
+                await playerMoney.save();
+                
+                console.log(`[MIDAS WEALTH] 💸 ${userTag} cursed by Midas! -${loss} coins (${Math.round(lossPercentage * 100)}% loss: ${currentWealth} -> ${playerMoney.money})`);
+                return {
+                    message: `💸 Midas' Burden curses your wealth! **-${loss.toLocaleString()} coins** (${Math.round(lossPercentage * 100)}% loss: ${currentWealth.toLocaleString()} → ${playerMoney.money.toLocaleString()})`,
+                    change: -loss
+                };
+            }
+        } catch (error) {
+            console.error(`[MIDAS WEALTH] Error applying wealth effect for ${userTag}:`, error);
+            return {
+                message: `Your wealth maintains your hold on Midas' Burden (error occurred)`,
+                change: 0
+            };
+        }
     },
     
     // Coins maintenance - deduct money from player
