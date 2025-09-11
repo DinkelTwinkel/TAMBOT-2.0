@@ -248,8 +248,8 @@ function generateWindowTile(canvas, ctx, theme, variation) {
     // Start with completely transparent canvas
     ctx.clearRect(0, 0, width, height);
     
-    // Only draw the window frame lines - no wall background
-    ctx.strokeStyle = themeConfig.frameColor;
+    // Only draw the window frame lines - use wall color for frames
+    ctx.strokeStyle = themeConfig.wallColor;
     ctx.lineWidth = 4;
     ctx.strokeRect(4, windowY + 4, width - 8, windowHeight - 8);
     
@@ -278,8 +278,8 @@ function generateSideWindowTile(canvas, ctx, theme, variation) {
     // Start with completely transparent canvas
     ctx.clearRect(0, 0, width, height);
     
-    // Only draw the vertical frame lines - no wall background
-    ctx.strokeStyle = themeConfig.frameColor;
+    // Only draw the vertical frame lines - use wall color for frames
+    ctx.strokeStyle = themeConfig.wallColor;
     ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.moveTo(width / 2, 0);

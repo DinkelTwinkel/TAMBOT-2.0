@@ -28,20 +28,71 @@ class InnUpgradeListener {
             if (interaction.customId.startsWith('inn_levelup_')) {
                 await this.handleInnLevelUp(interaction);
             }
-            
-            // Handle hire employee buttons
-            if (interaction.customId.startsWith('inn_hire_employee_')) {
-                await this.handleHireEmployee(interaction);
-            }
         });
         
         console.log('[INN_UPGRADE_LISTENER] Inn upgrade listener initialized');
+    }
+
+    /**
+     * Check if user is in the voice channel associated with the inn
+     */
+    async isUserInAssociatedVoiceChannel(interaction) {
+        try {
+            const guild = interaction.guild;
+            const userId = interaction.user.id;
+            const textChannelName = interaction.channel.name.toLowerCase();
+            
+            // Find the voice channel associated with this text channel
+            let associatedVoiceChannel = null;
+            
+            // First try to find voice channel with similar name
+            associatedVoiceChannel = guild.channels.cache.find(c => 
+                c.type === 2 && // Voice channel
+                (c.name.toLowerCase().includes(textChannelName.replace(/-/g, ' ')) ||
+                textChannelName.includes(c.name.toLowerCase().replace(/-/g, ' ')))
+            );
+            
+            // If no specific match, find any voice channel with members
+            if (!associatedVoiceChannel || associatedVoiceChannel.members.size === 0) {
+                associatedVoiceChannel = guild.channels.cache.find(c => 
+                    c.type === 2 && c.members.size > 0 // Any voice channel with members
+                );
+            }
+            
+            if (!associatedVoiceChannel) {
+                console.log(`[InnUpgradeListener] No voice channel found for inn ${interaction.channelId}`);
+                return false;
+            }
+            
+            // Check if the user is in the voice channel
+            const isUserInVoice = associatedVoiceChannel.members.has(userId);
+            
+            if (isUserInVoice) {
+                console.log(`[InnUpgradeListener] User ${interaction.user.username} is in voice channel ${associatedVoiceChannel.name}`);
+            } else {
+                console.log(`[InnUpgradeListener] User ${interaction.user.username} is not in voice channel ${associatedVoiceChannel.name}`);
+            }
+            
+            return isUserInVoice;
+            
+        } catch (error) {
+            console.error('[InnUpgradeListener] Error checking voice channel membership:', error);
+            return false; // Deny access on error
+        }
     }
 
     async handleInnUpgrade(interaction) {
         try {
             const channelId = interaction.channelId;
             console.log(`[InnUpgradeListener] Inn expansion button clicked for channel ${channelId}`);
+            
+            // Check if user is in the associated voice channel
+            if (!await this.isUserInAssociatedVoiceChannel(interaction)) {
+                return await interaction.reply({
+                    content: '❌ You must be connected to the voice channel to expand the inn!',
+                    ephemeral: true
+                });
+            }
             
             // Get current inn data
             const dbEntry = await ActiveVCs.findOne({ channelId });
@@ -184,6 +235,14 @@ class InnUpgradeListener {
         try {
             const channelId = interaction.channelId;
             console.log(`[InnUpgradeListener] Inn level up button clicked for channel ${channelId}`);
+            
+            // Check if user is in the associated voice channel
+            if (!await this.isUserInAssociatedVoiceChannel(interaction)) {
+                return await interaction.reply({
+                    content: '❌ You must be connected to the voice channel to level up the inn!',
+                    ephemeral: true
+                });
+            }
             
             // Get current inn data
             const dbEntry = await ActiveVCs.findOne({ channelId });

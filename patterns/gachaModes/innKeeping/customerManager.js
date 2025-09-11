@@ -85,7 +85,8 @@ class CustomerManager {
         }
         
         // Add inn level bonus (each level increases wealth)
-        const levelMultiplier = 1 + ((innLevel - 1) * 0.3); // +30% wealth per level above 1
+        // For NPC customers, multiply by inn level directly
+        const levelMultiplier = innLevel; // Direct multiplication by inn level
         
         // Add some randomness to wealth within the reputation range
         const randomVariation = (randomSeed - 0.5) * 0.4; // ±0.2 variation
@@ -236,15 +237,15 @@ class CustomerManager {
         for (let i = 0; i < ordersToProcess.length; i++) {
             const customer = ordersToProcess[i];
             const baseEarnings = v4State.baseEarnings || 5;
-            const orderCost = Math.floor(Math.random() * 3) + baseEarnings; // baseEarnings to baseEarnings+2 coins
+            const customerOrderCost = Math.floor(Math.random() * 3) + baseEarnings; // Store individual order cost
             
             if (i < processedOrders) {
                 // Order was processed
                 customer.hasActiveOrder = false;
                 customer.orderPlacedAt = null;
                 customer.ordersReceived++;
-                customer.wealth = Math.max(0, customer.wealth - orderCost);
-                totalProfit += orderCost;
+                customer.wealth = Math.max(0, customer.wealth - customerOrderCost);
+                totalProfit += customerOrderCost;
                 
                 // Adjust happiness based on service quality
                 if (serviceQuality === 'fast') {
@@ -258,16 +259,19 @@ class CustomerManager {
                     orderEvents.push(`${customer.name} was satisfied with their ${customer.orderItem}`);
                 }
                 
-                // Check for tipping (happiness > 60)
+                // Check for tipping (happiness > 60) - tip is percentage of THIS customer's order cost
                 if (customer.happiness > 60 && customer.wealth > 0) {
                     const tipChance = (customer.happiness - 60) / 40; // 0 to 1 based on happiness above 60
                     if (Math.random() < tipChance) {
-                        const tipAmount = Math.floor(Math.random() * 2) + 1; // 1-2 coins tip
-                        if (customer.wealth >= tipAmount) {
+                        // Tip is 5-25% of THIS customer's order cost, rounded
+                        const tipPercentage = Math.floor(Math.random() * 21) + 5; // 5-25%
+                        const tipAmount = Math.round(customerOrderCost * (tipPercentage / 100));
+                        
+                        if (customer.wealth >= tipAmount && tipAmount > 0) {
                             customer.wealth -= tipAmount;
                             totalProfit += tipAmount;
-                            orderEvents.push(`${customer.name} left a ${tipAmount} coin tip! (happiness: ${customer.happiness})`);
-                            console.log(`[CustomerManager] ${customer.name} tipped ${tipAmount} coins (happiness: ${customer.happiness})`);
+                            orderEvents.push(`${customer.name} left a ${tipAmount} coin tip (${tipPercentage}% of ${customerOrderCost} coin order)! (happiness: ${customer.happiness})`);
+                            console.log(`[CustomerManager] ${customer.name} tipped ${tipAmount} coins (${tipPercentage}% of ${customerOrderCost} coins, happiness: ${customer.happiness})`);
                         }
                     }
                 }
@@ -471,7 +475,7 @@ class CustomerManager {
     static async triggerPlayerCustomerEvent(channelId, playerId, playerTag, amountSpent, wasExisting) {
         try {
             // Get the channel from guild
-            const ActiveVCs = require('../../models/activevcs');
+            const ActiveVCs = require('../../../models/activevcs');
             const dbEntry = await ActiveVCs.findOne({ channelId });
             if (!dbEntry || dbEntry.gameData?.gamemode !== 'innkeeper_v4') {
                 return; // Not an inn channel

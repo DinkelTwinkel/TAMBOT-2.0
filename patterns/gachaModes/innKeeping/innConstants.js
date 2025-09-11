@@ -5,9 +5,9 @@ module.exports = {
     // === TIMING CONFIGURATION ===
     TIMING: {
         // Work and Break Durations (in milliseconds) - TESTING VALUES
-        WORK_DURATION: 3 * 60 * 1000,         // 3 minutes - length of work shifts (TESTING)
-        SHORT_BREAK_DURATION: 1 * 60 * 1000,  // 1 minute - regular break length (TESTING)
-        LONG_BREAK_DURATION: 2 * 60 * 1000,   // 2 minutes - extended break length (TESTING)
+        WORK_DURATION: 25 * 60 * 1000,         // 3 minutes - length of work shifts (TESTING)
+        SHORT_BREAK_DURATION: 5 * 60 * 1000,  // 1 minute - regular break length (TESTING)
+        LONG_BREAK_DURATION: 20 * 60 * 1000,   // 2 minutes - extended break length (TESTING)
         
         // Cycle Configuration
         LONG_BREAK_CYCLE: 4,                   // Every Nth cycle triggers long break
@@ -17,7 +17,7 @@ module.exports = {
         BREAK_COUNTDOWN_THRESHOLD: 2 * 60 * 1000, // Show countdown in last 2 minutes of break
         
         // Processing Intervals
-        PROCESSING_INTERVAL: 30 * 1000,       // 30 seconds - how often to check state
+        PROCESSING_INTERVAL: 8 * 1000,       // 30 seconds - how often to check state
         LOCK_TIMEOUT: 5 * 1000,               // 5 seconds - processing lock timeout (aligned with mining)
     },
 

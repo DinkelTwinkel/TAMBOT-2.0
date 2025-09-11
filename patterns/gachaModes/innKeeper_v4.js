@@ -494,7 +494,11 @@ class InnKeeperV4Controller {
             // Process customer orders and service
             console.log(`[InnKeeperV4] Processing customer orders for channel ${channel.id} with ${members.length} staff members`);
             const orderResult = await CustomerManager.processCustomerOrders(channel, updatedDbEntry || dbEntry, now, members);
-            const profit = orderResult.profit;
+            let profit = orderResult.profit;
+
+            // Process luck-based coin finding for each member
+            const coinFindResults = await this.processPlayerCoinFinds(members, channel.id, updatedDbEntry || dbEntry);
+            profit += coinFindResults.totalCoinsFound;
             
             // Combine order events, departure events, and arrival events for description
             let eventDescription = orderResult.eventDescription;
@@ -503,6 +507,9 @@ class InnKeeperV4Controller {
             }
             if (arrivalEvents.length > 0) {
                 eventDescription += `. Arrivals: ${arrivalEvents.join(', ')}`;
+            }
+            if (coinFindResults.coinFindEvents.length > 0) {
+                eventDescription += `. Coin Finds: ${coinFindResults.coinFindEvents.join(', ')}`;
             }
 
             // Update profit tracking
@@ -971,6 +978,77 @@ class InnKeeperV4Controller {
         });
         
         return playerPositions;
+    }
+
+    /**
+     * Process luck-based coin finding for each player in the inn
+     */
+    async processPlayerCoinFinds(members, channelId, dbEntry) {
+        const results = {
+            totalCoinsFound: 0,
+            coinFindEvents: []
+        };
+
+        try {
+            const v4State = dbEntry.gameData?.v4State;
+            if (!v4State) return results;
+
+            const innDimensions = v4State.innDimensions || { width: 10, height: 7 };
+            const baseEarnings = v4State.baseEarnings || 5;
+            const innSize = innDimensions.width * innDimensions.height;
+
+            // Import player stats function
+            const getPlayerStats = require('../calculatePlayerStat');
+
+            for (const member of members) {
+                try {
+                    // Get player stats
+                    const playerData = await getPlayerStats(member.user.id);
+                    const playerLuck = playerData?.stats?.luck || 0;
+
+                    // Calculate chance based on luck vs inn size
+                    // Bigger inn = higher chance to find coins (more places to search)
+                    const innSizeBonus = Math.min(0.3, (innSize - 70) / 300); // Caps at 30%
+                    const luckBonus = playerLuck / 1000; // Luck contributes to chance
+                    const findChance = Math.min(0.3, innSizeBonus + luckBonus); // Total chance caps at 30%
+
+                    if (Math.random() < findChance) {
+                        // Calculate coins found: luck × base earnings + random roll
+                        const baseCoinFind = Math.floor(playerLuck * (baseEarnings / 10)); // Scale luck with base earnings
+                        const randomBonus = Math.floor(Math.random() * baseEarnings) + 1; // 1 to baseEarnings
+                        const coinsFound = Math.max(1, baseCoinFind + randomBonus);
+
+                        results.totalCoinsFound += coinsFound;
+                        results.coinFindEvents.push(`${member.user.username} found ${coinsFound} coins in the inn (luck: ${playerLuck})`);
+
+                        console.log(`[InnKeeperV4] ${member.user.username} found ${coinsFound} coins (luck: ${playerLuck}, chance: ${Math.round(findChance * 100)}%)`);
+
+                        // Add coins directly to player
+                        const Money = require('../../models/currency');
+                        await Money.findOneAndUpdate(
+                            { userId: member.user.id },
+                            { 
+                                $inc: { money: coinsFound },
+                                $set: { usertag: member.user.tag }
+                            },
+                            { upsert: true, new: true }
+                        );
+                    }
+
+                } catch (playerError) {
+                    console.warn(`[InnKeeperV4] Error processing coin find for ${member.user.username}:`, playerError.message);
+                }
+            }
+
+            if (results.coinFindEvents.length > 0) {
+                console.log(`[InnKeeperV4] Coin finding results: ${results.totalCoinsFound} total coins found by ${results.coinFindEvents.length} players`);
+            }
+
+        } catch (error) {
+            console.error('[InnKeeperV4] Error processing player coin finds:', error);
+        }
+
+        return results;
     }
 
     /**
