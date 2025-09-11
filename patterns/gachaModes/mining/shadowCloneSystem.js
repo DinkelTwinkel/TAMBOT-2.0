@@ -32,7 +32,7 @@ function initializeShadowClones(playerId, playerName, playerData, mapData) {
     
     // Check if clones already exist
     if (activeShadowClones.has(playerId)) {
-        return { clones: activeShadowClones.get(playerId), mapChanged: false };
+        return { clones: activeShadowClones.get(playerId), mapChanged: false, newlyCreated: false };
     }
     
     const shadowLegionItem = getUniqueItemById(11);
@@ -111,7 +111,7 @@ function initializeShadowClones(playerId, playerName, playerData, mapData) {
     
     console.log(`[SHADOW LEGION] Initialized ${clones.length} shadow clones for ${playerName}`);
     
-    return { clones, mapChanged };
+    return { clones, mapChanged, newlyCreated: true };
 }
 
 /**
@@ -121,7 +121,7 @@ async function processShadowCloneActions(
     clone,
     ownerData,
     mapData,
-    teamVisibleTiles,
+    ownerVisibleTiles,
     powerLevel,
     availableItems,
     efficiency,

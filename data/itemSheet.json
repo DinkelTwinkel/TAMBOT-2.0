@@ -1554,5 +1554,90 @@
       "Ancient expertise flows through corrupted bone...",
       "The spine writhes with the memory of a thousand miners..."
     ]
+  },
+  {
+    "id": "241",
+    "name": "🗿 Stone Golem Core",
+    "type": "consumable",
+    "subtype": "familiar",
+    "description": "A mystical core that can animate stone into a mining golem for 5 minutes.",
+    "value": 500,
+    "vendable": true,
+    "script": "familiar",
+    "image": "stone_golem_core",
+    "tier": "uncommon",
+    "flavorText": [
+      "Ancient earth magic pulses within this crystalline core...",
+      "The stone yearns to take shape and serve...",
+      "Carved runes glow with earthen power..."
+    ]
+  },
+  {
+    "id": "242",
+    "name": "🤖 Iron Golem Core", 
+    "type": "consumable",
+    "subtype": "familiar",
+    "description": "A mechanical core that can animate metal into a powerful mining golem for 8 minutes.",
+    "value": 1200,
+    "vendable": true,
+    "script": "familiar",
+    "image": "iron_golem_core",
+    "tier": "rare",
+    "flavorText": [
+      "Gears and springs whir with mechanical precision...",
+      "The metal core hums with industrial power...",
+      "Steam vents prepare for activation..."
+    ]
+  },
+  {
+    "id": "243",
+    "name": "💎 Crystal Golem Core",
+    "type": "consumable", 
+    "subtype": "familiar",
+    "description": "A radiant core that can animate crystal into an elite mining golem for 10 minutes.",
+    "value": 2500,
+    "vendable": true,
+    "script": "familiar",
+    "image": "crystal_golem_core", 
+    "tier": "epic",
+    "flavorText": [
+      "Pure crystal energy resonates with harmonic frequencies...",
+      "The core refracts light into rainbow patterns...",
+      "Crystalline formations await their awakening..."
+    ]
+  },
+  {
+    "id": "244",
+    "name": "🔥 Fire Essence",
+    "type": "consumable",
+    "subtype": "familiar", 
+    "description": "Concentrated fire magic that can summon a fire elemental to mine for 6 minutes.",
+    "value": 800,
+    "vendable": true,
+    "script": "familiar",
+    "image": "fire_essence",
+    "tier": "rare",
+    "flavorText": [
+      "Flames dance eagerly within the crystallized essence...",
+      "The fire yearns to serve and consume...",
+      "Heat radiates from the concentrated magic..."
+    ]
+  },
+  {
+    "id": "245",
+    "name": "❄️ Ice Essence",
+    "type": "consumable",
+    "subtype": "familiar",
+    "description": "Frozen magic that can summon an ice elemental to mine for 6 minutes.",
+    "value": 800,
+    "vendable": true, 
+    "script": "familiar",
+    "image": "ice_essence",
+    "tier": "rare",
+    "flavorText": [
+      "Eternal frost preserves ancient magical power...",
+      "The ice whispers of frozen depths...",
+      "Cold magic awaits its moment of release..."
+    ]
   }
 ]

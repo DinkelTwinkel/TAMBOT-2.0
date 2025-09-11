@@ -37,10 +37,18 @@ module.exports = {
             const inventoryItems = playerInv.items
                 .map(item => {
                     const itemData = itemsheet.find(i => i.id === item.itemId);
+                    
+                    // Determine display type - separate summons from regular consumables
+                    let displayType = itemData ? itemData.type : 'unknown';
+                    if (itemData && itemData.type === 'consumable' && itemData.subtype === 'familiar') {
+                        displayType = 'summons'; // Create separate category for summons
+                    }
+                    
                     return {
                         id: item.itemId,
                         name: itemData ? itemData.name : `Unknown Item (${item.itemId})`,
-                        type: itemData ? itemData.type : 'unknown',
+                        type: displayType, // Use modified type for categorization
+                        originalType: itemData ? itemData.type : 'unknown', // Keep original
                         quantity: item.quantity,
                         currentDurability: item.currentDurability,
                         maxDurability: itemData ? itemData.durability : null,
@@ -261,6 +269,7 @@ module.exports = {
             'mineLoot': '⛏️',
             'tool': '🔧',
             'consumable': '🍖',
+            'summons': '🤖', // New category for familiars/golems
             'equipment': '⚔️',
             'charm': '🔮',
             'material': '📦',
@@ -275,6 +284,7 @@ module.exports = {
             'mineLoot': 'Mining Loot',
             'tool': 'Tools',
             'consumable': 'Consumables',
+            'summons': 'Summons & Familiars', // New category name
             'equipment': 'Equipment',
             'charm': 'Charms',
             'material': 'Materials',

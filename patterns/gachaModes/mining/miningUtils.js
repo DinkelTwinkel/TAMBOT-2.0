@@ -287,8 +287,18 @@ async function canBreakTile(playerId, miningPower, tile) {
     // Increased multiplier: easier to break at low power
     const breakChance = Math.min(0.95, (miningPower / hardness) * 0.5);
 
-    const seed = parseInt(playerId) + Date.now();
-    return seededRandom(seed) < breakChance;
+    // Improved seed generation to prevent repeated failures
+    // Include microseconds and a random component to ensure different results for rapid attempts
+    const baseId = parseInt(playerId) || 0;
+    const timeComponent = Date.now();
+    const microComponent = process.hrtime.bigint() % 1000000n; // Microseconds for sub-millisecond precision
+    const randomComponent = Math.floor(Math.random() * 10000); // Additional randomness
+    const seed = baseId + Number(timeComponent) + Number(microComponent) + randomComponent;
+    
+    const result = seededRandom(seed) < breakChance;
+    console.log(`[HARDNESS DEBUG] ${playerId} attempting to break tile: ${miningPower} power vs ${hardness} hardness = ${(breakChance * 100).toFixed(1)}% chance, result: ${result ? 'SUCCESS' : 'FAILED'}`);
+    
+    return result;
 }
 
 

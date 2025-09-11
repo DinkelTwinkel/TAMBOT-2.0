@@ -23,7 +23,7 @@ const {
 } = require('./mining/uniqueItemBonuses');
 
 // Import shadow clone system
-const shadowCloneSystem = require('./mining/shadowCloneSystem');
+const familiarSystem = require('./mining/familiarSystem');
 
 // Import legendary announcement system
 const sendLegendaryAnnouncement = require('../uniqueItemFinding').sendLegendaryAnnouncement || (async () => {
@@ -821,6 +821,8 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         // Import the unified mining system and mine correspondence
         const { findItemUnified, calculateItemQuantity, MINE_ORE_CORRESPONDENCE } = require('./mining/miningConstants_unified');
         
+        // Note: targetMemberId is now handled in processPlayerActionsEnhanced for proper scope
+        
         let destination = 'minecart'; // Default
 
         // Check if we should use the unified system (for gullet and other special mines)
@@ -830,35 +832,41 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             console.log(`[GULLET] Processing gullet items for ${member.displayName}`);
         }
 
-        if (isGullet) {
-            // Use unified item system for special mines
-            let context = 'mining_wall';
-            if (tileType === TILE_TYPES.TREASURE_CHEST) {
-                context = 'treasure_chest';
-            } else if (tileType === TILE_TYPES.RARE_ORE) {
-                context = 'rare_ore';
-            }
+        // Use unified item system for ALL mines (not just gullet)
+        let context = 'mining_wall';
+        if (tileType === TILE_TYPES.TREASURE_CHEST) {
+            context = 'treasure_chest';
+        } else if (tileType === TILE_TYPES.RARE_ORE) {
+            context = 'rare_ore';
+        }
 
-            if (isGullet) {
-                destination = 'inventory';
-            }
-            
-            const item = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine, mineTypeId);
-            const quantity = calculateItemQuantity(item, context, miningPower, luckStat, powerLevel, isDeeperMine);
+        // Set destination based on mine type
+        if (isGullet) {
+            destination = 'inventory'; // Gullet items go to inventory
+        } else {
+            destination = 'minecart'; // Regular mining items go to minecart
+        }
+        
+        console.log(`[MINING DEBUG] Using unified system - mineTypeId: ${mineTypeId}, context: ${context}, powerLevel: ${powerLevel}`);
+        const item = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine, mineTypeId);
+        const quantity = calculateItemQuantity(item, context, miningPower, luckStat, powerLevel, isDeeperMine);
+        
+        if (isGullet) {
+            console.log(`[GULLET DEBUG] Generated gullet item: ${item?.name} (ID: ${item?.itemId}) for ${member.displayName}`);
             
             // Only log gullet items occasionally to reduce spam
             if (Math.random() < 0.1) {
                 console.log(`[GULLET] Generated: ${item.name} for ${member.displayName}`);
             }
-            
-            const enhancedValue = Math.floor(item.value * efficiency.valueMultiplier);
-            
-            return { 
-                item: { ...item, value: enhancedValue }, 
-                quantity,
-                destination
-            };
         }
+        
+        const enhancedValue = Math.floor(item.value * efficiency.valueMultiplier);
+        
+        return { 
+            item: { ...item, value: enhancedValue }, 
+            quantity,
+            destination
+        };
         
         // GUARANTEE SYSTEM: Check mine correspondence for specialized ore guarantee
         const mineConfig = MINE_ORE_CORRESPONDENCE[String(mineTypeId)];
@@ -2209,9 +2217,11 @@ module.exports = async (channel, dbEntry, json, client) => {
         
         // Get mine type ID for special mine handling (e.g., gullet meat items)
         const mineTypeId = dbEntry.typeId;
-        // Minimal logging for gullet detection only
+        // Enhanced logging for gullet detection and debugging
         if (mineTypeId === 16 || mineTypeId === '16') {
-            console.log(`[MINING] Gullet mine detected (ID: ${mineTypeId})`);
+            console.log(`[GULLET DEBUG] Gullet mine detected (ID: ${mineTypeId}) with ${members.size} members`);
+            console.log(`[GULLET DEBUG] Map data exists:`, !!dbEntry.gameData?.map);
+            console.log(`[GULLET DEBUG] Map dimensions:`, dbEntry.gameData?.map?.width, 'x', dbEntry.gameData?.map?.height);
         }
         
         // Set mining context for this processing cycle
@@ -2601,6 +2611,7 @@ if (shouldStartBreak) {
         let mapChanged = false;
         let healthDataChanged = false; // Track if health data was modified
         const transaction = new DatabaseTransaction();
+        
         const eventLogs = [];
         let wallsBroken = 0;
         let treasuresFound = 0;
@@ -2612,8 +2623,29 @@ if (shouldStartBreak) {
         let hazardsChanged = false;
         
         if (!mapData) {
+            console.log(`[MINING] Generating fresh map for channel ${channel.id}`);
             mapData = initializeMap(channel.id);
+            
+            // CRITICAL: Initialize player positions for freshly generated maps
+            console.log(`[MINING] Initializing player positions for ${members.size} members`);
+            mapData = initializeBreakPositions(mapData, members, false);
+            
             mapChanged = true;
+            console.log(`[MINING] Fresh map generated with player positions initialized`);
+            
+            // CRITICAL: Update cache immediately so fresh cache calls work
+            console.log(`[MINING] Updating cache with fresh map data...`);
+            mapCacheSystem.updateMapData(channelId, mapData);
+            await mapCacheSystem.forceFlush();
+            console.log(`[MINING] Cache updated with fresh map - entities can now process`);
+        }
+        
+        // Load existing familiars from database and restore them to the map (after mapData is guaranteed to exist)
+        console.log(`[FAMILIAR] Loading existing familiars from database...`);
+        const familiarMapChanged = familiarSystem.loadFamiliarsFromDatabase(dbEntry, mapData);
+        if (familiarMapChanged) {
+            mapChanged = true;
+            console.log(`[FAMILIAR] Map updated with restored familiars`);
             
             // Use geological scanner's hazard probability
             const hazardSpawnChance = getHazardProbability(serverPowerLevel);
@@ -2710,52 +2742,58 @@ if (shouldStartBreak) {
         const shadowCloneResults = [];
         const MAX_TOTAL_CLONES = 30; // Maximum clones across all players
         
-        // Helper function to check if we can spawn more clones
+        // Helper function to check if we can spawn more familiars
         function canSpawnMoreClones() {
-            let totalClones = 0;
-            for (const clones of shadowCloneSystem.activeShadowClones.values()) {
-                totalClones += clones.length;
+            let totalFamiliars = 0;
+            for (const familiars of familiarSystem.activeShadowClones.values()) {
+                totalFamiliars += familiars.length;
             }
-            return totalClones < MAX_TOTAL_CLONES;
+            return totalFamiliars < MAX_TOTAL_CLONES;
         }
         
         for (const member of members.values()) {
             const playerData = playerStatsMap.get(member.id);
             
-            // Check if player has Shadow Legion Amulet and initialize clones
-            if (shadowCloneSystem.hasShadowLegionAmulet(playerData)) {
+            // Check if player has familiar-generating items and initialize familiars
+            if (familiarSystem.canSpawnFamiliars(playerData, familiarSystem.FAMILIAR_TYPES.SHADOW_CLONE)) {
                 // Check clone limit
                 if (!canSpawnMoreClones()) {
                     eventLogs.push(`⚠️ Maximum shadow limit reached in this mine!`);
                     continue;
                 }
-                const cloneResult = shadowCloneSystem.initializeShadowClones(
+                const familiarResult = familiarSystem.initializeFamiliars(
                     member.id,
                     member.displayName,
                     playerData,
                     mapData
                 );
                 
-                if (cloneResult.mapChanged) {
+                if (familiarResult.mapChanged) {
                     mapChanged = true;
                 }
                 
-                if (cloneResult.clones.length > 0) {
+                if (familiarResult.familiars.length > 0) {
                     shadowCloneResults.push({
                         ownerId: member.id,
                         ownerName: member.displayName,
-                        clones: cloneResult.clones
+                        clones: familiarResult.familiars // Keep 'clones' name for compatibility
                     });
                     
-                    eventLogs.push(`👥 ${member.displayName}'s Shadow Legion has materialized! (${cloneResult.clones.length} shadows)`);
+                    // Only show materialization message for newly created familiars
+                    if (familiarResult.newlyCreated) {
+                        eventLogs.push(`👥 ${member.displayName}'s Shadow Legion has materialized! (${familiarResult.familiars.length} shadows)`);
+                    }
                 }
             }
         }
         
-        // Check for players who left
+        // Check for players who left (exclude shadow clones from this check)
         const currentPlayerIds = Array.from(members.keys());
         const departedPlayers = [];
         for (const playerId of Object.keys(existingPositions)) {
+            // Skip familiars - they're not real players who can "leave"
+            if (playerId.includes('_shadow_') || playerId.includes('_golem_') || playerId.includes('_elemental_')) continue;
+            
             if (!currentPlayerIds.includes(playerId)) {
                 const memberName = channel.guild.members.cache.get(playerId)?.displayName || 'A miner';
                 departedPlayers.push({ id: playerId, name: memberName });
@@ -2764,12 +2802,12 @@ if (shouldStartBreak) {
             }
         }
         
-        // Remove shadow clones for departed players
+        // Remove familiars for departed players
         for (const departed of departedPlayers) {
-            const removeResult = shadowCloneSystem.removeShadowClones(departed.id, mapData);
+            const removeResult = familiarSystem.removeAllPlayerFamiliars(departed.id, mapData);
             if (removeResult.mapChanged) {
                 mapChanged = true;
-                eventLogs.push(`👥 ${departed.name}'s shadows fade away...`);
+                eventLogs.push(`👥 ${departed.name}'s familiars fade away...`);
             }
         }
         
@@ -2798,10 +2836,67 @@ if (shouldStartBreak) {
             );
         }
         
-        // Process actions for each player SEQUENTIALLY with fresh cache per player to prevent race conditions
-        console.log(`[MINING] Processing ${members.size} players sequentially with fresh cache per player`);
+        // Create list of all entities to process (players + shadow clones)
+        const allEntities = [];
         
+        // Add regular players
         for (const member of members.values()) {
+            allEntities.push({
+                type: 'player',
+                member: member,
+                id: member.id,
+                displayName: member.displayName,
+                isClone: false
+            });
+        }
+        
+        // Add familiars from database as virtual players
+        const allPlayerFamiliars = familiarSystem.activeShadowClones; // This is now activeFamiliars
+        for (const [ownerId, familiars] of allPlayerFamiliars.entries()) {
+            const ownerMember = channel.members.get(ownerId);
+            if (!ownerMember) continue;
+            
+            for (const familiar of familiars) {
+                if (!familiar.active) continue;
+                
+                // Create virtual member object for the familiar
+                const virtualMember = {
+                    id: familiar.id,
+                    displayName: familiar.displayName,
+                    user: {
+                        id: familiar.id,
+                        username: familiar.name,
+                        displayName: familiar.displayName,
+                        bot: false
+                    },
+                    // Reference to the original owner
+                    ownerId: ownerId,
+                    ownerMember: ownerMember,
+                    isClone: familiar.type === 'shadow_clone',
+                    isFamiliar: true,
+                    familiarType: familiar.type,
+                    cloneData: familiar // For backward compatibility
+                };
+                
+                allEntities.push({
+                    type: 'familiar',
+                    member: virtualMember,
+                    id: familiar.id,
+                    displayName: familiar.displayName,
+                    isClone: familiar.type === 'shadow_clone',
+                    isFamiliar: true,
+                    ownerId: ownerId,
+                    familiarType: familiar.type,
+                    cloneData: familiar // For backward compatibility
+                });
+            }
+        }
+        
+        // Process actions for each entity SEQUENTIALLY with fresh cache per entity to prevent race conditions
+        console.log(`[MINING] Processing ${allEntities.length} entities (${members.size} players + ${allEntities.length - members.size} shadow clones) sequentially with fresh cache per entity`);
+        
+        for (const entity of allEntities) {
+            const member = entity.member;
             try {
                 // Skip players who are being moved to gullet due to sanity
                 if (playersToSkip.has(member.id)) {
@@ -2828,6 +2923,44 @@ if (shouldStartBreak) {
                 
                 // Deep clone the mapData to prevent cross-player contamination
                 playerMapData = JSON.parse(JSON.stringify(playerMapData));
+                
+                // For familiars, ensure their position is preserved in the fresh map data
+                if (entity.isClone || entity.isFamiliar) {
+                    // Get familiar from the database-loaded familiars
+                    const playerFamiliars = familiarSystem.getPlayerFamiliars(entity.ownerId);
+                    const familiar = playerFamiliars.find(f => f.id === member.id);
+                    
+                    if (familiar) {
+                        // Get owner position to calculate familiar position
+                        const ownerPosition = playerMapData.playerPositions[entity.ownerId];
+                        if (ownerPosition) {
+                            let offsetX = 0, offsetY = 0;
+                            
+                            if (familiar.type === 'shadow_clone') {
+                                // Shadow clone positioning
+                                offsetX = (familiar.index === 1) ? -1 : (familiar.index === 2) ? 1 : 0;
+                                offsetY = (familiar.index === 3) ? 1 : 0;
+                            } else {
+                                // Other familiars positioned next to owner
+                                offsetX = familiar.index - 1;
+                                offsetY = 0;
+                            }
+                            
+                            playerMapData.playerPositions[familiar.id] = {
+                                x: Math.max(0, Math.min(playerMapData.width - 1, ownerPosition.x + offsetX)),
+                                y: Math.max(0, Math.min(playerMapData.height - 1, ownerPosition.y + offsetY)),
+                                isFamiliar: true,
+                                isClone: familiar.type === 'shadow_clone',
+                                familiarType: familiar.type,
+                                ownerId: entity.ownerId,
+                                familiarIndex: familiar.index,
+                                hidden: false
+                            };
+                            console.log(`[FAMILIAR] Restored position for ${member.displayName} (${familiar.type}) at (${playerMapData.playerPositions[familiar.id].x}, ${playerMapData.playerPositions[familiar.id].y})`);
+                        }
+                    }
+                }
+                
                 console.log(`[CACHE] Fresh map data loaded for ${member.displayName} - tiles: ${playerMapData.width}x${playerMapData.height}`);
                 
                 // === CHECK AND EXPAND MAP FOR PLAYER VISIBILITY ===
@@ -2906,54 +3039,101 @@ if (shouldStartBreak) {
                     console.log(`[MAP_EXPAND] No position found for ${member.displayName}, will be initialized at entrance`);
                 }
                 
-                // Initialize player health using separate schema and check if dead
+                // Handle health and disabled status differently for clones vs players
                 let isDead = false;
-                try {
-                    const PlayerHealth = require('../../models/PlayerHealth');
-                    const playerHealth = await PlayerHealth.getOrCreatePlayerHealth(member.id, channel.id, channel.guild.id);
-                    isDead = playerHealth.isDead;
+                let wasDisabled = false;
+                let isDisabled = false;
+                
+                if (entity.isClone || entity.isFamiliar) {
+                    // For familiars, check if they're respawning instead of health/disabled status
+                    if (entity.cloneData.respawning) {
+                        console.log(`[FAMILIAR] ${member.displayName} is respawning, skipping actions`);
+                        continue;
+                    }
                     
-                    if (isDead) {
-                        console.log(`[MINING] Player ${member.displayName} is dead, skipping actions`);
-                        continue; // Skip processing for dead players
+                    // Check if temporary familiar has expired
+                    if (entity.cloneData.duration && (Date.now() - entity.cloneData.createdAt) > entity.cloneData.duration) {
+                        console.log(`[FAMILIAR] ${member.displayName} has expired, removing...`);
+                        familiarSystem.removeFamiliar(entity.ownerId, entity.id, playerMapData);
+                        continue;
                     }
-                } catch (healthInitError) {
-                    console.error(`[MINING] Error initializing health for ${member.displayName}:`, healthInitError);
+                } else {
+                    // Regular player health and disabled checks
+                    try {
+                        const PlayerHealth = require('../../models/PlayerHealth');
+                        const playerHealth = await PlayerHealth.getOrCreatePlayerHealth(member.id, channel.id, channel.guild.id);
+                        isDead = playerHealth.isDead;
+                        
+                        if (isDead) {
+                            console.log(`[MINING] Player ${member.displayName} is dead, skipping actions`);
+                            continue; // Skip processing for dead players
+                        }
+                    } catch (healthInitError) {
+                        console.error(`[MINING] Error initializing health for ${member.displayName}:`, healthInitError);
+                    }
+                    
+                    wasDisabled = freshDbEntry.gameData?.disabledPlayers?.[member.id];
+                    isDisabled = hazardEffects.isPlayerDisabled(member.id, freshDbEntry);
                 }
                 
-                const wasDisabled = freshDbEntry.gameData?.disabledPlayers?.[member.id];
-                const isDisabled = hazardEffects.isPlayerDisabled(member.id, freshDbEntry);
-                
-                if (wasDisabled && !isDisabled) {
-                    eventLogs.push(`⭐ ${member.displayName} recovered from being knocked out!`);
-                    const position = playerMapData.playerPositions[member.id];
-                    if (position && (position.x !== playerMapData.entranceX || position.y !== playerMapData.entranceY)) {
-                        position.x = playerMapData.entranceX;
-                        position.y = playerMapData.entranceY;
-                        position.disabled = false;
-                        mapChanged = true;
-                    }
-                }
-                
-                if (isDisabled) {
-                    const disabledInfo = freshDbEntry.gameData?.disabledPlayers?.[member.id];
-                    if (disabledInfo?.enableAt && Math.random() < 0.1) {
-                        const now = Date.now();
-                        const remainingMs = disabledInfo.enableAt - now;
-                        const remainingMinutes = Math.ceil(remainingMs / 60000);
-                        if (remainingMinutes > 0) {
-                            eventLogs.push(`💤 ${member.displayName} is knocked out (${remainingMinutes} min remaining)`);
+                // Handle recovery and disabled status (only for regular players, clones handle this differently)
+                if (!entity.isClone) {
+                    if (wasDisabled && !isDisabled) {
+                        eventLogs.push(`⭐ ${member.displayName} recovered from being knocked out!`);
+                        const position = playerMapData.playerPositions[member.id];
+                        if (position && (position.x !== playerMapData.entranceX || position.y !== playerMapData.entranceY)) {
+                            position.x = playerMapData.entranceX;
+                            position.y = playerMapData.entranceY;
+                            position.disabled = false;
+                            mapChanged = true;
                         }
                     }
-                    continue; // Skip processing but don't throw error
+                    
+                    if (isDisabled) {
+                        const disabledInfo = freshDbEntry.gameData?.disabledPlayers?.[member.id];
+                        if (disabledInfo?.enableAt && Math.random() < 0.1) {
+                            const now = Date.now();
+                            const remainingMs = disabledInfo.enableAt - now;
+                            const remainingMinutes = Math.ceil(remainingMs / 60000);
+                            if (remainingMinutes > 0) {
+                                eventLogs.push(`💤 ${member.displayName} is knocked out (${remainingMinutes} min remaining)`);
+                            }
+                        }
+                        continue; // Skip processing but don't throw error
+                    }
                 }
                 
-                const playerData = playerStatsMap.get(member.id) || { stats: {}, level: 1 };
-                const playerLevel = playerData.level || 1;
+                // Get player data - for clones, use their own stats, for players use normal stats
+                let playerData;
+                let playerLevel;
+                
+                if (entity.isClone || entity.isFamiliar) {
+                    // For familiars, use their stats and owner's level
+                    const ownerData = playerStatsMap.get(entity.ownerId) || { stats: {}, level: 1 };
+                    playerData = {
+                        stats: entity.cloneData.stats, // Familiar has their own stats
+                        level: ownerData.level || 1,    // Familiar uses owner's level
+                        equippedItems: ownerData.equippedItems || [], // Familiar uses owner's equipment (including pickaxe)
+                        isClone: entity.isClone,
+                        isFamiliar: entity.isFamiliar,
+                        familiarType: entity.familiarType,
+                        ownerId: entity.ownerId,
+                        cloneData: entity.cloneData
+                    };
+                    playerLevel = ownerData.level || 1;
+                    console.log(`[FAMILIAR] Processing ${member.displayName} (${entity.familiarType}) with stats: mining=${playerData.stats.mining}, luck=${playerData.stats.luck}, speed=${playerData.stats.speed}, sight=${playerData.stats.sight}`);
+                } else {
+                    // Regular player
+                    playerData = playerStatsMap.get(member.id) || { stats: {}, level: 1 };
+                    playerLevel = playerData.level || 1;
+                }
 
                 const efficiency = getCachedMiningEfficiency(serverPowerLevel, playerLevel, serverModifiers);
                 
-                console.log(`[MINING] Processing actions for ${member.displayName} with fresh map data`);
+                console.log(`[MINING] Processing actions for ${member.displayName} with fresh map data (typeId: ${mineTypeId})`);
+                if (mineTypeId === 16 || mineTypeId === '16') {
+                    console.log(`[GULLET DEBUG] Processing gullet player ${member.displayName} with map size: ${playerMapData.width}x${playerMapData.height}`);
+                }
                 const result = await processPlayerActionsEnhanced(
                     member, 
                     playerData, 
@@ -3005,61 +3185,8 @@ if (shouldStartBreak) {
             }
         }
 
-        // Process shadow clone actions
-        for (const shadowData of shadowCloneResults) {
-            const ownerData = playerStatsMap.get(shadowData.ownerId);
-            if (!ownerData) continue;
-            
-            for (const clone of shadowData.clones) {
-                if (!clone.active) continue;
-                
-                try {
-                    const cloneResult = await shadowCloneSystem.processShadowCloneActions(
-                        clone,
-                        ownerData,
-                        mapData,
-                        teamVisibleTiles,
-                        serverPowerLevel,
-                        availableItems,
-                        efficiency,
-                        mineFromTile,
-                        generateTreasure,
-                        transaction,
-                        eventLogs,
-                        hazardsData
-                    );
-                    
-                    // Track results
-                    if (cloneResult.wallsBroken > 0) {
-                        wallsBroken += cloneResult.wallsBroken;
-                    }
-                    if (cloneResult.treasuresFound > 0) {
-                        treasuresFound += cloneResult.treasuresFound;
-                    }
-                    if (cloneResult.mapChanged) {
-                        mapChanged = true;
-                    }
-                    if (cloneResult.hazardTriggered) {
-                        hazardsChanged = true;
-                    }
-                    
-                    // Transfer earnings to owner
-                    const transferResult = shadowCloneSystem.transferCloneEarnings(
-                        clone,
-                        shadowData.ownerId,
-                        transaction
-                    );
-                    
-                    // Update mining activity for maintenance
-                    if (transferResult.items.length > 0 || transferResult.coins > 0) {
-                        await updateMiningActivity(shadowData.ownerId, 1);
-                    }
-                    
-                } catch (cloneError) {
-                    console.error(`[SHADOW LEGION] Error processing clone ${clone.displayName}:`, cloneError);
-                }
-            }
-        }
+        // Shadow clones are now processed as full players in the main loop above
+        // No separate processing needed - they get individual visibility and full action processing
 
         if (wallsBroken > 0 || treasuresFound > 0) {
             mapCacheSystem.updateMultiple(channel.id, { 'stats.wallsBroken': (dbEntry.gameData.stats?.wallsBroken || 0) + wallsBroken,
@@ -3070,6 +3197,9 @@ if (shouldStartBreak) {
         if (hazardsChanged) {
             await hazardStorage.saveHazardsData(channel.id, hazardsData);
         }
+        
+        // Update database with any familiar changes
+        await familiarSystem.updateDatabaseFamiliars(dbEntry);
         
         if (mapChanged) {
             console.log(`[MINING] Map changed for channel ${channel.id} (Power Level ${serverPowerLevel})`);
@@ -3192,6 +3322,14 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
         return { mapChanged: false, wallsBroken: 0, treasuresFound: 0, mapData, hazardsChanged: false };
     }
 
+    // Determine the actual member to credit earnings to (for shadow clones, use owner)
+    let targetMemberId = member.id;
+    if (member.isClone && member.ownerId) {
+        // For shadow clones, earnings should go to the owner
+        targetMemberId = member.ownerId;
+        console.log(`[SHADOW CLONE] ${member.displayName} earnings will go to owner ${member.ownerId}`);
+    }
+
     // Get base player stats
     const baseMiningPower = Math.max(0, playerData?.stats?.mining || 0);
     const baseLuckStat = Math.max(0, playerData?.stats?.luck || 0);
@@ -3221,7 +3359,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
     // Parse unique bonuses with error handling
     let uniqueBonuses;
     try {
-        uniqueBonuses = parseUniqueItemBonuses(playerData?.equippedItems);
+        uniqueBonuses = parseUniqueItemBonuses(playerData?.equippedItems, eventLogs, member);
     } catch (error) {
         console.error(`[MINING] Error parsing unique bonuses for ${member.displayName}:`, error);
         uniqueBonuses = {
@@ -3544,6 +3682,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
     
     console.log(`[MINING DEBUG] === ${member.displayName} starting ${numActions} actions (speed: ${speedStat}, enhanced: ${enhancedSpeed}) ===`);
     
+    // Special debugging for gullet players
+    if (dbEntry?.typeId === 16 || dbEntry?.typeId === '16') {
+        console.log(`[GULLET DEBUG] ${member.displayName} in gullet - position:`, mapData.playerPositions[member.id]);
+        console.log(`[GULLET DEBUG] ${member.displayName} map size: ${mapData.width}x${mapData.height}, tiles exist:`, !!mapData.tiles);
+    }
+    
     for (let actionNum = 0; actionNum < numActions; actionNum++) {
         try {
             console.log(`[MINING DEBUG] ${member.displayName} starting action ${actionNum + 1}/${numActions}`);
@@ -3574,7 +3718,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 if (treasure) {
                     // Treasures go to inventory, not minecart
                     console.log(`[MINING DEBUG] ${member.displayName} found treasure: ${treasure.name}!`);
-                    await addItemWithDestination(dbEntry, member.id, treasure.itemId, 1, 'inventory');
+                    await addItemWithDestination(dbEntry, targetMemberId, treasure.itemId, 1, 'inventory');
                     eventLogs.push(`🎁 ${member.displayName} discovered ${treasure.name} while exploring! (added to inventory)`);
                     treasuresFound++;
                 } else {
@@ -3587,7 +3731,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
             // Midas' Burden greed bonus - chance to find extra coins
             if (uniqueBonuses.greedBonus > 0 && Math.random() < uniqueBonuses.greedBonus) {
                 const bonusCoins = Math.floor((10 + powerLevel * 5) * (1 + Math.random())); // 10-15 base + power level scaling
-                await addItemWithDestination(dbEntry, member.id, 'coin', bonusCoins, 'inventory');
+                await addItemWithDestination(dbEntry, targetMemberId, 'coin', bonusCoins, 'inventory');
                 eventLogs.push(`💰 ${member.displayName}'s greed attracts ${bonusCoins} loose coins!`);
             }
             
@@ -3621,9 +3765,11 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 
                 if (checkY >= 0 && checkY < mapData.height && checkX >= 0 && checkX < mapData.width) {
                     const tile = mapData.tiles[checkY][checkX];
+                    console.log(`[MINING DEBUG] ${member.displayName} checking adjacent tile at (${checkX},${checkY}): ${getTileTypeName(tile?.type || 'undefined')}`);
                     if (tile && (tile.type === TILE_TYPES.WALL_WITH_ORE || 
                                tile.type === TILE_TYPES.RARE_ORE)) {
                         adjacentTarget = { x: checkX, y: checkY, tile };
+                        console.log(`[MINING DEBUG] ${member.displayName} found ore target at (${checkX},${checkY}): ${getTileTypeName(tile.type)}`);
                         break;
                     }
                 }
@@ -3633,8 +3779,16 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
             
             if (adjacentTarget) {
                 const tile = adjacentTarget.tile;
-                if (await canBreakTile(member.id, miningPower, tile)) {
+                console.log(`[MINING DEBUG] ${member.displayName} checking if can break tile at (${adjacentTarget.x},${adjacentTarget.y}) with mining power ${miningPower}`);
+                const canBreak = await canBreakTile(member.id, miningPower, tile);
+                console.log(`[MINING DEBUG] ${member.displayName} canBreakTile result: ${canBreak}`);
+                if (canBreak) {
+                    console.log(`[MINING DEBUG] ${member.displayName} attempting to mine tile at (${adjacentTarget.x},${adjacentTarget.y})`);
                     const { item, quantity, destination } = await mineFromTile(member, miningPower, luckStat, powerLevel, tile.type, availableItems, efficiency, isDeeperMine, mineTypeId);
+                    if (!item) {
+                        console.log(`[MINING DEBUG] ${member.displayName} ERROR: mineFromTile returned null/undefined item, skipping tile conversion`);
+                        continue;
+                    }
                     
                     let finalQuantity = quantity;
                     let finalValue = item.value;
@@ -3652,11 +3806,14 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     
                     // No tier-based caps - unlimited quantity potential!
                     console.log (`${member.displayName} got ${item.name} and its going to ${destination}`);
-                    await addItemWithDestination(dbEntry, member.id, item.itemId, finalQuantity, destination);
+                    await addItemWithDestination(dbEntry, targetMemberId, item.itemId, finalQuantity, destination);
                     
+                    console.log(`[MINING DEBUG] ${member.displayName} about to convert tile at (${adjacentTarget.x},${adjacentTarget.y}) from ${getTileTypeName(tile.type)}`);
                     mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
+                    console.log(`[MINING DEBUG] ${member.displayName} successfully converted tile at (${adjacentTarget.x},${adjacentTarget.y}) to ${getTileTypeName(TILE_TYPES.FLOOR)}`);
                     mapChanged = true;
                     wallsBroken++;
+                    console.log(`[MINING DEBUG] ${member.displayName} tile conversion complete, continuing with action processing...`);
                     
                     // Check for proactive map expansion when breaking walls at edges
                     try {
@@ -3850,7 +4007,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                                     member, miningPower, luckStat, powerLevel, 
                                     chainTile.type, availableItems, efficiency
                                 , isDeeperMine, mineTypeId);
-                                await addItemWithDestination(dbEntry, member.id, chainItem.itemId, chainQty, destination);
+                                await addItemWithDestination(dbEntry, targetMemberId, chainItem.itemId, chainQty, destination);
                                 mapData.tiles[chainTarget.y][chainTarget.x] = { 
                                     type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 
                                 };
@@ -4057,7 +4214,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         finalQuantity = Math.min(finalQuantity, movementQuantityCaps[item.tier] || 8);
                         
                         console.log (`${member.displayName} got ${item.name} and its going to ${destination}`);
-                        await addItemWithDestination(dbEntry, member.id, item.itemId, finalQuantity, destination);
+                        await addItemWithDestination(dbEntry, targetMemberId, item.itemId, finalQuantity, destination);
                         
                         let findMessage;
                         // Treasure chests no longer spawn
@@ -4326,12 +4483,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     } else {
                         eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
                     }
-                    await addItemWithDestination(dbEntry, member.id, bonusItem.itemId, 1, destination);
+                    await addItemWithDestination(dbEntry, targetMemberId, bonusItem.itemId, 1, destination);
                 }
             }
             
         } catch (actionError) {
-            console.error(`[MINING DEBUG] Error processing action ${actionNum + 1} for ${member.displayName}:`, actionError);
+            console.error(`[MINING DEBUG] CRITICAL ERROR in action ${actionNum + 1} for ${member.displayName}:`, actionError);
+            console.error(`[MINING DEBUG] Error stack:`, actionError.stack);
         }
         
         console.log(`[MINING DEBUG] ${member.displayName} completed action ${actionNum + 1}/${numActions}`);

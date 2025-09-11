@@ -8,7 +8,7 @@ const { getUniqueItemById } = require('../../../data/uniqueItemsSheet');
  * @param {Object} equippedItems - Equipped items from calculatePlayerStat
  * @returns {Object} Parsed bonuses and special abilities
  */
-function parseUniqueItemBonuses(equippedItems) {
+function parseUniqueItemBonuses(equippedItems, eventLogs = null, member = null) {
     const bonuses = {
         // Blue Breeze abilities
         doubleOreChance: 0,
@@ -262,8 +262,8 @@ function parseUniqueItemBonuses(equippedItems) {
                 bonuses.phaseWalkChance += 0.1 * maintenanceRatio; // 10% chance to phase through walls
                 bonuses.shadowTeleportChance += 0.05 * maintenanceRatio; // 5% chance to teleport
                 bonuses.movementSpeedBonus += 0.3 * maintenanceRatio;
-                // Minimap system
-                bonuses.minimapSystem.invisible = true; // Invisible on minimap
+                // Minimap system - 50% chance to be invisible
+                bonuses.minimapSystem.invisible = Math.random() < 0.5; // 50% chance to be invisible on minimap
                 // Visual effects
                 bonuses.visualEffects.aura = 'shadow';
                 bonuses.visualEffects.glowColor = '#2F4F4F';
@@ -346,7 +346,7 @@ function parseUniqueItemBonuses(equippedItems) {
                     bonuses.doubleOreChance = 0; // No double ore
                     bonuses.oreValueMultipliers.coin = 0.1 * maintenanceRatio; // Coins worth 10% normal value
                     
-                    if (Math.random() < 0.5) { // 50% chance to log the curse
+                    if (Math.random() < 0.5 && eventLogs && member) { // 50% chance to log the curse
                         eventLogs.push(`💀 ${member.displayName}'s Midas' Burden is cursed! Everything turns to worthless gold...`);
                     }
                 }

@@ -1559,15 +1559,79 @@ async function drawMidgroundLayer(ctx, tiles, width, height, floorTileSize, wall
     // Group players by position to handle multiple players on same tile
     const playersAtPosition = new Map();
     
-    for (const member of members.values()) {
-        const position = playerPositions[member.id];
+    // Include both regular players and shadow clones from playerPositions
+    for (const [playerId, position] of Object.entries(playerPositions)) {
         if (!position) continue;
         
-        const posKey = `${position.x},${position.y}`;
-        if (!playersAtPosition.has(posKey)) {
-            playersAtPosition.set(posKey, []);
+        let member = null;
+        
+        // Check if this is a regular Discord member
+        for (const discordMember of members.values()) {
+            if (discordMember.id === playerId) {
+                member = discordMember;
+                break;
+            }
         }
-        playersAtPosition.get(posKey).push({ member, position });
+        
+        // If not a regular member, check if it's a familiar (shadow clone, golem, etc.)
+        if (!member && (playerId.includes('_shadow_') || playerId.includes('_shadow_clone_') || playerId.includes('_golem_') || playerId.includes('_elemental_'))) {
+            // This is a familiar - create a virtual member object
+            const familiarSystem = require('../familiarSystem');
+            
+            // Parse familiar ID to get owner and type info
+            let ownerId, familiarType, familiarIndex;
+            
+            if (playerId.includes('_shadow_clone_')) {
+                [ownerId, , , familiarIndex] = playerId.split('_');
+                familiarType = 'shadow_clone';
+            } else if (playerId.includes('_shadow_')) {
+                // Legacy shadow clone format
+                [ownerId, , familiarIndex] = playerId.split('_');
+                familiarType = 'shadow_clone';
+            } else if (playerId.includes('_stone_golem_')) {
+                [ownerId, , , familiarIndex] = playerId.split('_');
+                familiarType = 'stone_golem';
+            } else if (playerId.includes('_iron_golem_')) {
+                [ownerId, , , familiarIndex] = playerId.split('_');
+                familiarType = 'iron_golem';
+            } else if (playerId.includes('_crystal_golem_')) {
+                [ownerId, , , familiarIndex] = playerId.split('_');
+                familiarType = 'crystal_golem';
+            }
+            
+            // Find the owner member
+            const ownerMember = Array.from(members.values()).find(m => m.id === ownerId);
+            if (ownerMember && familiarType) {
+                const familiarConfig = familiarSystem.FAMILIAR_CONFIGS[familiarType];
+                
+                // Create virtual member for familiar
+                member = {
+                    id: playerId,
+                    displayName: `${familiarConfig?.displayIcon || '🤖'} ${ownerMember.displayName}'s ${familiarConfig?.name || 'Familiar'} ${familiarIndex}`,
+                    user: {
+                        id: playerId,
+                        username: `${ownerMember.user.username}_${familiarType}_${familiarIndex}`,
+                        displayName: `${familiarConfig?.displayIcon || '🤖'} ${ownerMember.displayName}'s ${familiarConfig?.name || 'Familiar'} ${familiarIndex}`,
+                        bot: false,
+                        avatarURL: ownerMember.user.displayAvatarURL ? ownerMember.user.displayAvatarURL({ extension: 'png', size: 128 }) : null
+                    },
+                    isFamiliar: true,
+                    isClone: familiarType === 'shadow_clone', // Backward compatibility
+                    ownerId: ownerId,
+                    familiarType: familiarType,
+                    familiarIndex: familiarIndex
+                };
+            }
+        }
+        
+        // Add to rendering list if we have a valid member (real or virtual)
+        if (member) {
+            const posKey = `${position.x},${position.y}`;
+            if (!playersAtPosition.has(posKey)) {
+                playersAtPosition.set(posKey, []);
+            }
+            playersAtPosition.get(posKey).push({ member, position });
+        }
     }
     
     // Add player groups to midground objects
@@ -1870,11 +1934,176 @@ function drawRails(ctx, pixelX, pixelY, tileSize, railsData, mapData, tileX, til
  */
 async function drawPlayerAvatar(ctx, member, centerX, centerY, size, imageSettings, channelId) {
     try {
+        const radius = size / 2;
+        
+        // Handle familiars differently based on their type
+        if (member.isFamiliar || member.isClone) {
+            const familiarType = member.familiarType || 'shadow_clone';
+            const familiarSystem = require('../familiarSystem');
+            const config = familiarSystem.FAMILIAR_CONFIGS[familiarType];
+            ctx.save();
+            
+            // Render familiar based on type
+            if (familiarType === 'shadow_clone') {
+                // Shadow clones use owner's avatar with shadow effects
+                let avatarURL = member.user.avatarURL;
+                if (avatarURL) {
+                    try {
+                        const avatar = await loadImage(avatarURL);
+                        
+                        // Shadow effect
+                        if (size > 20) {
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                            ctx.beginPath();
+                            ctx.arc(centerX + 2, centerY + 2, radius + 1, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        
+                        // Draw owner's avatar with transparency
+                        ctx.globalAlpha = config.visual.opacity || 0.8;
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
+                        ctx.closePath();
+                        ctx.clip();
+                        
+                        ctx.drawImage(avatar, centerX - radius, centerY - radius, size, size);
+                        ctx.restore();
+                        ctx.save();
+                        
+                        // Add shadow overlay
+                        ctx.globalAlpha = 0.3;
+                        ctx.fillStyle = 'rgba(50, 50, 80, 1)';
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                        ctx.save();
+                        
+                    } catch (avatarError) {
+                        // Fallback to silhouette
+                        ctx.fillStyle = 'rgba(50, 50, 80, 0.9)';
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                } else {
+                    // Fallback silhouette
+                    ctx.fillStyle = 'rgba(50, 50, 80, 0.9)';
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else {
+                // Golems and other familiars get solid colored appearance
+                let fillColor = 'rgba(139, 69, 19, 0.9)'; // Default brown for stone
+                
+                switch (familiarType) {
+                    case 'stone_golem':
+                        fillColor = 'rgba(139, 69, 19, 0.9)'; // Brown
+                        break;
+                    case 'iron_golem':
+                        fillColor = 'rgba(192, 192, 192, 0.9)'; // Silver
+                        break;
+                    case 'crystal_golem':
+                        fillColor = 'rgba(255, 105, 180, 0.9)'; // Pink crystal
+                        break;
+                    case 'fire_elemental':
+                        fillColor = 'rgba(255, 69, 0, 0.9)'; // Orange-red
+                        break;
+                    case 'ice_elemental':
+                        fillColor = 'rgba(173, 216, 230, 0.9)'; // Light blue
+                        break;
+                }
+                
+                // Shadow effect for golems
+                if (size > 20) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(centerX + 1, centerY + 1, radius + 1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Main golem body
+                ctx.fillStyle = fillColor;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+            // Add familiar icon
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.font = `${Math.max(8, size * 0.4)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(config.displayIcon, centerX, centerY);
+        }
+        
+        // Render familiar's pickaxe if available and size is large enough
+        if (config.pickaxeImage && size > 20) {
+            const pickaxeImagePath = `./assets/items/${config.pickaxeImage}.png`;
+            
+            try {
+                const pickaxeImage = await loadImage(pickaxeImagePath);
+                
+                const pickaxeSize = size * 0.8; // Slightly smaller than regular pickaxes
+                const pickaxeX = centerX - radius * 1.7;
+                const pickaxeY = centerY - pickaxeSize/3;
+                
+                ctx.save();
+                ctx.globalAlpha = 0.8; // Slightly more transparent for familiars
+                ctx.drawImage(pickaxeImage, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
+                ctx.restore();
+            } catch (pickaxeError) {
+                // If familiar pickaxe image doesn't exist, use a fallback based on familiar type
+                let fallbackImage = 'ironpickaxe'; // Default fallback
+                
+                switch (familiarType) {
+                    case 'shadow_clone':
+                        fallbackImage = 'rustypickaxe'; // Dark/old looking
+                        break;
+                    case 'stone_golem':
+                        fallbackImage = 'robustpickaxe'; // Heavy looking
+                        break;
+                    case 'iron_golem':
+                        fallbackImage = 'ironpickaxe'; // Metallic
+                        break;
+                    case 'crystal_golem':
+                        fallbackImage = 'enchantedpickaxe'; // Magical looking
+                        break;
+                }
+                
+                const fallbackImagePath = `./assets/items/${fallbackImage}.png`;
+                try {
+                    const fallbackPickaxe = await loadImage(fallbackImagePath);
+                    
+                    const pickaxeSize = size * 0.8;
+                    const pickaxeX = centerX - radius * 1.7;
+                    const pickaxeY = centerY - pickaxeSize/3;
+                    
+                    ctx.save();
+                    ctx.globalAlpha = 0.8;
+                    ctx.drawImage(fallbackPickaxe, pickaxeX, pickaxeY, pickaxeSize, pickaxeSize);
+                    ctx.restore();
+                } catch (fallbackError) {
+                    console.warn(`Failed to load both familiar pickaxe and fallback: ${pickaxeImagePath}, ${fallbackImagePath}`);
+                }
+            }
+        }
+        
+        // Familiar border with type-specific color
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = config.visual.borderColor || '#8A2BE2';
+        ctx.lineWidth = Math.max(2, Math.floor(imageSettings.scaleFactor * 3));
+        ctx.stroke();
+        
+        ctx.restore();
+            return;
+        }
+        
+        // Regular player rendering
         const avatarSize = imageSettings.scaleFactor < 0.5 ? 64 : 128;
         const avatarURL = member.user.displayAvatarURL({ extension: 'png', size: avatarSize });
         const avatar = await loadImage(avatarURL);
-        
-        const radius = size / 2;
         
         if (size > 20) {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
@@ -2295,43 +2524,63 @@ async function drawCampfire(ctx, centerX, centerY, tileSize) {
 }
 
 /**
- * Draw multiple players stacked on the same tile
+ * Draw multiple players positioned in a circular pattern around the tile center
  */
 async function drawStackedPlayers(ctx, players, centerX, centerY, tileSize, imageSettings, channelId) {
-    const maxStack = Math.min(players.length, 4); // Limit visual stack to 4
-    const stackOffset = Math.max(3, imageSettings.stackedOffset);
-    const baseSize = imageSettings.playerAvatarSize;
-    const scaledSize = Math.max(baseSize * 0.7, 16); // Slightly smaller when stacked
+    const baseSize = imageSettings.playerAvatarSize; // Keep full size instead of scaling down
+    const baseRadius = Math.max(baseSize * 0.6, 15); // Base radius for first ring
+    const ringSpacing = Math.max(baseSize * 0.8, 20); // Space between rings
     
-    for (let i = 0; i < maxStack; i++) {
-        const { member, position } = players[i];
-        const offsetX = (i % 2) * stackOffset * (i % 2 === 0 ? -1 : 1);
-        const offsetY = Math.floor(i / 2) * stackOffset * -1;
-        
-        const playerX = centerX + offsetX;
-        const playerY = centerY + offsetY;
-        
+    // If only one player, place at center
+    if (players.length === 1) {
+        const { member, position } = players[0];
         if (position.isTent) {
-            await drawTent(ctx, playerX, playerY, tileSize * 0.8, member, imageSettings);
+            await drawTent(ctx, centerX, centerY, tileSize * 0.8, member, imageSettings);
         } else {
-            await drawPlayerAvatar(ctx, member, playerX, playerY, scaledSize, imageSettings, channelId);
+            await drawPlayerAvatar(ctx, member, centerX, centerY, baseSize, imageSettings, channelId);
         }
+        return;
     }
     
-    // If more than 4 players, show count
-    if (players.length > 4) {
-        ctx.save();
-        ctx.fillStyle = '#FFD700';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.font = `bold ${Math.max(10, tileSize * 0.2)}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+    // For multiple players, arrange in circular pattern
+    let currentPlayerIndex = 0;
+    let ring = 0;
+    
+    while (currentPlayerIndex < players.length) {
+        const radius = ring === 0 ? 0 : baseRadius + (ring - 1) * ringSpacing;
+        const playersInThisRing = ring === 0 ? 1 : Math.min(ring * 6, players.length - currentPlayerIndex); // Center + increasing capacity per ring
         
-        const countText = `+${players.length - 4}`;
-        ctx.strokeText(countText, centerX, centerY - baseSize/2 - 10);
-        ctx.fillText(countText, centerX, centerY - baseSize/2 - 10);
-        ctx.restore();
+        for (let i = 0; i < playersInThisRing && currentPlayerIndex < players.length; i++) {
+            const { member, position } = players[currentPlayerIndex];
+            
+            let playerX, playerY;
+            
+            if (ring === 0) {
+                // First player at center
+                playerX = centerX;
+                playerY = centerY;
+            } else {
+                // Calculate angle for this position in the ring
+                const angleStep = (2 * Math.PI) / playersInThisRing; // Evenly distribute around this ring
+                const angle = i * angleStep;
+                
+                playerX = centerX + Math.cos(angle) * radius;
+                playerY = centerY + Math.sin(angle) * radius;
+            }
+            
+            if (position.isTent) {
+                await drawTent(ctx, playerX, playerY, tileSize * 0.8, member, imageSettings);
+            } else {
+                await drawPlayerAvatar(ctx, member, playerX, playerY, baseSize, imageSettings, channelId);
+            }
+            
+            currentPlayerIndex++;
+        }
+        
+        ring++;
+        
+        // Safety break to prevent infinite loops
+        if (ring > 10) break;
     }
 }
 

@@ -65,11 +65,18 @@ module.exports = {
         for (const invItem of playerInv.items) {
             const itemData = usableItemMap.get(invItem.itemId);
             if (itemData && invItem.quantity > 0) {
+                // Determine display type - separate summons from regular consumables
+                let displayType = itemData.type;
+                if (itemData.type === 'consumable' && itemData.subtype === 'familiar') {
+                    displayType = 'summons'; // Create separate category for summons
+                }
+                
                 usableInventoryItems.push({
                     id: itemData.id,
                     name: itemData.name,
-                    type: itemData.type,
-                    subtype: itemData.subtype, // Add subtype field for food/drink
+                    type: displayType, // Use modified type for categorization
+                    originalType: itemData.type, // Keep original for other logic
+                    subtype: itemData.subtype,
                     description: itemData.description,
                     value: itemData.value,
                     script: itemData.script,
@@ -442,6 +449,7 @@ module.exports = {
             'mineLoot': '⛏️',
             'tool': '🔧',
             'consumable': '🍖',
+            'summons': '🤖', // New category for familiars/golems
             'equipment': '⚔️',
             'charm': '🔮',
             'material': '📦',
@@ -456,6 +464,7 @@ module.exports = {
             'mineLoot': 'Mining Loot',
             'tool': 'Tools',
             'consumable': 'Consumables',
+            'summons': 'Summons & Familiars', // New category name
             'equipment': 'Equipment',
             'charm': 'Charms',
             'material': 'Materials',

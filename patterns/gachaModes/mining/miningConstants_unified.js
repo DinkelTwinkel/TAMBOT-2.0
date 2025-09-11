@@ -1337,6 +1337,11 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     // Check if we're in ???'s gullet (id: 16)
     const isGullet = mineTypeId === 16 || mineTypeId === '16';
     
+    // Debug gullet detection
+    if (mineTypeId === 16 || mineTypeId === '16') {
+        console.log(`[GULLET DEBUG] findItemUnified called with mineTypeId: ${mineTypeId} (type: ${typeof mineTypeId}), isGullet: ${isGullet}`);
+    }
+    
     // Apply deeper mine bonus to effective power level
     let effectivePowerLevel = powerLevel;
     if (isDeeperMine) {
@@ -1402,12 +1407,55 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     // Get mine correspondence info
     const mineCorrespondence = MINE_ORE_CORRESPONDENCE[String(mineTypeId)];
     
+    // Debug mine-specific ore bias for ALL mines (except gullet)
+    if (mineTypeId && mineTypeId !== 16 && mineTypeId !== '16') {
+        console.log(`[MINE BIAS DEBUG] ===== MINE BIAS ANALYSIS =====`);
+        console.log(`[MINE BIAS DEBUG] mineTypeId: ${mineTypeId} (type: ${typeof mineTypeId})`);
+        console.log(`[MINE BIAS DEBUG] context: ${context}, powerLevel: ${powerLevel}`);
+        console.log(`[MINE BIAS DEBUG] eligible items count: ${eligibleItems.length}`);
+        
+        // Show all available mine correspondences
+        const allMineIds = Object.keys(MINE_ORE_CORRESPONDENCE);
+        console.log(`[MINE BIAS DEBUG] All configured mine IDs:`, allMineIds.slice(0, 20));
+        
+        // Check correspondence
+        console.log(`[MINE BIAS DEBUG] Looking for correspondence with key: "${String(mineTypeId)}"`);
+        console.log(`[MINE BIAS DEBUG] correspondence found:`, !!mineCorrespondence);
+        
+        if (mineCorrespondence) {
+            console.log(`[MINE BIAS DEBUG] ✅ BIAS ACTIVE`);
+            console.log(`[MINE BIAS DEBUG] Target ore ID: ${mineCorrespondence.oreId}`);
+            console.log(`[MINE BIAS DEBUG] Boost multiplier: ${mineCorrespondence.boost}x`);
+            console.log(`[MINE BIAS DEBUG] Guarantee percentage: ${mineCorrespondence.guarantee * 100}%`);
+            
+            // Find the target ore in eligible items
+            const targetOre = eligibleItems.find(item => item.itemId === mineCorrespondence.oreId);
+            if (targetOre) {
+                console.log(`[MINE BIAS DEBUG] ✅ Target ore found: ${targetOre.name} (base weight: ${targetOre.baseWeight})`);
+            } else {
+                console.log(`[MINE BIAS DEBUG] ❌ TARGET ORE NOT FOUND IN ELIGIBLE ITEMS!`);
+                console.log(`[MINE BIAS DEBUG] Looking for ore ID: ${mineCorrespondence.oreId}`);
+                console.log(`[MINE BIAS DEBUG] Available ore items:`, eligibleItems.filter(i => i.category === 'ore').map(i => `${i.name}(${i.itemId})`));
+            }
+        } else {
+            console.log(`[MINE BIAS DEBUG] ❌ NO BIAS - GENERIC MINING`);
+            console.log(`[MINE BIAS DEBUG] Mine ${mineTypeId} not found in correspondence table`);
+            console.log(`[MINE BIAS DEBUG] This mine will give random ores without bias`);
+        }
+        
+        // Show what ores are available in this power level
+        const availableOres = eligibleItems.filter(item => item.category === 'ore');
+        console.log(`[MINE BIAS DEBUG] Available ores for power level ${powerLevel}:`, 
+                   availableOres.map(ore => `${ore.name}(${ore.itemId})`));
+    }
+    
     for (const item of eligibleItems) {
         const categoryMult = contextMults[item.category] || 1.0;
         item.adjustedWeight = item.baseWeight * categoryMult;
         
         // Apply mine-specific ore boost
         if (mineCorrespondence && item.itemId === mineCorrespondence.oreId) {
+            console.log(`[MINE BIAS DEBUG] Found target ore ${item.name} (ID: ${item.itemId}), applying boost: ${mineCorrespondence.boost}x`);
             // For mining context, ensure the corresponding ore has at minimum the boost percentage chance
             if (context === 'mining_wall' || context === 'rare_ore') {
                 // To ensure this ore has at least X% chance, we need to boost its weight significantly
@@ -1482,11 +1530,32 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
     
     // Step 3: Weighted random selection
     const totalWeight = eligibleItems.reduce((sum, item) => sum + item.adjustedWeight, 0);
+    
+    // Debug final weights for mines with correspondence
+    if (mineCorrespondence && mineTypeId && mineTypeId !== 16) {
+        console.log(`[MINE BIAS DEBUG] ===== FINAL WEIGHTS =====`);
+        console.log(`[MINE BIAS DEBUG] Total weight pool: ${totalWeight}`);
+        
+        // Show top 5 items by weight
+        const sortedItems = [...eligibleItems].sort((a, b) => b.adjustedWeight - a.adjustedWeight);
+        for (let i = 0; i < Math.min(5, sortedItems.length); i++) {
+            const item = sortedItems[i];
+            const percentage = ((item.adjustedWeight / totalWeight) * 100).toFixed(1);
+            const isTarget = item.itemId === mineCorrespondence.oreId;
+            console.log(`[MINE BIAS DEBUG] ${i + 1}. ${item.name} (${item.itemId}): ${percentage}% ${isTarget ? '🎯 TARGET' : ''}`);
+        }
+    }
+    
     let random = Math.random() * totalWeight;
     
     for (const item of eligibleItems) {
         random -= item.adjustedWeight;
         if (random <= 0) {
+            // Debug final item selection for mines with correspondence
+            if (mineCorrespondence && mineTypeId && mineTypeId !== 16) {
+                const isTargetOre = item.itemId === mineCorrespondence.oreId;
+                console.log(`[MINE BIAS DEBUG] Selected: ${item.name} (ID: ${item.itemId}) - ${isTargetOre ? 'TARGET ORE ✅' : 'other item ❌'}`);
+            }
             return item;
         }
     }
