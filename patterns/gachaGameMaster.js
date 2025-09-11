@@ -7,6 +7,7 @@ const UniqueItem = require('../models/uniqueItems');
 const { getUniqueItemById } = require('../data/uniqueItemsSheet');
 const { checkConditionalOwnership } = require('./conditionalUniqueItems');
 const DigDeeperListener = require('../patterns/digDeeperListener');
+const InnUpgradeListener = require('../patterns/innUpgradeListener');
 const Sacrifice = require('../models/SacrificeSchema'); // Import Sacrifice model
 
 // Load gacha server data
@@ -311,6 +312,11 @@ module.exports = async (guild) => {
             // Add this:
             const digDeeperListener = new DigDeeperListener(guild.client);
             console.log('[DIG_DEEPER] Listener initialized');
+            
+            // Initialize Inn Upgrade Listener
+            const innUpgradeListener = new InnUpgradeListener(guild.client);
+            console.log('[INN_UPGRADE] Listener initialized');
+            
             
             // Check for any items that need immediate maintenance (crash recovery)
             const now = new Date();

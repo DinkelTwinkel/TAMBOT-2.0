@@ -13,6 +13,7 @@ const itemSheet = require('../data/itemSheet.json');
 const { calculateFluctuatedPrice, getShopPrices, generatePurchaseDialogue, generateSellDialogue, generatePoorDialogue, generateNoItemDialogue } = require('./generateShop');
 const getPlayerStats = require('./calculatePlayerStat');
 const InnPurchaseHandler = require('./gachaModes/innKeeping/innPurchaseHandler_v2');
+const CustomerManager = require('./gachaModes/innKeeping/customerManager');
 
 // Create instance of InnPurchaseHandler for use in shop operations
 const innPurchaseHandler = new InnPurchaseHandler();
@@ -355,6 +356,13 @@ class ShopHandler {
         // Track spending for consumables too
         this.trackSpending(userId, totalCost);
         
+        // Inject player as artificial customer in inn if they bought from an inn's shop
+        try {
+            await CustomerManager.injectPlayerAsCustomer(channelId, userId, interaction.user.tag, totalCost, interaction.guild);
+        } catch (customerError) {
+            console.warn('[SHOP] Error injecting player as inn customer:', customerError.message);
+        }
+        
         // Apply buff and get detailed information
         const applyConsumableBuff = require('./applyConsumeableBuff');
         const buffResult = await applyConsumableBuff(userId, item);
@@ -569,11 +577,18 @@ class ShopHandler {
 
             const priceIndicator = currentBuyPrice > item.value ? ' ▲' : currentBuyPrice < item.value ? ' ▼' : '';
             
-            // Track spending for this purchase
-            this.trackSpending(userId, totalCost);
-            
-            // Send purchase announcement for non-inn channels
-            await this.announcePurchase(interaction.channel, interaction.member, item, quantity, currentBuyPrice);
+        // Track spending for this purchase
+        this.trackSpending(userId, totalCost);
+        
+        // Inject player as artificial customer in inn if they bought from an inn's shop
+        try {
+            await CustomerManager.injectPlayerAsCustomer(channelId, userId, interaction.user.tag, totalCost, interaction.guild);
+        } catch (customerError) {
+            console.warn('[SHOP] Error injecting player as inn customer:', customerError.message);
+        }
+        
+        // Send purchase announcement for non-inn channels
+        await this.announcePurchase(interaction.channel, interaction.member, item, quantity, currentBuyPrice);
             
             // Create enhanced response message
             let responseMessage = `${interaction.member} ✅ Purchased ${quantity} x **${item.name}** for ${totalCost} coins! (${currentBuyPrice}c${priceIndicator} each)`;

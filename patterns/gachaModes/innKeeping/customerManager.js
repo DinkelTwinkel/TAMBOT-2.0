@@ -21,7 +21,7 @@ class CustomerManager {
     /**
      * Create a new customer from NPC data
      */
-    static createCustomer(channelId, now) {
+    static createCustomer(channelId, now, innReputation = 50) {
         // Select random NPC with seeded randomness
         const channelSeed = parseInt(channelId.replace(/\D/g, '').slice(-8) || '12345678', 10);
         const timeSeed = Math.floor(now / 300000); // Change every 5 minutes
@@ -46,8 +46,8 @@ class CustomerManager {
             
             // Dynamic properties
             happiness: Math.floor(seededRandom(combinedSeed + 2) * 40) + 30, // 30-70 starting happiness
-            wealth: selectedNPC.wealth || 3, // Use NPC base wealth
-            maxWealth: selectedNPC.wealth || 3,
+            wealth: this.calculateCustomerWealth(selectedNPC.wealth || 3, innReputation, seededRandom(combinedSeed + 3)),
+            maxWealth: this.calculateCustomerWealth(selectedNPC.wealth || 3, innReputation, seededRandom(combinedSeed + 3)),
             
             // Timing properties
             arrivedAt: now,
@@ -69,14 +69,46 @@ class CustomerManager {
     }
 
     /**
+     * Calculate customer wealth based on inn reputation
+     */
+    static calculateCustomerWealth(baseWealth, innReputation, randomSeed) {
+        // Higher reputation attracts wealthier customers
+        // Reputation 0-20: 0.5x to 0.8x base wealth
+        // Reputation 21-50: 0.8x to 1.0x base wealth  
+        // Reputation 51-80: 1.0x to 1.5x base wealth
+        // Reputation 81-100: 1.5x to 2.0x base wealth
+        
+        let wealthMultiplier;
+        if (innReputation <= 20) {
+            wealthMultiplier = 0.5 + (innReputation / 20) * 0.3; // 0.5 to 0.8
+        } else if (innReputation <= 50) {
+            wealthMultiplier = 0.8 + ((innReputation - 20) / 30) * 0.2; // 0.8 to 1.0
+        } else if (innReputation <= 80) {
+            wealthMultiplier = 1.0 + ((innReputation - 50) / 30) * 0.5; // 1.0 to 1.5
+        } else {
+            wealthMultiplier = 1.5 + ((innReputation - 80) / 20) * 0.5; // 1.5 to 2.0
+        }
+        
+        // Add some randomness to wealth within the reputation range
+        const randomVariation = (randomSeed - 0.5) * 0.4; // ±0.2 variation
+        wealthMultiplier = Math.max(0.3, wealthMultiplier + randomVariation);
+        
+        const finalWealth = Math.max(1, Math.floor(baseWealth * wealthMultiplier));
+        
+        console.log(`[CustomerManager] Customer wealth: base ${baseWealth} × ${wealthMultiplier.toFixed(2)} (rep: ${innReputation}) = ${finalWealth} coins`);
+        return finalWealth;
+    }
+
+    /**
      * Process customer arrivals and departures
      */
     static async processCustomers(channel, dbEntry, now) {
         const v4State = dbEntry.gameData?.v4State;
-        if (!v4State) return [];
+        if (!v4State) return { remainingCustomers: [], departureEvents: [] };
         
         const customers = v4State.customers || [];
         const maxCustomers = v4State.maxCustomers || 15;
+        const departureEvents = [];
         
         // Remove customers who have left (wealth = 0 or very unhappy)
         const remainingCustomers = customers.filter(customer => {
@@ -84,17 +116,20 @@ class CustomerManager {
                 // Customer leaves due to no money
                 if (customer.happiness >= 50) {
                     v4State.innReputation = Math.min(100, (v4State.innReputation || 50) + 2);
+                    departureEvents.push(`${customer.name} left satisfied after spending all their money (reputation +2)`);
                     console.log(`[CustomerManager] Happy customer ${customer.name} left, reputation +2`);
                 } else {
                     v4State.innReputation = Math.max(0, (v4State.innReputation || 50) - 1);
+                    departureEvents.push(`${customer.name} left disappointed with no money (reputation -1)`);
                     console.log(`[CustomerManager] Unhappy customer ${customer.name} left, reputation -1`);
                 }
                 return false;
             }
             
-            if (customer.happiness <= 10) {
+            if (customer.happiness <= 0) {
                 // Customer leaves due to unhappiness
                 v4State.innReputation = Math.max(0, (v4State.innReputation || 50) - 3);
+                departureEvents.push(`${customer.name} stormed out in anger! (reputation -3)`);
                 console.log(`[CustomerManager] Very unhappy customer ${customer.name} stormed out, reputation -3`);
                 return false;
             }
@@ -104,15 +139,27 @@ class CustomerManager {
         
         // Add new customers if there's space (influenced by reputation)
         if (remainingCustomers.length < maxCustomers) {
+            let arrivalChance;
             const reputation = v4State.innReputation || 50;
-            const baseArrivalChance = 0.2; // 20% base chance
-            const reputationBonus = (reputation - 50) / 100; // -0.5 to +0.5 based on reputation
-            const arrivalChance = Math.max(0.05, Math.min(0.6, baseArrivalChance + reputationBonus));
+            
+            if (remainingCustomers.length === 0) {
+                // Special case: if no customers, 30% chance to generate at least one
+                arrivalChance = 0.3; // 30% chance when empty
+                console.log(`[CustomerManager] Inn is empty, using guaranteed arrival chance: 30%`);
+            } else {
+                // Normal reputation-based arrival
+                const baseArrivalChance = 0.2; // 20% base chance
+                const reputationBonus = (reputation - 50) / 100; // -0.5 to +0.5 based on reputation
+                arrivalChance = Math.max(0.05, Math.min(0.6, baseArrivalChance + reputationBonus));
+            }
             
             if (Math.random() < arrivalChance) {
-                const newCustomer = this.createCustomer(channel.id, now);
+                const newCustomer = this.createCustomer(channel.id, now, reputation);
                 remainingCustomers.push(newCustomer);
+                departureEvents.push(`${newCustomer.name} arrived at the inn (happiness: ${newCustomer.happiness}, wealth: ${newCustomer.wealth}c)`);
                 console.log(`[CustomerManager] New customer ${newCustomer.name} arrived (reputation: ${reputation}, chance: ${Math.round(arrivalChance * 100)}%)`);
+            } else {
+                console.log(`[CustomerManager] No new customer arrived (${Math.round(arrivalChance * 100)}% chance)`);
             }
         }
         
@@ -127,7 +174,7 @@ class CustomerManager {
             }
         );
         
-        return remainingCustomers;
+        return { remainingCustomers, departureEvents };
     }
 
     /**
@@ -142,7 +189,7 @@ class CustomerManager {
         let orderEvents = [];
         
         // Calculate service capacity based on VC members
-        const serviceCapacity = this.calculateServiceCapacity(members);
+        const serviceCapacity = await this.calculateServiceCapacity(members);
         let ordersToProcess = [];
         
         // Process existing orders and new order attempts
@@ -205,6 +252,20 @@ class CustomerManager {
                     orderEvents.push(`${customer.name} was satisfied with their ${customer.orderItem}`);
                 }
                 
+                // Check for tipping (happiness > 60)
+                if (customer.happiness > 60 && customer.wealth > 0) {
+                    const tipChance = (customer.happiness - 60) / 40; // 0 to 1 based on happiness above 60
+                    if (Math.random() < tipChance) {
+                        const tipAmount = Math.floor(Math.random() * 2) + 1; // 1-2 coins tip
+                        if (customer.wealth >= tipAmount) {
+                            customer.wealth -= tipAmount;
+                            totalProfit += tipAmount;
+                            orderEvents.push(`${customer.name} left a ${tipAmount} coin tip! (happiness: ${customer.happiness})`);
+                            console.log(`[CustomerManager] ${customer.name} tipped ${tipAmount} coins (happiness: ${customer.happiness})`);
+                        }
+                    }
+                }
+                
                 customer.orderItem = null;
             }
         }
@@ -223,17 +284,47 @@ class CustomerManager {
     }
 
     /**
-     * Calculate service capacity based on VC members
+     * Calculate service capacity based on VC members' actual stats
      */
-    static calculateServiceCapacity(members) {
+    static async calculateServiceCapacity(members) {
         if (!members || members.length === 0) return 1; // Minimum service capacity
         
-        // Base capacity on number of members and their theoretical stats
-        const baseCapacity = members.length;
-        const sightBonus = Math.floor(members.length * 0.5); // Sight helps spot customer needs
-        const speedBonus = Math.floor(members.length * 0.3); // Speed helps deliver orders
+        let totalServiceCapacity = 0;
         
-        return Math.max(1, baseCapacity + sightBonus + speedBonus);
+        // Import player stats function
+        const getPlayerStats = require('../../calculatePlayerStat');
+        
+        for (const member of members) {
+            try {
+                const playerData = await getPlayerStats(member.user.id);
+                const playerStats = playerData?.stats || {};
+                
+                const sight = playerStats.sight || 0;
+                const speed = playerStats.speed || 0;
+                
+                // Both sight and speed are needed for effective service
+                // 5 speed allows serving 1 customer, but only if there's sight to spot them
+                // 5 sight allows spotting 2 customers, but only if there's speed to serve them
+                
+                const speedUnits = Math.floor(speed / 5); // How many customers can be served with speed
+                const sightUnits = Math.floor(sight / 5); // How many "sight groups" of 2 customers each
+                
+                // Effective capacity is limited by the bottleneck
+                // Each sight unit can handle 2 customers, but needs speed units to serve them
+                const effectiveCapacity = Math.min(speedUnits, sightUnits * 2);
+                
+                totalServiceCapacity += effectiveCapacity;
+                
+                console.log(`[CustomerManager] ${member.user.username}: Speed ${speed} (${speedUnits} units) + Sight ${sight} (${sightUnits} units) = ${effectiveCapacity} effective capacity`);
+                
+            } catch (error) {
+                console.warn(`[CustomerManager] Error getting stats for ${member.user.username}:`, error.message);
+                // Fallback: 1 capacity per member if stats unavailable
+                totalServiceCapacity += 1;
+            }
+        }
+        
+        return Math.max(1, totalServiceCapacity); // Always at least 1 capacity
     }
 
     /**
@@ -253,6 +344,87 @@ class CustomerManager {
         if (availableItems.length === 0) availableItems = [...foodItems, ...drinkItems];
         
         return availableItems[Math.floor(Math.random() * availableItems.length)];
+    }
+
+    /**
+     * Inject player as artificial customer when they buy from shop
+     */
+    static async injectPlayerAsCustomer(channelId, playerId, playerTag, amountSpent, guild) {
+        try {
+            console.log(`[CustomerManager] Injecting ${playerTag} as customer in channel ${channelId} with ${amountSpent} wealth`);
+            
+            // Get the inn data
+            const dbEntry = await ActiveVCs.findOne({ channelId });
+            if (!dbEntry || !dbEntry.gameData?.v4State || dbEntry.gameData?.gamemode !== 'innkeeper_v4') {
+                console.log(`[CustomerManager] Channel ${channelId} is not an active inn, skipping customer injection`);
+                return;
+            }
+            
+            const v4State = dbEntry.gameData.v4State;
+            const customers = v4State.customers || [];
+            
+            // Check if player is already a customer
+            const existingCustomerIndex = customers.findIndex(c => c.playerId === playerId);
+            
+            if (existingCustomerIndex >= 0) {
+                // Player is already a customer, increase their wealth
+                const existingCustomer = customers[existingCustomerIndex];
+                existingCustomer.wealth += amountSpent;
+                existingCustomer.maxWealth = Math.max(existingCustomer.maxWealth, existingCustomer.wealth);
+                existingCustomer.happiness = Math.min(100, existingCustomer.happiness + 5); // Happy about shopping
+                
+                console.log(`[CustomerManager] Updated existing customer ${playerTag}: wealth +${amountSpent} (now ${existingCustomer.wealth}), happiness +5`);
+            } else {
+                // Create new artificial customer for the player
+                const now = Date.now();
+                const member = guild.members.cache.get(playerId);
+                
+                const artificialCustomer = {
+                    id: `player_customer_${playerId}_${now}`,
+                    playerId: playerId, // Mark as player customer
+                    npcId: null, // No NPC base
+                    name: playerTag,
+                    description: `A regular customer who frequently shops here`,
+                    avatar: member ? member.user.displayAvatarURL({ extension: 'png', size: 128 }) : 'https://cdn.discordapp.com/embed/avatars/0.png',
+                    preferences: ['food', 'drink', 'consumable'], // Players like everything
+                    
+                    // Dynamic properties
+                    happiness: 70, // Start happy (they just bought something)
+                    wealth: amountSpent, // Wealth equals what they spent
+                    maxWealth: amountSpent,
+                    
+                    // Timing properties
+                    arrivedAt: now,
+                    lastOrderTime: 0,
+                    ordersPlaced: 0,
+                    ordersReceived: 0,
+                    
+                    // Current state
+                    hasActiveOrder: false,
+                    orderPlacedAt: null,
+                    orderItem: null,
+                    
+                    // Position in inn (will be set when rendering)
+                    position: null,
+                    
+                    // Player-specific properties
+                    isPlayerCustomer: true,
+                    discordMember: member
+                };
+                
+                customers.push(artificialCustomer);
+                console.log(`[CustomerManager] Created new player customer ${playerTag} with ${amountSpent} wealth`);
+            }
+            
+            // Update database
+            await ActiveVCs.findOneAndUpdate(
+                { channelId },
+                { $set: { 'gameData.v4State.customers': customers } }
+            );
+            
+        } catch (error) {
+            console.error('[CustomerManager] Error injecting player as customer:', error);
+        }
     }
 
     /**
@@ -279,10 +451,14 @@ class CustomerManager {
                     if (customer.wealth >= overnightFee) {
                         customer.wealth -= overnightFee;
                         customer.happiness = Math.min(100, customer.happiness + 3); // Staying overnight makes them happier
+                        
+                        // Refresh customer wealth for next day
+                        customer.wealth = customer.maxWealth; // Restore to full wealth
+                        
                         overnightProfit += overnightFee;
                         customersStayed++;
                         
-                        console.log(`[CustomerManager] ${customer.name} paid ${overnightFee} coins to stay overnight (+3 happiness)`);
+                        console.log(`[CustomerManager] ${customer.name} paid ${overnightFee} coins to stay overnight (+3 happiness, wealth refreshed to ${customer.wealth})`);
                         return true; // Customer stays
                     }
                 }

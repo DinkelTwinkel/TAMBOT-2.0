@@ -16,7 +16,9 @@
             "width": 10,
             "height": 7,
             "maxCustomers": 16
-        }
+        },
+        "baseEarnings": 5,
+        "upgradesTo": "14"
     },
     {
         "id": "14",

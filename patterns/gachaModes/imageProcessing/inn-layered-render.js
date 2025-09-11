@@ -81,6 +81,20 @@ function seededRandom(seed) {
 }
 
 /**
+ * Check if position is too close to existing positions
+ */
+function isPositionTooClose(x, y, usedPositions, minSpacing) {
+    for (let dy = -minSpacing; dy <= minSpacing; dy++) {
+        for (let dx = -minSpacing; dx <= minSpacing; dx++) {
+            if (usedPositions.has(`${x + dx},${y + dy}`)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
  * Generate inn layout with tables and chairs
  * Returns a 2D array representing the inn layout
  * @param {string} channelId - Channel ID for consistent seeding
@@ -100,18 +114,56 @@ function generateInnLayout(channelId = 'default', dimensions = null) {
         }
     }
     
-    // Generate table and chair islands
-    // Each island is a 2x2 table surrounded by chairs
+    // Generate table and chair islands based on inn size
+    // Each island is a table surrounded by chairs
     // Ensure at least 1 floor space between islands
     
-    const tableIslands = [
-        // Island 1: Top-left area
-        { tableX: 2, tableY: 1, chairPositions: [[1,1], [3,1], [2,0], [2,2]] },
-        // Island 2: Top-right area  
-        { tableX: 6, tableY: 1, chairPositions: [[5,1], [7,1], [6,0], [6,2]] },
-        // Island 3: Bottom-center area
-        { tableX: 4, tableY: 4, chairPositions: [[3,4], [5,4], [4,3], [4,5]] }
-    ];
+    const channelSeed = parseInt(channelId.replace(/\D/g, '').slice(-8) || '12345678', 10);
+    const tableIslands = [];
+    const interiorWidth = INN_WIDTH - 2; // Exclude walls
+    const interiorHeight = INN_HEIGHT - 2; // Exclude walls
+    
+    // Calculate number of table islands based on inn size
+    // Aim for 1 table per ~15 interior tiles, with minimum 3 tables
+    const targetTablesPerArea = Math.floor(interiorWidth * interiorHeight / 15);
+    const numIslands = Math.max(3, Math.min(targetTablesPerArea, Math.floor(interiorWidth * interiorHeight / 8))); // Max 1 island per 8 tiles
+    
+    // Generate islands with proper spacing
+    const minSpacing = 3; // Minimum 3 tiles between islands
+    const usedPositions = new Set();
+    
+    for (let island = 0; island < numIslands; island++) {
+        let attempts = 0;
+        let tableX, tableY;
+        
+        do {
+            // Random position within interior, avoiding edges
+            tableX = Math.floor(seededRandom(channelSeed + island + 100) * (interiorWidth - 2)) + 2; // +1 for wall, +1 for spacing
+            tableY = Math.floor(seededRandom(channelSeed + island + 200) * (interiorHeight - 2)) + 2;
+            attempts++;
+        } while (attempts < 20 && isPositionTooClose(tableX, tableY, usedPositions, minSpacing));
+        
+        if (attempts < 20) {
+            // Mark area as used (3x3 area around table)
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    usedPositions.add(`${tableX + dx},${tableY + dy}`);
+                }
+            }
+            
+            // Create chair positions around table
+            const chairPositions = [
+                [tableX - 1, tableY], // Left
+                [tableX + 1, tableY], // Right
+                [tableX, tableY - 1], // Top
+                [tableX, tableY + 1]  // Bottom
+            ];
+            
+            tableIslands.push({ tableX, tableY, chairPositions });
+        }
+    }
+    
+    console.log(`Generated ${tableIslands.length} table islands for ${INN_WIDTH}x${INN_HEIGHT} inn`);
     
     // Place tables and chairs
     for (const island of tableIslands) {
@@ -137,8 +189,7 @@ function generateInnLayout(channelId = 'default', dimensions = null) {
     }
     
     // Add a random door at the bottom wall connected to an empty floor tile
-    // Use channel ID for consistent door placement
-    const channelSeed = parseInt(channelId.replace(/\D/g, '').slice(-8) || '12345678', 10);
+    // Use channel ID for consistent door placement (channelSeed already defined above)
     
     const bottomWallPositions = [];
     for (let x = 1; x < INN_WIDTH - 1; x++) {
@@ -492,6 +543,20 @@ async function drawPlayer(ctx, member, position, tileSize) {
             const happinessY = centerY - radius - Math.max(5, tileSize * 0.1);
             ctx.strokeText(happiness.toString(), centerX, happinessY);
             ctx.fillText(happiness.toString(), centerX, happinessY);
+        }
+        
+        // Draw customer wealth under their name in gold
+        if (member.isCustomer && member.customerData && tileSize >= 40) {
+            const wealth = member.customerData.wealth;
+            ctx.fillStyle = '#FFD700'; // Gold color
+            ctx.strokeStyle = '#000000';
+            ctx.font = `${Math.max(8, Math.floor(tileSize * 0.15))}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.lineWidth = Math.max(1, Math.floor(tileSize * 0.02));
+            const wealthY = centerY + radius + Math.max(8, tileSize * 0.2) + Math.max(10, tileSize * 0.15);
+            const wealthText = `${wealth}c`;
+            ctx.strokeText(wealthText, centerX, wealthY);
+            ctx.fillText(wealthText, centerX, wealthY);
         }
         
         return true;
