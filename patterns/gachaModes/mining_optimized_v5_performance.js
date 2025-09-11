@@ -832,41 +832,39 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
             console.log(`[GULLET] Processing gullet items for ${member.displayName}`);
         }
 
-        // Use unified item system for ALL mines (not just gullet)
-        let context = 'mining_wall';
-        if (tileType === TILE_TYPES.TREASURE_CHEST) {
-            context = 'treasure_chest';
-        } else if (tileType === TILE_TYPES.RARE_ORE) {
-            context = 'rare_ore';
-        }
+        if (isGullet) {
+            // Use unified item system for special mines
+            let context = 'mining_wall';
+            if (tileType === TILE_TYPES.TREASURE_CHEST) {
+                context = 'treasure_chest';
+            } else if (tileType === TILE_TYPES.RARE_ORE) {
+                context = 'rare_ore';
+            }
 
-        // Set destination based on mine type
-        if (isGullet) {
-            destination = 'inventory'; // Gullet items go to inventory
-        } else {
-            destination = 'minecart'; // Regular mining items go to minecart
-        }
-        
-        console.log(`[MINING DEBUG] Using unified system - mineTypeId: ${mineTypeId}, context: ${context}, powerLevel: ${powerLevel}`);
-        const item = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine, mineTypeId);
-        const quantity = calculateItemQuantity(item, context, miningPower, luckStat, powerLevel, isDeeperMine);
-        
-        if (isGullet) {
+            destination = 'inventory'; // All gullet items go to inventory
+            
+            console.log(`[GULLET DEBUG] Mining in gullet - mineTypeId: ${mineTypeId}, context: ${context}, powerLevel: ${powerLevel}`);
+            const item = findItemUnified(context, powerLevel, luckStat, false, isDeeperMine, mineTypeId);
+            const quantity = calculateItemQuantity(item, context, miningPower, luckStat, powerLevel, isDeeperMine);
+            
             console.log(`[GULLET DEBUG] Generated gullet item: ${item?.name} (ID: ${item?.itemId}) for ${member.displayName}`);
             
             // Only log gullet items occasionally to reduce spam
             if (Math.random() < 0.1) {
                 console.log(`[GULLET] Generated: ${item.name} for ${member.displayName}`);
             }
+            
+            const enhancedValue = Math.floor(item.value * efficiency.valueMultiplier);
+            
+            return { 
+                item: { ...item, value: enhancedValue }, 
+                quantity,
+                destination
+            };
         }
         
-        const enhancedValue = Math.floor(item.value * efficiency.valueMultiplier);
-        
-        return { 
-            item: { ...item, value: enhancedValue }, 
-            quantity,
-            destination
-        };
+        // GUARANTEE SYSTEM: Check mine correspondence for specialized ore guarantee
+        const mineConfig = MINE_ORE_CORRESPONDENCE[String(mineTypeId)];
         
         if (mineConfig && mineConfig.guarantee) {
             const guaranteeRoll = Math.random();
