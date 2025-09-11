@@ -2666,6 +2666,46 @@ if (shouldStartBreak) {
         mapData = initializeBreakPositions(mapData, members, false);
         mapChanged = true;
         
+        // === ENSURE ALL PLAYERS ARE WITHIN MAP BOUNDS ===
+        // Check if any players are outside map boundaries after initialization
+        const { expandMap } = require('./mining/miningMap');
+        let needsExpansion = false;
+        
+        for (const member of members.values()) {
+            const position = mapData.playerPositions[member.id];
+            if (position) {
+                const { x: playerX, y: playerY } = position;
+                
+                // Check if player is outside current map boundaries
+                if (playerX < 0 || playerX >= mapData.width || playerY < 0 || playerY >= mapData.height) {
+                    console.log(`[MAP_INIT] Player ${member.displayName} at (${playerX}, ${playerY}) is outside map bounds ${mapData.width}x${mapData.height}, expanding...`);
+                    
+                    // Expand map to accommodate this player
+                    while (playerX < 0 && mapData.width < 200) {
+                        mapData = expandMap(mapData, 'west', channelId, serverPowerLevel);
+                        needsExpansion = true;
+                    }
+                    while (playerX >= mapData.width && mapData.width < 200) {
+                        mapData = expandMap(mapData, 'east', channelId, serverPowerLevel);
+                        needsExpansion = true;
+                    }
+                    while (playerY < 0 && mapData.height < 200) {
+                        mapData = expandMap(mapData, 'north', channelId, serverPowerLevel);
+                        needsExpansion = true;
+                    }
+                    while (playerY >= mapData.height && mapData.height < 200) {
+                        mapData = expandMap(mapData, 'south', channelId, serverPowerLevel);
+                        needsExpansion = true;
+                    }
+                }
+            }
+        }
+        
+        if (needsExpansion) {
+            console.log(`[MAP_INIT] Map expanded during initialization to ${mapData.width}x${mapData.height} to accommodate all players`);
+            mapChanged = true;
+        }
+        
         // Initialize shadow clones for players with Shadow Legion Amulet
         const shadowCloneResults = [];
         const MAX_TOTAL_CLONES = 30; // Maximum clones across all players
@@ -2758,14 +2798,114 @@ if (shouldStartBreak) {
             );
         }
         
-        // Process actions for each player with improved error handling and performance
-        const playerProcessingPromises = Array.from(members.values()).map(async (member) => {
+        // Process actions for each player SEQUENTIALLY with fresh cache per player to prevent race conditions
+        console.log(`[MINING] Processing ${members.size} players sequentially with fresh cache per player`);
+        
+        for (const member of members.values()) {
             try {
                 // Skip players who are being moved to gullet due to sanity
                 if (playersToSkip.has(member.id)) {
                     console.log(`🧠 [MINING] Skipping mining actions for ${member.displayName} (being moved to gullet)`);
-                    return null;
+                    continue;
                 }
+                
+                // === FRESH CACHE PER PLAYER - RACE CONDITION FIX ===
+                console.log(`[CACHE] Getting fresh cache for player ${member.displayName}`);
+                
+                // Get fresh dbEntry from cache for this player
+                const freshDbEntry = await getCachedDBEntry(channelId, false); // Don't force refresh, but get current cache state
+                if (!freshDbEntry) {
+                    console.error(`[MINING] Failed to get fresh cache for ${member.displayName}, skipping`);
+                    continue;
+                }
+                
+                // Get fresh mapData from the fresh cache
+                let playerMapData = freshDbEntry.gameData?.map;
+                if (!playerMapData) {
+                    console.error(`[MINING] No map data in fresh cache for ${member.displayName}, skipping`);
+                    continue;
+                }
+                
+                // Deep clone the mapData to prevent cross-player contamination
+                playerMapData = JSON.parse(JSON.stringify(playerMapData));
+                console.log(`[CACHE] Fresh map data loaded for ${member.displayName} - tiles: ${playerMapData.width}x${playerMapData.height}`);
+                
+                // === CHECK AND EXPAND MAP FOR PLAYER VISIBILITY ===
+                const playerPosition = playerMapData.playerPositions[member.id];
+                if (playerPosition) {
+                    const { x: playerX, y: playerY } = playerPosition;
+                    let mapExpanded = false;
+                    
+                    console.log(`[MAP_EXPAND] Checking player ${member.displayName} position (${playerX}, ${playerY}) against map bounds ${playerMapData.width}x${playerMapData.height}`);
+                    
+                    // Check if player is outside map boundaries and expand if needed
+                    if (playerX < 0 || playerX >= playerMapData.width || playerY < 0 || playerY >= playerMapData.height) {
+                        console.log(`[MAP_EXPAND] Player ${member.displayName} is outside map boundaries at (${playerX}, ${playerY}), expanding map...`);
+                        
+                        // Import map expansion functions
+                        const { expandMap } = require('./mining/miningMap');
+                        
+                        // Expand map in all necessary directions
+                        let expandedMap = playerMapData;
+                        
+                        // Expand north if player is above map
+                        while (playerY < 0 && expandedMap.height < 200) { // MAX_MAP_SIZE check
+                            console.log(`[MAP_EXPAND] Expanding north for player ${member.displayName}`);
+                            expandedMap = expandMap(expandedMap, 'north', channelId, serverPowerLevel);
+                            mapExpanded = true;
+                        }
+                        
+                        // Expand west if player is left of map
+                        while (playerX < 0 && expandedMap.width < 200) { // MAX_MAP_SIZE check
+                            console.log(`[MAP_EXPAND] Expanding west for player ${member.displayName}`);
+                            expandedMap = expandMap(expandedMap, 'west', channelId, serverPowerLevel);
+                            mapExpanded = true;
+                        }
+                        
+                        // Expand east if player is right of map
+                        while (playerX >= expandedMap.width && expandedMap.width < 200) { // MAX_MAP_SIZE check
+                            console.log(`[MAP_EXPAND] Expanding east for player ${member.displayName}`);
+                            expandedMap = expandMap(expandedMap, 'east', channelId, serverPowerLevel);
+                            mapExpanded = true;
+                        }
+                        
+                        // Expand south if player is below map
+                        while (playerY >= expandedMap.height && expandedMap.height < 200) { // MAX_MAP_SIZE check
+                            console.log(`[MAP_EXPAND] Expanding south for player ${member.displayName}`);
+                            expandedMap = expandMap(expandedMap, 'south', channelId, serverPowerLevel);
+                            mapExpanded = true;
+                        }
+                        
+                        if (mapExpanded) {
+                            playerMapData = expandedMap;
+                            mapChanged = true;
+                            console.log(`[MAP_EXPAND] Map expanded for ${member.displayName} - new size: ${playerMapData.width}x${playerMapData.height}`);
+                            
+                            // Update the cache immediately with the expanded map
+                            mapCacheSystem.updateMapData(channelId, playerMapData);
+                            await mapCacheSystem.forceFlush();
+                            console.log(`[MAP_EXPAND] Updated cache with expanded map for ${member.displayName}`);
+                        }
+                    }
+                    
+                    // Double-check player is now within bounds
+                    const finalPosition = playerMapData.playerPositions[member.id];
+                    if (finalPosition) {
+                        const { x: finalX, y: finalY } = finalPosition;
+                        if (finalX >= 0 && finalX < playerMapData.width && finalY >= 0 && finalY < playerMapData.height) {
+                            console.log(`[MAP_EXPAND] Player ${member.displayName} is now visible at (${finalX}, ${finalY})`);
+                        } else {
+                            console.error(`[MAP_EXPAND] ERROR: Player ${member.displayName} still outside bounds at (${finalX}, ${finalY}) after expansion!`);
+                            // Emergency fallback - move player to entrance
+                            finalPosition.x = playerMapData.entranceX;
+                            finalPosition.y = playerMapData.entranceY;
+                            console.log(`[MAP_EXPAND] Emergency: Moved ${member.displayName} to entrance (${playerMapData.entranceX}, ${playerMapData.entranceY})`);
+                        }
+                    }
+                } else {
+                    console.log(`[MAP_EXPAND] No position found for ${member.displayName}, will be initialized at entrance`);
+                }
+                
                 // Initialize player health using separate schema and check if dead
                 let isDead = false;
                 try {
@@ -2775,28 +2915,28 @@ if (shouldStartBreak) {
                     
                     if (isDead) {
                         console.log(`[MINING] Player ${member.displayName} is dead, skipping actions`);
-                        return null; // Skip processing for dead players
+                        continue; // Skip processing for dead players
                     }
                 } catch (healthInitError) {
                     console.error(`[MINING] Error initializing health for ${member.displayName}:`, healthInitError);
                 }
                 
-                const wasDisabled = dbEntry.gameData?.disabledPlayers?.[member.id];
-                const isDisabled = hazardEffects.isPlayerDisabled(member.id, dbEntry);
+                const wasDisabled = freshDbEntry.gameData?.disabledPlayers?.[member.id];
+                const isDisabled = hazardEffects.isPlayerDisabled(member.id, freshDbEntry);
                 
                 if (wasDisabled && !isDisabled) {
                     eventLogs.push(`⭐ ${member.displayName} recovered from being knocked out!`);
-                    const position = mapData.playerPositions[member.id];
-                    if (position && (position.x !== mapData.entranceX || position.y !== mapData.entranceY)) {
-                        position.x = mapData.entranceX;
-                        position.y = mapData.entranceY;
+                    const position = playerMapData.playerPositions[member.id];
+                    if (position && (position.x !== playerMapData.entranceX || position.y !== playerMapData.entranceY)) {
+                        position.x = playerMapData.entranceX;
+                        position.y = playerMapData.entranceY;
                         position.disabled = false;
                         mapChanged = true;
                     }
                 }
                 
                 if (isDisabled) {
-                    const disabledInfo = dbEntry.gameData?.disabledPlayers?.[member.id];
+                    const disabledInfo = freshDbEntry.gameData?.disabledPlayers?.[member.id];
                     if (disabledInfo?.enableAt && Math.random() < 0.1) {
                         const now = Date.now();
                         const remainingMs = disabledInfo.enableAt - now;
@@ -2805,18 +2945,19 @@ if (shouldStartBreak) {
                             eventLogs.push(`💤 ${member.displayName} is knocked out (${remainingMinutes} min remaining)`);
                         }
                     }
-                    return null; // Skip processing but don't throw error
+                    continue; // Skip processing but don't throw error
                 }
                 
                 const playerData = playerStatsMap.get(member.id) || { stats: {}, level: 1 };
                 const playerLevel = playerData.level || 1;
-                
+
                 const efficiency = getCachedMiningEfficiency(serverPowerLevel, playerLevel, serverModifiers);
                 
+                console.log(`[MINING] Processing actions for ${member.displayName} with fresh map data`);
                 const result = await processPlayerActionsEnhanced(
                     member, 
                     playerData, 
-                    mapData, 
+                    playerMapData,  // Use fresh cloned map data per player
                     serverPowerLevel,
                     availableItems,
                     availableTreasures,
@@ -2824,40 +2965,43 @@ if (shouldStartBreak) {
                     serverModifiers,
                     transaction,
                     eventLogs,
-                    dbEntry,
+                    freshDbEntry,  // Use fresh dbEntry per player
                     hazardsData,
                     teamLuckBonus  // Pass team luck bonus
                 );
                 
-                return result;
+                // === UPDATE CACHE AFTER PLAYER ACTION - RACE CONDITION FIX ===
+                if (result) {
+                    if (result.hazardsChanged) {
+                        hazardsChanged = true;
+                    }
+                    
+                    if (result.mapChanged) {
+                        mapChanged = true;
+                        
+                        // Update the cache immediately with the player's changes
+                        if (result.mapData) {
+                            console.log(`[CACHE] Updating cache with ${member.displayName}'s map changes`);
+                            
+                            // Update the main mapData reference for aggregation
+                            mapData = result.mapData;
+                            
+                            // Update the cache system immediately to prevent race conditions
+                            mapCacheSystem.updateMapData(channelId, result.mapData);
+                            
+                            // Force flush to ensure changes are persisted before next player
+                            await mapCacheSystem.forceFlush();
+                            console.log(`[CACHE] Cache updated and flushed for ${member.displayName}`);
+                        }
+                    }
+                    
+                    wallsBroken += result.wallsBroken;
+                    treasuresFound += result.treasuresFound;
+                }
+                
             } catch (playerError) {
                 console.error(`[MINING] Error processing player ${member.displayName}:`, playerError);
-                // Return null to indicate processing failed but don't crash the entire loop
-                return null;
-            }
-        });
-
-        // Wait for all player processing to complete
-        const playerResults = await Promise.allSettled(playerProcessingPromises);
-        
-        // Aggregate results from all players
-        for (const result of playerResults) {
-            if (result.status === 'fulfilled' && result.value) {
-                const data = result.value;
-                
-                if (data.hazardsChanged) {
-                    hazardsChanged = true;
-                }
-                
-                if (data.mapChanged) {
-                    mapChanged = true;
-                    if (data.mapData) {
-                        mapData = data.mapData;
-                        // No longer recalculate team visibility - each player handles their own vision
-                    }
-                }
-                wallsBroken += data.wallsBroken;
-                treasuresFound += data.treasuresFound;
+                // Continue with next player instead of crashing entire loop
             }
         }
 
