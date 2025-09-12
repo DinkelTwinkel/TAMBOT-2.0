@@ -35,11 +35,12 @@ module.exports = {
             });
         }
 
-        // Prepare items with full data (only sellable items)
+        // Prepare items with full data (allow all items in player marketplace)
         const inventoryItems = [];
         for (const invItem of sellerInv.items) {
             const itemData = itemMap.get(invItem.itemId);
-            if (itemData && invItem.quantity > 0 && itemData.vendable !== false) {
+            if (itemData && invItem.quantity > 0) {
+                // Allow all items in player marketplace (players can sell anything they own)
                 inventoryItems.push({
                     id: itemData.id,
                     name: itemData.name,
