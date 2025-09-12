@@ -239,24 +239,31 @@ class SellMarketListener {
                         autoArchiveDuration: 1440 // 24 hours
                     });
                     
-                    // Generate a copy of the marketplace image for the thread
-                    const threadMarketplaceImageBuffer = await generateMarketplaceImage(
-                        itemData, 
-                        existingShop?.quantity || quantity, 
-                        pricePerItem, 
-                        interaction.user,
-                        interaction.member
+                    // Create simple thread buttons embed (no duplicate info/image)
+                    const threadEmbed = new EmbedBuilder()
+                        .setTitle('Thread Buttons')
+                        .setDescription('Use the buttons below to interact with this shop.')
+                        .setColor(0x3498db);
+                    
+                    const threadButtons = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`marketplace_buy_${itemId}_${sellerId}`)
+                            .setLabel('Buy')
+                            .setStyle(ButtonStyle.Success)
+                            .setEmoji('💰'),
+                        new ButtonBuilder()
+                            .setCustomId(`marketplace_haggle_${itemId}_${sellerId}`)
+                            .setLabel('Haggle')
+                            .setStyle(ButtonStyle.Primary)
+                            .setEmoji('💬')
+                        // No close button in thread - only main embed can close
                     );
                     
-                    const threadMarketplaceAttachment = new AttachmentBuilder(threadMarketplaceImageBuffer, { 
-                        name: 'marketplace.gif' 
-                    });
-                    
-                    // Post a complete copy of the shop embed with buttons in the thread
+                    // Post simple thread buttons embed
                     await shopThread.send({
-                        embeds: [shopEmbed],
-                        components: [shopButtons],
-                        files: [threadMarketplaceAttachment]
+                        embeds: [threadEmbed],
+                        components: [threadButtons]
+                        // No files - don't duplicate the image
                     });
                     
                     console.log(`[MARKETPLACE] Created shop thread with full embed: ${shopThread.name}`);
@@ -322,13 +329,8 @@ class SellMarketListener {
         // Acquire purchase lock
         this.acquirePurchaseLock(messageId);
 
-        // Check if buyer is trying to buy from themselves
-        if (buyerId === sellerId) {
-            return interaction.editReply({
-                content: '❌ You cannot buy from your own shop.',
-                ephemeral: true
-            });
-        }
+        // Check if this is the shop owner - allow them to retrieve items
+        const isOwner = buyerId === sellerId;
 
         // Find the active shop for validation
         const shop = await ActiveShop.findOne({
@@ -353,14 +355,17 @@ class SellMarketListener {
             });
         }
 
-        // Check buyer's affordability
-        const buyerProfile = await Currency.findOne({ userId: buyerId });
-        if (!buyerProfile || buyerProfile.money < shop.pricePerItem) {
-            this.releasePurchaseLock(messageId);
-            return interaction.editReply({
-                content: `❌ You need ${shop.pricePerItem} coins but only have ${buyerProfile?.money || 0} coins.`,
-                ephemeral: true
-            });
+        // Check buyer's affordability (skip for shop owner)
+        let buyerProfile = null;
+        if (!isOwner) {
+            buyerProfile = await Currency.findOne({ userId: buyerId });
+            if (!buyerProfile || buyerProfile.money < shop.pricePerItem) {
+                this.releasePurchaseLock(messageId);
+                return interaction.editReply({
+                    content: `❌ You need ${shop.pricePerItem} coins but only have ${buyerProfile?.money || 0} coins.`,
+                    ephemeral: true
+                });
+            }
         }
 
         // Attempt atomic purchase
@@ -389,16 +394,18 @@ class SellMarketListener {
         session.startTransaction();
 
         try {
-            // Transfer money
-            buyerProfile.money -= updatedShop.pricePerItem;
-            await buyerProfile.save({ session });
+            // Transfer money (skip for shop owner)
+            if (!isOwner) {
+                buyerProfile.money -= updatedShop.pricePerItem;
+                await buyerProfile.save({ session });
 
-            let sellerProfile = await Currency.findOne({ userId: sellerId }).session(session);
-            if (!sellerProfile) {
-                sellerProfile = new Currency({ userId: sellerId, money: 0 });
+                let sellerProfile = await Currency.findOne({ userId: sellerId }).session(session);
+                if (!sellerProfile) {
+                    sellerProfile = new Currency({ userId: sellerId, money: 0 });
+                }
+                sellerProfile.money += updatedShop.pricePerItem;
+                await sellerProfile.save({ session });
             }
-            sellerProfile.money += updatedShop.pricePerItem;
-            await sellerProfile.save({ session });
 
             // Give item to buyer
             let buyerInv = await PlayerInventory.findOne({ playerId: buyerId }).session(session);
@@ -451,15 +458,26 @@ class SellMarketListener {
                 }
             }
 
-            await logChannel.send({
-                content: `🎉 **Sale Completed!**\n\n**Buyer:** <@${buyerId}>\n**Item:** ${itemData.name}\n**Price:** ${shop.pricePerItem} coins\n**Seller:** <@${sellerId}>`
-            });
+            // Send appropriate log message
+            if (isOwner) {
+                await logChannel.send({
+                    content: `📦 **Item Retrieved!**\n\n**Owner:** <@${buyerId}>\n**Item:** ${itemData.name}\n**Retrieved from own shop**`
+                });
+            } else {
+                await logChannel.send({
+                    content: `🎉 **Sale Completed!**\n\n**Buyer:** <@${buyerId}>\n**Item:** ${itemData.name}\n**Price:** ${shop.pricePerItem} coins\n**Seller:** <@${sellerId}>`
+                });
+            }
 
             // Check if shop is now empty
             if (soldOut) {
                 await this.closeShop(interaction.message, updatedShop);
+                const closeMessage = isOwner 
+                    ? `✅ You retrieved the last **${itemData.name}** from your shop!\n🏪 Your shop has closed.`
+                    : `✅ You successfully bought **${itemData.name}** for **${updatedShop.pricePerItem} coins**!\n🏪 The shop has sold out and closed.`;
+                    
                 await interaction.editReply({
-                    content: `✅ You successfully bought **${itemData.name}** for **${updatedShop.pricePerItem} coins**!\n🏪 The shop has sold out and closed.`,
+                    content: closeMessage,
                     ephemeral: true
                 });
             } else {
@@ -487,8 +505,12 @@ class SellMarketListener {
                     files: [updatedMarketplaceAttachment]
                 });
 
+                const successMessage = isOwner
+                    ? `✅ You retrieved **${itemData.name}** from your shop! **${updatedShop.quantity}** remaining.`
+                    : `✅ You successfully bought **${itemData.name}** for **${updatedShop.pricePerItem} coins**!`;
+                    
                 await interaction.editReply({
-                    content: `✅ You successfully bought **${itemData.name}** for **${updatedShop.pricePerItem} coins**!`,
+                    content: successMessage,
                     ephemeral: true
                 });
             }
@@ -694,12 +716,43 @@ class SellMarketListener {
             .setTimestamp()
             .setFooter({ text: 'Marketplace • Shop Closed' });
 
+        // Close the main shop embed
         await message.edit({
             embeds: [closedEmbed],
             components: [],
             files: [], // Remove image attachment
             attachments: [] // Clear all attachments
         });
+
+        // Also close the thread embed if it exists
+        try {
+            const shopThread = message.thread;
+            if (shopThread) {
+                // Find the thread buttons embed
+                const threadMessages = await shopThread.messages.fetch({ limit: 10 });
+                const threadButtonsMessage = threadMessages.find(msg => 
+                    msg.author.id === this.client.user.id && 
+                    msg.embeds.length > 0 && 
+                    msg.embeds[0].title === 'Thread Buttons'
+                );
+
+                if (threadButtonsMessage) {
+                    // Update thread buttons to show shop closed
+                    const closedThreadEmbed = new EmbedBuilder()
+                        .setTitle('Thread Buttons')
+                        .setDescription('🚫 This shop is now closed.')
+                        .setColor(0x95a5a6);
+
+                    await threadButtonsMessage.edit({
+                        embeds: [closedThreadEmbed],
+                        components: []
+                    });
+                    console.log(`[MARKETPLACE] Also closed thread buttons embed`);
+                }
+            }
+        } catch (threadError) {
+            console.warn('[MARKETPLACE] Could not close thread embed:', threadError.message);
+        }
 
         // Register the closed shop message for deletion in 5 hours
         try {
