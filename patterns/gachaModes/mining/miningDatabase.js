@@ -811,7 +811,7 @@ async function createMiningSummary(channel, dbEntry) {
             
             // Calculate individual reward including team bonus share
             const bonusShare = playerCount > 1 ? Math.floor(teamBonus / playerCount) : 0;
-            const totalReward = reward.coins + bonusShare;
+            const totalReward = Math.floor(reward.coins + bonusShare); // Ensure integer result
             
             let userCurrency = await Currency.findOne({ userId: actualUserId });
             
@@ -822,7 +822,7 @@ async function createMiningSummary(channel, dbEntry) {
                     money: totalReward
                 });
             } else {
-                userCurrency.money = (userCurrency.money || 0) + totalReward;
+                userCurrency.money = Math.floor((userCurrency.money || 0) + totalReward); // Ensure integer result
                 await userCurrency.save();
             }
             

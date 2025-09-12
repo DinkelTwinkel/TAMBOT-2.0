@@ -162,9 +162,15 @@ function parseUniqueItemBonuses(equippedItems, eventLogs = null, member = null) 
         // Get maintenance ratio - default to 1 if not set (for backwards compatibility)
         const maintenanceRatio = item.maintenanceRatio !== undefined ? item.maintenanceRatio : 1;
         
-        // Skip items with 0 maintenance (broken)
+        // Skip items with 0 maintenance (broken) or Midas' Burden with ≤ 1 maintenance (cursed)
         if (maintenanceRatio <= 0) {
             console.log(`[UNIQUE] Skipping ${item.name} - maintenance ratio is 0 (item is broken)`);
+            continue;
+        }
+        
+        // Special handling for Midas' Burden - curse mode at maintenance ≤ 1
+        if (item.itemId === 10 && item.maintenanceLevel <= 1) {
+            console.log(`[UNIQUE] Skipping ${item.name} - maintenance is ${item.maintenanceLevel} (cursed state)`);
             continue;
         }
         

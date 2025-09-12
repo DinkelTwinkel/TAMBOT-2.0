@@ -92,7 +92,7 @@ const UNIQUE_ITEMS = [
         maintenanceCost: 1, // Not coins, but represents needing to be wealthiest
         maintenanceDecayRate: 5, // Loses 1 maintenance per cycle when not wealthiest (item breaks immediately)
         requiresMaintenance: true,
-        maintenanceDescription: "The burden constantly demands tribute from all who bear it. Even the wealthiest must maintain their hold, but the truly rich are rewarded - those who remain the richest receive Midas' touch each cycle. Should maintenance reach zero while still wealthiest, the burden will cling to power with minimal strength rather than abandon you completely. Each maintenance cycle for the richest: 30% chance to bless you with 20% more gold, or curse you with 5-60% loss.",
+        maintenanceDescription: "The burden constantly demands tribute from all who bear it. Even the wealthiest must maintain their hold, but the truly rich are rewarded - those who remain the richest receive Midas' touch each cycle. The curse activates when maintenance drops to 1 or below, rendering the item powerless. Should maintenance reach zero while still wealthiest, the burden will restore itself above the curse threshold rather than abandon you completely. Each maintenance cycle for the richest: 30% chance to bless you with 20% more gold, or curse you with 5-60% loss.",
         
         specialEffects: [
             "Luck randomly becomes either 0x or 100x on each calculation",

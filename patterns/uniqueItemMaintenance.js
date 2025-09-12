@@ -62,7 +62,7 @@ const maintenanceHandlers = {
             }
             
             // Apply Midas' Burden wealth effect (random cost/gain)
-            const wealthEffect = await this.applyMidasWealthEffect(userId, userTag);
+            const wealthEffect = await maintenanceHandlers.applyMidasWealthEffect(userId, userTag);
             
             // If still richest, restore maintenance to full
             await item.performMaintenance(userId, 0);
@@ -71,7 +71,7 @@ const maintenanceHandlers = {
                 success: true,
                 message: wealthEffect.message || `Your wealth maintains your hold on Midas' Burden`,
                 newMaintenanceLevel: item.maintenanceLevel,
-                wealthChange: wealthEffect.change
+                wealthChange: wealthEffect // Return the full wealthEffect object
             };
             
         } catch (error) {
@@ -99,25 +99,33 @@ const maintenanceHandlers = {
             if (roll < 0.3) {
                 // 30% chance: Increase wealth by 20%
                 const bonus = Math.floor(currentWealth * 0.2);
-                playerMoney.money += bonus;
+                playerMoney.money = Math.floor(playerMoney.money + bonus); // Ensure integer result
                 await playerMoney.save();
                 
                 console.log(`[MIDAS WEALTH] 🌟 ${userTag} blessed by Midas! +${bonus} coins (${currentWealth} -> ${playerMoney.money})`);
                 return {
-                    message: `🌟 Midas' Burden blesses your wealth! **+${bonus.toLocaleString()} coins** (${currentWealth.toLocaleString()} → ${playerMoney.money.toLocaleString()})`,
-                    change: bonus
+                    message: `The golden charm pulses with benevolent energy!`,
+                    change: bonus,
+                    isBlessing: true,
+                    beforeAmount: currentWealth,
+                    afterAmount: playerMoney.money,
+                    percentage: 20
                 };
             } else {
                 // 70% chance: Take 5-60% of wealth
                 const lossPercentage = 0.05 + (Math.random() * 0.55); // Random between 5% and 60%
                 const loss = Math.floor(currentWealth * lossPercentage);
-                playerMoney.money = Math.max(0, playerMoney.money - loss);
+                playerMoney.money = Math.floor(Math.max(0, playerMoney.money - loss)); // Ensure integer result
                 await playerMoney.save();
                 
                 console.log(`[MIDAS WEALTH] 💸 ${userTag} cursed by Midas! -${loss} coins (${Math.round(lossPercentage * 100)}% loss: ${currentWealth} -> ${playerMoney.money})`);
                 return {
-                    message: `💸 Midas' Burden curses your wealth! **-${loss.toLocaleString()} coins** (${Math.round(lossPercentage * 100)}% loss: ${currentWealth.toLocaleString()} → ${playerMoney.money.toLocaleString()})`,
-                    change: -loss
+                    message: `The curse of King Midas weighs heavily upon your fortune!`,
+                    change: -loss,
+                    isBlessing: false,
+                    beforeAmount: currentWealth,
+                    afterAmount: playerMoney.money,
+                    percentage: Math.round(lossPercentage * 100)
                 };
             }
         } catch (error) {

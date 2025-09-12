@@ -170,6 +170,41 @@ async function handleMaintain(interaction, userId, userTag) {
         const result = await performMaintenance(userId, userTag, itemId);
         
         if (result.success) {
+            // Special handling for Midas' Burden wealth gamble
+            if (itemId === 10 && result.wealthChange && typeof result.wealthChange === 'object' && result.wealthChange.change !== undefined) {
+                const wealthData = result.wealthChange;
+                const maintenanceBar = createMaintenanceBar(result.newMaintenanceLevel);
+                
+                const embed = new EmbedBuilder()
+                    .setTitle(wealthData.isBlessing ? '🌟 Midas\' Blessing!' : '💸 Midas\' Curse!')
+                    .setDescription(`**${itemData.name}** maintenance triggers the ancient gamble...`)
+                    .addFields(
+                        { name: '🎲 Fortune\'s Gamble', value: wealthData.message, inline: false },
+                        { 
+                            name: wealthData.isBlessing ? '📈 Wealth Increased' : '📉 Wealth Decreased', 
+                            value: `**${wealthData.percentage}%** ${wealthData.isBlessing ? 'bonus' : 'loss'}`, 
+                            inline: true 
+                        },
+                        { 
+                            name: '💰 Coin Change', 
+                            value: `${wealthData.change > 0 ? '+' : ''}${wealthData.change.toLocaleString()} coins`, 
+                            inline: true 
+                        },
+                        { 
+                            name: '💎 New Balance', 
+                            value: `${wealthData.afterAmount.toLocaleString()} coins`, 
+                            inline: true 
+                        },
+                        { name: '🔧 Maintenance Level', value: `${maintenanceBar} (${result.newMaintenanceLevel}/10)`, inline: false }
+                    )
+                    .setColor(wealthData.isBlessing ? 0xFFD700 : 0x8B0000) // Gold for blessing, dark red for curse
+                    .setFooter({ text: `Previous balance: ${wealthData.beforeAmount.toLocaleString()} coins` })
+                    .setTimestamp();
+                    
+                return interaction.editReply({ embeds: [embed] });
+            }
+            
+            // Regular maintenance embed for other items
             const maintenanceBar = createMaintenanceBar(result.newMaintenanceLevel);
             
             const embed = new EmbedBuilder()
@@ -181,20 +216,6 @@ async function handleMaintain(interaction, userId, userTag) {
                 )
                 .setColor(0x00FF00)
                 .setTimestamp();
-                
-            // Add wealth change information for Midas' Burden
-            if (itemId === 10 && result.wealthChange !== undefined) {
-                const changeEmoji = result.wealthChange > 0 ? '📈' : result.wealthChange < 0 ? '📉' : '💰';
-                const changeText = result.wealthChange === 0 ? 'No change' : 
-                    result.wealthChange > 0 ? `+${result.wealthChange.toLocaleString()} coins` : 
-                    `${result.wealthChange.toLocaleString()} coins`;
-                    
-                embed.addFields({
-                    name: `${changeEmoji} Wealth Effect`,
-                    value: changeText,
-                    inline: true
-                });
-            }
                 
             return interaction.editReply({ embeds: [embed] });
         }
