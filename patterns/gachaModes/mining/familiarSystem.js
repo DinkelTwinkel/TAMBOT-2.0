@@ -158,7 +158,7 @@ const FAMILIAR_CONFIGS = {
         pickaxeImage: "murderous_aura_pickaxe", // Fire pickaxe (using murderous aura pickaxe)
         pickaxeFallback: "ironpickaxe", // Fallback pickaxe image
         imageName: "fire_elemental", // Image file name (without extension)
-        duration: 360000, // 6 minutes
+        duration: 1800000, // 30 minutes
         maxCount: 1,
         respawnTime: null,
         source: 'consumable',
@@ -187,7 +187,7 @@ const FAMILIAR_CONFIGS = {
         pickaxeImage: "adamantite_pickaxe", // Ice pickaxe (using adamantite pickaxe)
         pickaxeFallback: "ironpickaxe", // Fallback pickaxe image
         imageName: "ice_elemental", // Image file name (without extension)
-        duration: 360000, // 6 minutes
+        duration: 1800000, // 30 minutes
         maxCount: 1,
         respawnTime: null,
         source: 'consumable',
