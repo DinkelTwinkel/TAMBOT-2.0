@@ -1468,18 +1468,31 @@ function findItemUnified(context, powerLevel, luckStat = 0, isUniqueRoll = false
             console.log(`[MINE BIAS DEBUG] Found target ore ${item.name} (ID: ${item.itemId}), applying boost: ${mineCorrespondence.boost}x`);
             // For mining context, ensure the corresponding ore has at minimum the boost percentage chance
             if (context === 'mining_wall' || context === 'rare_ore') {
-                // To ensure this ore has at least X% chance, we need to boost its weight significantly
-                // Calculate the weight of all other items
-                const otherItemsWeight = eligibleItems
-                    .filter(i => i.itemId !== mineCorrespondence.oreId)
-                    .reduce((sum, i) => sum + (i.baseWeight * (contextMults[i.category] || 1.0)), 0);
-                
-                // To achieve the target percentage: weight / (weight + others) = boost
-                // Solving for weight: weight = (boost * others) / (1 - boost)
-                const targetWeight = (mineCorrespondence.boost * otherItemsWeight) / (1 - mineCorrespondence.boost);
-                
-                // Set the weight to achieve at least the target percentage
-                item.adjustedWeight = Math.max(item.adjustedWeight, targetWeight);
+                // Check if this is a guaranteed mine (boost: 999 indicates 100% guarantee)
+                if (mineCorrespondence.boost >= 999 || mineCorrespondence.guarantee >= 1.0) {
+                    // For guaranteed mines, set an extremely high weight to ensure 100% selection
+                    item.adjustedWeight = 999999999; // Effectively guarantees selection
+                    console.log(`[MINE BIAS DEBUG] Guaranteed mine detected - setting ultra-high weight for ${item.name}`);
+                } else {
+                    // To ensure this ore has at least X% chance, we need to boost its weight significantly
+                    // Calculate the weight of all other items
+                    const otherItemsWeight = eligibleItems
+                        .filter(i => i.itemId !== mineCorrespondence.oreId)
+                        .reduce((sum, i) => sum + (i.baseWeight * (contextMults[i.category] || 1.0)), 0);
+                    
+                    // Use the guarantee value if available, otherwise use boost as percentage
+                    const targetPercentage = mineCorrespondence.guarantee || (mineCorrespondence.boost / 100);
+                    
+                    // Ensure percentage is valid (0-0.99 range)
+                    const validPercentage = Math.min(0.99, Math.max(0.01, targetPercentage));
+                    
+                    // To achieve the target percentage: weight / (weight + others) = percentage
+                    // Solving for weight: weight = (percentage * others) / (1 - percentage)
+                    const targetWeight = (validPercentage * otherItemsWeight) / (1 - validPercentage);
+                    
+                    // Set the weight to achieve at least the target percentage
+                    item.adjustedWeight = Math.max(item.adjustedWeight, targetWeight);
+                }
             } else {
                 // For other contexts (treasure chests, etc.), apply a smaller boost
                 item.adjustedWeight *= 1.5;
