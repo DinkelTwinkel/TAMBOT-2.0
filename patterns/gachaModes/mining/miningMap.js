@@ -24,8 +24,8 @@ function generateTileType(channelId, x, y, powerLevel = 1) {
     //if (random < 0.01) return TILE_TYPES.TREASURE_CHEST;
     if (random < 0.03) return TILE_TYPES.RARE_ORE;
     // Note: Hazards are now stored separately, not as tile types
-    if (random < reinforcedWallChance) return TILE_TYPES.REINFORCED_WALL;  // Dynamic based on power level
     if (random < BASE_ORE_SPAWN_CHANCE + 0.15) return TILE_TYPES.WALL_WITH_ORE;
+    if (random < BASE_ORE_SPAWN_CHANCE + 0.15 + reinforcedWallChance) return TILE_TYPES.REINFORCED_WALL;  // Dynamic based on power level
     
     return TILE_TYPES.WALL;
 }

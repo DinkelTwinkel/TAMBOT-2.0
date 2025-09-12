@@ -882,12 +882,12 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         if (mineConfig && mineConfig.guarantee) {
             const guaranteeRoll = Math.random();
             
-            // Use 80% guarantee for all mines instead of individual percentages
-            const ENHANCED_GUARANTEE = 0.80; // 80% chance for mine-specific ore
-            console.log(`[MINE BIAS DEBUG] Mine ${mineTypeId} guarantee check: ${(guaranteeRoll * 100).toFixed(1)}% vs ${ENHANCED_GUARANTEE * 100}% threshold`);
+            // Use individual mine guarantee percentages from MINE_ORE_CORRESPONDENCE
+            const mineGuarantee = mineConfig.guarantee; // Use the actual guarantee value for this mine
+            console.log(`[MINE BIAS DEBUG] Mine ${mineTypeId} guarantee check: ${(guaranteeRoll * 100).toFixed(1)}% vs ${(mineGuarantee * 100).toFixed(1)}% threshold`);
             
             // If roll is within guarantee threshold, FORCE the specialized ore
-            if (guaranteeRoll < ENHANCED_GUARANTEE) {
+            if (guaranteeRoll < mineGuarantee) {
                 // Find the specialized ore in available items
                 const specializedOre = availableItems.find(item => 
                     String(item.itemId) === String(mineConfig.oreId)
@@ -898,7 +898,7 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
                     
                     // Log guarantee activation (5% chance to avoid spam)
                     if (Math.random() < 0.05) {
-                        console.log(`[MINING GUARANTEE] ${specializedOre.name} guaranteed in mine ${mineTypeId} (80% guarantee rate)`);
+                        console.log(`[MINING GUARANTEE] ${specializedOre.name} guaranteed in mine ${mineTypeId} (${(mineGuarantee * 100).toFixed(1)}% guarantee rate)`);
                     }
                     
                     // Calculate quantity with bonuses for higher tier mines
@@ -949,7 +949,7 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
                     console.log(`[MINE BIAS DEBUG] Available items:`, availableItems.map(i => `${i.name}(${i.itemId})`).slice(0, 10));
                 }
             } else {
-                console.log(`[MINE BIAS DEBUG] ❌ GUARANTEE MISSED - Using random selection from availableItems (${(guaranteeRoll * 100).toFixed(1)}% >= 80%)`);
+                console.log(`[MINE BIAS DEBUG] ❌ GUARANTEE MISSED - Using random selection from availableItems (${(guaranteeRoll * 100).toFixed(1)}% >= ${(mineGuarantee * 100).toFixed(1)}%)`);
             }
         } else if (mineTypeId && mineTypeId !== 16) {
             console.log(`[MINE BIAS DEBUG] ❌ NO MINE CONFIG - Mine ${mineTypeId} not found in correspondence table`);
