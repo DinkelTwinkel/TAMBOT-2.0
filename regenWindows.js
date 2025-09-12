@@ -16,4 +16,3 @@ async function regenWindows() {
 }
 
 regenWindows().catch(console.error);
-

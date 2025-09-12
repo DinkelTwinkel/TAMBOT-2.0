@@ -48,9 +48,6 @@ async function processUniqueItemFinding(member, activity, powerLevel, luckStat, 
     }
 
     try {
-        console.log(`[UNIQUE INTEGRATION DEBUG] processUniqueItemFinding called for ${member.displayName} in mine ${mineId}`);
-        console.log(`[UNIQUE INTEGRATION DEBUG] Parameters: activity=${activity}, powerLevel=${powerLevel}, luckStat=${luckStat}`);
-        
         const result = await rollForItemFind(
             member.id,
             member.user.tag,
@@ -62,12 +59,7 @@ async function processUniqueItemFinding(member, activity, powerLevel, luckStat, 
             mineId
         );
         
-        console.log(`[UNIQUE INTEGRATION DEBUG] rollForItemFind result: ${result ? `${result.type} - ${result.item.name}` : 'NULL'}`);
-        
-        if (!result) {
-            console.log(`[UNIQUE INTEGRATION DEBUG] ❌ No item found - rollForItemFind returned null`);
-            return null;
-        }
+        if (!result) return null;
         
         // Log the find
         console.log(`[MINING] ${member.displayName} found ${result.type} item: ${result.item.name}`);
