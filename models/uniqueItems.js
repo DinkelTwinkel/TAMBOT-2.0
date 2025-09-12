@@ -74,7 +74,9 @@ const uniqueItemSchema = new Schema({
         voiceMinutesThisCycle: { type: Number, default: 0 },
         combatWinsThisCycle: { type: Number, default: 0 },
         socialInteractionsThisCycle: { type: Number, default: 0 },
-        tilesMovedThisCycle: { type: Number, default: 0 }
+        tilesMovedThisCycle: { type: Number, default: 0 },
+        // Ore-specific tracking (itemId -> quantity)
+        oresMinedThisCycle: { type: Map, of: Number, default: {} }
     },
     
     // History tracking
@@ -159,7 +161,8 @@ uniqueItemSchema.methods.reduceMaintenance = async function(amount = 1, isRiches
                 voiceMinutesThisCycle: 0,
                 combatWinsThisCycle: 0,
                 socialInteractionsThisCycle: 0,
-                tilesMovedThisCycle: 0
+                tilesMovedThisCycle: 0,
+                oresMinedThisCycle: new Map()
             };
         }
     }
@@ -187,7 +190,8 @@ uniqueItemSchema.methods.performMaintenance = async function(userId, cost) {
     this.activityTracking.voiceMinutesThisCycle = 0;
     this.activityTracking.combatWinsThisCycle = 0;
     this.activityTracking.socialInteractionsThisCycle = 0;
-        this.activityTracking.tilesMovedThisCycle = 0;
+    this.activityTracking.tilesMovedThisCycle = 0;
+    this.activityTracking.oresMinedThisCycle = new Map();
     
     return this.save();
 };

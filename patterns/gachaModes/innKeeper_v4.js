@@ -482,7 +482,7 @@ class InnKeeperV4Controller {
 
             // Process customers (arrivals/departures)
             console.log(`[InnKeeperV4] Processing customer arrivals/departures for channel ${channel.id}`);
-            const customerResult = await CustomerManager.processCustomers(channel, dbEntry, now);
+            const customerResult = await CustomerManager.processCustomers(channel, dbEntry, now, members);
             const departureEvents = customerResult.departureEvents || [];
             const arrivalEvents = customerResult.arrivalEvents || [];
 

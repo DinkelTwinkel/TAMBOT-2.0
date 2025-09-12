@@ -27,11 +27,12 @@ const UNIQUE_ITEMS = [
         particleEffect: "wind_swirl",
         
         // Maintenance configuration
-        maintenanceType: "coins", // Type of maintenance required
-        maintenanceCost: 5000, // Cost per maintenance (for coins type)
+        maintenanceType: "mining_activity",
+        maintenanceCost: 1000,
+        maintenanceOreType: "6", // Diamond ID
         maintenanceDecayRate: 1, // How much maintenance decreases per day
         requiresMaintenance: true,
-        maintenanceDescription: "The ethereal energies require regular infusion of wealth to maintain their connection to this plane.",
+        maintenanceDescription: "The crystallized wind essence feeds on the pure energy of diamonds. Mine diamonds to maintain its ethereal power.",
         
         // Special properties
         specialEffects: [
@@ -203,7 +204,7 @@ const UNIQUE_ITEMS = [
         particleEffect: "earth_crack",
         
         maintenanceType: "mining_activity",
-        maintenanceCost: 100, // Need to mine 100 blocks per cycle
+        maintenanceCost: 500, // Need to mine 100 blocks per cycle
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
         maintenanceDescription: "This weapon feeds on the destruction of earth and stone. Without regular use, it grows dormant.",
@@ -256,7 +257,7 @@ const UNIQUE_ITEMS = [
         particleEffect: "void_ripple",
         
         maintenanceType: "voice_activity",
-        maintenanceCost: 60, // Need 60 minutes in voice per cycle
+        maintenanceCost: 360, // Need 60 minutes in voice per cycle
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
         maintenanceDescription: "The lens requires the energy of human communication to maintain its connection to reality.",
@@ -473,7 +474,7 @@ const UNIQUE_ITEMS = [
         particleEffect: "forgotten_whispers",
         
         maintenanceType: "social_activity",
-        maintenanceCost: 10,
+        maintenanceCost: 20,
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
         maintenanceDescription: "The crown feeds on the respect and admiration of others. Interact with fellow players to maintain its royal authority.",
@@ -579,11 +580,12 @@ const UNIQUE_ITEMS = [
         glowColor: "#1C1C1C",
         particleEffect: "shadow_wisps",
         
-        maintenanceType: "social_activity",
-        maintenanceCost: 15,
+        maintenanceType: "mining_activity",
+        maintenanceCost: 500,
+        maintenanceOreType: "220", // Shadow Ore ID
         maintenanceDecayRate: 2,
         requiresMaintenance: true,
-        maintenanceDescription: "The shadow spirits are drawn to the bonds between people. Interact with others to maintain their corporeal forms.",
+        maintenanceDescription: "The shadow spirits feed on the essence of mined shadow ore. Mine shadow ore to maintain their corporeal forms.",
         
         specialEffects: [
             "Creates 5 shadow clones that mine independently",
@@ -713,7 +715,7 @@ const UNIQUE_ITEMS = [
         particleEffect: "solar_flare",
         
         maintenanceType: "social_activity",
-        maintenanceCost: 6,
+        maintenanceCost: 15,
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
         maintenanceDescription: "The Solar Forge Hammer's healing light grows stronger when shared with others. Interact with fellow miners to maintain its solar connection.",
@@ -1098,7 +1100,7 @@ const UNIQUE_ITEMS = [
         particleEffect: "crystal_visions",
         
         maintenanceType: "social_activity",
-        maintenanceCost: 8,
+        maintenanceCost: 15,
         maintenanceDecayRate: 0.5,
         requiresMaintenance: true,
         maintenanceDescription: "The Crystal Seer's wisdom flows through shared knowledge and conversation. Interact with others to maintain the orb's visions.",

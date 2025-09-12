@@ -2,6 +2,7 @@
 const npcsData = require('../../../data/npcs.json');
 const gachaServersData = require('../../../data/gachaServers.json');
 const ActiveVCs = require('../../../models/activevcs');
+const { updateActivityTracking } = require('../../uniqueItemMaintenance');
 
 class CustomerManager {
     /**
@@ -103,7 +104,7 @@ class CustomerManager {
     /**
      * Process customer arrivals and departures
      */
-    static async processCustomers(channel, dbEntry, now) {
+    static async processCustomers(channel, dbEntry, now, voiceMembers = []) {
         const v4State = dbEntry.gameData?.v4State;
         if (!v4State) return { remainingCustomers: [], departureEvents: [] };
         
@@ -162,6 +163,18 @@ class CustomerManager {
                 remainingCustomers.push(newCustomer);
                 arrivalEvents.push(`${newCustomer.name} arrived at the inn (happiness: ${newCustomer.happiness}, wealth: ${newCustomer.wealth}c)`);
                 console.log(`[CustomerManager] New customer ${newCustomer.name} arrived (reputation: ${reputation}, L${innLevel} inn, chance: ${Math.round(arrivalChance * 100)}%)`);
+                
+                // Track social interactions for all voice channel members (inn staff)
+                for (const member of voiceMembers) {
+                    if (!member.user.bot) {
+                        try {
+                            await updateActivityTracking(member.id, 'social', 1);
+                            console.log(`[CustomerManager] Social interaction tracked for ${member.displayName} (new customer arrival)`);
+                        } catch (error) {
+                            console.error(`[CustomerManager] Error tracking social interaction for ${member.displayName}:`, error);
+                        }
+                    }
+                }
             } else {
                 console.log(`[CustomerManager] No new customer arrived (${Math.round(arrivalChance * 100)}% chance)`);
             }

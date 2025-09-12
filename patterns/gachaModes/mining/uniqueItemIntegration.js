@@ -74,8 +74,8 @@ async function processUniqueItemFinding(member, activity, powerLevel, luckStat, 
         
         // Update activity tracking if it was a unique item
         if (result.type === 'unique') {
-            // Finding a unique item is a social interaction!
-            await updateActivityTracking(member.id, 'social', 1);
+            // Note: Finding unique items no longer counts as social interaction
+            // Social interactions are now tracked through inn customer interactions
         }
         
         return result;

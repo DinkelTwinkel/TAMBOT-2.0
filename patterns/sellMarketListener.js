@@ -228,6 +228,28 @@ class SellMarketListener {
                 files: [marketplaceAttachment]
             });
 
+            // Create thread copy if in a channel that supports threads
+            const canCreateThreads = targetChannel.type === 0 || targetChannel.type === 5; // Text or announcement channel
+            const isNotThread = !targetChannel.isThread();
+            
+            if (canCreateThreads && isNotThread) {
+                try {
+                    const shopThread = await shopMessage.startThread({
+                        name: `💰 ${itemData.name} Shop`,
+                        autoArchiveDuration: 1440 // 24 hours
+                    });
+                    
+                    // Post a copy of the shop info in the thread
+                    await shopThread.send({
+                        content: `🏪 **${itemData.name} Shop Thread**\n\n**Seller:** <@${sellerId}>\n**Price:** ${pricePerItem} coins each\n**Quantity:** ${existingShop?.quantity || quantity} available\n\nUse this thread to discuss the item, ask questions, or negotiate!`
+                    });
+                    
+                    console.log(`[MARKETPLACE] Created shop thread: ${shopThread.name}`);
+                } catch (threadError) {
+                    console.warn('[MARKETPLACE] Could not create shop thread:', threadError.message);
+                }
+            }
+
             // Create or update ActiveShop record
             if (existingShop) {
                 existingShop.messageId = shopMessage.id;

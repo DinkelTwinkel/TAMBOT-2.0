@@ -354,6 +354,13 @@ async function addItemToMinecart(dbEntry, playerId, itemId, amount) {
     }
     
     try {
+        // Track ore-specific mining for unique item maintenance
+        const { updateActivityTracking } = require('../uniqueItemMaintenance');
+        if (poolItem && poolItem.type === 'mineLoot') {
+            // This is an ore - track it for unique item maintenance
+            await updateActivityTracking(playerId, 'mining', 1, itemId);
+        }
+        
         // First update to ensure the item structure exists with name and value
         await gachaVC.updateOne(
             { channelId: channelId },

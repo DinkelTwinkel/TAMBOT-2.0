@@ -58,8 +58,28 @@ class NPCSalesSystem {
         try {
             console.log('[NPC_SALES] 🔍 Checking for potential NPC purchases...');
             
-            // Get all active shops
-            const activeShops = await ActiveShop.find({ isActive: true }).lean();
+            // Get all active shops (only from main channels, not threads or voice channels)
+            const allActiveShops = await ActiveShop.find({ isActive: true }).lean();
+            
+            // Filter out shops in threads or voice channel text chats
+            const activeShops = [];
+            for (const shop of allActiveShops) {
+                try {
+                    const guild = await this.client.guilds.fetch(shop.guildId);
+                    const channel = await guild.channels.fetch(shop.channelId);
+                    
+                    // Only consider shops in main text channels (not threads or voice channel text)
+                    const isMainChannel = !channel.isThread() && channel.type === 0;
+                    
+                    if (isMainChannel) {
+                        activeShops.push(shop);
+                    } else {
+                        console.log(`[NPC_SALES] 🚫 Skipping shop in ${channel.isThread() ? 'thread' : 'voice channel'}: ${channel.name}`);
+                    }
+                } catch (channelError) {
+                    console.warn(`[NPC_SALES] Could not fetch channel ${shop.channelId}:`, channelError.message);
+                }
+            }
             
             if (activeShops.length === 0) {
                 console.log('[NPC_SALES] ❌ No active shops found');
@@ -129,6 +149,9 @@ class NPCSalesSystem {
             // NPCs won't buy if price is more than 20% above market value
             if (priceRatio > 1.2) {
                 console.log(`[NPC_SALES] ❌ Price too high for NPCs: ${shop.pricePerItem}c vs market ${marketValue}c (${(priceRatio * 100).toFixed(1)}%)`);
+                
+                // Generate dialogue for expensive items and post in thread
+                await this.postExpensiveItemDialogue(shop, itemData, priceRatio, marketValue);
                 return;
             }
 
@@ -409,6 +432,57 @@ class NPCSalesSystem {
 
         } catch (updateError) {
             console.error('[NPC_SALES] Error updating shop message:', updateError);
+        }
+    }
+
+    async postExpensiveItemDialogue(shop, itemData, priceRatio, marketValue) {
+        try {
+            // Get the guild and channel
+            const guild = await this.client.guilds.fetch(shop.guildId);
+            const channel = await guild.channels.fetch(shop.channelId);
+            const message = await channel.messages.fetch(shop.messageId);
+
+            // Check if message has a thread, if not create one
+            let dialogueChannel = message.thread;
+            
+            if (!dialogueChannel) {
+                try {
+                    dialogueChannel = await message.startThread({
+                        name: `💰 ${itemData.name} Shop`,
+                        autoArchiveDuration: 1440 // 24 hours
+                    });
+                } catch (threadError) {
+                    console.warn('[NPC_SALES] Could not create thread for expensive item dialogue:', threadError.message);
+                    return; // Skip dialogue if can't create thread
+                }
+            }
+
+            // Select a random NPC to comment
+            const npc = this.selectRandomNPC(itemData);
+            if (!npc) return;
+
+            // Generate dialogue about expensive price
+            const overpricePercentage = Math.round((priceRatio - 1) * 100);
+            const savings = shop.pricePerItem - marketValue;
+            
+            const expensiveDialogues = [
+                `${overpricePercentage}% over market value? That's a bit steep for my taste.`,
+                `I could get this for ${marketValue}c elsewhere. ${savings}c markup is too much.`,
+                `Interesting item, but ${shop.pricePerItem}c is way above the ${marketValue}c market rate.`,
+                `I'll pass on this one. ${overpricePercentage}% markup is beyond my budget.`,
+                `Good quality, but ${shop.pricePerItem}c vs ${marketValue}c market price? I'll wait for a better deal.`
+            ];
+
+            const selectedDialogue = expensiveDialogues[Math.floor(Math.random() * expensiveDialogues.length)];
+
+            await dialogueChannel.send({
+                content: `💭 **${npc.name}** *looks at the ${itemData.name}*\n\n*"${selectedDialogue}"*`
+            });
+
+            console.log(`[NPC_SALES] 💭 ${npc.name} commented on expensive ${itemData.name}`);
+
+        } catch (error) {
+            console.error('[NPC_SALES] Error posting expensive item dialogue:', error);
         }
     }
 

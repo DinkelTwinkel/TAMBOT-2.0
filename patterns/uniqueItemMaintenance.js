@@ -49,6 +49,13 @@ async function runMaintenanceCycle() {
 }
 
 // Maintenance type handlers
+// Helper function to get ore name by ID
+function getOreNameById(oreId) {
+    const itemSheet = require('../data/itemSheet.json');
+    const oreItem = itemSheet.find(item => String(item.id) === String(oreId));
+    return oreItem ? oreItem.name : `Ore #${oreId}`;
+}
+
 const maintenanceHandlers = {
     // Wealthiest maintenance - check if player is still the richest (globally)
     async wealthiest(userId, userTag, item, requirement) {
@@ -161,20 +168,46 @@ const maintenanceHandlers = {
     
     // Mining activity maintenance - check if player has mined enough
     async mining_activity(userId, userTag, item, requirement) {
-        const blocksMined = item.activityTracking.miningBlocksThisCycle || 0;
+        // Get unique item data to check for specific ore requirements
+        const { getUniqueItemById } = require('../data/uniqueItemsSheet');
+        const itemData = getUniqueItemById(item.itemId);
         
-        if (blocksMined < requirement) {
-            throw new Error(`Insufficient mining activity. Need ${requirement} blocks mined (current: ${blocksMined}).`);
+        // Check if this item requires specific ore types (like Shadow Legion Amulet)
+        if (itemData && itemData.maintenanceOreType) {
+            const oreId = itemData.maintenanceOreType;
+            const oresMined = item.activityTracking.oresMinedThisCycle?.get(oreId) || 0;
+            
+            if (oresMined < requirement) {
+                const oreName = getOreNameById(oreId);
+                throw new Error(`Insufficient ${oreName} mined. Need ${requirement} ${oreName} (current: ${oresMined}).`);
+            }
+            
+            // Perform maintenance
+            await item.performMaintenance(userId, 0);
+            
+            const oreName = getOreNameById(oreId);
+            return {
+                success: true,
+                message: `${oreName} mining requirement met (${oresMined}/${requirement} ${oreName})`,
+                newMaintenanceLevel: item.maintenanceLevel
+            };
+        } else {
+            // Default behavior - check general mining blocks
+            const blocksMined = item.activityTracking.miningBlocksThisCycle || 0;
+            
+            if (blocksMined < requirement) {
+                throw new Error(`Insufficient mining activity. Need ${requirement} blocks mined (current: ${blocksMined}).`);
+            }
+            
+            // Perform maintenance
+            await item.performMaintenance(userId, 0);
+            
+            return {
+                success: true,
+                message: `Mining activity requirement met (${blocksMined}/${requirement} blocks)`,
+                newMaintenanceLevel: item.maintenanceLevel
+            };
         }
-        
-        // Perform maintenance
-        await item.performMaintenance(userId, 0);
-        
-        return {
-            success: true,
-            message: `Mining activity requirement met (${blocksMined}/${requirement} blocks)`,
-            newMaintenanceLevel: item.maintenanceLevel
-        };
     },
     
     // Voice activity maintenance - check voice minutes
@@ -305,7 +338,7 @@ async function performMaintenance(userId, userTag, itemId) {
 }
 
 // Update activity tracking for various activities
-async function updateActivityTracking(userId, activityType, amount = 1) {
+async function updateActivityTracking(userId, activityType, amount = 1, oreId = null) {
     try {
         const items = await UniqueItem.findPlayerUniqueItems(userId);
         
@@ -318,6 +351,15 @@ async function updateActivityTracking(userId, activityType, amount = 1) {
                 case 'mining':
                     item.activityTracking.miningBlocksThisCycle += amount;
                     item.activityTracking.lastMiningTime = new Date();
+                    
+                    // Track specific ore types if provided
+                    if (oreId) {
+                        if (!item.activityTracking.oresMinedThisCycle) {
+                            item.activityTracking.oresMinedThisCycle = new Map();
+                        }
+                        const currentAmount = item.activityTracking.oresMinedThisCycle.get(oreId) || 0;
+                        item.activityTracking.oresMinedThisCycle.set(oreId, currentAmount + amount);
+                    }
                     break;
                 case 'voice':
                     item.activityTracking.voiceMinutesThisCycle += amount;
