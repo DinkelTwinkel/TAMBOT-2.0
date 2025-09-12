@@ -926,9 +926,19 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
                         quantity = Math.ceil(quantity * 1.33); // Additional 33% for legendary mines (total 2x)
                     }
                     
-                    // Rare ore tile bonus
+                    // Rare ore tile bonus - scale with power level
                     if (tileType === TILE_TYPES.RARE_ORE) {
-                        quantity = Math.ceil(quantity * 1.5);
+                        let rareOreMultiplier;
+                        if (powerLevel <= 3) {
+                            rareOreMultiplier = 1.5; // 1.5x for low levels
+                        } else if (powerLevel <= 5) {
+                            rareOreMultiplier = 2.0; // 2x for mid levels
+                        } else if (powerLevel <= 7) {
+                            rareOreMultiplier = 2.5; // 2.5x for high levels
+                        } else {
+                            rareOreMultiplier = 3.5; // 3.5x for max levels
+                        }
+                        quantity = Math.ceil(quantity * rareOreMultiplier);
                     }
                     
                     // Enhanced value
@@ -1116,7 +1126,18 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         }
         
         if (tileType === TILE_TYPES.RARE_ORE) {
-            quantity *= 3; // Increased from 2x - rare ore should be very rewarding!
+            // Scale rare ore quantity based on power level - higher levels give much more
+            let rareOreMultiplier;
+            if (powerLevel <= 3) {
+                rareOreMultiplier = 2; // 2x for low levels
+            } else if (powerLevel <= 5) {
+                rareOreMultiplier = 3; // 3x for mid levels
+            } else if (powerLevel <= 7) {
+                rareOreMultiplier = 4; // 4x for high levels
+            } else {
+                rareOreMultiplier = 6; // 6x for max levels (very rewarding!)
+            }
+            quantity *= rareOreMultiplier;
         }
         
         // No tier-based quantity caps - unlimited potential!

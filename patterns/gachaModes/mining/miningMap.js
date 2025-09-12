@@ -21,11 +21,35 @@ function generateTileType(channelId, x, y, powerLevel = 1) {
     const powerConfig = POWER_LEVEL_CONFIG[powerLevel] || POWER_LEVEL_CONFIG[1];
     const reinforcedWallChance = powerConfig.reinforcedWallChance || 0.05;
     
+    // Dynamic rare ore chance - lower at lower power levels, higher at higher power levels
+    let rareOreChance;
+    if (powerLevel <= 3) {
+        rareOreChance = 0.01; // 1% for low levels (less rare ore)
+    } else if (powerLevel <= 5) {
+        rareOreChance = 0.03; // 3% for mid levels
+    } else if (powerLevel <= 7) {
+        rareOreChance = 0.06; // 6% for high levels
+    } else {
+        rareOreChance = 0.10; // 10% for max levels (much more rare ore)
+    }
+    
     //if (random < 0.01) return TILE_TYPES.TREASURE_CHEST;
-    if (random < 0.03) return TILE_TYPES.RARE_ORE;
+    if (random < rareOreChance) return TILE_TYPES.RARE_ORE;
     // Note: Hazards are now stored separately, not as tile types
-    if (random < BASE_ORE_SPAWN_CHANCE + 0.15) return TILE_TYPES.WALL_WITH_ORE;
-    if (random < BASE_ORE_SPAWN_CHANCE + 0.15 + reinforcedWallChance) return TILE_TYPES.REINFORCED_WALL;  // Dynamic based on power level
+    // Dynamic regular ore chance - reduce for higher power levels to balance with increased rare ore
+    let regularOreChance;
+    if (powerLevel <= 3) {
+        regularOreChance = BASE_ORE_SPAWN_CHANCE + 0.15; // 40% for low levels (original rate)
+    } else if (powerLevel <= 5) {
+        regularOreChance = BASE_ORE_SPAWN_CHANCE + 0.12; // 37% for mid levels
+    } else if (powerLevel <= 7) {
+        regularOreChance = BASE_ORE_SPAWN_CHANCE + 0.08; // 33% for high levels
+    } else {
+        regularOreChance = BASE_ORE_SPAWN_CHANCE + 0.05; // 30% for max levels
+    }
+    
+    if (random < regularOreChance) return TILE_TYPES.WALL_WITH_ORE;
+    if (random < regularOreChance + reinforcedWallChance) return TILE_TYPES.REINFORCED_WALL;  // Dynamic based on power level
     
     return TILE_TYPES.WALL;
 }
