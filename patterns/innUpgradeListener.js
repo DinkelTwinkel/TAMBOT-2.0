@@ -28,6 +28,11 @@ class InnUpgradeListener {
             if (interaction.customId.startsWith('inn_levelup_')) {
                 await this.handleInnLevelUp(interaction);
             }
+            
+            // Handle hire employee buttons
+            if (interaction.customId.startsWith('inn_hire_employee_')) {
+                await this.handleHireEmployee(interaction);
+            }
         });
         
         console.log('[INN_UPGRADE_LISTENER] Inn upgrade listener initialized');
