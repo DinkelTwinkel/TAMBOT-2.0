@@ -197,10 +197,28 @@ client.once(Events.ClientReady, async c => {
     //Global Listeners:
     const eatTheRichListener = require('./patterns/misc/eatTheRich');
     eatTheRichListener(client);
+    
+    // Setup periodic marketplace cleanup
+    const ActiveShop = require('./models/activeShop');
+    setInterval(async () => {
+        try {
+            // Clean up old inactive shops (older than 1 day)
+            await ActiveShop.cleanupInactiveShops(1);
+            
+            // Clean up orphaned shops (every hour)
+            if (Math.random() < 0.1) { // 10% chance each interval = ~once per hour
+                await ActiveShop.cleanupOrphanedShops(client);
+            }
+        } catch (error) {
+            console.error('[MARKETPLACE] Error during periodic cleanup:', error);
+        }
+    }, 10 * 60 * 1000); // Run every 10 minutes
     const ShopHandler = require('./patterns/shopHandler');
     const ItemTransferHandler = require('./patterns/itemTransferHandler');
     const ItemUseHandler = require('./patterns/itemUseHandler');
-    const TitleEquipHandler = require('./patterns/titleEquipHandler'); 
+    const TitleEquipHandler = require('./patterns/titleEquipHandler');
+    const InventoryHandler = require('./patterns/inventoryHandler');
+    const SellMarketListener = require('./patterns/sellMarketListener');
 
     console.log('✅ Centralized shop handler initialized');
 
@@ -221,6 +239,14 @@ client.once(Events.ClientReady, async c => {
         // Initialize title equip handler for this guild
         const titleEquipHandler = new TitleEquipHandler(client, guild.id);
         console.log(`✅ Title equip handler initialized for guild: ${guild.name}`);
+        
+        // Initialize inventory handler for this guild
+        const inventoryHandler = new InventoryHandler(client, guild.id);
+        console.log(`✅ Inventory handler initialized for guild: ${guild.name}`);
+        
+        // Initialize sell market listener for this guild
+        const sellMarketListener = new SellMarketListener(client, guild.id);
+        console.log(`✅ Sell market listener initialized for guild: ${guild.name}`);
 
         // Fetch guild config from MongoDB
         let config = await GuildConfig.findOne({ guildId: guild.id });
@@ -351,12 +377,15 @@ client.on(Events.GuildCreate, async (guild) => {
     const ItemTransferHandler = require('./patterns/itemTransferHandler');
     const ItemUseHandler = require('./patterns/itemUseHandler');
     const TitleEquipHandler = require('./patterns/titleEquipHandler');
+    const InventoryHandler = require('./patterns/inventoryHandler');
     
     // Initialize handlers for the new guild
     new ShopHandler(client, guild.id);
     new ItemTransferHandler(client, guild.id);
     new ItemUseHandler(client, guild.id);
     new TitleEquipHandler(client, guild.id);
+    new InventoryHandler(client, guild.id);
+    new SellMarketListener(client, guild.id);
     console.log(`✅ Initialized handlers for new guild: ${guild.name} (${guild.id})`);
 });
 
@@ -388,6 +417,20 @@ client.on(Events.GuildDelete, async (guild) => {
         const titleEquipHandler = client.titleEquipHandlers.get(guild.id);
         titleEquipHandler.cleanup();
         console.log(`✅ Title equip handler cleaned up for guild: ${guild.id}`);
+    }
+    
+    // Cleanup inventory handler
+    if (client.inventoryHandlers && client.inventoryHandlers.has(guild.id)) {
+        const inventoryHandler = client.inventoryHandlers.get(guild.id);
+        inventoryHandler.cleanup();
+        console.log(`✅ Inventory handler cleaned up for guild: ${guild.id}`);
+    }
+    
+    // Cleanup sell market listener
+    if (client.sellMarketListeners && client.sellMarketListeners.has(guild.id)) {
+        const sellMarketListener = client.sellMarketListeners.get(guild.id);
+        sellMarketListener.cleanup();
+        console.log(`✅ Sell market listener cleaned up for guild: ${guild.id}`);
     }
 });
 

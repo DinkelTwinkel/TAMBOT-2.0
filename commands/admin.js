@@ -84,6 +84,11 @@ module.exports = {
                 .setName('rate-limit-stats')
                 .setDescription('Check Discord API rate limiting statistics')
         )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('fix-inventory-durability')
+                .setDescription('Fix durability display issues in player inventories')
+        )
         .addSubcommandGroup(group =>
             group
                 .setName('unique')
@@ -237,6 +242,8 @@ module.exports = {
             await this.executeForceCollapseEvent(interaction);
         } else if (subcommand === 'rate-limit-stats') {
             await this.executeRateLimitStats(interaction);
+        } else if (subcommand === 'fix-inventory-durability') {
+            await this.executeFixInventoryDurability(interaction);
         }
     },
 
@@ -1234,6 +1241,50 @@ module.exports = {
             return interaction.editReply({
                 content: `❌ Failed to retrieve rate limit statistics: ${error.message}`
             });
+        }
+    },
+
+    // ========== FIX INVENTORY DURABILITY COMMAND ==========
+    async executeFixInventoryDurability(interaction) {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const { fixInventoryDurability } = require('../scripts/fixInventoryDurability');
+            
+            const embed = new EmbedBuilder()
+                .setTitle('🔧 Fixing Inventory Durability...')
+                .setDescription('This may take a few moments for large databases.')
+                .setColor(0xFFB347)
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [embed] });
+
+            // Run the fix
+            const result = await fixInventoryDurability();
+
+            const successEmbed = new EmbedBuilder()
+                .setTitle('✅ Inventory Durability Fix Complete!')
+                .addFields(
+                    { name: '👥 Players Fixed', value: `${result.playersFixed}`, inline: true },
+                    { name: '🔧 Items Fixed', value: `${result.itemsFixed}`, inline: true },
+                    { name: '⚡ Status', value: 'All durability issues resolved', inline: false }
+                )
+                .setColor(0x00FF00)
+                .setTimestamp()
+                .setFooter({ text: `Fixed by ${interaction.user.tag}` });
+
+            return interaction.editReply({ embeds: [successEmbed] });
+
+        } catch (error) {
+            console.error('Error fixing inventory durability:', error);
+            
+            const errorEmbed = new EmbedBuilder()
+                .setTitle('❌ Durability Fix Failed')
+                .setDescription(`Error: ${error.message}`)
+                .setColor(0xFF0000)
+                .setTimestamp();
+                
+            return interaction.editReply({ embeds: [errorEmbed] });
         }
     }
 };

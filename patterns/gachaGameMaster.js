@@ -301,6 +301,7 @@ const lockManager = new VCLockManager();
 // Import unique items initialization
 const { initializeUniqueItems } = require('./uniqueItemFinding');
 const { initializeSolarForgeHealing } = require('./uniqueItems/solarForgeHammer');
+const NPCSalesSystem = require('./npcSalesSystem');
 
 module.exports = async (guild) => {
     // --- INITIALIZE UNIQUE ITEMS SYSTEM ---
@@ -317,6 +318,13 @@ module.exports = async (guild) => {
             // Initialize Inn Upgrade Listener
             const innUpgradeListener = new InnUpgradeListener(guild.client);
             console.log('[INN_UPGRADE] Listener initialized');
+            
+            // Initialize NPC Sales System
+            if (!global.npcSalesSystem) {
+                global.npcSalesSystem = new NPCSalesSystem(guild.client);
+                global.npcSalesSystem.start();
+                console.log('[NPC_SALES] System initialized and started');
+            }
             
             
             // Check for any items that need immediate maintenance (crash recovery)

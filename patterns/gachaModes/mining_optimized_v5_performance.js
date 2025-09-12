@@ -3538,6 +3538,30 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 uniqueBonuses.maxHealth
             );
             playerData.health.lastRegen = now;
+            
+            // CRITICAL FIX: Save health regeneration data to database
+            try {
+                // Update the gameData.playerHealth in the database
+                if (!dbEntry.gameData.playerHealth) {
+                    dbEntry.gameData.playerHealth = {};
+                }
+                dbEntry.gameData.playerHealth[member.id] = {
+                    current: playerData.health.current,
+                    max: playerData.health.max,
+                    lastRegen: now,
+                    lastUpdated: now
+                };
+                
+                // Add to transaction for atomic update
+                transaction.addVCUpdate(dbEntry.channelId, {
+                    [`gameData.playerHealth.${member.id}`]: dbEntry.gameData.playerHealth[member.id]
+                });
+                
+                console.log(`[HEALTH REGEN] Saved regeneration data for ${member.displayName}: health ${playerData.health.current}/${playerData.health.max}, lastRegen: ${now}`);
+            } catch (saveError) {
+                console.error(`[HEALTH REGEN] Error saving regeneration data for ${member.displayName}:`, saveError);
+            }
+            
             eventLogs.push(`🌿 ${member.displayName} regenerated ${regenAmount} health!`);
         }
     }

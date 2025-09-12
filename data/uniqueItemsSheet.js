@@ -126,7 +126,7 @@ const UNIQUE_ITEMS = [
     
     {
         id: 1,
-        name: "THE ONE PICK",
+        name: "⛏ THE ONE PICK",
         type: "tool",
         slot: "mining",
         rarity: "mythic",
@@ -289,7 +289,7 @@ const UNIQUE_ITEMS = [
     
     {
         id: 4,
-        name: "Greed's Embrace",
+        name: "👛 Greed's Embrace",
         type: "equipment",
         slot: "chest",
         rarity: "legendary",
@@ -342,7 +342,7 @@ const UNIQUE_ITEMS = [
     
     {
         id: 5,
-        name: "Phoenix Feather Charm",
+        name: "🐔 Phoenix Feather Charm",
         type: "charm",
         rarity: "legendary",
         description: "A single feather that burns with eternal flame, yet is cool to the touch. It grants its bearer the power of rebirth.",
@@ -394,7 +394,7 @@ const UNIQUE_ITEMS = [
     
     {
         id: 6,
-        name: "Shadowstep Boots",
+        name: "🌑 Shadowstep Boots",
         type: "equipment",
         slot: "feet",
         rarity: "legendary",
@@ -452,7 +452,7 @@ const UNIQUE_ITEMS = [
     
     {
         id: 7,
-        name: "Crown of the Forgotten King",
+        name: "👑 Crown of the Forgotten King",
         type: "equipment",
         slot: "head",
         rarity: "legendary",
@@ -506,7 +506,7 @@ const UNIQUE_ITEMS = [
     
     {
         id: 8,
-        name: "Stormcaller's Gauntlets",
+        name: "⚡ Stormcaller's Gauntlets",
         type: "equipment",
         slot: "hands",
         rarity: "legendary",

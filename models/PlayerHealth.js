@@ -103,6 +103,11 @@ playerHealthSchema.statics.updatePlayerHealth = async function(playerId, channel
     playerHealth.lastDamageTime = new Date();
     playerHealth.totalDamageTaken += Math.max(0, -healthChange); // Only count damage, not healing
     
+    // Update lastRegenTime if this is a regeneration heal
+    if (source === 'regeneration' && healthChange > 0) {
+        playerHealth.lastRegenTime = new Date();
+    }
+    
     if (newHealth <= 0 && !playerHealth.isDead) {
         playerHealth.isDead = true;
         playerHealth.deathCount += 1;
@@ -151,6 +156,23 @@ playerHealthSchema.statics.revivePlayer = async function(playerId, channelId, re
 
 playerHealthSchema.statics.getAllChannelHealth = async function(channelId) {
     return this.find({ channelId }).lean();
+};
+
+playerHealthSchema.statics.updateRegenTime = async function(playerId, channelId) {
+    const result = await this.updateOne(
+        { playerId, channelId },
+        { 
+            $set: { 
+                lastRegenTime: new Date() 
+            } 
+        }
+    );
+    
+    if (result.modifiedCount > 0) {
+        console.log(`[HEALTH SCHEMA] Updated regen time for player ${playerId}`);
+    }
+    
+    return result.modifiedCount > 0;
 };
 
 playerHealthSchema.statics.cleanupOldChannels = async function(activeChannelIds) {

@@ -228,8 +228,34 @@ async function processHealthRegeneration(playerId, uniqueBonuses) {
                 const healResult = await updatePlayerHealth(playerId, regenAmount, 'regeneration');
                 
                 if (healResult.success) {
-                    // Update last regen time
+                    // Update last regen time and save to database
                     playerStats.health.lastRegen = now;
+                    
+                    // CRITICAL FIX: Save the lastRegen time to database
+                    try {
+                        const gachaVC = require('../../../models/activevcs');
+                        
+                        // Find the player's active mining channel
+                        const activeChannel = await gachaVC.findOne({
+                            'gameData.gamemode': 'mining',
+                            [`gameData.map.playerPositions.${playerId}`]: { $exists: true }
+                        });
+                        
+                        if (activeChannel) {
+                            await gachaVC.updateOne(
+                                { _id: activeChannel._id },
+                                { 
+                                    $set: { 
+                                        [`gameData.playerHealth.${playerId}.lastRegen`]: now,
+                                        [`gameData.playerHealth.${playerId}.lastUpdated`]: now
+                                    } 
+                                }
+                            );
+                            console.log(`[HEALTH REGEN] Saved lastRegen time for player ${playerId}: ${now}`);
+                        }
+                    } catch (saveError) {
+                        console.error(`[HEALTH REGEN] Error saving lastRegen time for player ${playerId}:`, saveError);
+                    }
                     
                     return {
                         regenerated: true,

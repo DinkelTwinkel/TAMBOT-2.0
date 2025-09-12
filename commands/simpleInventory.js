@@ -78,37 +78,8 @@ module.exports = {
                 ephemeral: true
             });
 
-            // Set up pagination if needed
-            if (totalPages > 1) {
-                const collector = reply.createMessageComponentCollector({
-                    filter: i => i.user.id === targetUser.id && i.customId.startsWith('inv_page_'),
-                    time: 300000 // 5 minutes
-                });
-
-                collector.on('collect', async (i) => {
-                    try {
-                        if (i.customId === 'inv_page_prev') {
-                            currentPage = Math.max(0, currentPage - 1);
-                        } else if (i.customId === 'inv_page_next') {
-                            currentPage = Math.min(totalPages - 1, currentPage + 1);
-                        }
-
-                        await i.update({
-                            embeds: [this.createInventoryEmbed(pages[currentPage], currentPage, targetUser, totalPages)],
-                            components: this.createPaginationComponents(currentPage, totalPages, targetUser.id)
-                        });
-                    } catch (updateError) {
-                        console.error('[INVENTORY] Error updating pagination:', updateError);
-                    }
-                });
-
-                collector.on('end', () => {
-                    interaction.editReply({
-                        components: [], // Remove buttons when expired
-                        ephemeral: true
-                    }).catch(() => {}); // Ignore errors if message was deleted
-                });
-            }
+            // Pagination is now handled by the global InventoryHandler
+            // No need for local collectors anymore
 
         } catch (error) {
             console.error('[INVENTORY] Main execution error:', error);
@@ -155,8 +126,17 @@ module.exports = {
 
             let typeStarted = false;
             for (const item of typeItems) {
-                const durabilityText = item.maxDurability ? ` (${item.currentDurability || item.maxDurability}/${item.maxDurability})` : '';
-                const line = `x${item.quantity} ${item.name}${durabilityText}\n`;
+                // Only show durability for items that should have it (tools, equipment, charms)
+                let durabilityText = '';
+                if (item.originalType === 'tool' || item.originalType === 'equipment' || item.originalType === 'charm') {
+                    if (item.currentDurability !== undefined && item.maxDurability) {
+                        durabilityText = ` (${item.currentDurability}/${item.maxDurability})`;
+                    } else if (item.maxDurability) {
+                        // Show max durability if current is undefined (probably needs initialization)
+                        durabilityText = ` (${item.maxDurability}/${item.maxDurability})`;
+                    }
+                }
+                const line = `${item.name} x${item.quantity}${durabilityText}\n`;
 
                 const toAdd = (!typeStarted ? typeHeader : '') + line;
                 const futureLength = currentDescription.length + toAdd.length + codeBlockEnd.length;
@@ -212,8 +192,17 @@ module.exports = {
             description += `**${typeEmoji} ${this.formatTypeName(type)}**\n\`\`\`\n`;
             
             for (const item of typeItems) {
-                const durabilityText = item.maxDurability ? ` (${item.currentDurability || item.maxDurability}/${item.maxDurability})` : '';
-                description += `x${item.quantity} ${item.name}${durabilityText}\n`;
+                // Only show durability for items that should have it (tools, equipment, charms)
+                let durabilityText = '';
+                if (item.originalType === 'tool' || item.originalType === 'equipment' || item.originalType === 'charm') {
+                    if (item.currentDurability !== undefined && item.maxDurability) {
+                        durabilityText = ` (${item.currentDurability}/${item.maxDurability})`;
+                    } else if (item.maxDurability) {
+                        // Show max durability if current is undefined (probably needs initialization)
+                        durabilityText = ` (${item.maxDurability}/${item.maxDurability})`;
+                    }
+                }
+                description += `${item.name} x${item.quantity}${durabilityText}\n`;
             }
             
             description += '\`\`\`\n';
@@ -241,7 +230,7 @@ module.exports = {
 
         buttons.push(
             new ButtonBuilder()
-                .setCustomId('inv_page_prev')
+                .setCustomId(`inv_page_prev_${userId}`)
                 .setLabel('◀ Previous')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(page === 0)
@@ -257,7 +246,7 @@ module.exports = {
 
         buttons.push(
             new ButtonBuilder()
-                .setCustomId('inv_page_next')
+                .setCustomId(`inv_page_next_${userId}`)
                 .setLabel('Next ▶')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(page === totalPages - 1)
