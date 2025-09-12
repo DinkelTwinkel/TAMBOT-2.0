@@ -404,6 +404,7 @@ async function checkMaintenanceStatus(userId) {
                 requiresMaintenance: itemData.requiresMaintenance,
                 maintenanceType: itemData.maintenanceType,
                 maintenanceCost: itemData.maintenanceCost,
+                maintenanceOreType: itemData.maintenanceOreType, // Include ore type if specified
                 lastMaintenance: item.lastMaintenanceDate,
                 nextCheck: item.nextMaintenanceCheck,
                 description: itemData.maintenanceDescription,
@@ -412,7 +413,8 @@ async function checkMaintenanceStatus(userId) {
                     voice: item.activityTracking.voiceMinutesThisCycle,
                     combat: item.activityTracking.combatWinsThisCycle,
                     social: item.activityTracking.socialInteractionsThisCycle,
-                    movement: item.activityTracking.tilesMovedThisCycle
+                    movement: item.activityTracking.tilesMovedThisCycle,
+                    oresMinedThisCycle: item.activityTracking.oresMinedThisCycle || new Map()
                 }
             });
         }

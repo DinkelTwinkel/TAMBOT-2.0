@@ -273,9 +273,51 @@ function getRandomDirection(seed) {
     return directions[index];
 }
 
+// Retroactively recalculate hardness for tiles that were created before the hardness update
+function recalculateHardness(tile, powerLevel = 1) {
+    if (!tile || !tile.type) return tile;
+    
+    const { TILE_TYPES } = require('./miningConstants_unified');
+    
+    const baseHardnessMap = {
+        [TILE_TYPES.WALL]: 1,
+        [TILE_TYPES.WALL_WITH_ORE]: 2,
+        [TILE_TYPES.RARE_ORE]: 3,
+        [TILE_TYPES.REINFORCED_WALL]: 5,
+        [TILE_TYPES.TREASURE_CHEST]: 1,
+        [TILE_TYPES.HAZARD]: 0,
+        [TILE_TYPES.FLOOR]: 0
+    };
+    
+    const baseHardness = baseHardnessMap[tile.type] || 1;
+    
+    // Don't scale floor or hazard tiles
+    if (baseHardness === 0) {
+        tile.hardness = 0;
+        return tile;
+    }
+    
+    // New scaling system: all tiles get progressively harder at higher power levels
+    // Power level 9 reinforced wall = 50 hardness (5 base * 10 multiplier)
+    // Linear scaling: multiplier = 1 + (powerLevel - 1) * 1.125
+    const hardnessMultiplier = 1 + ((powerLevel - 1) * 1.125);
+    const correctHardness = Math.max(1, Math.ceil(baseHardness * hardnessMultiplier));
+    
+    // Only update if hardness is incorrect (was calculated with old formula)
+    if (tile.hardness !== correctHardness) {
+        console.log(`[HARDNESS RECALC] Updating tile ${tile.type}: ${tile.hardness} -> ${correctHardness} (Power: ${powerLevel})`);
+        tile.hardness = correctHardness;
+    }
+    
+    return tile;
+}
+
 // Tile Breaking Logic
-async function canBreakTile(playerId, miningPower, tile) {
+async function canBreakTile(playerId, miningPower, tile, powerLevel = 1) {
     if (!tile || !tile.hardness) return true;
+
+    // Retroactively fix hardness for tiles created before the update
+    tile = recalculateHardness(tile, powerLevel);
 
     const hardness = tile.hardness;
 
@@ -505,6 +547,7 @@ module.exports = {
     getDirectionToTarget,
     getRandomDirection,
     canBreakTile,
+    recalculateHardness,
     calculateDurabilityLoss,
     checkPickaxeBreak,
     getMinecartSummary,

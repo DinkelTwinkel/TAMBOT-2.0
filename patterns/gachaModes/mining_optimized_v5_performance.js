@@ -3935,7 +3935,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
             if (adjacentTarget) {
                 const tile = adjacentTarget.tile;
                 console.log(`[MINING DEBUG] ${member.displayName} checking if can break tile at (${adjacentTarget.x},${adjacentTarget.y}) with mining power ${miningPower}`);
-                const canBreak = await canBreakTile(member.id, miningPower, tile);
+                const canBreak = await canBreakTile(member.id, miningPower, tile, powerLevel);
                 console.log(`[MINING DEBUG] ${member.displayName} canBreakTile result: ${canBreak}`);
                 if (canBreak) {
                     console.log(`[MINING DEBUG] ${member.displayName} attempting to mine tile at (${adjacentTarget.x},${adjacentTarget.y})`);
@@ -4207,7 +4207,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         
                         for (const chainTarget of chainTargets) {
                             const chainTile = mapData.tiles[chainTarget.y][chainTarget.x];
-                            if (chainTile && await canBreakTile(member.id, miningPower, chainTile)) {
+                            if (chainTile && await canBreakTile(member.id, miningPower, chainTile, powerLevel)) {
                                 console.log(`[MINE ID DEBUG] ${member.displayName} CHAIN mining with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId}) | tile type: ${chainTile.type}`);
                                 const { item: chainItem, quantity: chainQty } = await mineFromTile(
                                     member, miningPower, luckStat, powerLevel, 
@@ -4240,10 +4240,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         failMessage = `💥 ${member.displayName} struck the wall but couldn't break it! (${tileHardness} hardness vs ${miningPower} power)`;
                     }
                     
-                    // Show failure message more often to help with debugging
-                    if (Math.random() < 0.4) { // 40% chance to log failures
-                        eventLogs.push(failMessage);
-                    }
+                    // Always announce all wall breaking failures for clear player feedback
+                    eventLogs.push(failMessage);
                 }
                 console.log(`[MINING DEBUG] ${member.displayName} finished mining adjacent ore, continuing to next action`);
                 continue;
@@ -4392,7 +4390,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     }
                 }
                 
-                const canBreak = await canBreakTile(member.id, miningPower, targetTile);
+                const canBreak = await canBreakTile(member.id, miningPower, targetTile, powerLevel);
                 if (canBreak) {
                     // Reduced failure chance for regular walls to encourage more exploration
                     if (Math.random() < 0.05 && targetTile.type === TILE_TYPES.WALL) {

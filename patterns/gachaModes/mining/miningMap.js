@@ -71,8 +71,12 @@ function getTileHardness(tileType, powerLevel = 1) {
     // Linear scaling: multiplier = 1 + (powerLevel - 1) * 1.125
     // This gives: Power 1 = 1x, Power 9 = 10x multiplier
     const hardnessMultiplier = 1 + ((powerLevel - 1) * 1.125);
+    const finalHardness = Math.max(1, Math.ceil(baseHardness * hardnessMultiplier));
     
-    return Math.max(1, Math.ceil(baseHardness * hardnessMultiplier));
+    // Debug logging for hardness calculations
+    console.log(`[HARDNESS DEBUG - miningMap] Tile: ${tileType}, Power: ${powerLevel}, Base: ${baseHardness}, Multiplier: ${hardnessMultiplier.toFixed(3)}, Final: ${finalHardness}`);
+    
+    return finalHardness;
 }
 
 function initializeMap(channelId, powerLevel = 1) {
@@ -85,7 +89,7 @@ function initializeMap(channelId, powerLevel = 1) {
             row.push({ 
                 type: tileType, 
                 discovered: false,
-                hardness: getTileHardness(tileType)
+                hardness: getTileHardness(tileType, powerLevel)
             });
         }
         map.push(row);
@@ -138,7 +142,7 @@ function expandMap(mapData, direction, channelId, powerLevel = 1) {
                 newNorthRow.push({ 
                     type: tileType, 
                     discovered: false,
-                    hardness: getTileHardness(tileType)
+                    hardness: getTileHardness(tileType, powerLevel)
                 });
             }
             newTiles = [newNorthRow, ...tiles];
@@ -159,7 +163,7 @@ function expandMap(mapData, direction, channelId, powerLevel = 1) {
                 newSouthRow.push({ 
                     type: tileType, 
                     discovered: false,
-                    hardness: getTileHardness(tileType)
+                    hardness: getTileHardness(tileType, powerLevel)
                 });
             }
             newTiles.push(newSouthRow);
@@ -173,7 +177,7 @@ function expandMap(mapData, direction, channelId, powerLevel = 1) {
                 return [...row, { 
                     type: tileType, 
                     discovered: false,
-                    hardness: getTileHardness(tileType)
+                    hardness: getTileHardness(tileType, powerLevel)
                 }];
             });
             newWidth = width + 1;
@@ -186,7 +190,7 @@ function expandMap(mapData, direction, channelId, powerLevel = 1) {
                 return [{ 
                     type: tileType, 
                     discovered: false,
-                    hardness: getTileHardness(tileType)
+                    hardness: getTileHardness(tileType, powerLevel)
                 }, ...row];
             });
             newWidth = width + 1;

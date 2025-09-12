@@ -16,6 +16,13 @@ const UniqueItem = require('../models/uniqueItems');
 const Money = require('../models/currency');
 const { checkRichestPlayer, getMidasLuckMultiplier } = require('../patterns/conditionalUniqueItems');
 
+// Helper function to get ore name by ID
+function getOreNameById(oreId) {
+    const itemSheet = require('../data/itemSheet.json');
+    const oreItem = itemSheet.find(item => String(item.id) === String(oreId));
+    return oreItem ? oreItem.name : `Ore #${oreId}`;
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('unique')
@@ -275,10 +282,10 @@ async function handleStatus(interaction, userId) {
                 }
             } else {
                 fieldValue += `**Type:** ${formatMaintenanceType(status.maintenanceType)}\n`;
-                fieldValue += `**Requirement:** ${formatMaintenanceCost(status.maintenanceType, status.maintenanceCost)}\n`;
+                fieldValue += `**Requirement:** ${formatMaintenanceCost(status.maintenanceType, status.maintenanceCost, status.maintenanceOreType)}\n`;
                 
                 if (status.maintenanceType !== 'coins' && status.maintenanceType !== 'wealthiest') {
-                    fieldValue += `**Progress:** ${formatProgress(status.maintenanceType, status.activityProgress, status.maintenanceCost)}\n`;
+                    fieldValue += `**Progress:** ${formatProgress(status.maintenanceType, status.activityProgress, status.maintenanceCost, status.maintenanceOreType)}\n`;
                 }
             }
             
@@ -735,7 +742,13 @@ function formatMaintenanceType(type) {
     return types[type] || type;
 }
 
-function formatMaintenanceCost(type, cost) {
+function formatMaintenanceCost(type, cost, oreType = null) {
+    if (type === 'mining_activity' && oreType) {
+        // Get ore name for ore-specific requirements
+        const oreName = getOreNameById(oreType);
+        return `Mine ${cost} ${oreName}`;
+    }
+    
     const formats = {
         'coins': `${cost.toLocaleString()} coins`,
         'mining_activity': `Mine ${cost} blocks`,
@@ -747,12 +760,20 @@ function formatMaintenanceCost(type, cost) {
     return formats[type] || `${cost}`;
 }
 
-function formatProgress(type, progress, requirement) {
+function formatProgress(type, progress, requirement, oreType = null) {
+    if (type === 'mining_activity' && oreType) {
+        // Get ore-specific progress
+        const oresMined = progress.oresMinedThisCycle?.get(oreType) || 0;
+        const oreName = getOreNameById(oreType);
+        return `${oresMined}/${requirement} ${oreName}`;
+    }
+    
     const progressMap = {
         'mining_activity': `${progress.mining}/${requirement} blocks`,
         'voice_activity': `${progress.voice}/${requirement} minutes`,
         'combat_activity': `${progress.combat}/${requirement} wins`,
-        'social_activity': `${progress.social}/${requirement} interactions`
+        'social_activity': `${progress.social}/${requirement} interactions`,
+        'movement_activity': `${progress.movement}/${requirement} tiles`
     };
     return progressMap[type] || 'N/A';
 }

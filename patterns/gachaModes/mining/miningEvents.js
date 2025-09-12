@@ -545,12 +545,18 @@ async function startMineCollapseEvent(channel, dbEntry) {
     const { TILE_TYPES } = require('./miningConstants_unified');
     const gachaVC = require('../../../models/activevcs');
     const { getReliableEntranceCoordinates } = require('./entranceCoordinateFix');
+    const gachaInfo = require('../../../data/gachaServers.json');
     
     // Check player count for solo mode enhancements
     const members = channel.members.filter(m => !m.user.bot);
     const isSolo = members.size === 1;
     
     console.log(`[MINE COLLAPSE] Player count: ${members.size}, Solo mode: ${isSolo}`);
+    
+    // Get server power level
+    const gachaVCInfo = gachaInfo.find(s => s.id === dbEntry.typeId);
+    const serverPowerLevel = gachaVCInfo?.power || 1;
+    console.log(`[MINE COLLAPSE] Server power level: ${serverPowerLevel}`);
     
     // Get current map data
     const mapData = dbEntry.gameData?.map;
@@ -653,7 +659,7 @@ async function startMineCollapseEvent(channel, dbEntry) {
                                 mapData.tiles[tileY][tileX] = {
                                     type: newTileType,
                                     discovered: true,
-                                    hardness: getTileHardness(newTileType)
+                                    hardness: getTileHardness(newTileType, serverPowerLevel)
                                 };
                                 affectedTiles.add(`${tileX},${tileY}`);
                             }
@@ -806,14 +812,22 @@ function getTileHardness(tileType, powerLevel = 1) {
     const baseHardness = baseHardnessMap[tileType] || 1;
     
     // Don't scale floor or hazard tiles
-    if (baseHardness === 0) return 0;
+    if (baseHardness === 0) {
+        console.log(`[HARDNESS DEBUG - miningEvents] Tile: ${tileType}, Power: ${powerLevel}, Base: ${baseHardness}, No scaling (hazard/floor), Final: 0`);
+        return 0;
+    }
     
     // New scaling system: all tiles get progressively harder at higher power levels
     // Power level 9 reinforced wall = 50 hardness (5 base * 10 multiplier)
     // Linear scaling: multiplier = 1 + (powerLevel - 1) * 1.125
     // This gives: Power 1 = 1x, Power 9 = 10x multiplier
     const hardnessMultiplier = 1 + ((powerLevel - 1) * 1.125);
-    return Math.max(1, Math.ceil(baseHardness * hardnessMultiplier));
+    const finalHardness = Math.max(1, Math.ceil(baseHardness * hardnessMultiplier));
+    
+    // Debug logging for hardness calculations
+    console.log(`[HARDNESS DEBUG - miningEvents] Tile: ${tileType}, Power: ${powerLevel}, Base: ${baseHardness}, Multiplier: ${hardnessMultiplier.toFixed(3)}, Final: ${finalHardness}`);
+    
+    return finalHardness;
 }
 
 
