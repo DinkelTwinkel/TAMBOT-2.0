@@ -418,16 +418,6 @@ module.exports = async (guild) => {
         }
     }, 5 * 60 * 1000); // Check every 5 minutes
     
-    // --- CURRENCY DECIMAL CLEANUP ---
-    // Check every 30 minutes for decimal currency balances and fix them
-    setInterval(async () => {
-        try {
-            await cleanupDecimalCurrencies();
-        } catch (error) {
-            console.error('[CURRENCY CLEANUP] Error fixing decimal balances:', error);
-        }
-    }, 30 * 60 * 1000); // Check every 30 minutes
-    
     // --- OPTIMIZED INTERVAL CHECK ---
     let lastGuildConfigUpdate = 0;
     let lastGulletCheck = 0;
@@ -496,16 +486,19 @@ async function processItemMaintenance(item, itemData) {
             const richestPlayer = await Money.findOne().sort({ money: -1 }).limit(1);
             isRichest = richestPlayer && richestPlayer.userId === item.ownerId;
             
+            // Always apply wealth effect if player is richest (even if maintenance will decay)
             if (isRichest) {
-                console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner still wealthiest, maintenance will decay normally`);
+                await applyMidasWealthEffect(item.ownerId, item.ownerTag);
+                console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner still wealthiest, applying wealth effect but maintenance will still decay`);
             } else {
                 console.log(`[UNIQUE ITEMS] ${itemData.name}: Owner no longer wealthiest, maintenance will decay normally`);
             }
             
-            // Special case: If maintenance is 0 but player is still richest, restore some maintenance (no wealth effect)
+            // Special case: If maintenance is 0 but player is still richest, apply wealth effect and restore some maintenance
             if (item.maintenanceLevel <= 0 && isRichest) {
-                console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance at 0 but owner still wealthiest - restoring above curse threshold`);
-                item.maintenanceLevel = 2; // Give maintenance above curse threshold (≤1) to keep it functional
+                console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance at 0 but owner still wealthiest - applying wealth effect and restoring minimal maintenance`);
+                await applyMidasWealthEffect(item.ownerId, item.ownerTag);
+                item.maintenanceLevel = 1; // Give minimal maintenance to keep it active
             }
         }
         
@@ -525,8 +518,8 @@ async function processItemMaintenance(item, itemData) {
                 if (item.maintenanceLevel <= 0 && item.ownerId) {
                     // Special handling for Midas' Burden - don't lose it if still richest
                     if (itemData.maintenanceType === 'wealthiest' && item.itemId === 10 && isRichest) {
-                        console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance at 0 but owner still wealthiest - keeping item above curse threshold`);
-                        item.maintenanceLevel = 2; // Give maintenance above curse threshold (≤1) to keep it functional
+                        console.log(`[UNIQUE ITEMS] ${itemData.name}: Maintenance at 0 but owner still wealthiest - keeping item`);
+                        item.maintenanceLevel = 1; // Give minimal maintenance to keep it active
                     } else {
                         console.log(`[UNIQUE ITEMS] ${itemData.name} lost due to maintenance failure`);
                         
@@ -573,43 +566,40 @@ async function processItemMaintenance(item, itemData) {
 }
 
 /**
- * Clean up any decimal currency balances by rounding them to integers
+ * Apply Midas Burden wealth effect during maintenance
+ * 30% chance to increase wealth by 20%, otherwise take 5-60% of wealth
  */
-async function cleanupDecimalCurrencies() {
+async function applyMidasWealthEffect(userId, userTag) {
     try {
         const Money = require('../models/currency');
+        const playerMoney = await Money.findOne({ userId });
         
-        // Find all currency records with decimal values
-        const decimalBalances = await Money.find({
-            money: { $type: "double", $not: { $mod: [1, 0] } } // Find non-integer values
-        });
-        
-        if (decimalBalances.length === 0) {
-            return; // No decimal balances found
+        if (!playerMoney || playerMoney.money <= 0) {
+            console.log(`[MIDAS WEALTH] Player ${userTag} has no wealth to affect`);
+            return;
         }
         
-        console.log(`[CURRENCY CLEANUP] Found ${decimalBalances.length} accounts with decimal balances`);
+        const currentWealth = playerMoney.money;
+        const roll = Math.random();
         
-        let fixedCount = 0;
-        for (const account of decimalBalances) {
-            const oldAmount = account.money;
-            const newAmount = Math.floor(oldAmount); // Round down to nearest integer
+        if (roll < 0.3) {
+            // 30% chance: Increase wealth by 20%
+            const bonus = Math.floor(currentWealth * 0.2);
+            playerMoney.money += bonus;
+            await playerMoney.save();
             
-            if (oldAmount !== newAmount) {
-                account.money = newAmount;
-                await account.save();
-                fixedCount++;
-                
-                console.log(`[CURRENCY CLEANUP] Fixed ${account.usertag || account.userId}: ${oldAmount} → ${newAmount} coins`);
-            }
+            console.log(`[MIDAS WEALTH] 🌟 ${userTag} blessed by Midas! +${bonus} coins (${currentWealth} -> ${playerMoney.money})`);
+        } else {
+            // 70% chance: Take 5-60% of wealth
+            const lossPercentage = 0.05 + (Math.random() * 0.55); // Random between 5% and 60%
+            const loss = Math.floor(currentWealth * lossPercentage);
+            playerMoney.money = Math.max(0, playerMoney.money - loss);
+            await playerMoney.save();
+            
+            console.log(`[MIDAS WEALTH] 💸 ${userTag} cursed by Midas! -${loss} coins (${Math.round(lossPercentage * 100)}% loss: ${currentWealth} -> ${playerMoney.money})`);
         }
-        
-        if (fixedCount > 0) {
-            console.log(`[CURRENCY CLEANUP] ✅ Fixed ${fixedCount} decimal currency balances`);
-        }
-        
     } catch (error) {
-        console.error('[CURRENCY CLEANUP] Error during decimal cleanup:', error);
+        console.error(`[MIDAS WEALTH] Error applying wealth effect for ${userTag}:`, error);
     }
 }
 

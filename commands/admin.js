@@ -238,9 +238,9 @@ module.exports = {
         const recipient = interaction.options.getUser('user');
         const amount = interaction.options.getInteger('amount');
 
-        if (amount === 0) {
+        if (amount <= 0) {
             return interaction.reply({ 
-                content: '❌ Amount cannot be zero.', 
+                content: '❌ Please enter a valid amount greater than 0.', 
                 ephemeral: true 
             });
         }
@@ -254,23 +254,7 @@ module.exports = {
             if (!recipientProfile) {
                 recipientProfile = new Money({ userId: recipient.id, money: 0 });
             }
-            
-            // Handle negative amounts (reduction) - ensure we don't go below 0
-            if (amount < 0) {
-                const reduction = Math.abs(amount);
-                if (recipientProfile.money < reduction) {
-                    await session.abortTransaction();
-                    session.endSession();
-                    return interaction.reply({ 
-                        content: `❌ Cannot reduce ${recipient.username}'s coins by ${reduction}. They only have ${recipientProfile.money} coins.`, 
-                        ephemeral: true 
-                    });
-                }
-                recipientProfile.money = Math.floor(recipientProfile.money - reduction); // Ensure integer result
-            } else {
-                recipientProfile.money = Math.floor(recipientProfile.money + amount); // Ensure integer result
-            }
-            
+            recipientProfile.money += amount;
             await recipientProfile.save({ session });
 
             // Commit the transaction
@@ -278,19 +262,14 @@ module.exports = {
             session.endSession();
 
             // Create success embed
-            const isReduction = amount < 0;
-            const absAmount = Math.abs(amount);
-            const actionText = isReduction ? 'removed' : 'gave';
-            const amountText = isReduction ? `-${absAmount}` : `+${amount}`;
-            
             const embed = new EmbedBuilder()
-                .setTitle(isReduction ? '💸 Admin Pay (Reduction)' : '💸 Admin Pay')
-                .setDescription(`Successfully ${actionText} **${absAmount}** coins ${isReduction ? 'from' : 'to'} <@${recipient.id}>`)
-                .setColor(isReduction ? 0xff4444 : 0x00ff00)
+                .setTitle('💸 Admin Pay')
+                .setDescription(`Successfully gave **${amount}** coins to <@${recipient.id}>`)
+                .setColor(0x00ff00)
                 .addFields(
                     { name: 'Admin', value: `<@${interaction.user.id}>`, inline: true },
-                    { name: 'Target', value: `<@${recipient.id}>`, inline: true },
-                    { name: 'Change', value: `${amountText} coins`, inline: true },
+                    { name: 'Recipient', value: `<@${recipient.id}>`, inline: true },
+                    { name: 'Amount', value: `${amount} coins`, inline: true },
                     { name: 'New Balance', value: `${recipientProfile.money} coins`, inline: true }
                 )
                 .setTimestamp()

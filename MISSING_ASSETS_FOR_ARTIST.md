@@ -186,10 +186,10 @@ This document contains detailed descriptions of all missing images that need to 
 **Description:** A radiant core that can animate crystal into an elite mining golem for 10 minutes. Should be a brilliant crystal core with rainbow refractions.
 
 **Filename:** `fire_essence.png`  
-**Description:** Concentrated fire magic that can summon a fire elemental to mine for 30 minutes. Should be crystallized fire with flame effects.
+**Description:** Concentrated fire magic that can summon a fire elemental to mine for 6 minutes. Should be crystallized fire with flame effects.
 
 **Filename:** `ice_essence.png`  
-**Description:** Frozen magic that can summon an ice elemental to mine for 30 minutes. Should be crystallized ice with frost effects.
+**Description:** Frozen magic that can summon an ice elemental to mine for 6 minutes. Should be crystallized ice with frost effects.
 
 ---
 

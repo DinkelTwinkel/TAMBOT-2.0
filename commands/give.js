@@ -61,7 +61,9 @@ module.exports = {
             return interaction.reply({ content: '❌ You can\'t give coins to yourself.', ephemeral: true });
         }
 
-        // Allow giving coins to bots (removed restriction)
+        if (recipient.bot) {
+            return interaction.reply({ content: '❌ You cannot give coins to bots.', ephemeral: true });
+        }
 
         if (amount <= 0) {
             return interaction.reply({ content: '❌ Please enter a valid amount greater than 0.', ephemeral: true });
@@ -135,7 +137,12 @@ module.exports = {
             });
         }
 
-        // Allow giving items to bots (removed restriction)
+        if (receiver.bot) {
+            return interaction.editReply({
+                content: '❌ You cannot give items to bots.',
+                ephemeral: true
+            });
+        }
 
         // Get giver's inventory
         const giverInv = await PlayerInventory.findOne({ playerId: giver.id }).lean();
