@@ -198,7 +198,13 @@ async function getPlayerStats(playerId) {
         
         // Check maintenance level - item loses effectiveness if not maintained
         const maintenanceRatio = uniqueDbItem.maintenanceLevel / 10; // 0 to 1
-        if (maintenanceRatio <= 0) continue; // Item is broken from lack of maintenance
+        
+        // Special handling for Midas' Burden - curse mode at maintenance ≤ 1
+        if (uniqueDbItem.itemId === 10 && uniqueDbItem.maintenanceLevel <= 1) {
+            continue; // Midas' Burden is cursed/broken when maintenance is 1 or below
+        }
+        
+        if (maintenanceRatio <= 0) continue; // Other items are broken from lack of maintenance
         
         uniqueItemsBySlot[uniqueData.slot] = {
             ...uniqueData,

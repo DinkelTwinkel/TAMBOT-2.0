@@ -133,8 +133,8 @@ uniqueItemSchema.methods.reduceMaintenance = async function(amount = 1, isRiches
     if (this.maintenanceLevel <= 0 && this.ownerId) {
         // Special handling for Midas' Burden - don't lose it if still richest
         if (this.itemId === 10 && isRichest) {
-            console.log(`[UNIQUE ITEMS] Midas' Burden: Maintenance at 0 but owner still wealthiest - keeping item at minimal maintenance`);
-            this.maintenanceLevel = 1; // Give minimal maintenance to keep it active
+            console.log(`[UNIQUE ITEMS] Midas' Burden: Maintenance at 0 but owner still wealthiest - keeping item at curse threshold`);
+            this.maintenanceLevel = 2; // Give maintenance above curse threshold (≤1) to keep it functional
         } else {
             // Add to previous owners history
             this.previousOwners.push({
