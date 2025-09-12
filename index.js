@@ -61,6 +61,99 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
 });
 
+// Discord API Rate Limiting Detection and Monitoring
+let rateLimitStats = {
+  totalHits: 0,
+  lastHit: null,
+  consecutiveHits: 0,
+  routes: new Map() // Track rate limits per route
+};
+
+// Rate limit event listener
+client.on('rateLimit', (rateLimitInfo) => {
+  rateLimitStats.totalHits++;
+  rateLimitStats.lastHit = new Date();
+  rateLimitStats.consecutiveHits++;
+  
+  // Track per-route rate limits
+  const route = rateLimitInfo.route || 'unknown';
+  if (!rateLimitStats.routes.has(route)) {
+    rateLimitStats.routes.set(route, { count: 0, lastHit: null });
+  }
+  const routeStats = rateLimitStats.routes.get(route);
+  routeStats.count++;
+  routeStats.lastHit = new Date();
+  
+  console.warn('🚨 DISCORD API RATE LIMIT HIT:');
+  console.warn(`   Route: ${route}`);
+  console.warn(`   Timeout: ${rateLimitInfo.timeout}ms`);
+  console.warn(`   Limit: ${rateLimitInfo.limit || 'Unknown'}`);
+  console.warn(`   Method: ${rateLimitInfo.method || 'Unknown'}`);
+  console.warn(`   Global: ${rateLimitInfo.global ? 'YES' : 'NO'}`);
+  console.warn(`   Total Rate Limits Hit: ${rateLimitStats.totalHits}`);
+  console.warn(`   Consecutive Hits: ${rateLimitStats.consecutiveHits}`);
+  
+  // Log severe rate limiting
+  if (rateLimitInfo.timeout > 10000) { // More than 10 seconds
+    console.error('🔥 SEVERE RATE LIMIT: Timeout > 10 seconds!');
+  }
+  
+  if (rateLimitStats.consecutiveHits >= 5) {
+    console.error('🔥 CRITICAL: 5+ consecutive rate limits! Bot may be hitting limits too frequently.');
+  }
+  
+  // Reset consecutive counter after 5 minutes of no rate limits
+  setTimeout(() => {
+    rateLimitStats.consecutiveHits = Math.max(0, rateLimitStats.consecutiveHits - 1);
+  }, 300000); // 5 minutes
+});
+
+// API response event listener (for debugging)
+client.rest.on('response', (request, response) => {
+  // Log rate limit headers for monitoring
+  const remaining = response.headers['x-ratelimit-remaining'];
+  const resetAfter = response.headers['x-ratelimit-reset-after'];
+  const bucket = response.headers['x-ratelimit-bucket'];
+  
+  // Only log if we're getting close to rate limits
+  if (remaining !== undefined && parseInt(remaining) <= 2) {
+    console.warn(`⚠️ LOW RATE LIMIT: ${remaining} requests remaining for bucket ${bucket}, resets in ${resetAfter}s`);
+  }
+  
+  // Log 429 responses (rate limited)
+  if (response.status === 429) {
+    console.error(`🚨 429 RATE LIMITED: ${request.method} ${request.path}`);
+    console.error(`   Retry After: ${response.headers['retry-after']}s`);
+    console.error(`   Global: ${response.headers['x-ratelimit-global'] === 'true'}`);
+  }
+});
+
+// Function to get current rate limit statistics
+function getRateLimitStats() {
+  const now = new Date();
+  const stats = {
+    totalHits: rateLimitStats.totalHits,
+    consecutiveHits: rateLimitStats.consecutiveHits,
+    lastHit: rateLimitStats.lastHit,
+    timeSinceLastHit: rateLimitStats.lastHit ? now - rateLimitStats.lastHit : null,
+    routeBreakdown: {}
+  };
+  
+  // Convert Map to object for easier reading
+  for (const [route, data] of rateLimitStats.routes.entries()) {
+    stats.routeBreakdown[route] = {
+      count: data.count,
+      lastHit: data.lastHit,
+      timeSinceLastHit: data.lastHit ? now - data.lastHit : null
+    };
+  }
+  
+  return stats;
+}
+
+// Add to global scope for admin commands
+global.getRateLimitStats = getRateLimitStats;
+
 // Graceful shutdown handlers
 process.on('SIGINT', async () => {
   console.log('\n🛑 Received SIGINT, shutting down gracefully...');
@@ -343,15 +436,35 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await command.execute(interaction, client);
   } catch (error) {
     console.error(`Error running command "${interaction.commandName}":`, error);
+    
+    // Check if error is rate limit related
+    if (error.code === 429 || error.status === 429) {
+      console.error(`🚨 RATE LIMITED during command execution: ${interaction.commandName}`);
+      console.error(`   User: ${interaction.user.tag} (${interaction.user.id})`);
+      console.error(`   Guild: ${interaction.guild?.name || 'DM'} (${interaction.guild?.id || 'N/A'})`);
+      console.error(`   Retry After: ${error.retryAfter || 'Unknown'}ms`);
+    }
 
     try {
+      let errorMessage = '⚠️ There was an error executing this command.';
+      
+      // Provide specific message for rate limiting
+      if (error.code === 429 || error.status === 429) {
+        errorMessage = '🚨 Discord API is currently rate limited. Please try again in a few moments.';
+      }
+      
       if (interaction.deferred || interaction.replied) {
-        await interaction.followUp({ content: '⚠️ There was an error executing this command.', ephemeral: true });
+        await interaction.followUp({ content: errorMessage, ephemeral: true });
       } else {
-        await interaction.reply({ content: '⚠️ There was an error executing this command.', ephemeral: true });
+        await interaction.reply({ content: errorMessage, ephemeral: true });
       }
     } catch (replyErr) {
       console.error('Failed to send error reply:', replyErr);
+      
+      // Log if the reply error is also rate limit related
+      if (replyErr.code === 429 || replyErr.status === 429) {
+        console.error('🚨 RATE LIMITED while trying to send error reply!');
+      }
     }
   }
 });

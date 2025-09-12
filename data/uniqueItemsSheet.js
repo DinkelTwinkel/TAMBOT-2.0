@@ -202,11 +202,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#8B4513", // Saddle Brown
         particleEffect: "earth_crack",
         
-        maintenanceType: "combat_activity",
-        maintenanceCost: 5, // Need 5 combat victories per cycle
+        maintenanceType: "mining_activity",
+        maintenanceCost: 100, // Need to mine 100 blocks per cycle
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
-        maintenanceDescription: "This weapon of the Titan King hungers for battle. It must taste combat to remain powerful.",
+        maintenanceDescription: "This weapon feeds on the destruction of earth and stone. Without regular use, it grows dormant.",
         
         specialEffects: [
             "Area damage - breaks adjacent walls with 30% chance",
@@ -987,11 +987,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#00FFFF", // Cyan
         particleEffect: "storm_lightning",
         
-        maintenanceType: "combat_activity",
-        maintenanceCost: 8,
+        maintenanceType: "mining_activity",
+        maintenanceCost: 3000,
         maintenanceDecayRate: 0.5,
         requiresMaintenance: true,
-        maintenanceDescription: "The Adamantine Storm craves the clash of titans. Engage in combat to feed the tempest within.",
+        maintenanceDescription: "The storm within must be fed with the destruction of the hardest materials.",
         
         specialEffects: [
             "All adamantine and storm-based ore gives 6x normal value",
@@ -1042,11 +1042,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#2F4F4F", // Dark Slate Gray
         particleEffect: "iron_sparks",
         
-        maintenanceType: "combat_activity",
-        maintenanceCost: 3,
+        maintenanceType: "mining_activity",
+        maintenanceCost: 18000,
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
-        maintenanceDescription: "The gauntlets remember the Iron Lord's battles. They must taste combat to maintain their strength.",
+        maintenanceDescription: "The gauntlets must crush stone and ore to maintain their iron strength.",
         
         specialEffects: [
             "All iron and metal ore gives 2.5x normal value",

@@ -79,6 +79,11 @@ module.exports = {
                 .setName('force-collapse-event')
                 .setDescription('Force trigger the mine collapse event for debugging')
         )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('rate-limit-stats')
+                .setDescription('Check Discord API rate limiting statistics')
+        )
         .addSubcommandGroup(group =>
             group
                 .setName('unique')
@@ -230,6 +235,8 @@ module.exports = {
             await this.executeForceRailEvent(interaction);
         } else if (subcommand === 'force-collapse-event') {
             await this.executeForceCollapseEvent(interaction);
+        } else if (subcommand === 'rate-limit-stats') {
+            await this.executeRateLimitStats(interaction);
         }
     },
 
@@ -1134,6 +1141,98 @@ module.exports = {
             console.error('Error forcing mine collapse event:', error);
             return interaction.editReply({
                 content: `❌ Failed to trigger mine collapse event: ${error.message}`
+            });
+        }
+    },
+
+    // ========== RATE LIMIT STATS COMMAND ==========
+    async executeRateLimitStats(interaction) {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // Get rate limit stats from global scope (set in index.js)
+            const stats = global.getRateLimitStats ? global.getRateLimitStats() : null;
+            
+            if (!stats) {
+                return interaction.editReply({
+                    content: '❌ Rate limit tracking not available. Make sure the bot was started with rate limit monitoring enabled.'
+                });
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('🚨 Discord API Rate Limit Statistics')
+                .setColor(stats.totalHits > 0 ? 0xFF6B6B : 0x00FF00)
+                .setTimestamp();
+
+            // Overall stats
+            embed.addFields(
+                { name: '📊 Total Rate Limits Hit', value: `${stats.totalHits}`, inline: true },
+                { name: '🔄 Consecutive Hits', value: `${stats.consecutiveHits}`, inline: true },
+                { name: '⏰ Last Hit', value: stats.lastHit ? `<t:${Math.floor(stats.lastHit.getTime() / 1000)}:R>` : 'Never', inline: true }
+            );
+
+            if (stats.timeSinceLastHit !== null) {
+                const minutes = Math.floor(stats.timeSinceLastHit / (1000 * 60));
+                const seconds = Math.floor((stats.timeSinceLastHit % (1000 * 60)) / 1000);
+                embed.addFields(
+                    { name: '⌛ Time Since Last Hit', value: `${minutes}m ${seconds}s ago`, inline: true }
+                );
+            }
+
+            // Route breakdown
+            const routeEntries = Object.entries(stats.routeBreakdown);
+            if (routeEntries.length > 0) {
+                let routeBreakdown = '';
+                const sortedRoutes = routeEntries
+                    .sort(([,a], [,b]) => b.count - a.count)
+                    .slice(0, 10); // Top 10 routes
+
+                for (const [route, data] of sortedRoutes) {
+                    const timeSince = data.timeSinceLastHit ? 
+                        `${Math.floor(data.timeSinceLastHit / (1000 * 60))}m ago` : 
+                        'Never';
+                    routeBreakdown += `**${route}**: ${data.count} hits (${timeSince})\n`;
+                }
+
+                if (routeBreakdown) {
+                    embed.addFields(
+                        { name: '🛣️ Most Rate Limited Routes', value: routeBreakdown || 'None', inline: false }
+                    );
+                }
+            }
+
+            // Status indicator
+            let statusColor = 0x00FF00; // Green
+            let statusText = '✅ All systems normal';
+            
+            if (stats.consecutiveHits >= 3) {
+                statusColor = 0xFF6B6B; // Red
+                statusText = '🚨 High rate limiting detected!';
+            } else if (stats.totalHits > 10) {
+                statusColor = 0xFFB347; // Orange
+                statusText = '⚠️ Some rate limiting occurred';
+            }
+
+            embed.setColor(statusColor);
+            embed.setDescription(statusText);
+
+            // Add recommendations if needed
+            if (stats.consecutiveHits >= 3) {
+                embed.addFields(
+                    { 
+                        name: '💡 Recommendations', 
+                        value: '• Consider reducing API calls\n• Check for loops or rapid commands\n• Monitor bot activity patterns', 
+                        inline: false 
+                    }
+                );
+            }
+
+            return interaction.editReply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error('Error getting rate limit stats:', error);
+            return interaction.editReply({
+                content: `❌ Failed to retrieve rate limit statistics: ${error.message}`
             });
         }
     }
