@@ -3,10 +3,10 @@ const GIFEncoder = require('gifencoder');
 const path = require('path');
 const fs = require('fs');
 
-// Register the goblin font with error handling
+// Register the goblin font with error handling (using same family name as other files)
 try {
-    registerFont('./assets/font/goblinfont.ttf', { family: 'GoblinFont' });
-    console.log('[MARKETPLACE_IMAGE] GoblinFont registered successfully');
+    registerFont('./assets/font/goblinfont.ttf', { family: 'MyFont' });
+    console.log('[MARKETPLACE_IMAGE] GoblinFont registered successfully as MyFont');
 } catch (fontError) {
     console.error('[MARKETPLACE_IMAGE] Error registering GoblinFont:', fontError);
 }
@@ -109,7 +109,7 @@ async function generateMarketplaceImage(itemData, quantity, pricePerItem, seller
                 ctx.fill();
                 
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = '12px GoblinFont';
+                ctx.font = '12px MyFont';
                 ctx.textAlign = 'center';
                 ctx.fillText(
                     seller.username.substring(0, 8), 
@@ -144,7 +144,7 @@ async function generateMarketplaceImage(itemData, quantity, pricePerItem, seller
                 );
                 
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font = '12px GoblinFont';
+                ctx.font = '12px MyFont';
                 ctx.textAlign = 'center';
                 
                 // Split item name into multiple lines if more than 2 words
@@ -171,11 +171,11 @@ async function generateMarketplaceImage(itemData, quantity, pricePerItem, seller
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 3; // Thicker outline
             
-            // Use larger GoblinFont for cost text
+            // Use larger GoblinFont for cost text (using MyFont family name)
             try {
-                ctx.font = '32px GoblinFont'; // Increased from 24px to 32px
+                ctx.font = '32px MyFont'; // Use MyFont family name like other files
             } catch (fontError) {
-                console.warn('[MARKETPLACE_IMAGE] GoblinFont not available, using fallback');
+                console.warn('[MARKETPLACE_IMAGE] MyFont not available, using fallback');
                 ctx.font = '32px serif'; // Use serif as fallback for more character
             }
             
@@ -190,7 +190,7 @@ async function generateMarketplaceImage(itemData, quantity, pricePerItem, seller
                 ctx.fillStyle = '#000000';
                 ctx.strokeStyle = '#FFFFFF';
                 ctx.lineWidth = 2;
-                ctx.font = '16px GoblinFont';
+                ctx.font = '16px MyFont';
                 ctx.textAlign = 'center';
                 
                 const quantityText = `x${quantity}`;

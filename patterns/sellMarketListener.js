@@ -6,6 +6,7 @@ const PlayerInventory = require('../models/inventory');
 const ActiveShop = require('../models/activeShop');
 const itemSheet = require('../data/itemSheet.json');
 const { generateMarketplaceImage } = require('./generateMarketplaceImage');
+const registerBotMessage = require('./registerBotMessage');
 const path = require('path');
 const fs = require('fs');
 
@@ -150,6 +151,24 @@ class SellMarketListener {
             });
         }
 
+        // Check if we're already in a marketplace thread - if so, don't redirect
+        let targetChannel = interaction.channel;
+        const isInMarketplaceThread = this.isInMarketplaceThread(interaction.channel, interaction.guild);
+        
+        if (!isInMarketplaceThread) {
+            // Find the marketplace channel
+            const marketplaceChannel = await this.findMarketplaceChannel(interaction.guild);
+            if (!marketplaceChannel) {
+                return interaction.editReply({
+                    content: '❌ Could not find marketplace channel. Please contact an administrator.',
+                    ephemeral: true
+                });
+            }
+            targetChannel = marketplaceChannel;
+        } else {
+            console.log('[MARKETPLACE] Command used in marketplace thread, posting here');
+        }
+
         // Check if seller already has this item for sale
         const existingShop = await ActiveShop.findOne({
             shopOwnerId: sellerId,
@@ -175,7 +194,7 @@ class SellMarketListener {
                 // Update existing shop with new total quantity
                 existingShop.quantity += quantity;
                 existingShop.pricePerItem = pricePerItem; // Use new price
-                existingShop.channelId = interaction.channel.id; // Update channel if moved
+                existingShop.channelId = targetChannel.id; // Use target channel (marketplace or current if in marketplace thread)
                 await existingShop.save({ session });
             }
 
@@ -203,7 +222,7 @@ class SellMarketListener {
                 name: 'marketplace.gif' 
             });
 
-            const shopMessage = await interaction.channel.send({
+            const shopMessage = await targetChannel.send({
                 embeds: [shopEmbed],
                 components: [shopButtons],
                 files: [marketplaceAttachment]
@@ -217,7 +236,7 @@ class SellMarketListener {
                 const newShop = new ActiveShop({
                     messageId: shopMessage.id,
                     guildId: interaction.guild.id,
-                    channelId: interaction.channel.id,
+                    channelId: targetChannel.id, // Use target channel ID
                     itemId: itemId,
                     quantity: quantity,
                     pricePerItem: pricePerItem,
@@ -230,12 +249,15 @@ class SellMarketListener {
             session.endSession();
 
             await interaction.editReply({
-                content: `✅ Successfully listed **${quantity}x ${itemData.name}** for **${pricePerItem} coins each**!`,
+                content: `✅ Successfully listed **${quantity}x ${itemData.name}** for **${pricePerItem} coins each** in ${targetChannel}!`,
                 ephemeral: true
             });
 
         } catch (error) {
-            await session.abortTransaction();
+            // Only abort transaction if it's still active
+            if (session.inTransaction()) {
+                await session.abortTransaction();
+            }
             session.endSession();
             console.error('Error creating shop:', error);
             return interaction.editReply({
@@ -362,19 +384,34 @@ class SellMarketListener {
             await session.commitTransaction();
             session.endSession();
 
-            // Send transaction log - create thread only if not already in thread/voice channel
-            let logChannel = interaction.channel;
+            // Send transaction log - use existing thread or create one if needed
+            // The shop message is in the marketplace channel, so we need to work with that
+            const shopMessage = interaction.message;
+            let logChannel = shopMessage.channel;
             
-            // Check if we're already in a thread or voice channel's text chat
-            const isThread = interaction.channel.isThread();
-            const isVoiceChannelText = interaction.channel.parent && interaction.channel.parent.type === 2; // Voice channel
-            
-            if (!isThread && !isVoiceChannelText) {
-                // Create thread only if we're in a regular text channel
-                logChannel = await interaction.message.startThread({
-                    name: `Sale: ${itemData.name}`,
-                    autoArchiveDuration: 60 // 1 hour
-                });
+            // Check if shop message already has a thread
+            const existingThread = shopMessage.thread;
+            if (existingThread) {
+                logChannel = existingThread;
+                console.log(`[MARKETPLACE] Using existing thread: ${existingThread.name}`);
+            } else {
+                // Check if we can create threads in this channel
+                const canCreateThreads = shopMessage.channel.type === 0 || shopMessage.channel.type === 5;
+                
+                if (canCreateThreads) {
+                    try {
+                        logChannel = await shopMessage.startThread({
+                            name: `Sale: ${itemData.name}`,
+                            autoArchiveDuration: 60 // 1 hour
+                        });
+                        console.log(`[MARKETPLACE] Created new thread: ${logChannel.name}`);
+                    } catch (threadError) {
+                        console.warn(`[MARKETPLACE] Could not create thread, using marketplace channel:`, threadError.message);
+                        logChannel = shopMessage.channel;
+                    }
+                } else {
+                    console.log(`[MARKETPLACE] Cannot create threads in this channel type, using marketplace channel`);
+                }
             }
 
             await logChannel.send({
@@ -420,7 +457,10 @@ class SellMarketListener {
             }
 
         } catch (error) {
-            await session.abortTransaction();
+            // Only abort transaction if it's still active
+            if (session.inTransaction()) {
+                await session.abortTransaction();
+            }
             session.endSession();
             console.error('Error processing purchase:', error);
             return interaction.editReply({
@@ -550,7 +590,10 @@ class SellMarketListener {
             });
 
         } catch (error) {
-            await session.abortTransaction();
+            // Only abort transaction if it's still active
+            if (session.inTransaction()) {
+                await session.abortTransaction();
+            }
             session.endSession();
             console.error('Error closing shop:', error);
             return interaction.reply({
@@ -620,6 +663,14 @@ class SellMarketListener {
             files: [], // Remove image attachment
             attachments: [] // Clear all attachments
         });
+
+        // Register the closed shop message for deletion in 5 hours
+        try {
+            await registerBotMessage(message.guild.id, message.channel.id, message.id, 300); // 300 minutes = 5 hours
+            console.log(`[MARKETPLACE] Registered closed shop message for deletion in 5 hours`);
+        } catch (registerError) {
+            console.error('[MARKETPLACE] Error registering closed shop for deletion:', registerError);
+        }
     }
 
     async getItemImage(itemData) {
@@ -639,6 +690,67 @@ class SellMarketListener {
         }
         
         return [];
+    }
+
+    // Check if current channel is a thread within the marketplace channel
+    isInMarketplaceThread(channel, guild) {
+        // Check if this is a thread
+        if (!channel.isThread()) return false;
+        
+        // Check if parent channel is the marketplace channel
+        const parentChannel = channel.parent;
+        if (!parentChannel) return false;
+        
+        // Check by ID first
+        if (parentChannel.id === '1416024145128587437') {
+            console.log('[MARKETPLACE] Command used in marketplace thread, not redirecting');
+            return true;
+        }
+        
+        // Check by name variations
+        const nameVariations = ['marketplace', 'market-place', 'market place'];
+        const isMarketplaceByName = nameVariations.some(name => 
+            parentChannel.name.toLowerCase() === name.toLowerCase()
+        );
+        
+        if (isMarketplaceByName) {
+            console.log('[MARKETPLACE] Command used in marketplace thread (by name), not redirecting');
+            return true;
+        }
+        
+        return false;
+    }
+
+    // Find the marketplace channel by name or ID
+    async findMarketplaceChannel(guild) {
+        // First try by exact ID
+        try {
+            const channelById = await guild.channels.fetch('1416024145128587437');
+            if (channelById) {
+                console.log(`[MARKETPLACE] Found marketplace channel by ID: ${channelById.name}`);
+                return channelById;
+            }
+        } catch (error) {
+            // Channel with that ID doesn't exist, try by name
+        }
+
+        // Try by name variations
+        const nameVariations = ['marketplace', 'market-place', 'market place'];
+        
+        for (const name of nameVariations) {
+            const channelByName = guild.channels.cache.find(channel => 
+                channel.name.toLowerCase() === name.toLowerCase() && 
+                (channel.type === 0 || channel.type === 5) // Text or announcement channel
+            );
+            
+            if (channelByName) {
+                console.log(`[MARKETPLACE] Found marketplace channel by name: ${channelByName.name}`);
+                return channelByName;
+            }
+        }
+
+        console.error('[MARKETPLACE] Could not find marketplace channel');
+        return null;
     }
 
     // Purchase lock management methods

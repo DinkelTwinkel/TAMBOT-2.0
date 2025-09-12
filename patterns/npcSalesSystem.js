@@ -9,6 +9,7 @@ const npcsData = require('../data/npcs.json');
 const { getShopPrices, calculateFluctuatedPrice, getAIShopDialogue } = require('./generateShop');
 const GuildConfig = require('../models/GuildConfig');
 const { generateMarketplaceImage } = require('./generateMarketplaceImage');
+const registerBotMessage = require('./registerBotMessage');
 const getPlayerStats = require('./calculatePlayerStat');
 
 // Create item map for O(1) lookups
@@ -342,6 +343,14 @@ class NPCSalesSystem {
                     files: [],
                     attachments: []
                 });
+
+                // Register the closed shop message for deletion in 5 hours
+                try {
+                    await registerBotMessage(guild.id, channel.id, message.id, 300); // 300 minutes = 5 hours
+                    console.log(`[NPC_SALES] Registered closed shop message for deletion in 5 hours`);
+                } catch (registerError) {
+                    console.error('[NPC_SALES] Error registering closed shop for deletion:', registerError);
+                }
             } else {
                 // Update shop with new quantity
                 const seller = await guild.members.fetch(shop.shopOwnerId);
