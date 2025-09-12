@@ -266,7 +266,7 @@ const ITEM_FINDING_CONFIG = {
     },
     
     // Unique item spawn weight (vs regular items)
-    uniqueItemWeight: 1.0, // 100% of found items will be unique (if available)
+    uniqueItemWeight: 0.05, // 5% of found items could be unique (if available)
     
     // Regular items that can be found (separate from ores)
     regularItemPool: [

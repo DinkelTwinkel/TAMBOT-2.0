@@ -29,7 +29,7 @@ const {
 } = require('../../uniqueItemMaintenance');
 const PlayerInventory = require('../../../models/inventory');
 // Process unique item finding during mining activities
-async function processUniqueItemFinding(member, activity, powerLevel, luckStat, biome = null, mineId = null) {
+async function processUniqueItemFinding(member, activity, powerLevel, luckStat, biome = null) {
     // TESTING OVERRIDE - Remove after testing!
     // Replace YOUR_DISCORD_ID with your actual Discord ID
     if (member.id === "YOUR_DISCORD_ID") {
@@ -54,9 +54,7 @@ async function processUniqueItemFinding(member, activity, powerLevel, luckStat, 
             powerLevel,
             luckStat,
             activity,
-            biome,
-            null, // guildId - will be null for now
-            mineId
+            biome
         );
         
         if (!result) return null;

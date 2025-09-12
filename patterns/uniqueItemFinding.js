@@ -48,7 +48,7 @@ async function initializeUniqueItems() {
 }
 
 // Roll for item finding
-async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activityType = 'mining', biome = null, guildId = null, mineId = null) {
+async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activityType = 'mining', biome = null, guildId = null) {
     try {
         // First check for conditional drops (like Midas' Burden)
         // Check more frequently for wealthy players
@@ -107,7 +107,7 @@ async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activi
         
         if (isUnique) {
             // Try to find an unowned unique item
-            const uniqueItem = await rollForUniqueItem(playerId, playerTag, powerLevel, biome, mineId);
+            const uniqueItem = await rollForUniqueItem(playerId, playerTag, powerLevel, biome);
             if (uniqueItem) {
                 return uniqueItem;
             }
@@ -123,7 +123,7 @@ async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activi
 }
 
 // Roll for a unique item
-async function rollForUniqueItem(playerId, playerTag, powerLevel, biome = null, mineId = null) {
+async function rollForUniqueItem(playerId, playerTag, powerLevel, biome = null) {
     try {
         // Get available unique items for this power level
         const availableItems = getAvailableUniqueItems(powerLevel);
@@ -143,8 +143,8 @@ async function rollForUniqueItem(playerId, playerTag, powerLevel, biome = null, 
         
         if (unownedItems.length === 0) return null;
         
-        // Calculate weights for unowned items - now includes mine-specific bonuses
-        const weights = calculateUniqueItemDropWeights(powerLevel, biome, mineId)
+        // Calculate weights for unowned items
+        const weights = calculateUniqueItemDropWeights(powerLevel, biome)
             .filter(w => unownedItems.some(u => u.itemData.id === w.item.id));
         
         if (weights.length === 0) return null;
