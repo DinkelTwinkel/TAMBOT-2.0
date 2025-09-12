@@ -166,22 +166,22 @@ async function generateMarketplaceImage(itemData, quantity, pricePerItem, seller
             const priceX = bgImage.width - 100;
             const priceY = bgImage.height / 2 + 20; // Lowered by 20 pixels
             
-            // Set up text styling for price using GoblinFont
+            // Set up text styling for price using larger GoblinFont
             ctx.fillStyle = '#FFD700';
             ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 3; // Thicker outline
             
-            // Try GoblinFont first, fallback to sans-serif
+            // Use larger GoblinFont for cost text
             try {
-                ctx.font = '24px GoblinFont';
+                ctx.font = '32px GoblinFont'; // Increased from 24px to 32px
             } catch (fontError) {
                 console.warn('[MARKETPLACE_IMAGE] GoblinFont not available, using fallback');
-                ctx.font = '24px sans-serif';
+                ctx.font = '32px serif'; // Use serif as fallback for more character
             }
             
             ctx.textAlign = 'center';
             
-            // Draw price with outline
+            // Draw price with thicker outline for better visibility
             ctx.strokeText(priceText, priceX, priceY);
             ctx.fillText(priceText, priceX, priceY);
             

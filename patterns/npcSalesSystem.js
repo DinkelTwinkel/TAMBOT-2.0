@@ -6,7 +6,7 @@ const Currency = require('../models/currency');
 const PlayerInventory = require('../models/inventory');
 const itemSheet = require('../data/itemSheet.json');
 const npcsData = require('../data/npcs.json');
-const { getShopPrices, calculateFluctuatedPrice } = require('./generateShop');
+const { getShopPrices, calculateFluctuatedPrice, getAIShopDialogue } = require('./generateShop');
 const GuildConfig = require('../models/GuildConfig');
 const { generateMarketplaceImage } = require('./generateMarketplaceImage');
 const getPlayerStats = require('./calculatePlayerStat');
@@ -30,16 +30,16 @@ class NPCSalesSystem {
         this.isRunning = true;
         console.log('[NPC_SALES] Starting NPC sales system...');
         
-        // Check for sales every 1-5 seconds (testing interval)
+        // Check for sales every 5-10 minutes
         this.scheduleNextCheck();
     }
 
     scheduleNextCheck() {
         if (!this.isRunning) return;
         
-        // Random interval between 1-5 seconds (testing)
-        const interval = (1 + Math.random() * 4) * 1000;
-        console.log(`[NPC_SALES] Next check scheduled in ${(interval/1000).toFixed(1)} seconds`);
+        // Random interval between 5-10 minutes
+        const interval = (5 + Math.random() * 5) * 60 * 1000;
+        console.log(`[NPC_SALES] Next check scheduled in ${(interval/60000).toFixed(1)} minutes`);
         
         this.interval = setTimeout(async () => {
             try {
@@ -193,7 +193,7 @@ class NPCSalesSystem {
 
             // Execute the purchase
             console.log(`[NPC_SALES] 💳 Executing purchase...`);
-            await this.executePurchase(shop, itemData, npc);
+            await this.executePurchase(shop, itemData, npc, marketValue);
 
         } catch (error) {
             console.error(`[NPC_SALES] Error attempting purchase for shop ${shop._id}:`, error);
@@ -230,7 +230,7 @@ class NPCSalesSystem {
         return selectedNPC;
     }
 
-    async executePurchase(shop, itemData, npc) {
+    async executePurchase(shop, itemData, npc, marketValue) {
         try {
             console.log(`[NPC_SALES] 🔒 Attempting atomic purchase for message ${shop.messageId}`);
             
@@ -266,7 +266,7 @@ class NPCSalesSystem {
                 session.endSession();
 
                 // Update the shop message
-                await this.updateShopMessage(shop, updatedShop, itemData, npc, soldOut);
+                await this.updateShopMessage(shop, updatedShop, itemData, npc, soldOut, marketValue);
 
                 console.log(`[NPC_SALES] 🎉 ${npc.name} successfully bought ${itemData.name} for ${shop.pricePerItem}c`);
 
@@ -281,7 +281,7 @@ class NPCSalesSystem {
         }
     }
 
-    async updateShopMessage(shop, shopDoc, itemData, npc, soldOut = false) {
+    async updateShopMessage(shop, shopDoc, itemData, npc, soldOut = false, marketValue = null) {
         try {
             // Get the guild and channel
             const guild = await this.client.guilds.fetch(shop.guildId);
@@ -319,9 +319,12 @@ class NPCSalesSystem {
                 console.log(`[NPC_SALES] 💬 Using current channel for NPC purchase message`);
             }
 
+            // Generate AI dialogue for the NPC purchase
+            const npcDialogue = await this.generateNPCPurchaseDialogue(npc, itemData, shop.pricePerItem, marketValue || itemData.value);
+            
             // Send purchase message
             await logChannel.send({
-                content: `🤖 **NPC Purchase!**\n\n**Buyer:** ${npc.name}\n**Item:** ${itemData.name}\n**Price:** ${shop.pricePerItem} coins\n**Seller:** <@${shop.shopOwnerId}>\n\n*"${npc.dialogue[Math.floor(Math.random() * npc.dialogue.length)]}"*`
+                content: `🤖 **NPC Purchase!**\n\n**Buyer:** ${npc.name}\n**Item:** ${itemData.name}\n**Price:** ${shop.pricePerItem} coins\n**Seller:** <@${shop.shopOwnerId}>\n\n*"${npcDialogue}"*`
             });
 
             if (soldOut) {
@@ -397,6 +400,75 @@ class NPCSalesSystem {
 
         } catch (updateError) {
             console.error('[NPC_SALES] Error updating shop message:', updateError);
+        }
+    }
+
+    async generateNPCPurchaseDialogue(npc, itemData, pricePaid, marketValue) {
+        try {
+            const aiShopDialogue = getAIShopDialogue();
+            
+            if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
+                // Use fallback dialogue from NPC data
+                return npc.dialogue[Math.floor(Math.random() * npc.dialogue.length)];
+            }
+
+            // Calculate if this was a good deal for context
+            const priceRatio = pricePaid / marketValue;
+            let dealQuality;
+            if (priceRatio <= 0.5) dealQuality = 'excellent';
+            else if (priceRatio <= 0.8) dealQuality = 'good';
+            else if (priceRatio <= 1.0) dealQuality = 'fair';
+            else dealQuality = 'expensive';
+
+            // Create NPC context for AI
+            const npcContext = {
+                name: npc.name,
+                personality: npc.aiPersonality || npc.description,
+                preferences: npc.preferences || [],
+                wealth: npc.wealth || 3,
+                budget: npc.budget || 'medium',
+                dealQuality: dealQuality,
+                pricePaid: pricePaid,
+                marketValue: marketValue,
+                itemType: itemData.type,
+                itemName: itemData.name,
+                savings: marketValue - pricePaid
+            };
+
+            // Generate AI dialogue using the existing shop dialogue system
+            // We'll create a mock shop object for the AI to work with
+            const mockShop = {
+                name: 'Player Marketplace',
+                shopkeeper: {
+                    name: npc.name,
+                    personality: npc.aiPersonality || npc.description
+                },
+                successBuy: npc.dialogue // Fallback dialogue
+            };
+
+            const mockBuyer = {
+                username: npc.name,
+                displayName: npc.name,
+                id: npc.id
+            };
+
+            // Generate contextual purchase dialogue
+            const aiDialogue = await aiShopDialogue.generatePurchaseDialogue(
+                mockShop, 
+                itemData, 
+                pricePaid, 
+                mockBuyer, 
+                1, 
+                npcContext
+            );
+
+            console.log(`[NPC_SALES] 🤖 Generated AI dialogue for ${npc.name}`);
+            return aiDialogue;
+
+        } catch (error) {
+            console.error('[NPC_SALES] AI dialogue generation failed:', error);
+            // Fallback to static dialogue
+            return npc.dialogue[Math.floor(Math.random() * npc.dialogue.length)];
         }
     }
 
