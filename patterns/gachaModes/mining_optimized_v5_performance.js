@@ -4017,42 +4017,25 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     
                     await updateMiningActivity(member.id, 1);
                     
-                    // Enhanced unique item finding with mine-specific bonuses
+                    // Optimized unique item finding for boosted mines
                     let itemFindingChance = 0.001; // 0.1% base chance
                     
-                    // DEBUG: Log mine detection process
-                    console.log(`[BOOSTED MINE DEBUG] Checking mine ${mineTypeId} (type: ${typeof mineTypeId}) for boosted unique items`);
-                    
-                    // Check if this mine has amplified drop rates for any unique items
+                    // Quick check for boosted mines (cached lookup)
                     const { UNIQUE_ITEMS } = require('../../data/uniqueItemsSheet');
-                    console.log(`[BOOSTED MINE DEBUG] Total unique items in database: ${UNIQUE_ITEMS.length}`);
+                    const boostedItems = UNIQUE_ITEMS.filter(item => 
+                        item.mineSpecificDropRates && item.mineSpecificDropRates[String(mineTypeId)]
+                    );
                     
-                    const boostedItems = UNIQUE_ITEMS.filter(item => {
-                        const hasMineRates = item.mineSpecificDropRates && item.mineSpecificDropRates[String(mineTypeId)];
-                        console.log(`[BOOSTED MINE DEBUG] ${item.name} (ID: ${item.id}) - mineSpecificDropRates: ${JSON.stringify(item.mineSpecificDropRates)} - matches mine ${mineTypeId}: ${hasMineRates ? 'YES' : 'NO'}`);
-                        return hasMineRates;
-                    });
-                    
-                    console.log(`[BOOSTED MINE DEBUG] Found ${boostedItems.length} boosted items for mine ${mineTypeId}`);
-                    
-                    // 100% item finding rate for mines with amplified unique drops
+                    // 100% item finding rate for boosted mines
                     if (boostedItems.length > 0) {
-                        itemFindingChance = 1.0; // 100% chance to trigger item finding in boosted mines!
-                        console.log(`[UNIQUE FINDING] ✅ BOOSTED MINE DETECTED! Mine ${mineTypeId} has ${boostedItems.length} boosted unique(s) - setting 100% item finding rate`);
-                        console.log(`[UNIQUE FINDING] Boosted items: ${boostedItems.map(i => `${i.name} (${i.mineSpecificDropRates[String(mineTypeId)]}x boost)`).join(', ')}`);
+                        itemFindingChance = 1.0; // 100% chance in boosted mines
                     } else {
-                        console.log(`[UNIQUE FINDING] ❌ NOT A BOOSTED MINE - Mine ${mineTypeId} has no boosted uniques, using normal rates`);
-                        // Normal mines still use luck scaling
-                        const luckBonus = Math.min(0.01, luckStat * 0.0001); // Cap at +1% from luck
+                        // Normal mines use luck scaling
+                        const luckBonus = Math.min(0.01, luckStat * 0.0001);
                         itemFindingChance += luckBonus;
                     }
                     
-                    const findingRoll = Math.random();
-                    console.log(`[UNIQUE FINDING DEBUG] Item finding roll: ${(findingRoll * 100).toFixed(3)}% vs ${(itemFindingChance * 100).toFixed(3)}% threshold`);
-                    
-                    if (findingRoll < itemFindingChance) {
-                        console.log(`[UNIQUE FINDING DEBUG] ✅ ITEM FINDING TRIGGERED! Calling processUniqueItemFinding...`);
-                        
+                    if (Math.random() < itemFindingChance) {
                         const itemFind = await processUniqueItemFinding(
                             member,
                             'mining',
@@ -4062,39 +4045,28 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                             mineTypeId
                         );
                         
-                        console.log(`[UNIQUE FINDING DEBUG] processUniqueItemFinding result: ${itemFind ? `SUCCESS - ${itemFind.type}: ${itemFind.item.name}` : 'NULL/FAILED'}`);
-                        
                         if (itemFind) {
                             eventLogs.push(itemFind.message);
-                                // Check for legendary announcement
-                                if (itemFind.systemAnnouncement && itemFind.systemAnnouncement.enabled) {
-                                    // Send the legendary announcement to all channels
-                                    if (client) {
-                                        try {
-                                            await sendLegendaryAnnouncement(
-                                                client,
-                                                channel.guild.id,
-                                                itemFind,
-                                                member.displayName
-                                            );
-                                            console.log(`[LEGENDARY] Announcement sent for ${itemFind.item.name} found by ${member.displayName}`);
-                                        } catch (err) {
-                                            console.error('[LEGENDARY] Failed to send announcement:', err);
-                                        }
-                                    } else {
-                                        console.log(`[LEGENDARY] Client not available - skipping announcement for ${itemFind.item.name} found by ${member.displayName}`);
-                                    }
+                            
+                            // Server-wide announcement for unique items
+                            if (itemFind.systemAnnouncement && itemFind.systemAnnouncement.enabled && client) {
+                                try {
+                                    await sendLegendaryAnnouncement(
+                                        client,
+                                        channel.guild.id,
+                                        itemFind,
+                                        member.displayName
+                                    );
+                                } catch (err) {
+                                    console.error('[LEGENDARY] Failed to send announcement:', err);
                                 }
-                                
-                                // Show initial maintenance status for new legendary
-                                if (itemFind.type === 'unique' && itemFind.item) {
-                                    eventLogs.push(`🔧 ${itemFind.item.name} starts at 100% maintenance`);
-                                }
-                        } else {
-                            console.log(`[UNIQUE FINDING DEBUG] ❌ processUniqueItemFinding returned null - no item found`);
+                            }
+                            
+                            // Show maintenance status for new unique items
+                            if (itemFind.type === 'unique' && itemFind.item) {
+                                eventLogs.push(`🔧 ${itemFind.item.name} starts at 100% maintenance`);
+                            }
                         }
-                    } else {
-                        console.log(`[UNIQUE FINDING DEBUG] ❌ ITEM FINDING MISSED! Roll: ${(findingRoll * 100).toFixed(3)}% >= ${(itemFindingChance * 100).toFixed(3)}%`);
                     }
                     
                     if (uniqueBonuses.areaDamageChance > 0) {
