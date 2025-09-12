@@ -4017,6 +4017,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     
                     await updateMiningActivity(member.id, 1);
                     
+                    // Only real players can find unique items - skip for familiars/clones
+                    if (member.isClone || member.isFamiliar || member.displayName.includes('Shadow Clone') || member.displayName.includes('Elemental') || member.displayName.includes('Golem')) {
+                        // Skip unique item finding for familiars
+                        continue;
+                    }
+                    
                     // Enhanced unique item finding with mine-specific bonuses
                     let itemFindingChance = 0.001; // 0.1% base chance
                     
@@ -4070,16 +4076,16 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                                 if (itemFind.systemAnnouncement && itemFind.systemAnnouncement.enabled) {
                                     // Send the legendary announcement to all channels
                                     if (client) {
-                                        try {
-                                            await sendLegendaryAnnouncement(
-                                                client,
-                                                channel.guild.id,
-                                                itemFind,
-                                                member.displayName
-                                            );
-                                            console.log(`[LEGENDARY] Announcement sent for ${itemFind.item.name} found by ${member.displayName}`);
-                                        } catch (err) {
-                                            console.error('[LEGENDARY] Failed to send announcement:', err);
+                                    try {
+                                        await sendLegendaryAnnouncement(
+                                            client,
+                                            channel.guild.id,
+                                            itemFind,
+                                            member.displayName
+                                        );
+                                        console.log(`[LEGENDARY] Announcement sent for ${itemFind.item.name} found by ${member.displayName}`);
+                                    } catch (err) {
+                                        console.error('[LEGENDARY] Failed to send announcement:', err);
                                         }
                                     } else {
                                         console.log(`[LEGENDARY] Client not available - skipping announcement for ${itemFind.item.name} found by ${member.displayName}`);
@@ -4500,8 +4506,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     mapChanged = true;
                 }
                 
-                // Slightly higher chance for unique/legendary finds from treasure hazards
-                if (Math.random() < 0.005) { // 0.5% chance for treasure hazards
+                // Slightly higher chance for unique/legendary finds from treasure hazards - ONLY for real players
+                if (!member.isClone && !member.isFamiliar && !member.displayName.includes('Shadow Clone') && !member.displayName.includes('Elemental') && !member.displayName.includes('Golem') && Math.random() < 0.005) {
                     const treasureFind = await processUniqueItemFinding(
                         member,
                         'treasure',
