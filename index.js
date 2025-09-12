@@ -468,6 +468,35 @@ for (const file of commandFiles) {
   client.commands.set(command.data.name, command);
 }
 
+// Message listener for marketplace channel restrictions
+client.on(Events.MessageCreate, async (message) => {
+  // Ignore bot messages
+  if (message.author.bot) return;
+  
+  // Check if this is the restricted marketplace channel
+  if (message.channel.id === '1416024145128587437') {
+    try {
+      // Delete the message immediately
+      await message.delete();
+      
+      // Send warning to user (ephemeral-like by DMing them)
+      try {
+        await message.author.send('⚠️ **Marketplace Channel Notice**\n\nText messages are not allowed in the marketplace channel. Please use `/sell` to list items for sale instead.');
+      } catch (dmError) {
+        // If DM fails, send a temporary message in channel that auto-deletes
+        const warningMsg = await message.channel.send(`⚠️ <@${message.author.id}> Text messages are not allowed here. Use \`/sell\` to list items for sale.`);
+        setTimeout(() => {
+          warningMsg.delete().catch(() => {});
+        }, 5000); // Delete after 5 seconds
+      }
+      
+      console.log(`[MARKETPLACE_FILTER] Deleted message from ${message.author.tag} in marketplace channel`);
+    } catch (error) {
+      console.error('[MARKETPLACE_FILTER] Error handling marketplace message:', error);
+    }
+  }
+});
+
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isCommand()) return;
   //if (interaction.guild.id !== targetGuildId) return;

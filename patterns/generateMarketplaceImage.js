@@ -3,8 +3,13 @@ const GIFEncoder = require('gifencoder');
 const path = require('path');
 const fs = require('fs');
 
-// Register the goblin font
-registerFont('./assets/font/goblinfont.ttf', { family: 'GoblinFont' });
+// Register the goblin font with error handling
+try {
+    registerFont('./assets/font/goblinfont.ttf', { family: 'GoblinFont' });
+    console.log('[MARKETPLACE_IMAGE] GoblinFont registered successfully');
+} catch (fontError) {
+    console.error('[MARKETPLACE_IMAGE] Error registering GoblinFont:', fontError);
+}
 
 /**
  * Generate a marketplace shop image with player avatar, animated item, and price
@@ -161,14 +166,22 @@ async function generateMarketplaceImage(itemData, quantity, pricePerItem, seller
             const priceX = bgImage.width - 100;
             const priceY = bgImage.height / 2 + 20; // Lowered by 20 pixels
             
-            // Set up text styling for price
+            // Set up text styling for price using GoblinFont
             ctx.fillStyle = '#FFD700';
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 2;
-            ctx.font = '24px GoblinFont';
+            
+            // Try GoblinFont first, fallback to sans-serif
+            try {
+                ctx.font = '24px GoblinFont';
+            } catch (fontError) {
+                console.warn('[MARKETPLACE_IMAGE] GoblinFont not available, using fallback');
+                ctx.font = '24px sans-serif';
+            }
+            
             ctx.textAlign = 'center';
             
-            // Draw price
+            // Draw price with outline
             ctx.strokeText(priceText, priceX, priceY);
             ctx.fillText(priceText, priceX, priceY);
             

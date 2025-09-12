@@ -14,6 +14,9 @@ const getPlayerStats = require('./calculatePlayerStat');
 // Create item map for O(1) lookups
 const itemMap = new Map(itemSheet.map(item => [item.id, item]));
 
+// Import purchase locks from sellMarketListener (shared between systems)
+// We'll use the same lock system to prevent conflicts between NPCs and players
+
 class NPCSalesSystem {
     constructor(client) {
         this.client = client;
@@ -27,15 +30,16 @@ class NPCSalesSystem {
         this.isRunning = true;
         console.log('[NPC_SALES] Starting NPC sales system...');
         
-        // Check for sales every 2-5 minutes (random interval)
+        // Check for sales every 1-5 seconds (testing interval)
         this.scheduleNextCheck();
     }
 
     scheduleNextCheck() {
         if (!this.isRunning) return;
         
-        // Random interval between 2-5 minutes
-        const interval = (2 + Math.random() * 3) * 60 * 1000;
+        // Random interval between 1-5 seconds (testing)
+        const interval = (1 + Math.random() * 4) * 1000;
+        console.log(`[NPC_SALES] Next check scheduled in ${(interval/1000).toFixed(1)} seconds`);
         
         this.interval = setTimeout(async () => {
             try {
@@ -51,36 +55,54 @@ class NPCSalesSystem {
 
     async checkForPurchases() {
         try {
-            console.log('[NPC_SALES] Checking for potential NPC purchases...');
+            console.log('[NPC_SALES] 🔍 Checking for potential NPC purchases...');
             
             // Get all active shops
             const activeShops = await ActiveShop.find({ isActive: true }).lean();
             
             if (activeShops.length === 0) {
-                console.log('[NPC_SALES] No active shops found');
+                console.log('[NPC_SALES] ❌ No active shops found');
                 return;
             }
 
-            console.log(`[NPC_SALES] Found ${activeShops.length} active shops`);
+            console.log(`[NPC_SALES] 🏪 Found ${activeShops.length} active shops:`);
+            
+            // Debug: List all shops
+            for (const shop of activeShops) {
+                const itemData = itemMap.get(shop.itemId);
+                console.log(`[NPC_SALES] 📦 Shop: ${itemData?.name || 'Unknown'} x${shop.quantity} @ ${shop.pricePerItem}c (Owner: ${shop.shopOwnerId})`);
+            }
 
             // Process each shop with 30% chance
+            let purchaseAttempts = 0;
             for (const shop of activeShops) {
-                if (Math.random() < 0.3) { // 30% chance to attempt purchase
+                const rollResult = Math.random();
+                const willAttempt = rollResult < 0.3;
+                console.log(`[NPC_SALES] 🎲 Shop ${shop._id}: Roll ${(rollResult * 100).toFixed(1)}% - ${willAttempt ? 'ATTEMPTING' : 'SKIPPING'} purchase`);
+                
+                if (willAttempt) {
+                    purchaseAttempts++;
                     await this.attemptNPCPurchase(shop);
                 }
             }
+            
+            console.log(`[NPC_SALES] ✅ Completed check: ${purchaseAttempts}/${activeShops.length} shops attempted`);
         } catch (error) {
-            console.error('[NPC_SALES] Error checking for purchases:', error);
+            console.error('[NPC_SALES] ❌ Error checking for purchases:', error);
         }
     }
 
     async attemptNPCPurchase(shop) {
         try {
+            console.log(`[NPC_SALES] 🛒 Attempting purchase for shop ${shop._id}`);
+            
             const itemData = itemMap.get(shop.itemId);
             if (!itemData) {
-                console.warn(`[NPC_SALES] Item ${shop.itemId} not found in itemSheet`);
+                console.warn(`[NPC_SALES] ❌ Item ${shop.itemId} not found in itemSheet`);
                 return;
             }
+
+            console.log(`[NPC_SALES] 📦 Item: ${itemData.name} (Base value: ${itemData.value}c)`);
 
             // Get market value for this item using proper fluctuation calculation
             let marketValue = itemData.value; // Fallback to base value
@@ -91,68 +113,86 @@ class NPCSalesSystem {
                 if (guildConfig) {
                     // Use standard price change factor (0.1 = 10% fluctuation)
                     marketValue = calculateFluctuatedPrice(itemData.value, guildConfig.updatedAt, shop.itemId, 0.1);
+                    console.log(`[NPC_SALES] 💰 Market value calculated: ${marketValue}c (base: ${itemData.value}c)`);
                 } else {
-                    console.warn(`[NPC_SALES] No guild config found for guild ${shop.guildId}, using base value`);
+                    console.warn(`[NPC_SALES] ⚠️ No guild config found for guild ${shop.guildId}, using base value`);
                 }
             } catch (marketError) {
-                console.warn('[NPC_SALES] Error calculating market value:', marketError);
+                console.warn('[NPC_SALES] ⚠️ Error calculating market value:', marketError);
             }
             
             // Calculate price ratio (shop price vs market value)
             const priceRatio = shop.pricePerItem / marketValue;
+            console.log(`[NPC_SALES] 📊 Price analysis: Shop ${shop.pricePerItem}c vs Market ${marketValue}c = ${(priceRatio * 100).toFixed(1)}% of market value`);
             
             // NPCs won't buy if price is more than 20% above market value
             if (priceRatio > 1.2) {
-                console.log(`[NPC_SALES] Price too high for NPCs: ${shop.pricePerItem}c vs market ${marketValue}c (${(priceRatio * 100).toFixed(1)}%)`);
+                console.log(`[NPC_SALES] ❌ Price too high for NPCs: ${shop.pricePerItem}c vs market ${marketValue}c (${(priceRatio * 100).toFixed(1)}%)`);
                 return;
             }
 
             // Calculate purchase chance based on price ratio
             let purchaseChance;
+            let priceCategory;
+            
             if (priceRatio <= 0.1) { // Nearly free
-                purchaseChance = 0.95; // 95% chance
+                purchaseChance = 0.95;
+                priceCategory = 'Nearly Free';
             } else if (priceRatio <= 0.5) { // 50% of market value
-                purchaseChance = 0.8; // 80% chance
+                purchaseChance = 0.8;
+                priceCategory = 'Great Deal';
             } else if (priceRatio <= 0.8) { // 80% of market value
-                purchaseChance = 0.6; // 60% chance
+                purchaseChance = 0.6;
+                priceCategory = 'Good Deal';
             } else if (priceRatio <= 1.0) { // At market value
-                purchaseChance = 0.4; // 40% chance
+                purchaseChance = 0.4;
+                priceCategory = 'Fair Price';
             } else { // Above market value (up to 120%)
-                purchaseChance = 0.2 - (priceRatio - 1.0) * 0.5; // Decreasing chance
+                purchaseChance = 0.2 - (priceRatio - 1.0) * 0.5;
+                priceCategory = 'Overpriced';
             }
 
+            console.log(`[NPC_SALES] 💡 Price category: ${priceCategory} (Base chance: ${(purchaseChance * 100).toFixed(1)}%)`);
+
             // Get seller's luck stat to boost chance
+            let luckBonus = 0;
             try {
                 const sellerStats = await getPlayerStats(shop.shopOwnerId);
-                const luckBonus = (sellerStats?.stats?.luck || 0) * 0.01; // 1% per luck point
+                luckBonus = (sellerStats?.stats?.luck || 0) * 0.01; // 1% per luck point
                 purchaseChance += luckBonus;
                 
                 if (luckBonus > 0) {
-                    console.log(`[NPC_SALES] Seller luck bonus: +${(luckBonus * 100).toFixed(1)}% (${sellerStats.stats.luck} luck)`);
+                    console.log(`[NPC_SALES] 🍀 Seller luck bonus: +${(luckBonus * 100).toFixed(1)}% (${sellerStats.stats.luck} luck points)`);
                 }
             } catch (statsError) {
-                console.warn('[NPC_SALES] Could not get seller stats:', statsError);
+                console.warn('[NPC_SALES] ⚠️ Could not get seller stats:', statsError);
             }
 
             // Cap at 95% chance
             purchaseChance = Math.min(0.95, purchaseChance);
 
-            console.log(`[NPC_SALES] Purchase chance for ${itemData.name}: ${(purchaseChance * 100).toFixed(1)}% (price ratio: ${(priceRatio * 100).toFixed(1)}%)`);
+            console.log(`[NPC_SALES] 🎯 Final purchase chance: ${(purchaseChance * 100).toFixed(1)}% (${priceCategory} + ${(luckBonus * 100).toFixed(1)}% luck)`);
 
             // Roll for purchase
-            if (Math.random() > purchaseChance) {
-                console.log(`[NPC_SALES] NPC decided not to buy ${itemData.name}`);
+            const purchaseRoll = Math.random();
+            const willPurchase = purchaseRoll < purchaseChance;
+            console.log(`[NPC_SALES] 🎲 Purchase roll: ${(purchaseRoll * 100).toFixed(1)}% - ${willPurchase ? '✅ BUYING' : '❌ PASSING'}`);
+            
+            if (!willPurchase) {
                 return;
             }
 
             // Select random NPC
             const npc = this.selectRandomNPC(itemData);
             if (!npc) {
-                console.log('[NPC_SALES] No suitable NPC found');
+                console.log('[NPC_SALES] ❌ No suitable NPC found');
                 return;
             }
 
+            console.log(`[NPC_SALES] 🤖 Selected NPC: ${npc.name} (preferences: ${npc.preferences?.join(', ') || 'none'})`);
+
             // Execute the purchase
+            console.log(`[NPC_SALES] 💳 Executing purchase...`);
             await this.executePurchase(shop, itemData, npc);
 
         } catch (error) {
@@ -161,6 +201,8 @@ class NPCSalesSystem {
     }
 
     selectRandomNPC(itemData) {
+        console.log(`[NPC_SALES] 🔍 Looking for NPCs interested in ${itemData.type} items...`);
+        
         // Filter NPCs that might be interested in this item type
         const interestedNPCs = npcsData.filter(npc => {
             // Check if NPC has preferences that match this item
@@ -176,82 +218,105 @@ class NPCSalesSystem {
             return false;
         });
 
+        console.log(`[NPC_SALES] 👥 Found ${interestedNPCs.length} interested NPCs out of ${npcsData.length} total`);
+
         if (interestedNPCs.length === 0) {
+            console.log(`[NPC_SALES] 🎲 No specific preferences match, selecting random NPC`);
             return npcsData[Math.floor(Math.random() * npcsData.length)]; // Fallback to any NPC
         }
 
-        return interestedNPCs[Math.floor(Math.random() * interestedNPCs.length)];
+        const selectedNPC = interestedNPCs[Math.floor(Math.random() * interestedNPCs.length)];
+        console.log(`[NPC_SALES] ✅ Selected ${selectedNPC.name} from ${interestedNPCs.length} interested NPCs`);
+        return selectedNPC;
     }
 
     async executePurchase(shop, itemData, npc) {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-
         try {
-            // Get the shop document for updating
-            const shopDoc = await ActiveShop.findById(shop._id).session(session);
-            if (!shopDoc || !shopDoc.isActive || shopDoc.quantity <= 0) {
-                await session.abortTransaction();
-                session.endSession();
+            console.log(`[NPC_SALES] 🔒 Attempting atomic purchase for message ${shop.messageId}`);
+            
+            // Attempt atomic purchase
+            const purchaseResult = await ActiveShop.atomicPurchase(shop.messageId, 'npc', npc.id);
+            
+            if (!purchaseResult.success) {
+                console.log(`[NPC_SALES] ❌ Atomic purchase failed: ${purchaseResult.reason}`);
+                if (purchaseResult.reason === 'unavailable') {
+                    console.log(`[NPC_SALES] 🏃 Item was purchased by someone else (race condition avoided)`);
+                }
                 return;
             }
 
-            // Transfer money to seller
-            let sellerProfile = await Currency.findOne({ userId: shop.shopOwnerId }).session(session);
-            if (!sellerProfile) {
-                sellerProfile = new Currency({ userId: shop.shopOwnerId, money: 0 });
-            }
-            sellerProfile.money += shop.pricePerItem;
-            await sellerProfile.save({ session });
-
-            // Reduce shop quantity
-            shopDoc.quantity -= 1;
+            const updatedShop = purchaseResult.shop;
+            const soldOut = purchaseResult.soldOut;
             
-            if (shopDoc.quantity === 0) {
-                shopDoc.isActive = false;
+            console.log(`[NPC_SALES] ✅ Atomic purchase successful - ${updatedShop.quantity} items remaining`);
+
+            const session = await mongoose.startSession();
+            session.startTransaction();
+
+            try {
+                // Transfer money to seller
+                let sellerProfile = await Currency.findOne({ userId: shop.shopOwnerId }).session(session);
+                if (!sellerProfile) {
+                    sellerProfile = new Currency({ userId: shop.shopOwnerId, money: 0 });
+                }
+                sellerProfile.money += shop.pricePerItem;
+                await sellerProfile.save({ session });
+
+                await session.commitTransaction();
+                session.endSession();
+
+                // Update the shop message
+                await this.updateShopMessage(shop, updatedShop, itemData, npc, soldOut);
+
+                console.log(`[NPC_SALES] 🎉 ${npc.name} successfully bought ${itemData.name} for ${shop.pricePerItem}c`);
+
+            } catch (error) {
+                await session.abortTransaction();
+                session.endSession();
+                console.error('[NPC_SALES] ❌ Error processing payment:', error);
             }
-            
-            await shopDoc.save({ session });
-
-            await session.commitTransaction();
-            session.endSession();
-
-            // Update the shop message
-            await this.updateShopMessage(shop, shopDoc, itemData, npc);
-
-            console.log(`[NPC_SALES] ${npc.name} bought ${itemData.name} for ${shop.pricePerItem}c`);
 
         } catch (error) {
-            await session.abortTransaction();
-            session.endSession();
-            console.error('[NPC_SALES] Error executing purchase:', error);
+            console.error('[NPC_SALES] ❌ Error executing purchase:', error);
         }
     }
 
-    async updateShopMessage(shop, shopDoc, itemData, npc) {
+    async updateShopMessage(shop, shopDoc, itemData, npc, soldOut = false) {
         try {
             // Get the guild and channel
             const guild = await this.client.guilds.fetch(shop.guildId);
             const channel = await guild.channels.fetch(shop.channelId);
             const message = await channel.messages.fetch(shop.messageId);
 
-            // Check if we're in a thread or voice channel's text chat
+            // Check channel type and thread capability
             const isThread = channel.isThread();
             const isVoiceChannelText = channel.parent && channel.parent.type === 2;
+            const canCreateThreads = channel.type === 0 || channel.type === 5; // Text or announcement channel
             
             let logChannel = channel;
             
-            if (!isThread && !isVoiceChannelText) {
-                // Try to find existing thread or create one
+            console.log(`[NPC_SALES] 📍 Channel info: isThread=${isThread}, isVoiceText=${isVoiceChannelText}, canCreateThreads=${canCreateThreads}, type=${channel.type}`);
+            
+            if (!isThread && !isVoiceChannelText && canCreateThreads) {
+                // Try to find existing thread or create one (only in text channels)
                 const existingThread = message.thread;
                 if (existingThread) {
                     logChannel = existingThread;
+                    console.log(`[NPC_SALES] 🧵 Using existing thread: ${existingThread.name}`);
                 } else {
-                    logChannel = await message.startThread({
-                        name: `Sale: ${itemData.name}`,
-                        autoArchiveDuration: 60
-                    });
+                    try {
+                        logChannel = await message.startThread({
+                            name: `Sale: ${itemData.name}`,
+                            autoArchiveDuration: 60
+                        });
+                        console.log(`[NPC_SALES] 🧵 Created new thread: ${logChannel.name}`);
+                    } catch (threadError) {
+                        console.warn(`[NPC_SALES] ⚠️ Could not create thread, using main channel:`, threadError.message);
+                        logChannel = channel;
+                    }
                 }
+            } else {
+                console.log(`[NPC_SALES] 💬 Using current channel for NPC purchase message`);
             }
 
             // Send purchase message
@@ -259,7 +324,7 @@ class NPCSalesSystem {
                 content: `🤖 **NPC Purchase!**\n\n**Buyer:** ${npc.name}\n**Item:** ${itemData.name}\n**Price:** ${shop.pricePerItem} coins\n**Seller:** <@${shop.shopOwnerId}>\n\n*"${npc.dialogue[Math.floor(Math.random() * npc.dialogue.length)]}"*`
             });
 
-            if (shopDoc.quantity === 0) {
+            if (soldOut) {
                 // Shop sold out - close it
                 const closedEmbed = new EmbedBuilder()
                     .setTitle('🚫 Shop Closed')

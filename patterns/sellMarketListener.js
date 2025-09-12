@@ -12,6 +12,9 @@ const fs = require('fs');
 // Create item map for O(1) lookups
 const itemMap = new Map(itemSheet.map(item => [item.id, item]));
 
+// Purchase locks to prevent concurrent purchases of the same shop
+const purchaseLocks = new Map(); // messageId -> { locked: boolean, timestamp: number }
+
 class SellMarketListener {
     constructor(client, guildId) {
         this.client = client;
@@ -247,6 +250,18 @@ class SellMarketListener {
 
         const [, , itemId, sellerId] = interaction.customId.split('_');
         const buyerId = interaction.user.id;
+        const messageId = interaction.message.id;
+
+        // Check for concurrent purchase lock
+        if (this.isPurchaseLocked(messageId)) {
+            return interaction.editReply({
+                content: '⏳ Another purchase is in progress for this item. Please try again in a moment.',
+                ephemeral: true
+            });
+        }
+
+        // Acquire purchase lock
+        this.acquirePurchaseLock(messageId);
 
         // Check if buyer is trying to buy from themselves
         if (buyerId === sellerId) {
@@ -256,7 +271,7 @@ class SellMarketListener {
             });
         }
 
-        // Find the active shop
+        // Find the active shop for validation
         const shop = await ActiveShop.findOne({
             messageId: interaction.message.id,
             guildId: interaction.guild.id,
@@ -264,6 +279,7 @@ class SellMarketListener {
         });
 
         if (!shop || shop.quantity <= 0) {
+            this.releasePurchaseLock(messageId);
             return interaction.editReply({
                 content: '❌ This shop is no longer active or out of stock.',
                 ephemeral: true
@@ -281,25 +297,48 @@ class SellMarketListener {
         // Check buyer's affordability
         const buyerProfile = await Currency.findOne({ userId: buyerId });
         if (!buyerProfile || buyerProfile.money < shop.pricePerItem) {
+            this.releasePurchaseLock(messageId);
             return interaction.editReply({
                 content: `❌ You need ${shop.pricePerItem} coins but only have ${buyerProfile?.money || 0} coins.`,
                 ephemeral: true
             });
         }
 
+        // Attempt atomic purchase
+        const purchaseResult = await ActiveShop.atomicPurchase(messageId, 'player', buyerId);
+        
+        if (!purchaseResult.success) {
+            this.releasePurchaseLock(messageId);
+            
+            if (purchaseResult.reason === 'unavailable') {
+                return interaction.editReply({
+                    content: '❌ This item was just purchased by someone else!',
+                    ephemeral: true
+                });
+            } else {
+                return interaction.editReply({
+                    content: '❌ Failed to process purchase. Please try again.',
+                    ephemeral: true
+                });
+            }
+        }
+
+        const updatedShop = purchaseResult.shop;
+        const soldOut = purchaseResult.soldOut;
+
         const session = await mongoose.startSession();
         session.startTransaction();
 
         try {
             // Transfer money
-            buyerProfile.money -= shop.pricePerItem;
+            buyerProfile.money -= updatedShop.pricePerItem;
             await buyerProfile.save({ session });
 
             let sellerProfile = await Currency.findOne({ userId: sellerId }).session(session);
             if (!sellerProfile) {
                 sellerProfile = new Currency({ userId: sellerId, money: 0 });
             }
-            sellerProfile.money += shop.pricePerItem;
+            sellerProfile.money += updatedShop.pricePerItem;
             await sellerProfile.save({ session });
 
             // Give item to buyer
@@ -319,16 +358,6 @@ class SellMarketListener {
                 });
             }
             await buyerInv.save({ session });
-
-            // Reduce shop quantity
-            shop.quantity -= 1;
-            
-            // CRITICAL FIX: Mark shop as inactive if sold out
-            if (shop.quantity === 0) {
-                shop.isActive = false;
-            }
-            
-            await shop.save({ session });
 
             await session.commitTransaction();
             session.endSession();
@@ -353,23 +382,23 @@ class SellMarketListener {
             });
 
             // Check if shop is now empty
-            if (shop.quantity === 0) {
-                await this.closeShop(interaction.message, shop);
+            if (soldOut) {
+                await this.closeShop(interaction.message, updatedShop);
                 await interaction.editReply({
-                    content: `✅ You successfully bought **${itemData.name}** for **${shop.pricePerItem} coins**!\n🏪 The shop has sold out and closed.`,
+                    content: `✅ You successfully bought **${itemData.name}** for **${updatedShop.pricePerItem} coins**!\n🏪 The shop has sold out and closed.`,
                     ephemeral: true
                 });
             } else {
                 // Update embed and regenerate image with new quantity
                 const seller = await interaction.guild.members.fetch(sellerId);
-                const updatedEmbed = await this.createShopEmbed(itemData, shop.quantity, shop.pricePerItem, seller.user, seller);
+                const updatedEmbed = await this.createShopEmbed(itemData, updatedShop.quantity, updatedShop.pricePerItem, seller.user, seller);
                 const shopButtons = this.createShopButtons(itemId, sellerId);
                 
                 // Regenerate image with updated quantity
                 const updatedMarketplaceImageBuffer = await generateMarketplaceImage(
                     itemData, 
-                    shop.quantity, 
-                    shop.pricePerItem, 
+                    updatedShop.quantity, 
+                    updatedShop.pricePerItem, 
                     seller.user,
                     seller
                 );
@@ -385,7 +414,7 @@ class SellMarketListener {
                 });
 
                 await interaction.editReply({
-                    content: `✅ You successfully bought **${itemData.name}** for **${shop.pricePerItem} coins**!`,
+                    content: `✅ You successfully bought **${itemData.name}** for **${updatedShop.pricePerItem} coins**!`,
                     ephemeral: true
                 });
             }
@@ -398,6 +427,9 @@ class SellMarketListener {
                 content: '❌ Failed to process purchase.',
                 ephemeral: true
             });
+        } finally {
+            // Always release the purchase lock
+            this.releasePurchaseLock(messageId);
         }
     }
 
@@ -607,6 +639,33 @@ class SellMarketListener {
         }
         
         return [];
+    }
+
+    // Purchase lock management methods
+    isPurchaseLocked(messageId) {
+        const lock = purchaseLocks.get(messageId);
+        if (!lock) return false;
+        
+        // Check if lock is expired (30 seconds timeout)
+        if (Date.now() - lock.timestamp > 30000) {
+            purchaseLocks.delete(messageId);
+            return false;
+        }
+        
+        return lock.locked;
+    }
+
+    acquirePurchaseLock(messageId) {
+        purchaseLocks.set(messageId, {
+            locked: true,
+            timestamp: Date.now()
+        });
+        console.log(`[MARKETPLACE_LOCK] 🔒 Acquired purchase lock for message ${messageId}`);
+    }
+
+    releasePurchaseLock(messageId) {
+        purchaseLocks.delete(messageId);
+        console.log(`[MARKETPLACE_LOCK] 🔓 Released purchase lock for message ${messageId}`);
     }
 
     formatTypeName(type) {

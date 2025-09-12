@@ -42,6 +42,10 @@ const activeShopSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    version: {
+        type: Number,
+        default: 0
     }
 });
 
@@ -49,6 +53,58 @@ const activeShopSchema = new mongoose.Schema({
 activeShopSchema.index({ guildId: 1, shopOwnerId: 1, itemId: 1 });
 activeShopSchema.index({ messageId: 1, guildId: 1 });
 activeShopSchema.index({ isActive: 1, createdAt: 1 }); // For cleanup queries
+
+// Atomic purchase method to prevent race conditions
+activeShopSchema.statics.atomicPurchase = async function(messageId, buyerType = 'player', buyerId = null) {
+    try {
+        // Use findOneAndUpdate with version check for optimistic locking
+        const result = await this.findOneAndUpdate(
+            { 
+                messageId: messageId,
+                isActive: true,
+                quantity: { $gt: 0 } // Ensure there's still stock
+            },
+            { 
+                $inc: { 
+                    quantity: -1,
+                    version: 1 
+                },
+                $set: {
+                    lastPurchaseBy: buyerId,
+                    lastPurchaseType: buyerType,
+                    lastPurchaseAt: new Date()
+                }
+            },
+            { 
+                new: true, // Return updated document
+                runValidators: true
+            }
+        );
+
+        if (!result) {
+            console.log(`[ATOMIC_PURCHASE] ❌ Purchase failed - shop not available or out of stock`);
+            return { success: false, reason: 'unavailable' };
+        }
+
+        // Check if shop should be closed
+        if (result.quantity === 0) {
+            result.isActive = false;
+            await result.save();
+        }
+
+        console.log(`[ATOMIC_PURCHASE] ✅ Purchase successful - ${buyerType} ${buyerId || 'unknown'} bought item, ${result.quantity} remaining`);
+        
+        return { 
+            success: true, 
+            shop: result,
+            soldOut: result.quantity === 0
+        };
+
+    } catch (error) {
+        console.error('[ATOMIC_PURCHASE] Error during atomic purchase:', error);
+        return { success: false, reason: 'error', error: error.message };
+    }
+};
 
 // Static method for cleaning up old inactive shops
 activeShopSchema.statics.cleanupInactiveShops = async function(olderThanDays = 1) {
