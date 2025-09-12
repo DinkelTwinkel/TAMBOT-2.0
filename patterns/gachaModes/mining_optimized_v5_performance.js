@@ -4016,17 +4016,31 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     
                     await updateMiningActivity(member.id, 1);
                     
-                    // RARE unique item finding - only 0.1% chance instead of every time
-                    const uniqueFindChance = 0.001; // 0.1% base chance
-                    const luckBonus = Math.min(0.002, luckStat * 0.0001); // Max +0.2% from luck
+                    // Enhanced unique item finding with mine-specific bonuses
+                    let baseFindChance = 0.001; // 0.1% base chance
                     
-                    if (Math.random() < (uniqueFindChance + luckBonus)) {
+                    // Check if this mine has amplified drop rates for any unique items
+                    const { UNIQUE_ITEMS } = require('../../data/uniqueItemsSheet');
+                    const hasAmplifiedDrops = UNIQUE_ITEMS.some(item => 
+                        item.mineSpecificDropRates && item.mineSpecificDropRates[String(mineTypeId)]
+                    );
+                    
+                    // MASSIVE boost for mines with amplified unique drops
+                    if (hasAmplifiedDrops) {
+                        baseFindChance = 0.05; // 5% base chance in amplified mines (50x boost!)
+                        console.log(`[UNIQUE FINDING] Mine ${mineTypeId} has amplified unique drops - boosting base chance to 5%`);
+                    }
+                    
+                    const luckBonus = Math.min(0.01, luckStat * 0.0001); // Cap at +1% from luck
+                    
+                    if (Math.random() < (baseFindChance + luckBonus)) {
                         const itemFind = await processUniqueItemFinding(
                             member,
                             'mining',
                             powerLevel,
                             luckStat,
-                            null
+                            null,
+                            mineTypeId
                         );
                         
                         if (itemFind) {
@@ -4464,7 +4478,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         'treasure',
                         powerLevel,
                         luckStat,
-                        null
+                        null,
+                        mineTypeId
                     );
                     
                     if (treasureFind) {
