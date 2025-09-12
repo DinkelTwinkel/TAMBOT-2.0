@@ -23,11 +23,19 @@ const rest = new REST({ version: '10' }).setToken(token);
     const guildIds = guildConfigs.map(config => config.guildId);
 
     for (const guildId of guildIds) {
-      await rest.put(
-        Routes.applicationGuildCommands(clientId, guildId),
-        { body: commands }
-      );
-      console.log(`Successfully reloaded commands for guild ${guildId}`);
+      try {
+        await rest.put(
+          Routes.applicationGuildCommands(clientId, guildId),
+          { body: commands }
+        );
+        console.log(`Successfully reloaded commands for guild ${guildId}`);
+      } catch (guildError) {
+        if (guildError.code === 50001) {
+          console.warn(`⚠️ Skipping guild ${guildId} - Missing Access (bot not properly invited or lacks permissions)`);
+        } else {
+          console.error(`❌ Failed to register commands for guild ${guildId}:`, guildError.message);
+        }
+      }
     }
 
     console.log(`Finished registering commands for ${guildIds.length} guild(s).`);

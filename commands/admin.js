@@ -445,45 +445,64 @@ module.exports = {
 
     // ========== RESET GACHA COOLDOWN COMMAND ==========
     async executeResetGachaCooldown(interaction) {
-        const targetUser = interaction.options.getUser('user');
-        
-        // Fetch user's cooldown data
-        const userCooldown = await Cooldown.findOne({ userId: targetUser.id });
-        
-        if (!userCooldown || !userCooldown.gachaRollData || !userCooldown.gachaRollData.expiresAt) {
-            return interaction.reply({
-                content: `❌ **${targetUser.tag}** doesn't have an active gacha roll cooldown.`,
-                ephemeral: true
-            });
+        try {
+            // Acknowledge the interaction immediately to prevent timeout
+            await interaction.deferReply({ ephemeral: true });
+            
+            const targetUser = interaction.options.getUser('user');
+            
+            // Fetch user's cooldown data
+            const userCooldown = await Cooldown.findOne({ userId: targetUser.id });
+            
+            if (!userCooldown || !userCooldown.gachaRollData || !userCooldown.gachaRollData.expiresAt) {
+                return interaction.editReply({
+                    content: `❌ **${targetUser.tag}** doesn't have an active gacha roll cooldown.`
+                });
+            }
+            
+            // Get info about the cooldown before removing it
+            const cooldownExpiry = new Date(userCooldown.gachaRollData.expiresAt);
+            const now = new Date();
+            const remainingMs = cooldownExpiry - now;
+            const remainingMinutes = Math.ceil(remainingMs / 60000);
+            
+            // Remove the cooldown
+            userCooldown.gachaRollData = undefined;
+            await userCooldown.save();
+            
+            // Create success embed
+            const embed = new EmbedBuilder()
+                .setTitle('⏰ Gacha Cooldown Reset')
+                .setDescription(`Successfully reset gacha roll cooldown for **${targetUser.tag}**`)
+                .setColor(0x00ff00)
+                .addFields(
+                    { name: 'Admin', value: `<@${interaction.user.id}>`, inline: true },
+                    { name: 'Target User', value: `<@${targetUser.id}>`, inline: true },
+                    { name: 'Time Remaining', value: `${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}`, inline: true }
+                )
+                .setTimestamp()
+                .setFooter({ text: 'Admin Command' });
+
+            // Log admin action
+            console.log(`[ADMIN RESET GACHA] ${interaction.user.tag} (${interaction.user.id}) reset gacha cooldown for ${targetUser.tag} (${targetUser.id}) - Had ${remainingMinutes} minutes remaining`);
+
+            return interaction.editReply({ embeds: [embed] });
+            
+        } catch (error) {
+            console.error('[ADMIN RESET GACHA] Error:', error);
+            
+            // Try to respond with error message
+            try {
+                const errorMessage = `❌ Error resetting cooldown: ${error.message}`;
+                if (interaction.deferred) {
+                    return interaction.editReply({ content: errorMessage });
+                } else {
+                    return interaction.reply({ content: errorMessage, ephemeral: true });
+                }
+            } catch (replyError) {
+                console.error('[ADMIN RESET GACHA] Failed to send error response:', replyError);
+            }
         }
-        
-        // Get info about the cooldown before removing it
-        const cooldownExpiry = new Date(userCooldown.gachaRollData.expiresAt);
-        const now = new Date();
-        const remainingMs = cooldownExpiry - now;
-        const remainingMinutes = Math.ceil(remainingMs / 60000);
-        
-        // Remove the cooldown
-        userCooldown.gachaRollData = undefined;
-        await userCooldown.save();
-        
-        // Create success embed
-        const embed = new EmbedBuilder()
-            .setTitle('⏰ Gacha Cooldown Reset')
-            .setDescription(`Successfully reset gacha roll cooldown for **${targetUser.tag}**`)
-            .setColor(0x00ff00)
-            .addFields(
-                { name: 'Admin', value: `<@${interaction.user.id}>`, inline: true },
-                { name: 'Target User', value: `<@${targetUser.id}>`, inline: true },
-                { name: 'Time Remaining', value: `${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''}`, inline: true }
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Admin Command' });
-
-        // Log admin action
-        console.log(`[ADMIN RESET GACHA] ${interaction.user.tag} (${interaction.user.id}) reset gacha cooldown for ${targetUser.tag} (${targetUser.id}) - Had ${remainingMinutes} minutes remaining`);
-
-        return interaction.reply({ embeds: [embed] });
     },
 
     // ========== UNIQUE ITEM COMMANDS ==========
