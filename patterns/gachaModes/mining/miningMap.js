@@ -66,21 +66,11 @@ function getTileHardness(tileType, powerLevel = 1) {
         default: return 0;
     }
     
-    // Different scaling for reinforced walls - much harder at higher power levels
-    let hardnessMultiplier;
-    if (tileType === TILE_TYPES.REINFORCED_WALL) {
-        // Aggressive scaling for reinforced walls: exponential growth at higher levels
-        if (powerLevel <= 3) {
-            hardnessMultiplier = 1 + ((powerLevel - 1) * 0.2); // 20% per level for low levels
-        } else if (powerLevel <= 6) {
-            hardnessMultiplier = 1.4 + ((powerLevel - 3) * 0.4); // 40% per level for mid levels
-        } else {
-            hardnessMultiplier = 2.6 + ((powerLevel - 6) * 0.8); // 80% per level for high levels!
-        }
-    } else {
-        // Normal scaling for other tiles (25% increase per level)
-        hardnessMultiplier = 1 + ((powerLevel - 1) * 0.25);
-    }
+    // New scaling system: all tiles get progressively harder at higher power levels
+    // Power level 9 reinforced wall = 50 hardness (5 base * 10 multiplier)
+    // Linear scaling: multiplier = 1 + (powerLevel - 1) * 1.125
+    // This gives: Power 1 = 1x, Power 9 = 10x multiplier
+    const hardnessMultiplier = 1 + ((powerLevel - 1) * 1.125);
     
     return Math.max(1, Math.ceil(baseHardness * hardnessMultiplier));
 }

@@ -808,8 +808,11 @@ function getTileHardness(tileType, powerLevel = 1) {
     // Don't scale floor or hazard tiles
     if (baseHardness === 0) return 0;
     
-    // Scale hardness with power level (25% increase per level)
-    const hardnessMultiplier = 1 + ((powerLevel - 1) * 0.25);
+    // New scaling system: all tiles get progressively harder at higher power levels
+    // Power level 9 reinforced wall = 50 hardness (5 base * 10 multiplier)
+    // Linear scaling: multiplier = 1 + (powerLevel - 1) * 1.125
+    // This gives: Power 1 = 1x, Power 9 = 10x multiplier
+    const hardnessMultiplier = 1 + ((powerLevel - 1) * 1.125);
     return Math.max(1, Math.ceil(baseHardness * hardnessMultiplier));
 }
 
