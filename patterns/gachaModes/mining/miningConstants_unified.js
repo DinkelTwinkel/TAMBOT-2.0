@@ -1674,12 +1674,46 @@ function calculateItemFindChance(powerLevel, luckStat, activityType = 'mining') 
     return baseChance * activityMult * powerMult * luckBonus;
 }
 
-// Function to get available regular items for power level
+// Function to get available regular items for power level - NOW USES UNIFIED SYSTEM
 function getAvailableRegularItems(powerLevel) {
-    const { ITEM_FINDING_CONFIG } = require('./fixes/miningConstants');
-    return ITEM_FINDING_CONFIG.regularItemPool.filter(
-        item => item.minPower <= powerLevel && item.maxPower >= powerLevel
-    );
+    // Use the unified item pool instead of legacy system
+    const eligibleItems = [];
+    
+    // Add equipment items from unified pool
+    if (UNIFIED_ITEM_POOL.equipment) {
+        for (const item of UNIFIED_ITEM_POOL.equipment) {
+            if (item.minPowerLevel <= powerLevel && item.maxPowerLevel >= powerLevel) {
+                eligibleItems.push({
+                    itemId: item.itemId,
+                    name: item.name,
+                    weight: item.baseWeight,
+                    minPower: item.minPowerLevel,
+                    maxPower: item.maxPowerLevel,
+                    value: item.value,
+                    tier: item.tier
+                });
+            }
+        }
+    }
+    
+    // Add consumable items from unified pool
+    if (UNIFIED_ITEM_POOL.consumables) {
+        for (const item of UNIFIED_ITEM_POOL.consumables) {
+            if (item.minPowerLevel <= powerLevel && item.maxPowerLevel >= powerLevel) {
+                eligibleItems.push({
+                    itemId: item.itemId,
+                    name: item.name,
+                    weight: item.baseWeight,
+                    minPower: item.minPowerLevel,
+                    maxPower: item.maxPowerLevel,
+                    value: item.value,
+                    tier: item.tier
+                });
+            }
+        }
+    }
+    
+    return eligibleItems;
 }
 
 // Legacy functions for backward compatibility
