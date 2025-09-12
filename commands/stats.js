@@ -217,13 +217,15 @@ module.exports = {
         
         // Add legendary items at the top with special formatting
         if (legendaryItems.length > 0) {
-          let legendarySection = '# ';
+          let legendarySection = '';
           
-          for (const legendary of legendaryItems) {
-            // Bold name without bullet point
-            legendarySection += `**${legendary.name} [LEGENDARY]**\n` + '```';
+          for (let i = 0; i < legendaryItems.length; i++) {
+            const legendary = legendaryItems[i];
             
-            // List all stats on the same line
+            // Each legendary item gets its own header and section
+            legendarySection += `# **${legendary.name} [LEGENDARY]**\n`;
+            
+            // List all stats in code block
             const statsLine = legendary.abilities
               .map(ability => {
                 const sign = ability.power >= 0 ? '+' : '';
@@ -238,17 +240,19 @@ module.exports = {
             // Add special effects count
             if (legendary.specialEffects && legendary.specialEffects.length > 0) {
               const effectCount = legendary.specialEffects.length;
-              legendarySection += `✨ ${effectCount} special effect${effectCount > 1 ? 's' : ''} (use /unique status for details)\n` + '```';
+              legendarySection += `✨ ${effectCount} special effect${effectCount > 1 ? 's' : ''} (use /unique status for details)\n`;
             }
             
             // Add maintenance level if applicable
             if (legendary.maintenanceLevel !== undefined) {
               const maintBar = getMaintenanceBar(legendary.maintenanceLevel);
-              legendarySection += `🔧 MAINTAIN: `;
-              legendarySection += `${maintBar} ${legendary.maintenanceLevel}/10`;
+              legendarySection += `🔧 MAINTAIN: ${maintBar} ${legendary.maintenanceLevel}/10`;
             }
             
-            
+            // Add spacing between multiple legendary items
+            if (i < legendaryItems.length - 1) {
+              legendarySection += '\n\n';
+            }
           }
           
           descriptionParts.push(legendarySection);

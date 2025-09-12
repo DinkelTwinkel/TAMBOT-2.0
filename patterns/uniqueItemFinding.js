@@ -105,8 +105,8 @@ async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activi
         
         let findChance;
         if (boostedItems.length > 0) {
-            findChance = 1.0; // 100% for boosted mines
-            console.log(`[ROLL DEBUG] BOOSTED MINE - using 100% find chance instead of calculated chance`);
+            findChance = 0.01; // 1% for boosted mines
+            console.log(`[ROLL DEBUG] BOOSTED MINE - using 1% find chance instead of calculated chance`);
         } else {
             findChance = calculateItemFindChance(powerLevel, luckStat, activityType);
             console.log(`[ROLL DEBUG] calculateItemFindChance returned: ${(findChance * 100).toFixed(3)}% for power ${powerLevel}, luck ${luckStat}, activity ${activityType}`);

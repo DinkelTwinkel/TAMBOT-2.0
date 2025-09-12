@@ -302,18 +302,18 @@ async function handleStatus(interaction, userId) {
 async function handleGlobal(interaction) {
     await interaction.deferReply();
     
-    const stats = await getGlobalUniqueItemStats();
+    // Get all unique items from the sheet (complete list)
+    const { UNIQUE_ITEMS } = require('../data/uniqueItemsSheet');
     
-    if (!stats) {
-        return interaction.editReply('Failed to retrieve global statistics.');
-    }
-    
-    const embed = new EmbedBuilder()
-        .setTitle('⚖ Known Unique Items')
-        .setColor(0x9B59B6);
+    // Get database items for ownership status
+    const allDbItems = await UniqueItem.find({});
+    const dbItemsMap = new Map();
+    allDbItems.forEach(item => {
+        dbItemsMap.set(item.itemId, item);
+    });
     
     // Check for Midas' Burden specifically
-    const midasBurden = await UniqueItem.findOne({ itemId: 10 });
+    const midasBurden = dbItemsMap.get(10);
     let richestInfo = null;
     if (interaction.guild) {
         const guildMembers = await interaction.guild.members.fetch();
@@ -324,45 +324,50 @@ async function handleGlobal(interaction) {
         }
     }
     
-    // List all items with their current status
-    if (stats.items.length > 0) {
-        const itemsText = stats.items
-            .slice(0, 15)
-            .map(item => {
-                let text = '';
-                if (item.name === "Midas' Burden") {
-                    // Special display for Midas' Burden
-                    text = `👑 **[ID: ${item.id}] ${item.name}**: `;
-                    if (item.owner && item.owner !== 'Unowned') {
-                        text += `${item.owner} (Maint: ${item.maintenanceLevel}/10)`;
-                        if (richestInfo && midasBurden && midasBurden.ownerId !== richestInfo.userId) {
-                            text += ' ⚠️';
-                        }
-                    } else if (richestInfo) {
-                        text += `*Awaiting the wealthiest soul*`;
-                        //text += `*Awaiting the wealthiest (${richestInfo.money.toLocaleString()} coins needed)*`;
-                    } else {
-                        text += `*Awaiting the wealthiest soul*`;
-                    }
-                } else if (item.owner && item.owner !== 'Unowned') {
-                    text = `**[ID: ${item.id}] ${item.name}**: ${item.owner} (Maint: ${item.maintenanceLevel}/10)`;
-                } else {
-                    text = `**[ID: ${item.id}] ${item.name}**: Undiscovered`;
+    // Create complete item list with ownership status
+    const allItems = UNIQUE_ITEMS.map(item => {
+        const dbItem = dbItemsMap.get(item.id);
+        let text = '';
+        
+        if (item.name === "🥇 Midas' Burden") {
+            // Special display for Midas' Burden
+            text = `👑 **[ID: ${item.id}] ${item.name}**: `;
+            if (dbItem?.ownerId) {
+                text += `${dbItem.ownerTag} (Maint: ${dbItem.maintenanceLevel}/10)`;
+                if (richestInfo && midasBurden && midasBurden.ownerId !== richestInfo.userId) {
+                    text += ' ⚠️';
                 }
-                return text;
-            })
-            .join('\n');
+            } else if (richestInfo) {
+                text += `*Awaiting the wealthiest soul*`;
+            } else {
+                text += `*Awaiting the wealthiest soul*`;
+            }
+        } else if (dbItem?.ownerId) {
+            text = `**[ID: ${item.id}] ${item.name}**: ${dbItem.ownerTag} (Maint: ${dbItem.maintenanceLevel}/10)`;
+        } else {
+            text = `**[ID: ${item.id}] ${item.name}**: Undiscovered`;
+        }
+        
+        return text;
+    });
+    
+    // Pagination logic - 50 items per page
+    const itemsPerPage = 50;
+    const totalPages = Math.ceil(allItems.length / itemsPerPage);
+    
+    if (totalPages <= 1) {
+        // Single page - use description
+        const embed = new EmbedBuilder()
+            .setTitle('⚖ All Unique Legendary Items')
+            .setDescription(allItems.join('\n'))
+            .setColor(0x9B59B6)
+            .setFooter({ text: `Total: ${allItems.length} items | Use /unique info item_id:<ID> for details` });
             
-        embed.addFields({
-            name: '🌟 Legendary Artifacts',
-            value: itemsText.substring(0, 1024),
-            inline: false
-        });
+        return interaction.editReply({ embeds: [embed] });
+    } else {
+        // Multiple pages - create pagination
+        return await createPaginatedGlobalView(interaction, allItems, totalPages, itemsPerPage);
     }
-    
-    embed.setFooter({ text: 'Use /unique info item_id:<ID> for detailed information about any item' });
-    
-    return interaction.editReply({ embeds: [embed] });
 }
 
 async function handleInfo(interaction) {
@@ -607,6 +612,101 @@ async function relinquishUniqueItem(item, userId, userTag) {
     await item.save();
     
     console.log(`[UNIQUE RELINQUISH] ${userTag} voluntarily relinquished item ${item.itemId}`);
+}
+
+/**
+ * Create paginated view for global unique items list
+ */
+async function createPaginatedGlobalView(interaction, allItems, totalPages, itemsPerPage) {
+    let currentPage = 0;
+    
+    // Create embed for current page
+    function createPageEmbed(page) {
+        const startIndex = page * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, allItems.length);
+        const pageItems = allItems.slice(startIndex, endIndex);
+        
+        return new EmbedBuilder()
+            .setTitle('⚖ All Unique Legendary Items')
+            .setDescription(pageItems.join('\n'))
+            .setColor(0x9B59B6)
+            .setFooter({ 
+                text: `Page ${page + 1}/${totalPages} | Items ${startIndex + 1}-${endIndex} of ${allItems.length} | Use /unique info item_id:<ID> for details` 
+            });
+    }
+    
+    // Create navigation buttons
+    function createButtons(page) {
+        const prevButton = new ButtonBuilder()
+            .setCustomId('prev_page')
+            .setLabel('◀ Previous')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(page === 0);
+            
+        const nextButton = new ButtonBuilder()
+            .setCustomId('next_page')
+            .setLabel('Next ▶')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(page === totalPages - 1);
+            
+        const pageInfo = new ButtonBuilder()
+            .setCustomId('page_info')
+            .setLabel(`${page + 1}/${totalPages}`)
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(true);
+            
+        return new ActionRowBuilder()
+            .addComponents(prevButton, pageInfo, nextButton);
+    }
+    
+    // Send initial message
+    const embed = createPageEmbed(currentPage);
+    const row = createButtons(currentPage);
+    
+    const response = await interaction.editReply({
+        embeds: [embed],
+        components: [row]
+    });
+    
+    // Create collector for button interactions
+    const collector = response.createMessageComponentCollector({
+        filter: i => i.user.id === interaction.user.id,
+        time: 300000 // 5 minutes
+    });
+    
+    collector.on('collect', async i => {
+        if (i.customId === 'prev_page' && currentPage > 0) {
+            currentPage--;
+        } else if (i.customId === 'next_page' && currentPage < totalPages - 1) {
+            currentPage++;
+        }
+        
+        const newEmbed = createPageEmbed(currentPage);
+        const newRow = createButtons(currentPage);
+        
+        await i.update({
+            embeds: [newEmbed],
+            components: [newRow]
+        });
+    });
+    
+    collector.on('end', async () => {
+        // Disable buttons when collector expires
+        const disabledRow = new ActionRowBuilder()
+            .addComponents(
+                ButtonBuilder.from(row.components[0]).setDisabled(true),
+                ButtonBuilder.from(row.components[1]).setDisabled(true),
+                ButtonBuilder.from(row.components[2]).setDisabled(true)
+            );
+            
+        try {
+            await interaction.editReply({ components: [disabledRow] });
+        } catch (error) {
+            // Message might be deleted, ignore error
+        }
+    });
+    
+    return response;
 }
 
 // Helper functions

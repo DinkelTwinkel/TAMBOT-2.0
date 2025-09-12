@@ -202,11 +202,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#8B4513", // Saddle Brown
         particleEffect: "earth_crack",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 100, // Need to mine 100 blocks per cycle
+        maintenanceType: "combat_activity",
+        maintenanceCost: 5, // Need 5 combat victories per cycle
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
-        maintenanceDescription: "This weapon feeds on the destruction of earth and stone. Without regular use, it grows dormant.",
+        maintenanceDescription: "This weapon of the Titan King hungers for battle. It must taste combat to remain powerful.",
         
         specialEffects: [
             "Area damage - breaks adjacent walls with 30% chance",
@@ -413,8 +413,8 @@ const UNIQUE_ITEMS = [
         glowColor: "#2F4F4F", // Dark Slate Gray
         particleEffect: "shadow_trail",
         
-        maintenanceType: "coins",
-        maintenanceCost: 10000, // Need to move 500 tiles per day
+        maintenanceType: "movement_activity",
+        maintenanceCost: 500, // Need to move 500 tiles per day
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
         maintenanceDescription: "These boots must keep moving or they lose their shadow essence. Walk 500 tiles in mining to maintain their power.",
@@ -472,11 +472,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#4B0082", // Indigo
         particleEffect: "forgotten_whispers",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 50,
+        maintenanceType: "social_activity",
+        maintenanceCost: 10,
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
-        maintenanceDescription: "The crown demands constant conquest and expansion of territory.",
+        maintenanceDescription: "The crown feeds on the respect and admiration of others. Interact with fellow players to maintain its royal authority.",
         
         specialEffects: [
             "All nearby players gain +10% mining speed",
@@ -579,11 +579,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#1C1C1C",
         particleEffect: "shadow_wisps",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 500,
+        maintenanceType: "social_activity",
+        maintenanceCost: 15,
         maintenanceDecayRate: 2,
         requiresMaintenance: true,
-        maintenanceDescription: "The shadow spirits feed on the destruction of earth and stone. Mine at least 500 blocks per day to maintain their corporeal forms.",
+        maintenanceDescription: "The shadow spirits are drawn to the bonds between people. Interact with others to maintain their corporeal forms.",
         
         specialEffects: [
             "Creates 5 shadow clones that mine independently",
@@ -697,8 +697,8 @@ const UNIQUE_ITEMS = [
         type: "tool",
         slot: "mining",
         rarity: "legendary",
-        description: "A hammer that burns with captured sunlight, its head forged from crystallized solar energy. Each strike releases a burst of golden light.",
-        lore: "Forged by the Sun Smiths in the heart of the Solar Forge, this hammer contains a fragment of the sun itself. It was lost when the forge collapsed into the Sun Under.",
+        description: "A hammer that burns with captured sunlight, its head forged from crystallized solar energy. Its radiant warmth heals all allies within the same mining expedition, restoring 1 health per minute and granting a 5-minute Solar Warmth buff (+100 sanity) to everyone nearby.",
+        lore: "Forged by the Sun Smiths in the heart of the Solar Forge, this hammer contains a fragment of the sun itself. The Sun Smiths designed it not just as a tool, but as a beacon of hope - its healing light would sustain entire mining crews in the deepest, most dangerous tunnels. When the forge collapsed into the Sun Under, this hammer's regenerative power was the only thing that kept the trapped miners alive long enough to be rescued.",
         value: 95000,
         vendable: false,
         
@@ -712,11 +712,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#FFD700", // Gold
         particleEffect: "solar_flare",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 150,
+        maintenanceType: "social_activity",
+        maintenanceCost: 6,
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
-        maintenanceDescription: "The hammer must strike stone regularly to maintain its solar connection.",
+        maintenanceDescription: "The Solar Forge Hammer's healing light grows stronger when shared with others. Interact with fellow miners to maintain its solar connection.",
         
         specialEffects: [
             "All topaz and crystal ore gives 2.5x normal value",
@@ -767,11 +767,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#B9F2FF", // Diamond Blue
         particleEffect: "diamond_sparkle",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 100,
+        maintenanceType: "coins",
+        maintenanceCost: 15000,
         maintenanceDecayRate: 0.5,
         requiresMaintenance: true,
-        maintenanceDescription: "The heart beats stronger when surrounded by the destruction of precious stones.",
+        maintenanceDescription: "The Diamond Heart beats stronger when surrounded by wealth and precious treasures. Pay tribute to maintain its crystalline perfection.",
         
         specialEffects: [
             "All diamond and gem ore gives 4x normal value",
@@ -822,11 +822,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#00FF00", // Bright Green
         particleEffect: "leaf_swirl",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 80,
+        maintenanceType: "social_activity",
+        maintenanceCost: 12,
         maintenanceDecayRate: 0.5,
         requiresMaintenance: true,
-        maintenanceDescription: "The branch grows stronger when it can reach toward the surface through stone.",
+        maintenanceDescription: "The World Tree's branch thrives on connections and community. Share experiences with other players to nurture its growth.",
         
         specialEffects: [
             "All emerald and plant-based ore gives 3x normal value",
@@ -877,11 +877,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#FF4500", // Orange Red
         particleEffect: "lava_burst",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 120,
+        maintenanceType: "movement_activity",
+        maintenanceCost: 800,
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
-        maintenanceDescription: "The core must consume stone and ore to maintain its volcanic fire.",
+        maintenanceDescription: "The volcanic core pulses with the earth's rhythm. Keep moving through the mines to maintain its molten energy.",
         
         specialEffects: [
             "All ruby and fire-based ore gives 3.5x normal value",
@@ -932,11 +932,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#8A2BE2", // Blue Violet
         particleEffect: "cosmic_swirl",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 200,
+        maintenanceType: "voice_activity",
+        maintenanceCost: 75,
         maintenanceDecayRate: 0.5,
         requiresMaintenance: true,
-        maintenanceDescription: "The crystal must absorb the energy of rare ores to maintain its cosmic connection.",
+        maintenanceDescription: "The cosmic void crystal resonates with the vibrations of communication across dimensions. Spend time in voice channels to maintain its cosmic connection.",
         
         specialEffects: [
             "All mythril and cosmic ore gives 5x normal value",
@@ -987,11 +987,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#00FFFF", // Cyan
         particleEffect: "storm_lightning",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 300,
+        maintenanceType: "combat_activity",
+        maintenanceCost: 8,
         maintenanceDecayRate: 0.5,
         requiresMaintenance: true,
-        maintenanceDescription: "The storm within must be fed with the destruction of the hardest materials.",
+        maintenanceDescription: "The Adamantine Storm craves the clash of titans. Engage in combat to feed the tempest within.",
         
         specialEffects: [
             "All adamantine and storm-based ore gives 6x normal value",
@@ -1042,11 +1042,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#2F4F4F", // Dark Slate Gray
         particleEffect: "iron_sparks",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 180,
+        maintenanceType: "combat_activity",
+        maintenanceCost: 3,
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
-        maintenanceDescription: "The gauntlets must crush stone and ore to maintain their iron strength.",
+        maintenanceDescription: "The gauntlets remember the Iron Lord's battles. They must taste combat to maintain their strength.",
         
         specialEffects: [
             "All iron and metal ore gives 2.5x normal value",
@@ -1097,11 +1097,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#E6E6FA", // Lavender
         particleEffect: "crystal_visions",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 150,
+        maintenanceType: "social_activity",
+        maintenanceCost: 8,
         maintenanceDecayRate: 0.5,
         requiresMaintenance: true,
-        maintenanceDescription: "The orb must absorb the energy of crystal formations to maintain its visions.",
+        maintenanceDescription: "The Crystal Seer's wisdom flows through shared knowledge and conversation. Interact with others to maintain the orb's visions.",
         
         specialEffects: [
             "All crystal and gem ore gives 4x normal value",
@@ -1152,11 +1152,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#8B4513", // Saddle Brown
         particleEffect: "ancient_energy",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 100,
+        maintenanceType: "voice_activity",
+        maintenanceCost: 90,
         maintenanceDecayRate: 0.5,
         requiresMaintenance: true,
-        maintenanceDescription: "The fossil must absorb the energy of ancient stone to maintain its primordial connection.",
+        maintenanceDescription: "The ancient spirits within the fossil respond to the living voice. Spend time communicating to maintain their primordial connection.",
         
         specialEffects: [
             "All fossil and ancient ore gives 5x normal value",
@@ -1207,11 +1207,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#B87333", // Dark Goldenrod
         particleEffect: "electric_spark",
         
-        maintenanceType: "mining_activity",
-        maintenanceCost: 120,
+        maintenanceType: "voice_activity",
+        maintenanceCost: 45,
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
-        maintenanceDescription: "The conductor must channel electric energy through copper ore to maintain its power.",
+        maintenanceDescription: "The electric energy flows through sound and communication. Spend time in voice channels to maintain the conductor's power.",
         
         specialEffects: [
             "All copper and electric ore gives 3x normal value",

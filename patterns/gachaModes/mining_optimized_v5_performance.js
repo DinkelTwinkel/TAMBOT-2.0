@@ -2871,6 +2871,45 @@ if (shouldStartBreak) {
             }
         }
         
+        // Check for Solar Forge Hammer team healing and sanity protection announcements
+        for (const member of members.values()) {
+            const playerData = playerStatsMap.get(member.id);
+            
+            if (playerData?.equippedItems) {
+                // Check if player has Solar Forge Hammer equipped
+                let hasSolarForgeHammer = false;
+                let hammerMaintenance = 1;
+                
+                for (const [id, item] of Object.entries(playerData.equippedItems)) {
+                    if (item.isUnique) {
+                        // Extract numeric ID from "unique_X" format or use direct number
+                        let itemId;
+                        if (typeof item.itemId === 'string' && item.itemId.startsWith('unique_')) {
+                            itemId = parseInt(item.itemId.replace('unique_', ''));
+                        } else if (typeof item.itemId === 'number') {
+                            itemId = item.itemId;
+                        }
+                        
+                        if (itemId === 13) { // Solar Forge Hammer
+                            hasSolarForgeHammer = true;
+                            hammerMaintenance = item.maintenanceRatio !== undefined ? item.maintenanceRatio : 1;
+                            break;
+                        }
+                    }
+                }
+                
+                if (hasSolarForgeHammer) {
+                    // Only announce if the hammer is in good condition (>0 maintenance)
+                    if (hammerMaintenance > 0) {
+                        const maintenancePercent = Math.round(hammerMaintenance * 100);
+                        eventLogs.push(`☀️ ${member.displayName}'s Solar Forge Hammer radiates warmth, providing team healing and sanity protection! (${maintenancePercent}% power)`);
+                    } else {
+                        eventLogs.push(`⚠️ ${member.displayName}'s Solar Forge Hammer is broken and cannot provide team benefits!`);
+                    }
+                }
+            }
+        }
+        
         // Check for players who left (exclude shadow clones from this check)
         const currentPlayerIds = Array.from(members.keys());
         const departedPlayers = [];
@@ -3237,8 +3276,7 @@ if (shouldStartBreak) {
                     freshDbEntry,  // Use fresh dbEntry per player
                     hazardsData,
                     teamLuckBonus,  // Pass team luck bonus
-                    mineTypeId,  // Pass mine type ID for proper ore correspondence
-                    client  // Pass client for legendary announcements
+                    mineTypeId  // Pass mine type ID for proper ore correspondence
                 );
                 
                 // === UPDATE CACHE AFTER PLAYER ACTION - RACE CONDITION FIX ===
@@ -3406,7 +3444,7 @@ if (shouldStartBreak) {
 };
 
 // Enhanced player action processing with improved error handling and performance
-async function processPlayerActionsEnhanced(member, playerData, mapData, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0, mineTypeId = null, client = null) {
+async function processPlayerActionsEnhanced(member, playerData, mapData, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0, mineTypeId = null) {
     // Debug logging for mineTypeId
     console.log(`[PROCESSPLAYER DEBUG] ${member.displayName} processPlayerActionsEnhanced called with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId})`);
     
@@ -4024,7 +4062,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     }
                     
                     // Enhanced unique item finding with mine-specific bonuses
-                    let itemFindingChance = 0.001; // 0.1% base chance
+                    let itemFindingChance = 0.0001; // 0.01% base chance
                     
                     // DEBUG: Log mine detection process
                     console.log(`[BOOSTED MINE DEBUG] Checking mine ${mineTypeId} (type: ${typeof mineTypeId}) for boosted unique items`);
@@ -4041,15 +4079,15 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     
                     console.log(`[BOOSTED MINE DEBUG] Found ${boostedItems.length} boosted items for mine ${mineTypeId}`);
                     
-                    // 100% item finding rate for mines with amplified unique drops
+                    // 1% item finding rate for mines with amplified unique drops
                     if (boostedItems.length > 0) {
-                        itemFindingChance = 1.0; // 100% chance to trigger item finding in boosted mines!
-                        console.log(`[UNIQUE FINDING] ✅ BOOSTED MINE DETECTED! Mine ${mineTypeId} has ${boostedItems.length} boosted unique(s) - setting 100% item finding rate`);
+                        itemFindingChance = 0.01; // 1% chance to trigger item finding in boosted mines!
+                        console.log(`[UNIQUE FINDING] ✅ BOOSTED MINE DETECTED! Mine ${mineTypeId} has ${boostedItems.length} boosted unique(s) - setting 1% item finding rate`);
                         console.log(`[UNIQUE FINDING] Boosted items: ${boostedItems.map(i => `${i.name} (${i.mineSpecificDropRates[String(mineTypeId)]}x boost)`).join(', ')}`);
                     } else {
                         console.log(`[UNIQUE FINDING] ❌ NOT A BOOSTED MINE - Mine ${mineTypeId} has no boosted uniques, using normal rates`);
-                        // Normal mines still use luck scaling
-                        const luckBonus = Math.min(0.01, luckStat * 0.0001); // Cap at +1% from luck
+                        // Normal mines use luck scaling from 0.01% to 0.1%
+                        const luckBonus = Math.min(0.0009, luckStat * 0.000009); // Cap at +0.09% from luck (total 0.1%)
                         itemFindingChance += luckBonus;
                     }
                     
@@ -4075,14 +4113,15 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                                 // Check for legendary announcement
                                 if (itemFind.systemAnnouncement && itemFind.systemAnnouncement.enabled) {
                                     // Send the legendary announcement to all channels
-                                    if (client) {
-                                    try {
-                                        await sendLegendaryAnnouncement(
-                                            client,
-                                            channel.guild.id,
-                                            itemFind,
-                                            member.displayName
-                                        );
+                                    const guild = member.guild || channel?.guild;
+                                    if (guild) {
+                                        try {
+                                            await sendLegendaryAnnouncement(
+                                                guild.client,
+                                                guild.id,
+                                                itemFind,
+                                                member.displayName
+                                            );
                                         console.log(`[LEGENDARY] Announcement sent for ${itemFind.item.name} found by ${member.displayName}`);
                                     } catch (err) {
                                         console.error('[LEGENDARY] Failed to send announcement:', err);
@@ -4522,16 +4561,19 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         
                         // Check for legendary announcement for treasure finds too
                         if (treasureFind.systemAnnouncement && treasureFind.systemAnnouncement.enabled) {
-                            try {
-                                await sendLegendaryAnnouncement(
-                                    client,
-                                    channel.guild.id,
-                                    treasureFind,
-                                    member.displayName
-                                );
-                                console.log(`[LEGENDARY] Treasure announcement sent for ${treasureFind.item.name}`);
-                            } catch (err) {
-                                console.error('[LEGENDARY] Failed to send treasure announcement:', err);
+                            const guild = member.guild || channel?.guild;
+                            if (guild) {
+                                try {
+                                    await sendLegendaryAnnouncement(
+                                        guild.client,
+                                        guild.id,
+                                        treasureFind,
+                                        member.displayName
+                                    );
+                                    console.log(`[LEGENDARY] Treasure announcement sent for ${treasureFind.item.name}`);
+                                } catch (err) {
+                                    console.error('[LEGENDARY] Failed to send treasure announcement:', err);
+                                }
                             }
                         }
                     }

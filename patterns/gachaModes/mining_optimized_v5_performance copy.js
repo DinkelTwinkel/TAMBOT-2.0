@@ -2871,6 +2871,45 @@ if (shouldStartBreak) {
             }
         }
         
+        // Check for Solar Forge Hammer team healing and sanity protection announcements
+        for (const member of members.values()) {
+            const playerData = playerStatsMap.get(member.id);
+            
+            if (playerData?.equippedItems) {
+                // Check if player has Solar Forge Hammer equipped
+                let hasSolarForgeHammer = false;
+                let hammerMaintenance = 1;
+                
+                for (const [id, item] of Object.entries(playerData.equippedItems)) {
+                    if (item.isUnique) {
+                        // Extract numeric ID from "unique_X" format or use direct number
+                        let itemId;
+                        if (typeof item.itemId === 'string' && item.itemId.startsWith('unique_')) {
+                            itemId = parseInt(item.itemId.replace('unique_', ''));
+                        } else if (typeof item.itemId === 'number') {
+                            itemId = item.itemId;
+                        }
+                        
+                        if (itemId === 13) { // Solar Forge Hammer
+                            hasSolarForgeHammer = true;
+                            hammerMaintenance = item.maintenanceRatio !== undefined ? item.maintenanceRatio : 1;
+                            break;
+                        }
+                    }
+                }
+                
+                if (hasSolarForgeHammer) {
+                    // Only announce if the hammer is in good condition (>0 maintenance)
+                    if (hammerMaintenance > 0) {
+                        const maintenancePercent = Math.round(hammerMaintenance * 100);
+                        eventLogs.push(`☀️ ${member.displayName}'s Solar Forge Hammer radiates warmth, providing team healing and sanity protection! (${maintenancePercent}% power)`);
+                    } else {
+                        eventLogs.push(`⚠️ ${member.displayName}'s Solar Forge Hammer is broken and cannot provide team benefits!`);
+                    }
+                }
+            }
+        }
+        
         // Check for players who left (exclude shadow clones from this check)
         const currentPlayerIds = Array.from(members.keys());
         const departedPlayers = [];

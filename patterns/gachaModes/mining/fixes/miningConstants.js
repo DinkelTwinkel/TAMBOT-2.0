@@ -244,7 +244,7 @@ const HAZARD_SPAWN_CONFIG = {
 // Item Finding Pool Configuration - Separate from ore mining
 const ITEM_FINDING_CONFIG = {
     // Base chance to find an item while mining (before power/luck modifiers)
-    baseItemFindChance: 0.01, // 1% base chance
+    baseItemFindChance: 0.00005, // 0.005% base chance - very low to allow scaling to 0.01-0.1%
     
     // Chance multipliers based on activity
     activityMultipliers: {
@@ -280,12 +280,21 @@ const ITEM_FINDING_CONFIG = {
     ]
 };
 
-// Function to calculate item find chance
+// Function to calculate item find chance - Updated to match new unique drop rates
 function calculateItemFindChance(powerLevel, luckStat, activityType = 'mining') {
+    // For unique item finding, use consistent rates with main mining system
+    if (activityType === 'mining') {
+        // Base 0.01% with luck scaling to 0.1% (same as main mining system)
+        const baseChance = 0.0001; // 0.01%
+        const luckBonus = Math.min(0.0009, luckStat * 0.000009); // Cap at +0.09% from luck
+        return baseChance + luckBonus;
+    }
+    
+    // For other activities, use the original system
     const baseChance = ITEM_FINDING_CONFIG.baseItemFindChance;
     const activityMult = ITEM_FINDING_CONFIG.activityMultipliers[activityType] || 1.0;
     const powerMult = ITEM_FINDING_CONFIG.powerLevelMultipliers[powerLevel] || 1.0;
-    const luckBonus = 1 + (luckStat * 0.01); // Each luck point adds 1% to chance
+    const luckBonus = 1 + (luckStat * 0.01);
     
     return baseChance * activityMult * powerMult * luckBonus;
 }

@@ -300,6 +300,7 @@ const lockManager = new VCLockManager();
 
 // Import unique items initialization
 const { initializeUniqueItems } = require('./uniqueItemFinding');
+const { initializeSolarForgeHealing } = require('./uniqueItems/solarForgeHammer');
 
 module.exports = async (guild) => {
     // --- INITIALIZE UNIQUE ITEMS SYSTEM ---
@@ -427,6 +428,9 @@ module.exports = async (guild) => {
             console.error('[CURRENCY CLEANUP] Error fixing decimal balances:', error);
         }
     }, 30 * 60 * 1000); // Check every 30 minutes
+    
+    // --- SOLAR FORGE HAMMER HEALING SYSTEM ---
+    initializeSolarForgeHealing(guild);
     
     // --- OPTIMIZED INTERVAL CHECK ---
     let lastGuildConfigUpdate = 0;
