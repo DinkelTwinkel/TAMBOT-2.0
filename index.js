@@ -479,16 +479,13 @@ client.on(Events.MessageCreate, async (message) => {
       // Delete the message immediately
       await message.delete();
       
-      // Send warning to user (ephemeral-like by DMing them)
-      try {
-        await message.author.send('⚠️ **Marketplace Channel Notice**\n\nText messages are not allowed in the marketplace channel. Please use `/sell` to list items for sale instead.');
-      } catch (dmError) {
-        // If DM fails, send a temporary message in channel that auto-deletes
-        const warningMsg = await message.channel.send(`⚠️ <@${message.author.id}> Text messages are not allowed here. Use \`/sell\` to list items for sale.`);
-        setTimeout(() => {
-          warningMsg.delete().catch(() => {});
-        }, 5000); // Delete after 5 seconds
-      }
+      // Send warning in the marketplace channel itself
+      const warningMsg = await message.channel.send(`⚠️ <@${message.author.id}> Text messages are not allowed here. Use \`/sell\` to list items for sale.`);
+      
+      // Auto-delete warning after 5 seconds
+      setTimeout(() => {
+        warningMsg.delete().catch(() => {});
+      }, 5000);
       
       console.log(`[MARKETPLACE_FILTER] Deleted message from ${message.author.tag} in marketplace channel`);
     } catch (error) {
