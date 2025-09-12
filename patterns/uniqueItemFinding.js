@@ -97,7 +97,7 @@ async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activi
                 }
             }
         }
-        // Optimized boosted mine check
+        // Check if this is a boosted mine - if so, use 100% find chance
         const { UNIQUE_ITEMS } = require('../data/uniqueItemsSheet');
         const boostedItems = UNIQUE_ITEMS.filter(item => 
             item.mineSpecificDropRates && item.mineSpecificDropRates[String(mineId)]
@@ -106,22 +106,39 @@ async function rollForItemFind(playerId, playerTag, powerLevel, luckStat, activi
         let findChance;
         if (boostedItems.length > 0) {
             findChance = 1.0; // 100% for boosted mines
+            console.log(`[ROLL DEBUG] BOOSTED MINE - using 100% find chance instead of calculated chance`);
         } else {
             findChance = calculateItemFindChance(powerLevel, luckStat, activityType);
+            console.log(`[ROLL DEBUG] calculateItemFindChance returned: ${(findChance * 100).toFixed(3)}% for power ${powerLevel}, luck ${luckStat}, activity ${activityType}`);
         }
         
-        if (Math.random() > findChance) {
+        const itemFindRoll = Math.random();
+        console.log(`[ROLL DEBUG] Item find roll: ${(itemFindRoll * 100).toFixed(3)}% vs ${(findChance * 100).toFixed(3)}% threshold`);
+        
+        if (itemFindRoll > findChance) {
+            console.log(`[ROLL DEBUG] ❌ Item find failed - roll too high`);
             return null; // No item found
         }
         
-        // Always try for unique items first (100% priority)
-        const isUnique = Math.random() < ITEM_FINDING_CONFIG.uniqueItemWeight;
+        console.log(`[ROLL DEBUG] ✅ Item find succeeded - proceeding to unique/regular decision`);
+        
+        // Determine if it should be unique or regular
+        const uniqueRoll = Math.random();
+        const uniqueThreshold = ITEM_FINDING_CONFIG.uniqueItemWeight;
+        console.log(`[ROLL DEBUG] Unique roll: ${(uniqueRoll * 100).toFixed(3)}% vs ${(uniqueThreshold * 100).toFixed(3)}% threshold (uniqueItemWeight)`);
+        
+        const isUnique = uniqueRoll < uniqueThreshold;
+        console.log(`[ROLL DEBUG] Will try for: ${isUnique ? 'UNIQUE' : 'REGULAR'} item`);
         
         if (isUnique) {
+            // Try to find an unowned unique item
+            console.log(`[ROLL DEBUG] Calling rollForUniqueItem for mine ${mineId}...`);
             const uniqueItem = await rollForUniqueItem(playerId, playerTag, powerLevel, biome, mineId);
+            console.log(`[ROLL DEBUG] rollForUniqueItem result: ${uniqueItem ? `SUCCESS - ${uniqueItem.item.name}` : 'FAILED/NULL'}`);
             if (uniqueItem) {
                 return uniqueItem;
             }
+            console.log(`[ROLL DEBUG] No unique item available, falling back to regular item...`);
         }
         
         // Fall back to regular item
@@ -139,7 +156,7 @@ async function rollForUniqueItem(playerId, playerTag, powerLevel, biome = null, 
         // Get available unique items for this power level
         let availableItems = getAvailableUniqueItems(powerLevel);
         
-        // Optimized boosted mine filtering
+        // If in a boosted mine, ONLY consider boosted items
         if (mineId) {
             const boostedItems = availableItems.filter(item => 
                 item.mineSpecificDropRates && item.mineSpecificDropRates[String(mineId)]
@@ -147,24 +164,42 @@ async function rollForUniqueItem(playerId, playerTag, powerLevel, biome = null, 
             
             if (boostedItems.length > 0) {
                 availableItems = boostedItems;
+                console.log(`[UNIQUE FINDING] Mine ${mineId} - restricting to ${boostedItems.length} boosted unique(s): ${boostedItems.map(i => i.name).join(', ')}`);
             }
         }
         
         if (availableItems.length === 0) return null;
         
-        // Optimized ownership check
+        // Find which ones are unowned (excluding conditional items)
+        console.log(`[UNIQUE ROLL DEBUG] Checking ownership status for ${availableItems.length} available items...`);
+        
         const unownedItems = [];
         for (const itemData of availableItems) {
+            console.log(`[UNIQUE ROLL DEBUG] Checking ${itemData.name} (ID: ${itemData.id})...`);
+            
             // Skip conditional items in normal rolling
-            if (isConditionalItem(itemData.id)) continue;
+            if (isConditionalItem(itemData.id)) {
+                console.log(`[UNIQUE ROLL DEBUG] - Skipping ${itemData.name} - is conditional item`);
+                continue;
+            }
             
             const dbItem = await UniqueItem.findOne({ itemId: itemData.id });
+            console.log(`[UNIQUE ROLL DEBUG] - Database lookup result: ${dbItem ? `found, ownerId: ${dbItem.ownerId || 'UNOWNED'}` : 'NOT FOUND IN DB'}`);
+            
             if (dbItem && !dbItem.ownerId) {
                 unownedItems.push({ itemData, dbItem });
+                console.log(`[UNIQUE ROLL DEBUG] - ✅ ${itemData.name} is UNOWNED and available`);
+            } else {
+                console.log(`[UNIQUE ROLL DEBUG] - ❌ ${itemData.name} is ${!dbItem ? 'NOT IN DATABASE' : 'ALREADY OWNED'}`);
             }
         }
         
-        if (unownedItems.length === 0) return null;
+        console.log(`[UNIQUE ROLL DEBUG] Found ${unownedItems.length} unowned items: ${unownedItems.map(u => u.itemData.name).join(', ')}`);
+        
+        if (unownedItems.length === 0) {
+            console.log(`[UNIQUE ROLL DEBUG] ❌ NO UNOWNED ITEMS AVAILABLE - all boosted items are already owned!`);
+            return null;
+        }
         
         // Calculate weights for unowned items - now includes mine-specific bonuses
         const weights = calculateUniqueItemDropWeights(powerLevel, biome, mineId)
