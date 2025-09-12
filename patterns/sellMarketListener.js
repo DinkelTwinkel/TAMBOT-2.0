@@ -239,12 +239,27 @@ class SellMarketListener {
                         autoArchiveDuration: 1440 // 24 hours
                     });
                     
-                    // Post a copy of the shop info in the thread
-                    await shopThread.send({
-                        content: `🏪 **${itemData.name} Shop Thread**\n\n**Seller:** <@${sellerId}>\n**Price:** ${pricePerItem} coins each\n**Quantity:** ${existingShop?.quantity || quantity} available\n\nUse this thread to discuss the item, ask questions, or negotiate!`
+                    // Generate a copy of the marketplace image for the thread
+                    const threadMarketplaceImageBuffer = await generateMarketplaceImage(
+                        itemData, 
+                        existingShop?.quantity || quantity, 
+                        pricePerItem, 
+                        interaction.user,
+                        interaction.member
+                    );
+                    
+                    const threadMarketplaceAttachment = new AttachmentBuilder(threadMarketplaceImageBuffer, { 
+                        name: 'marketplace.gif' 
                     });
                     
-                    console.log(`[MARKETPLACE] Created shop thread: ${shopThread.name}`);
+                    // Post a complete copy of the shop embed with buttons in the thread
+                    await shopThread.send({
+                        embeds: [shopEmbed],
+                        components: [shopButtons],
+                        files: [threadMarketplaceAttachment]
+                    });
+                    
+                    console.log(`[MARKETPLACE] Created shop thread with full embed: ${shopThread.name}`);
                 } catch (threadError) {
                     console.warn('[MARKETPLACE] Could not create shop thread:', threadError.message);
                 }
