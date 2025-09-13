@@ -34,6 +34,22 @@ const sendLegendaryAnnouncement = require('../uniqueItemFinding').sendLegendaryA
 // Import instance manager for preventing parallel execution
 const instanceManager = require('./instance-manager');
 
+// Import game stat tracker
+const GameStatTracker = require('../gameStatTracker');
+
+// Helper function for direction names
+function getDirectionName(dx, dy) {
+    if (dx === 0 && dy === -1) return 'north';
+    if (dx === 1 && dy === -1) return 'northeast';
+    if (dx === 1 && dy === 0) return 'east';
+    if (dx === 1 && dy === 1) return 'southeast';
+    if (dx === 0 && dy === 1) return 'south';
+    if (dx === -1 && dy === 1) return 'southwest';
+    if (dx === -1 && dy === 0) return 'west';
+    if (dx === -1 && dy === -1) return 'northwest';
+    return 'unknown';
+}
+
 // Import enhanced power level components
 const { 
     IMAGE_GENERATION_INTERVAL, 
@@ -2094,6 +2110,9 @@ module.exports = async (channel, dbEntry, json, client) => {
     const channelId = channel.id;
     const processingStartTime = Date.now();
     
+    // Initialize game stat tracker
+    const gameStatTracker = new GameStatTracker();
+    
     // Start performance monitoring
     concurrencyManager.performanceMonitor.startTiming('mining_cycle', channelId);
     
@@ -3428,6 +3447,22 @@ if (shouldStartBreak) {
         // End performance monitoring
         const processingTime = concurrencyManager.performanceMonitor.endTiming('mining_cycle', channelId);
         
+        // Track mining time for all players who participated
+        try {
+            const miningTimeSeconds = Math.floor(processingTime / 1000);
+            if (miningTimeSeconds > 0) {
+                // Get all members who participated in this mining session
+                const members = channel.members?.cache?.values() || [];
+                for (const member of members) {
+                    if (member && !member.user.bot) {
+                        await gameStatTracker.trackMiningTime(member.id, member.guild.id, miningTimeSeconds);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error tracking mining time:', error);
+        }
+        
         // Ensure cleanup always happens
         try {
             miningContext.clearMiningContext();
@@ -3443,7 +3478,7 @@ if (shouldStartBreak) {
     }
 };
 
-// Enhanced player action processing with improved error handling and performance
+    // Enhanced player action processing with improved error handling and performance
 async function processPlayerActionsEnhanced(member, playerData, mapData, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0, mineTypeId = null) {
     // Debug logging for mineTypeId
     console.log(`[PROCESSPLAYER DEBUG] ${member.displayName} processPlayerActionsEnhanced called with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId})`);
@@ -3452,6 +3487,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
     if (!member || !playerData || !mapData) {
         console.warn('[MINING] Invalid parameters passed to processPlayerActionsEnhanced');
         return { mapChanged: false, wallsBroken: 0, treasuresFound: 0, mapData, hazardsChanged: false };
+    }
+    
+    // Track power level for stats
+    try {
+        await gameStatTracker.trackPowerLevel(member.id, member.guild.id, powerLevel);
+    } catch (error) {
+        console.error('Error tracking power level:', error);
     }
 
     // Determine the actual member to credit earnings to (for shadow clones, use owner)
@@ -4421,6 +4463,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         console.log (`${member.displayName} got ${item.name} and its going to ${destination}`);
                         await addItemWithDestination(dbEntry, targetMemberId, item.itemId, finalQuantity, destination);
                         
+                        // Track item found for stats
+                        try {
+                            await gameStatTracker.trackItemFound(member.id, member.guild.id, item.itemId, finalQuantity, 'mining');
+                        } catch (error) {
+                            console.error('Error tracking item found:', error);
+                        }
+                        
                         let findMessage;
                         // Treasure chests no longer spawn
                         if (destination === 'inventory') {
@@ -4456,6 +4505,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     position.y = newY;
                     mapChanged = true;
                     wallsBroken++;
+                    
+                    // Track tile broken for stats
+                    try {
+                        await gameStatTracker.trackTileBroken(member.id, member.guild.id, getTileTypeName(targetTile.type));
+                    } catch (error) {
+                        console.error('Error tracking tile broken:', error);
+                    }
                     
                     // Add wall break progress tracking (occasionally)
                     if (Math.random() < 0.1) { // 10% chance to show progress
@@ -4524,6 +4580,14 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
     if (oldX !== newX || oldY !== newY) {
         await updateMovementActivity(member.id, 1);
         
+        // Track tile movement for stats
+        try {
+            const direction = getDirectionName(newX - oldX, newY - oldY);
+            await gameStatTracker.trackTileMovement(member.id, member.guild.id, direction);
+        } catch (error) {
+            console.error('Error tracking tile movement:', error);
+        }
+        
         // Show progress for movement-based maintenance items (like Shadowstep Boots)
         // Only show occasionally to avoid spam
         if (Math.random() < 0.02) { // 2% chance to show progress
@@ -4561,6 +4625,17 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
             if (treasureResult) {
                 if (treasureResult.treasureFound) {
                     treasuresFound++;
+                    
+                    // Track treasure items found for stats
+                    if (treasureResult.itemsFound && treasureResult.itemsFound.length > 0) {
+                        try {
+                            for (const item of treasureResult.itemsFound) {
+                                await gameStatTracker.trackItemFound(member.id, member.guild.id, item.itemId, item.quantity, 'treasure');
+                            }
+                        } catch (error) {
+                            console.error('Error tracking treasure items found:', error);
+                        }
+                    }
                     // The processEncounterTrigger already adds a message to eventLogs
                 }
                 if (treasureResult.mapChanged) {
@@ -4613,6 +4688,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 eventLogs.push(`👁️ ${member.displayName}'s keen sight spotted and avoided a ${hazard.type || 'hazard'}!`);
                 hazardStorage.removeHazard(hazardsData, newX, newY);
                 hazardsChanged = true;
+                
+                // Track hazard evaded for stats
+                try {
+                    await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
+                } catch (error) {
+                    console.error('Error tracking hazard evaded:', error);
+                }
                 continue;
             }
             
@@ -4620,6 +4702,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
             const luckAvoidChance = Math.min(0.4, luckStat * 0.04); // 4% per luck point, max 40%
             if (Math.random() < luckAvoidChance) {
                 eventLogs.push(`🍀 ${member.displayName}'s luck helped them narrowly avoid a ${hazard.type || 'hazard'}!`);
+                
+                // Track hazard evaded for stats
+                try {
+                    await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
+                } catch (error) {
+                    console.error('Error tracking hazard evaded:', error);
+                }
                 // Don't remove the hazard, just skip triggering it
                 continue;
             }
@@ -4628,6 +4717,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
             if (checkHazardResistance(uniqueBonuses.hazardResistance, member, eventLogs)) {
                 hazardStorage.removeHazard(hazardsData, newX, newY);
                 hazardsChanged = true;
+                
+                // Track hazard evaded for stats
+                try {
+                    await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
+                } catch (error) {
+                    console.error('Error tracking hazard evaded:', error);
+                }
                 continue;
             }
             
@@ -4654,6 +4750,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 if (hazardResult.playerDisabled) {
                     // Player knocked out
                     break; // or continue depending on context
+                }
+                
+                // Track hazard triggered for stats
+                try {
+                    await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'triggered');
+                } catch (error) {
+                    console.error('Error tracking hazard triggered:', error);
                 }
             }
             

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
 // User Statistics Schema
 const userStatsSchema = new mongoose.Schema({
@@ -42,6 +43,12 @@ const userStatsSchema = new mongoose.Schema({
     lastUpdated: {
         type: Date,
         default: Date.now
+    },
+    // Expandable game data for tracking various game mode statistics
+    gameData: {
+        type: Schema.Types.Mixed,
+        required: false,
+        default: {}
     }
 }, {
     timestamps: true

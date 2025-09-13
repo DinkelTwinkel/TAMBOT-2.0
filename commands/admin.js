@@ -13,6 +13,7 @@ const { UNIQUE_ITEMS, getUniqueItemById } = require('../data/uniqueItemsSheet');
 const { sendLegendaryAnnouncement, sendLegendaryAnnouncementWithEmbed } = require('../patterns/uniqueItemFinding');
 const { startRailBuildingEvent, startMineCollapseEvent } = require('../patterns/gachaModes/mining/miningEvents');
 const gachaVC = require('../models/activevcs');
+const GameStatTracker = require('../patterns/gameStatTracker');
 
 // Create item map for O(1) lookups
 const itemMap = new Map(itemSheet.map(item => [item.id, item]));
@@ -88,6 +89,23 @@ module.exports = {
             subcommand
                 .setName('fix-inventory-durability')
                 .setDescription('Fix durability display issues in player inventories')
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('stats')
+                .setDescription('View comprehensive game statistics for users')
+                .addStringOption(option =>
+                    option.setName('game_mode')
+                        .setDescription('Game mode to show stats for')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: 'Mining', value: 'mining' },
+                            { name: 'All Modes', value: 'all' }
+                        ))
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('Specific user to show stats for (optional)')
+                        .setRequired(false))
         )
         .addSubcommandGroup(group =>
             group
@@ -244,6 +262,8 @@ module.exports = {
             await this.executeRateLimitStats(interaction);
         } else if (subcommand === 'fix-inventory-durability') {
             await this.executeFixInventoryDurability(interaction);
+        } else if (subcommand === 'stats') {
+            await this.executeStats(interaction);
         }
     },
 
@@ -1286,5 +1306,234 @@ module.exports = {
                 
             return interaction.editReply({ embeds: [errorEmbed] });
         }
+    },
+
+    // ========== STATS COMMAND ==========
+    async executeStats(interaction) {
+        try {
+            await interaction.deferReply();
+            
+            const gameMode = interaction.options.getString('game_mode') || 'mining';
+            const targetUser = interaction.options.getUser('user');
+            const gameStatTracker = new GameStatTracker();
+            
+            let embeds = [];
+            
+            if (targetUser) {
+                // Show stats for specific user
+                const userStats = await gameStatTracker.getUserGameStats(targetUser.id, interaction.guild.id, gameMode);
+                
+                if (gameMode === 'all') {
+                    // Show all game modes for the user
+                    const miningStats = await gameStatTracker.getUserGameStats(targetUser.id, interaction.guild.id, 'mining');
+                    
+                    const embed = new EmbedBuilder()
+                        .setTitle(`📊 Game Statistics - ${targetUser.displayName}`)
+                        .setColor(0x00ff00)
+                        .setTimestamp();
+                    
+                    // Add mining stats
+                    if (miningStats && Object.keys(miningStats).length > 0) {
+                        const miningFields = this.formatGameStatsForEmbed(miningStats, 'Mining');
+                        embed.addFields(miningFields);
+                    } else {
+                        embed.addFields({ name: '⛏️ Mining', value: 'No mining statistics available', inline: false });
+                    }
+                    
+                    embeds.push(embed);
+                } else {
+                    // Show specific game mode
+                    const embed = new EmbedBuilder()
+                        .setTitle(`📊 ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Statistics - ${targetUser.displayName}`)
+                        .setColor(0x00ff00)
+                        .setTimestamp();
+                    
+                    if (userStats && Object.keys(userStats).length > 0) {
+                        const fields = this.formatGameStatsForEmbed(userStats, gameMode);
+                        embed.addFields(fields);
+                    } else {
+                        embed.setDescription(`No ${gameMode} statistics available for this user.`);
+                    }
+                    
+                    embeds.push(embed);
+                }
+            } else {
+                // Show stats for all users
+                const allUsersStats = await gameStatTracker.getAllUsersGameStats(interaction.guild.id, gameMode);
+                
+                if (allUsersStats.length === 0) {
+                    const embed = new EmbedBuilder()
+                        .setTitle('📊 Game Statistics')
+                        .setDescription(`No ${gameMode} statistics available for any users.`)
+                        .setColor(0xffaa00)
+                        .setTimestamp();
+                    embeds.push(embed);
+                } else {
+                    // Group users by game mode and create embeds
+                    if (gameMode === 'all') {
+                        // Create separate embeds for each game mode
+                        const miningUsers = await gameStatTracker.getAllUsersGameStats(interaction.guild.id, 'mining');
+                        
+                        if (miningUsers.length > 0) {
+                            const miningEmbed = new EmbedBuilder()
+                                .setTitle('⛏️ Mining Statistics - All Users')
+                                .setColor(0x8B4513)
+                                .setTimestamp();
+                            
+                            const miningFields = this.formatAllUsersStatsForEmbed(miningUsers, 'mining');
+                            miningEmbed.addFields(miningFields);
+                            embeds.push(miningEmbed);
+                        }
+                    } else {
+                        // Single game mode
+                        const embed = new EmbedBuilder()
+                            .setTitle(`📊 ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Statistics - All Users`)
+                            .setColor(0x00ff00)
+                            .setTimestamp();
+                        
+                        const fields = this.formatAllUsersStatsForEmbed(allUsersStats, gameMode);
+                        embed.addFields(fields);
+                        embeds.push(embed);
+                    }
+                }
+            }
+            
+            // Send embeds (Discord has a limit of 10 embeds per message)
+            const maxEmbeds = Math.min(embeds.length, 10);
+            await interaction.editReply({ embeds: embeds.slice(0, maxEmbeds) });
+            
+        } catch (error) {
+            console.error('Error executing stats command:', error);
+            
+            const errorEmbed = new EmbedBuilder()
+                .setTitle('❌ Stats Command Failed')
+                .setDescription(`Error: ${error.message}`)
+                .setColor(0xFF0000)
+                .setTimestamp();
+                
+            await interaction.editReply({ embeds: [errorEmbed] });
+        }
+    },
+
+    // Helper method to format game stats for embed
+    formatGameStatsForEmbed(stats, gameMode) {
+        const fields = [];
+        
+        if (gameMode === 'mining') {
+            // Tiles moved
+            if (stats.tilesMoved > 0) {
+                fields.push({ name: '🚶 Tiles Moved', value: stats.tilesMoved.toString(), inline: true });
+            }
+            
+            // Items found
+            if (stats.itemsFound && Object.keys(stats.itemsFound).length > 0) {
+                const itemCount = Object.values(stats.itemsFound).reduce((sum, count) => sum + count, 0);
+                fields.push({ name: '💎 Items Found', value: itemCount.toString(), inline: true });
+            }
+            
+            // Tiles broken
+            if (stats.tilesBroken && Object.keys(stats.tilesBroken).length > 0) {
+                const tileCount = Object.values(stats.tilesBroken).reduce((sum, count) => sum + count, 0);
+                fields.push({ name: '⛏️ Tiles Broken', value: tileCount.toString(), inline: true });
+            }
+            
+            // Hazards
+            const hazardsEvaded = stats.hazardsEvaded || 0;
+            const hazardsTriggered = stats.hazardsTriggered || 0;
+            const hazardsSeen = stats.hazardsSeen || 0;
+            
+            if (hazardsEvaded > 0 || hazardsTriggered > 0 || hazardsSeen > 0) {
+                fields.push({ 
+                    name: '⚠️ Hazards', 
+                    value: `Evaded: ${hazardsEvaded}\nTriggered: ${hazardsTriggered}\nSeen: ${hazardsSeen}`, 
+                    inline: true 
+                });
+            }
+            
+            // Power level
+            if (stats.highestPowerLevel > 0) {
+                fields.push({ name: '⚡ Highest Power Level', value: stats.highestPowerLevel.toString(), inline: true });
+            }
+            
+            // Time in mining
+            if (stats.timeInMiningChannel > 0) {
+                const hours = Math.floor(stats.timeInMiningChannel / 3600);
+                const minutes = Math.floor((stats.timeInMiningChannel % 3600) / 60);
+                fields.push({ 
+                    name: '⏰ Time in Mining', 
+                    value: `${hours}h ${minutes}m`, 
+                    inline: true 
+                });
+            }
+            
+            // Movement by direction
+            if (stats.movementByDirection && Object.keys(stats.movementByDirection).length > 0) {
+                const directionStats = Object.entries(stats.movementByDirection)
+                    .map(([dir, count]) => `${dir}: ${count}`)
+                    .join('\n');
+                fields.push({ name: '🧭 Movement by Direction', value: directionStats, inline: true });
+            }
+        }
+        
+        return fields;
+    },
+
+    // Helper method to format all users stats for embed
+    formatAllUsersStatsForEmbed(usersStats, gameMode) {
+        const fields = [];
+        
+        // Sort users by activity level
+        const sortedUsers = usersStats.sort((a, b) => {
+            const aActivity = this.getUserActivityLevel(a.gameStats, gameMode);
+            const bActivity = this.getUserActivityLevel(b.gameStats, gameMode);
+            return bActivity - aActivity;
+        });
+        
+        // Show top 10 most active users
+        const topUsers = sortedUsers.slice(0, 10);
+        
+        for (const user of topUsers) {
+            const activityLevel = this.getUserActivityLevel(user.gameStats, gameMode);
+            if (activityLevel > 0) {
+                const username = user.username || 'Unknown';
+                const stats = user.gameStats;
+                
+                let value = '';
+                if (gameMode === 'mining') {
+                    const tilesMoved = stats.tilesMoved || 0;
+                    const itemsFound = stats.itemsFound ? Object.values(stats.itemsFound).reduce((sum, count) => sum + count, 0) : 0;
+                    const tilesBroken = stats.tilesBroken ? Object.values(stats.tilesBroken).reduce((sum, count) => sum + count, 0) : 0;
+                    
+                    value = `Moved: ${tilesMoved} | Items: ${itemsFound} | Broken: ${tilesBroken}`;
+                }
+                
+                fields.push({ 
+                    name: username, 
+                    value: value || 'No activity', 
+                    inline: false 
+                });
+            }
+        }
+        
+        if (fields.length === 0) {
+            fields.push({ name: 'No Activity', value: 'No users have any recorded activity.', inline: false });
+        }
+        
+        return fields;
+    },
+
+    // Helper method to calculate user activity level
+    getUserActivityLevel(gameStats, gameMode) {
+        if (!gameStats) return 0;
+        
+        if (gameMode === 'mining') {
+            const tilesMoved = gameStats.tilesMoved || 0;
+            const itemsFound = gameStats.itemsFound ? Object.values(gameStats.itemsFound).reduce((sum, count) => sum + count, 0) : 0;
+            const tilesBroken = gameStats.tilesBroken ? Object.values(gameStats.tilesBroken).reduce((sum, count) => sum + count, 0) : 0;
+            
+            return tilesMoved + itemsFound + tilesBroken;
+        }
+        
+        return 0;
     }
 };
