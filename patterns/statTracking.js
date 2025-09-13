@@ -404,6 +404,7 @@ class StatTracker {
         }
     }
 
+
     // =============== ANALYTICS QUERIES ===============
 
     // Get total VC joins for a guild

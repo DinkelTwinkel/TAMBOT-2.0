@@ -7,10 +7,8 @@ const {
     getGlobalUniqueItemStats,
     transferUniqueItem
 } = require('../patterns/uniqueItemFinding');
-const { 
-    performMaintenance,
-    checkMaintenanceStatus
-} = require('../patterns/uniqueItemMaintenance');
+// Using new V2 maintenance system that leverages comprehensive stat tracking
+// const { performMaintenance, checkMaintenanceStatus } = require('../patterns/uniqueItemMaintenance');
 const { getUniqueItemById } = require('../data/uniqueItemsSheet');
 const UniqueItem = require('../models/uniqueItems');
 const Money = require('../models/currency');
@@ -174,7 +172,8 @@ async function handleMaintain(interaction, userId, userTag) {
     }
     
     try {
-        const result = await performMaintenance(userId, userTag, itemId);
+        const { performMaintenance } = require('../patterns/uniqueItemMaintenanceV2');
+        const result = await performMaintenance(userId, userTag, itemId, interaction.guild.id);
         
         if (result.success) {
             // Special handling for Midas' Burden wealth gamble
@@ -240,7 +239,8 @@ async function handleMaintain(interaction, userId, userTag) {
 async function handleStatus(interaction, userId) {
     await interaction.deferReply();
     
-    const statuses = await checkMaintenanceStatus(userId);
+    const { checkMaintenanceStatus } = require('../patterns/uniqueItemMaintenanceV2');
+    const statuses = await checkMaintenanceStatus(userId, interaction.guild.id);
     
     if (statuses.length === 0) {
         const embed = new EmbedBuilder()

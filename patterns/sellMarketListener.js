@@ -5,6 +5,10 @@ const Currency = require('../models/currency');
 const PlayerInventory = require('../models/inventory');
 const ActiveShop = require('../models/activeShop');
 const itemSheet = require('../data/itemSheet.json');
+
+// Import comprehensive stat tracker for marketplace activities
+const ComprehensiveStatTracker = require('./statTracker');
+const marketStatTracker = new ComprehensiveStatTracker();
 const { generateMarketplaceImage } = require('./generateMarketplaceImage');
 const registerBotMessage = require('./registerBotMessage');
 const path = require('path');
@@ -405,6 +409,37 @@ class SellMarketListener {
                 }
                 sellerProfile.money += updatedShop.pricePerItem;
                 await sellerProfile.save({ session });
+
+                // STAT TRACKING: Track player-to-player transaction
+                try {
+                    // Track sale for seller
+                    const itemType = itemData.type === 'ore' ? 'ore' : 
+                                  itemData.type === 'tool' && itemData.slot === 'mining' ? 'pickaxe' : 'general';
+                    
+                    await marketStatTracker.trackItemSold(
+                        sellerId,
+                        'Seller', // We don't have seller name here
+                        interaction.guild.id,
+                        interaction.guild.name,
+                        itemId,
+                        itemData.name,
+                        1,
+                        updatedShop.pricePerItem,
+                        itemType
+                    );
+                    
+                    // Track customer purchase for seller (buyer is the customer)
+                    await marketStatTracker.trackCustomerPurchase(
+                        sellerId,
+                        'Seller',
+                        interaction.guild.id,
+                        interaction.guild.name,
+                        buyerId,
+                        false // We'd need to track repeat customers separately
+                    );
+                } catch (statError) {
+                    console.error('[MARKET STATS] Error tracking player-to-player transaction:', statError);
+                }
             }
 
             // Give item to buyer

@@ -31,6 +31,17 @@ const userStatsSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    
+    // Channel-specific time tracking
+    miningChannelTime: {
+        type: Number,
+        default: 0  // in seconds
+    },
+    innkeepingChannelTime: {
+        type: Number,
+        default: 0  // in seconds
+    },
+    
     firstSeen: {
         type: Date,
         default: Date.now

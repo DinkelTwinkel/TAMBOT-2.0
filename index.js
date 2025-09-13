@@ -313,6 +313,38 @@ client.once(Events.ClientReady, async c => {
                 }
             }
 
+            // STAT TRACKING: Handle voice session tracking using existing system
+            if (oldMember.channelId && oldMember.channelId !== newMember.channelId) {
+                try {
+                    const StatTracker = require('./patterns/statTracking');
+                    const statTracker = new StatTracker();
+                    
+                    // End voice session
+                    await statTracker.endVoiceSession(oldMember.member.id);
+                } catch (statError) {
+                    console.error('[VOICE STATS] Error tracking session end:', statError);
+                }
+            }
+
+            // STAT TRACKING: Handle voice session start when joining channels
+            if (newMember.channelId && oldMember.channelId !== newMember.channelId) {
+                try {
+                    const StatTracker = require('./patterns/statTracking');
+                    const statTracker = new StatTracker();
+                    
+                    await statTracker.startVoiceSession(
+                        newMember.member.id,
+                        newMember.channelId,
+                        guild.id,
+                        newMember.member.user.username,
+                        newMember.channel?.name,
+                        guild.name
+                    );
+                } catch (statError) {
+                    console.error('[VOICE STATS] Error tracking session start:', statError);
+                }
+            }
+
             // Empty voice check
             if (oldMember.channelId && oldMember.channelId !== newMember.channelId) {
                 try {
@@ -468,10 +500,32 @@ for (const file of commandFiles) {
   client.commands.set(command.data.name, command);
 }
 
-// Message listener for marketplace channel restrictions
+// Message listener for marketplace channel restrictions and stat tracking
 client.on(Events.MessageCreate, async (message) => {
   // Ignore bot messages
   if (message.author.bot) return;
+  
+  // STAT TRACKING: Track message sent using existing system
+  if (message.guild) {
+    try {
+      const StatTracker = require('./patterns/statTracking');
+      const statTracker = new StatTracker();
+      
+      await statTracker.trackMessage(
+        message.author.id,
+        message.guild.id,
+        message.channel.id,
+        message.id,
+        message.content.length,
+        message.attachments.size > 0,
+        message.author.username,
+        message.channel.name,
+        message.guild.name
+      );
+    } catch (statError) {
+      console.error('[MESSAGE STATS] Error tracking message:', statError);
+    }
+  }
   
   // Check if this is the restricted marketplace channel
   if (message.channel.id === '1416024145128587437') {
@@ -497,6 +551,22 @@ client.on(Events.MessageCreate, async (message) => {
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isCommand()) return;
   //if (interaction.guild.id !== targetGuildId) return;
+
+  // STAT TRACKING: Track command usage using existing system
+  if (interaction.guild) {
+    try {
+      const StatTracker = require('./patterns/statTracking');
+      const statTracker = new StatTracker();
+      
+      await statTracker.trackCommand(
+        interaction.user.id,
+        interaction.guild.id,
+        interaction.user.username
+      );
+    } catch (statError) {
+      console.error('[COMMAND STATS] Error tracking command usage:', statError);
+    }
+  }
 
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
