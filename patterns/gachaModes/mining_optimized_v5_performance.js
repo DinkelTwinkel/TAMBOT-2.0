@@ -3295,7 +3295,8 @@ if (shouldStartBreak) {
                     freshDbEntry,  // Use fresh dbEntry per player
                     hazardsData,
                     teamLuckBonus,  // Pass team luck bonus
-                    mineTypeId  // Pass mine type ID for proper ore correspondence
+                    mineTypeId,  // Pass mine type ID for proper ore correspondence
+                    gameStatTracker  // Pass game stat tracker instance
                 );
                 
                 // === UPDATE CACHE AFTER PLAYER ACTION - RACE CONDITION FIX ===
@@ -3479,7 +3480,7 @@ if (shouldStartBreak) {
 };
 
     // Enhanced player action processing with improved error handling and performance
-async function processPlayerActionsEnhanced(member, playerData, mapData, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0, mineTypeId = null) {
+async function processPlayerActionsEnhanced(member, playerData, mapData, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0, mineTypeId = null, gameStatTracker = null) {
     // Debug logging for mineTypeId
     console.log(`[PROCESSPLAYER DEBUG] ${member.displayName} processPlayerActionsEnhanced called with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId})`);
     
@@ -3490,10 +3491,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
     }
     
     // Track power level for stats
-    try {
-        await gameStatTracker.trackPowerLevel(member.id, member.guild.id, powerLevel);
-    } catch (error) {
-        console.error('Error tracking power level:', error);
+    if (gameStatTracker) {
+        try {
+            await gameStatTracker.trackPowerLevel(member.id, member.guild.id, powerLevel);
+        } catch (error) {
+            console.error('Error tracking power level:', error);
+        }
     }
 
     // Determine the actual member to credit earnings to (for shadow clones, use owner)
@@ -4464,10 +4467,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         await addItemWithDestination(dbEntry, targetMemberId, item.itemId, finalQuantity, destination);
                         
                         // Track item found for stats
-                        try {
-                            await gameStatTracker.trackItemFound(member.id, member.guild.id, item.itemId, finalQuantity, 'mining');
-                        } catch (error) {
-                            console.error('Error tracking item found:', error);
+                        if (gameStatTracker) {
+                            try {
+                                await gameStatTracker.trackItemFound(member.id, member.guild.id, item.itemId, finalQuantity, 'mining');
+                            } catch (error) {
+                                console.error('Error tracking item found:', error);
+                            }
                         }
                         
                         let findMessage;
@@ -4507,10 +4512,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     wallsBroken++;
                     
                     // Track tile broken for stats
-                    try {
-                        await gameStatTracker.trackTileBroken(member.id, member.guild.id, getTileTypeName(targetTile.type));
-                    } catch (error) {
-                        console.error('Error tracking tile broken:', error);
+                    if (gameStatTracker) {
+                        try {
+                            await gameStatTracker.trackTileBroken(member.id, member.guild.id, getTileTypeName(targetTile.type));
+                        } catch (error) {
+                            console.error('Error tracking tile broken:', error);
+                        }
                     }
                     
                     // Add wall break progress tracking (occasionally)
@@ -4581,11 +4588,13 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
         await updateMovementActivity(member.id, 1);
         
         // Track tile movement for stats
-        try {
-            const direction = getDirectionName(newX - oldX, newY - oldY);
-            await gameStatTracker.trackTileMovement(member.id, member.guild.id, direction);
-        } catch (error) {
-            console.error('Error tracking tile movement:', error);
+        if (gameStatTracker) {
+            try {
+                const direction = getDirectionName(newX - oldX, newY - oldY);
+                await gameStatTracker.trackTileMovement(member.id, member.guild.id, direction);
+            } catch (error) {
+                console.error('Error tracking tile movement:', error);
+            }
         }
         
         // Show progress for movement-based maintenance items (like Shadowstep Boots)
@@ -4627,7 +4636,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     treasuresFound++;
                     
                     // Track treasure items found for stats
-                    if (treasureResult.itemsFound && treasureResult.itemsFound.length > 0) {
+                    if (gameStatTracker && treasureResult.itemsFound && treasureResult.itemsFound.length > 0) {
                         try {
                             for (const item of treasureResult.itemsFound) {
                                 await gameStatTracker.trackItemFound(member.id, member.guild.id, item.itemId, item.quantity, 'treasure');
@@ -4690,10 +4699,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 hazardsChanged = true;
                 
                 // Track hazard evaded for stats
-                try {
-                    await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
-                } catch (error) {
-                    console.error('Error tracking hazard evaded:', error);
+                if (gameStatTracker) {
+                    try {
+                        await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
+                    } catch (error) {
+                        console.error('Error tracking hazard evaded:', error);
+                    }
                 }
                 continue;
             }
@@ -4704,10 +4715,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 eventLogs.push(`🍀 ${member.displayName}'s luck helped them narrowly avoid a ${hazard.type || 'hazard'}!`);
                 
                 // Track hazard evaded for stats
-                try {
-                    await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
-                } catch (error) {
-                    console.error('Error tracking hazard evaded:', error);
+                if (gameStatTracker) {
+                    try {
+                        await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
+                    } catch (error) {
+                        console.error('Error tracking hazard evaded:', error);
+                    }
                 }
                 // Don't remove the hazard, just skip triggering it
                 continue;
@@ -4719,10 +4732,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 hazardsChanged = true;
                 
                 // Track hazard evaded for stats
-                try {
-                    await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
-                } catch (error) {
-                    console.error('Error tracking hazard evaded:', error);
+                if (gameStatTracker) {
+                    try {
+                        await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
+                    } catch (error) {
+                        console.error('Error tracking hazard evaded:', error);
+                    }
                 }
                 continue;
             }
@@ -4753,10 +4768,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 }
                 
                 // Track hazard triggered for stats
-                try {
-                    await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'triggered');
-                } catch (error) {
-                    console.error('Error tracking hazard triggered:', error);
+                if (gameStatTracker) {
+                    try {
+                        await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'triggered');
+                    } catch (error) {
+                        console.error('Error tracking hazard triggered:', error);
+                    }
                 }
             }
             
