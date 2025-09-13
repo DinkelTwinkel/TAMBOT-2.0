@@ -14,28 +14,38 @@ class GameStatTracker {
      */
     async trackTileMovement(userId, guildId, direction = null) {
         try {
+            // First, ensure the user document exists with proper structure
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                {
+                    $setOnInsert: {
+                        userId,
+                        guildId,
+                        firstSeen: new Date(),
+                        gameData: {
+                            mining: {
+                                tilesMoved: 0,
+                                itemsFound: {},
+                                tilesBroken: {},
+                                hazardsEvaded: 0,
+                                hazardsTriggered: 0,
+                                hazardsSeen: 0,
+                                highestPowerLevel: 0,
+                                timeInMiningChannel: 0,
+                                movementByDirection: {}
+                            }
+                        }
+                    }
+                },
+                { upsert: true }
+            );
+
+            // Then update the stats
             const updateData = {
                 $inc: { 'gameData.mining.tilesMoved': 1 },
                 $set: { 
                     lastSeen: new Date(),
                     lastUpdated: new Date()
-                },
-                $setOnInsert: {
-                    userId,
-                    guildId,
-                    firstSeen: new Date(),
-                    gameData: {
-                        mining: {
-                            tilesMoved: 0,
-                            itemsFound: {},
-                            tilesBroken: {},
-                            hazardsEvaded: 0,
-                            hazardsTriggered: 0,
-                            hazardsSeen: 0,
-                            highestPowerLevel: 0,
-                            timeInMiningChannel: 0
-                        }
-                    }
                 }
             };
 
@@ -47,7 +57,7 @@ class GameStatTracker {
             await UserStats.findOneAndUpdate(
                 { userId, guildId },
                 updateData,
-                { upsert: true, new: true }
+                { new: true }
             );
 
             console.log(`📊 Tracked tile movement for user ${userId}`);
@@ -61,6 +71,34 @@ class GameStatTracker {
      */
     async trackItemFound(userId, guildId, itemId, quantity, source = 'mining') {
         try {
+            // First, ensure the user document exists with proper structure
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                {
+                    $setOnInsert: {
+                        userId,
+                        guildId,
+                        firstSeen: new Date(),
+                        gameData: {
+                            mining: {
+                                tilesMoved: 0,
+                                itemsFound: {},
+                                itemsFoundBySource: { mining: {}, treasure: {} },
+                                tilesBroken: {},
+                                hazardsEvaded: 0,
+                                hazardsTriggered: 0,
+                                hazardsSeen: 0,
+                                highestPowerLevel: 0,
+                                timeInMiningChannel: 0,
+                                movementByDirection: {}
+                            }
+                        }
+                    }
+                },
+                { upsert: true }
+            );
+
+            // Then update the stats
             const updateData = {
                 $inc: { 
                     [`gameData.mining.itemsFound.${itemId}`]: quantity,
@@ -69,31 +107,13 @@ class GameStatTracker {
                 $set: { 
                     lastSeen: new Date(),
                     lastUpdated: new Date()
-                },
-                $setOnInsert: {
-                    userId,
-                    guildId,
-                    firstSeen: new Date(),
-                    gameData: {
-                        mining: {
-                            tilesMoved: 0,
-                            itemsFound: {},
-                            itemsFoundBySource: { mining: {}, treasure: {} },
-                            tilesBroken: {},
-                            hazardsEvaded: 0,
-                            hazardsTriggered: 0,
-                            hazardsSeen: 0,
-                            highestPowerLevel: 0,
-                            timeInMiningChannel: 0
-                        }
-                    }
                 }
             };
 
             await UserStats.findOneAndUpdate(
                 { userId, guildId },
                 updateData,
-                { upsert: true, new: true }
+                { new: true }
             );
 
             console.log(`📊 Tracked item found: ${quantity}x item ${itemId} from ${source} for user ${userId}`);
@@ -107,35 +127,45 @@ class GameStatTracker {
      */
     async trackTileBroken(userId, guildId, tileType) {
         try {
+            // First, ensure the user document exists with proper structure
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                {
+                    $setOnInsert: {
+                        userId,
+                        guildId,
+                        firstSeen: new Date(),
+                        gameData: {
+                            mining: {
+                                tilesMoved: 0,
+                                itemsFound: {},
+                                tilesBroken: {},
+                                hazardsEvaded: 0,
+                                hazardsTriggered: 0,
+                                hazardsSeen: 0,
+                                highestPowerLevel: 0,
+                                timeInMiningChannel: 0,
+                                movementByDirection: {}
+                            }
+                        }
+                    }
+                },
+                { upsert: true }
+            );
+
+            // Then update the stats
             const updateData = {
                 $inc: { [`gameData.mining.tilesBroken.${tileType}`]: 1 },
                 $set: { 
                     lastSeen: new Date(),
                     lastUpdated: new Date()
-                },
-                $setOnInsert: {
-                    userId,
-                    guildId,
-                    firstSeen: new Date(),
-                    gameData: {
-                        mining: {
-                            tilesMoved: 0,
-                            itemsFound: {},
-                            tilesBroken: {},
-                            hazardsEvaded: 0,
-                            hazardsTriggered: 0,
-                            hazardsSeen: 0,
-                            highestPowerLevel: 0,
-                            timeInMiningChannel: 0
-                        }
-                    }
                 }
             };
 
             await UserStats.findOneAndUpdate(
                 { userId, guildId },
                 updateData,
-                { upsert: true, new: true }
+                { new: true }
             );
 
             console.log(`📊 Tracked tile broken: ${tileType} for user ${userId}`);
@@ -150,6 +180,35 @@ class GameStatTracker {
     async trackHazardInteraction(userId, guildId, hazardType, interactionType) {
         try {
             // interactionType: 'evaded', 'triggered', 'seen'
+            
+            // First, ensure the user document exists with proper structure
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                {
+                    $setOnInsert: {
+                        userId,
+                        guildId,
+                        firstSeen: new Date(),
+                        gameData: {
+                            mining: {
+                                tilesMoved: 0,
+                                itemsFound: {},
+                                tilesBroken: {},
+                                hazardsEvaded: 0,
+                                hazardsTriggered: 0,
+                                hazardsSeen: 0,
+                                hazardsByType: {},
+                                highestPowerLevel: 0,
+                                timeInMiningChannel: 0,
+                                movementByDirection: {}
+                            }
+                        }
+                    }
+                },
+                { upsert: true }
+            );
+
+            // Then update the stats
             const updateData = {
                 $inc: { 
                     [`gameData.mining.hazards${interactionType.charAt(0).toUpperCase() + interactionType.slice(1)}`]: 1,
@@ -158,31 +217,13 @@ class GameStatTracker {
                 $set: { 
                     lastSeen: new Date(),
                     lastUpdated: new Date()
-                },
-                $setOnInsert: {
-                    userId,
-                    guildId,
-                    firstSeen: new Date(),
-                    gameData: {
-                        mining: {
-                            tilesMoved: 0,
-                            itemsFound: {},
-                            tilesBroken: {},
-                            hazardsEvaded: 0,
-                            hazardsTriggered: 0,
-                            hazardsSeen: 0,
-                            hazardsByType: {},
-                            highestPowerLevel: 0,
-                            timeInMiningChannel: 0
-                        }
-                    }
                 }
             };
 
             await UserStats.findOneAndUpdate(
                 { userId, guildId },
                 updateData,
-                { upsert: true, new: true }
+                { new: true }
             );
 
             console.log(`📊 Tracked hazard ${interactionType}: ${hazardType} for user ${userId}`);
@@ -196,6 +237,33 @@ class GameStatTracker {
      */
     async trackPowerLevel(userId, guildId, powerLevel) {
         try {
+            // First, ensure the user document exists with proper structure
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                {
+                    $setOnInsert: {
+                        userId,
+                        guildId,
+                        firstSeen: new Date(),
+                        gameData: {
+                            mining: {
+                                tilesMoved: 0,
+                                itemsFound: {},
+                                tilesBroken: {},
+                                hazardsEvaded: 0,
+                                hazardsTriggered: 0,
+                                hazardsSeen: 0,
+                                highestPowerLevel: 0,
+                                timeInMiningChannel: 0,
+                                movementByDirection: {}
+                            }
+                        }
+                    }
+                },
+                { upsert: true }
+            );
+
+            // Check current highest power level
             const userStats = await UserStats.findOne({ userId, guildId });
             const currentHighest = userStats?.gameData?.mining?.highestPowerLevel || 0;
             
@@ -207,26 +275,9 @@ class GameStatTracker {
                             'gameData.mining.highestPowerLevel': powerLevel,
                             lastSeen: new Date(),
                             lastUpdated: new Date()
-                        },
-                        $setOnInsert: {
-                            userId,
-                            guildId,
-                            firstSeen: new Date(),
-                            gameData: {
-                                mining: {
-                                    tilesMoved: 0,
-                                    itemsFound: {},
-                                    tilesBroken: {},
-                                    hazardsEvaded: 0,
-                                    hazardsTriggered: 0,
-                                    hazardsSeen: 0,
-                                    highestPowerLevel: 0,
-                                    timeInMiningChannel: 0
-                                }
-                            }
                         }
                     },
-                    { upsert: true, new: true }
+                    { new: true }
                 );
 
                 console.log(`📊 Updated highest power level: ${powerLevel} for user ${userId}`);
@@ -241,35 +292,45 @@ class GameStatTracker {
      */
     async trackMiningTime(userId, guildId, timeInSeconds) {
         try {
+            // First, ensure the user document exists with proper structure
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                {
+                    $setOnInsert: {
+                        userId,
+                        guildId,
+                        firstSeen: new Date(),
+                        gameData: {
+                            mining: {
+                                tilesMoved: 0,
+                                itemsFound: {},
+                                tilesBroken: {},
+                                hazardsEvaded: 0,
+                                hazardsTriggered: 0,
+                                hazardsSeen: 0,
+                                highestPowerLevel: 0,
+                                timeInMiningChannel: 0,
+                                movementByDirection: {}
+                            }
+                        }
+                    }
+                },
+                { upsert: true }
+            );
+
+            // Then update the stats
             const updateData = {
                 $inc: { 'gameData.mining.timeInMiningChannel': timeInSeconds },
                 $set: { 
                     lastSeen: new Date(),
                     lastUpdated: new Date()
-                },
-                $setOnInsert: {
-                    userId,
-                    guildId,
-                    firstSeen: new Date(),
-                    gameData: {
-                        mining: {
-                            tilesMoved: 0,
-                            itemsFound: {},
-                            tilesBroken: {},
-                            hazardsEvaded: 0,
-                            hazardsTriggered: 0,
-                            hazardsSeen: 0,
-                            highestPowerLevel: 0,
-                            timeInMiningChannel: 0
-                        }
-                    }
                 }
             };
 
             await UserStats.findOneAndUpdate(
                 { userId, guildId },
                 updateData,
-                { upsert: true, new: true }
+                { new: true }
             );
 
             console.log(`📊 Tracked mining time: ${timeInSeconds}s for user ${userId}`);
@@ -285,30 +346,39 @@ class GameStatTracker {
      */
     async batchUpdateStats(userId, guildId, statsUpdates) {
         try {
+            // First, ensure the user document exists with proper structure
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                {
+                    $setOnInsert: {
+                        userId,
+                        guildId,
+                        firstSeen: new Date(),
+                        gameData: {
+                            mining: {
+                                tilesMoved: 0,
+                                itemsFound: {},
+                                itemsFoundBySource: { mining: {}, treasure: {} },
+                                tilesBroken: {},
+                                hazardsEvaded: 0,
+                                hazardsTriggered: 0,
+                                hazardsSeen: 0,
+                                hazardsByType: {},
+                                movementByDirection: {},
+                                highestPowerLevel: 0,
+                                timeInMiningChannel: 0
+                            }
+                        }
+                    }
+                },
+                { upsert: true }
+            );
+
+            // Then update the stats
             const updateData = {
                 $set: { 
                     lastSeen: new Date(),
                     lastUpdated: new Date()
-                },
-                $setOnInsert: {
-                    userId,
-                    guildId,
-                    firstSeen: new Date(),
-                    gameData: {
-                        mining: {
-                            tilesMoved: 0,
-                            itemsFound: {},
-                            itemsFoundBySource: { mining: {}, treasure: {} },
-                            tilesBroken: {},
-                            hazardsEvaded: 0,
-                            hazardsTriggered: 0,
-                            hazardsSeen: 0,
-                            hazardsByType: {},
-                            movementByDirection: {},
-                            highestPowerLevel: 0,
-                            timeInMiningChannel: 0
-                        }
-                    }
                 }
             };
 
@@ -321,7 +391,7 @@ class GameStatTracker {
             await UserStats.findOneAndUpdate(
                 { userId, guildId },
                 updateData,
-                { upsert: true, new: true }
+                { new: true }
             );
 
             console.log(`📊 Batch updated stats for user ${userId}:`, Object.keys(statsUpdates));
