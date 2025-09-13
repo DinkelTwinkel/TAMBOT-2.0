@@ -9,10 +9,6 @@ const { generateInnMapImage } = require('./imageProcessing/inn-layered-render');
 const generateShop = require('../generateShop');
 const CustomerManager = require('./innKeeping/customerManager');
 
-// Import comprehensive stat tracker for innkeeping
-const ComprehensiveStatTracker = require('../statTracker');
-const innStatTracker = new ComprehensiveStatTracker();
-
 class InnKeeperV4Controller {
     constructor() {
         // Use centralized constants
@@ -269,34 +265,6 @@ class InnKeeperV4Controller {
 
         console.log(`[InnKeeperV4] Starting ${breakType} break for channel ${channel.id}, cycle ${cycleCount}`);
 
-        // STAT TRACKING: Track work shift completion and break start for all staff members
-        try {
-            const voiceChannel = channel.guild.channels.cache.find(c => 
-                c.type === 2 && (
-                    c.name.toLowerCase().includes(channel.name.toLowerCase().replace(/-/g, ' ')) ||
-                    channel.name.toLowerCase().includes(c.name.toLowerCase().replace(/-/g, ' '))
-                )
-            );
-            
-            if (voiceChannel) {
-                const members = Array.from(voiceChannel.members.values());
-                for (const member of members) {
-                    if (!member.user.bot) {
-                        // Track break reached in comprehensive system
-                        await innStatTracker.trackInnkeepingBreak(
-                            member.id,
-                            member.displayName || member.user.username,
-                            channel.guild.id,
-                            channel.guild.name,
-                            isLongBreak
-                        );
-                    }
-                }
-            }
-        } catch (statError) {
-            console.error('[INN STATS] Error tracking work shift completion and break:', statError);
-        }
-
         // Update state
         const updated = await ActiveVCs.findOneAndUpdate(
             { 
@@ -548,44 +516,6 @@ class InnKeeperV4Controller {
             const currentProfit = v4State?.currentWorkPeriodProfit || 0;
             const newCurrentProfit = currentProfit + profit;
             const totalProfit = (v4State?.totalProfit || 0) + profit;
-
-            // STAT TRACKING: Track innkeeping earnings and customer interactions
-            if (profit > 0 || orderResult.customersServed > 0) {
-                try {
-                    // Track earnings for all staff members
-                    for (const member of members) {
-                        if (!member.user.bot) {
-                            if (profit > 0) {
-                                await innStatTracker.trackInnkeepingEarnings(
-                                    member.id,
-                                    member.displayName || member.user.username,
-                                    channel.guild.id,
-                                    channel.guild.name,
-                                    Math.floor(profit / members.filter(m => !m.user.bot).length), // Split profit among staff
-                                    true // is profit
-                                );
-                            }
-                            
-                            // Track customers served
-                            if (orderResult.customersServed > 0) {
-                                await innStatTracker.trackCustomerInteraction(
-                                    member.id,
-                                    member.displayName || member.user.username,
-                                    channel.guild.id,
-                                    channel.guild.name,
-                                    `customer_${now}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique customer ID
-                                    'Inn Customer',
-                                    'happy', // Assume happy for now
-                                    Math.floor(profit / Math.max(1, orderResult.customersServed)), // Average spending per customer
-                                    false // overnight stay tracking would need more logic
-                                );
-                            }
-                        }
-                    }
-                } catch (statError) {
-                    console.error('[INN STATS] Error tracking innkeeping stats:', statError);
-                }
-            }
 
             // Create work event object
             const workEvent = {

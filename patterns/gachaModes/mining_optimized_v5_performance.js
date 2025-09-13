@@ -31,15 +31,6 @@ const sendLegendaryAnnouncement = require('../uniqueItemFinding').sendLegendaryA
     return false;
 });
 
-// Import mining stats integration
-const miningStatsIntegration = require('./mining/miningStatsIntegration');
-
-// Initialize stat trackers for mining - both existing and comprehensive systems
-const ExistingStatTracker = require('../statTracking');
-const ComprehensiveStatTracker = require('../statTracker');
-const existingStatTracker = new ExistingStatTracker();
-const comprehensiveStatTracker = new ComprehensiveStatTracker();
-
 // Import instance manager for preventing parallel execution
 const instanceManager = require('./instance-manager');
 
@@ -2513,31 +2504,10 @@ if (shouldStartBreak) {
                 }
             }
             
-        console.log(`[BREAK START] Channel ${channelId}: Incrementing cycle ${currentCycleCount} -> ${nextCycleCount}`);
-        console.log(`[BREAK START] Break type: ${isLongBreak ? 'LONG BREAK' : 'SHORT BREAK'}`);
-        
-        // STAT TRACKING: Track mining break reached for all players
-        try {
-            const guild = channel.guild;
-            if (guild && members) {
-                for (const member of members.values()) {
-                    if (!member.user.bot) {
-                        // Track in comprehensive system only
-                        await comprehensiveStatTracker.trackMiningBreak(
-                            member.id,
-                            member.displayName || member.user.username,
-                            guild.id,
-                            guild.name,
-                            { breakType: isLongBreak ? 'long' : 'short', duration: 0 }
-                        );
-                    }
-                }
-            }
-        } catch (statError) {
-            console.error('[MINING STATS] Error tracking mining break:', statError);
-        }
-        
-        // CRITICAL: Save the incremented cycle count to DB IMMEDIATELY
+            console.log(`[BREAK START] Channel ${channelId}: Incrementing cycle ${currentCycleCount} -> ${nextCycleCount}`);
+            console.log(`[BREAK START] Break type: ${isLongBreak ? 'LONG BREAK' : 'SHORT BREAK'}`);
+            
+            // CRITICAL: Save the incremented cycle count to DB IMMEDIATELY
             try {
                 const updateData = { 
                     'gameData.cycleCount': nextCycleCount,
@@ -3484,39 +3454,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
         return { mapChanged: false, wallsBroken: 0, treasuresFound: 0, mapData, hazardsChanged: false };
     }
 
-    // Initialize stats data for mining integration
-    const statsData = {
-        wallsBroken: [],
-        itemsFound: [],
-        pickaxeUsage: null
-    };
-
-    // STAT TRACKING: Track power level reached and mining session
-    try {
-        const guild = member.guild;
-        if (guild && dbEntry.channelId) {
-            // Track in comprehensive system only
-            await comprehensiveStatTracker.trackPowerLevelReached(
-                member.id,
-                member.displayName || member.user.username,
-                guild.id,
-                guild.name,
-                { powerLevel }
-            );
-            
-            // Track mining session start in comprehensive system (if not already tracked)
-            await comprehensiveStatTracker.trackMiningSessionStart(
-                member.id,
-                member.displayName || member.user.username,
-                guild.id,
-                guild.name,
-                { timestamp: new Date() }
-            );
-        }
-    } catch (statError) {
-        console.error('[MINING STATS] Error tracking power level/session:', statError);
-    }
-
     // Determine the actual member to credit earnings to (for shadow clones, use owner)
     let targetMemberId = member.id;
     if (member.isClone && member.ownerId) {
@@ -3616,7 +3553,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 };
                 
                 // Add to transaction for atomic update
-                transaction.setVCUpdate(dbEntry.channelId, {
+                transaction.addVCUpdate(dbEntry.channelId, {
                     [`gameData.playerHealth.${member.id}`]: dbEntry.gameData.playerHealth[member.id]
                 });
                 
@@ -3939,16 +3876,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     await addItemWithDestination(dbEntry, targetMemberId, treasure.itemId, 1, 'inventory');
                     eventLogs.push(`🎁 ${member.displayName} discovered ${treasure.name} while exploring! (added to inventory)`);
                     treasuresFound++;
-                    
-                    // STAT TRACKING: Collect treasure found data for mining integration
-                    statsData.itemsFound.push({
-                        item: treasure,
-                        quantity: 1,
-                        tileType: null,
-                        isTreasure: true,
-                        isRare: false,
-                        value: treasure.value || 0
-                    });
                 } else {
                     console.log(`[MINING DEBUG] ${member.displayName} treasure generation returned null/undefined`);
                 }
@@ -4042,14 +3969,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     console.log(`[MINING DEBUG] ${member.displayName} successfully converted tile at (${adjacentTarget.x},${adjacentTarget.y}) to ${getTileTypeName(TILE_TYPES.FLOOR)}`);
                     mapChanged = true;
                     wallsBroken++;
-                    
-                    // STAT TRACKING: Track area damage wall broken for mining integration
-                    statsData.wallsBroken.push({
-                        tileType: tile.type,
-                        hardness: tile.hardness || 1,
-                        position: { x: adjacentTarget.x, y: adjacentTarget.y }
-                    });
-                    
                     console.log(`[MINING DEBUG] ${member.displayName} tile conversion complete, continuing with action processing...`);
                     
                     // Check for proactive map expansion when breaking walls at edges
@@ -4125,26 +4044,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                                     transaction.addPickaxeBreak(member.id, member.user.tag, bestPickaxe);
                                     eventLogs.push(`${member.displayName}'s ${bestPickaxe.name} shattered!`);
                                     pickaxeBroken = true; // Mark pickaxe as broken to prevent multiple breaks
-                                    
-                                    // STAT TRACKING: Track pickaxe broken
-                                    statsData.pickaxeUsage = {
-                                        pickaxe: bestPickaxe,
-                                        durabilityLoss: durabilityCheck.durabilityLoss || 1,
-                                        broken: true
-                                    };
                                 } else {
                                     transaction.updatePickaxeDurability(member.id, bestPickaxe.itemId, durabilityCheck.newDurability);
-                                    
-                                    // STAT TRACKING: Track pickaxe durability loss
-                                    if (!statsData.pickaxeUsage) {
-                                        statsData.pickaxeUsage = {
-                                            pickaxe: bestPickaxe,
-                                            durabilityLoss: durabilityCheck.durabilityLoss || 1,
-                                            broken: false
-                                        };
-                                    } else {
-                                        statsData.pickaxeUsage.durabilityLoss += durabilityCheck.durabilityLoss || 1;
-                                    }
                                     
                                     const maxDurability = bestPickaxe.durability || 100;
                                     const durabilityPercent = (durabilityCheck.newDurability / maxDurability) * 100;
@@ -4317,13 +4218,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                                     type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 
                                 };
                                 wallsBroken++;
-                                
-                                // STAT TRACKING: Track chain mining wall broken for mining integration
-                                statsData.wallsBroken.push({
-                                    tileType: chainTile.type,
-                                    hardness: chainTile.hardness || 1,
-                                    position: { x: chainTarget.x, y: chainTarget.y }
-                                });
                                 
                                 // Log chain mining wall breaks (less verbose to avoid spam)
                                 if (Math.random() < 0.3) { // 30% chance to log chain breaks
@@ -4527,41 +4421,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         console.log (`${member.displayName} got ${item.name} and its going to ${destination}`);
                         await addItemWithDestination(dbEntry, targetMemberId, item.itemId, finalQuantity, destination);
                         
-                        // STAT TRACKING: Track ore found
-                        try {
-                            const isRare = targetTile.type === TILE_TYPES.RARE_ORE || item.tier === 'epic' || item.tier === 'legendary';
-                            const isUnique = item.tier === 'legendary' || item.tier === 'mythic';
-                            const itemValue = (item.value || 0) * finalQuantity;
-                            const guild = member.guild;
-                            
-                            if (guild) {
-                                // Track in comprehensive system only (detailed ore tracking with types)
-                                await comprehensiveStatTracker.trackOreFound(
-                                    member.id,
-                                    member.displayName || member.user.username,
-                                    guild.id,
-                                    guild.name,
-                                    { 
-                                        oreType: item.itemId || item.id,
-                                        value: item.value || 0,
-                                        rarity: item.rarity || 'common'
-                                    }
-                                );
-                            }
-                            
-                            // Collect stats data for mining integration
-                            statsData.itemsFound.push({
-                                item: item,
-                                quantity: finalQuantity,
-                                tileType: targetTile.type,
-                                isTreasure: false,
-                                isRare: isRare,
-                                value: itemValue
-                            });
-                        } catch (statError) {
-                            console.error('[MINING STATS] Error tracking ore found:', statError);
-                        }
-                        
                         let findMessage;
                         // Treasure chests no longer spawn
                         if (destination === 'inventory') {
@@ -4598,55 +4457,11 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     mapChanged = true;
                     wallsBroken++;
                     
-                    // STAT TRACKING: Track wall broken
-                    try {
-                        const isReinforced = targetTile.type === TILE_TYPES.REINFORCED_WALL;
-                        const guild = member.guild;
-                        if (guild) {
-                            // Track in comprehensive system only
-                            await comprehensiveStatTracker.trackWallBroken(
-                                member.id,
-                                member.displayName || member.user.username,
-                                guild.id,
-                                guild.name,
-                                { 
-                                    wallType: isReinforced ? 'reinforced' : 'normal',
-                                    value: targetTile.value || 0
-                                }
-                            );
-                        }
-                        
-                        // Collect stats data for mining integration
-                        statsData.wallsBroken.push({
-                            tileType: targetTile.type,
-                            hardness: targetTile.hardness || 1,
-                            position: { x: newX, y: newY }
-                        });
-                    } catch (statError) {
-                        console.error('[MINING STATS] Error tracking wall broken:', statError);
-                    }
-                    
                     // Add wall break progress tracking (occasionally)
                     if (Math.random() < 0.1) { // 10% chance to show progress
                         const totalWallsBroken = (dbEntry.gameData?.stats?.wallsBroken || 0) + wallsBroken;
                         eventLogs.push(`📊 Team has broken ${totalWallsBroken} walls total!`);
                     }
-                } else {
-                // STAT TRACKING: Track failed tile break
-                try {
-                    const guild = member.guild;
-                    if (guild) {
-                        await comprehensiveStatTracker.trackTileFailedToBreak(
-                            member.id,
-                            member.displayName || member.user.username,
-                            guild.id,
-                            guild.name,
-                            { attempts: 1 }
-                        );
-                    }
-                } catch (statError) {
-                    console.error('[MINING STATS] Error tracking failed break:', statError);
-                }
                 }
 } else if (targetTile.type === TILE_TYPES.FLOOR || targetTile.type === TILE_TYPES.ENTRANCE) {
 
@@ -4661,26 +4476,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
         position.x = newX;
         position.y = newY;
         mapChanged = true;
-        
-        // STAT TRACKING: Track movement
-        try {
-            const distance = Math.abs(newX - oldX) + Math.abs(newY - oldY);
-            const guild = member.guild;
-            if (guild) {
-                await comprehensiveStatTracker.trackTileTravelled(
-                    member.id,
-                    member.displayName || member.user.username,
-                    guild.id,
-                    guild.name,
-                    { 
-                        tiles: distance,
-                        mapSize: mapData.width * mapData.height
-                    }
-                );
-            }
-        } catch (statError) {
-            console.error('[MINING STATS] Error tracking movement:', statError);
-        }
     } else {
         // If position would be out of bounds, keep player at current position
         console.warn(`[MINING DEBUG] ${member.displayName} attempted to move to out-of-bounds position (${newX}, ${newY}). Map size: ${mapData.width}x${mapData.height}`);
@@ -4767,18 +4562,6 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 if (treasureResult.treasureFound) {
                     treasuresFound++;
                     // The processEncounterTrigger already adds a message to eventLogs
-                    
-                    // STAT TRACKING: Collect treasure found data for mining integration
-                    if (treasureResult.treasure) {
-                        statsData.itemsFound.push({
-                            item: treasureResult.treasure,
-                            quantity: 1,
-                            tileType: null,
-                            isTreasure: true,
-                            isRare: false,
-                            value: treasureResult.treasure.value || 0
-                        });
-                    }
                 }
                 if (treasureResult.mapChanged) {
                     mapChanged = true;
@@ -4939,7 +4722,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
         console.error(`[PROGRESS] Error updating progress for ${member.displayName}:`, error);
     }
     
-    return { mapChanged, wallsBroken, treasuresFound, mapData, hazardsChanged, statsData };
+    return { mapChanged, wallsBroken, treasuresFound, mapData, hazardsChanged };
  } catch (error) {
 
  }

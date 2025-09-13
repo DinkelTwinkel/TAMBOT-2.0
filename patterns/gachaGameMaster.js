@@ -302,7 +302,6 @@ const lockManager = new VCLockManager();
 const { initializeUniqueItems } = require('./uniqueItemFinding');
 const { initializeSolarForgeHealing } = require('./uniqueItems/solarForgeHammer');
 const NPCSalesSystem = require('./npcSalesSystem');
-const { runMaintenanceCycle } = require('./uniqueItemMaintenanceV2');
 
 module.exports = async (guild) => {
     // --- INITIALIZE UNIQUE ITEMS SYSTEM ---
@@ -401,9 +400,9 @@ module.exports = async (guild) => {
                 const batchSize = 5;
                 for (let i = 0; i < itemsRequiringMaintenance.length; i += batchSize) {
                     const batch = itemsRequiringMaintenance.slice(i, i + batchSize);
-                const batchPromises = batch.map(({ item, itemData }) => 
-                    processItemMaintenanceV2(item, itemData)
-                );
+                    const batchPromises = batch.map(({ item, itemData }) => 
+                        processItemMaintenance(item, itemData)
+                    );
                     
                     await Promise.allSettled(batchPromises);
                 }
@@ -499,78 +498,6 @@ module.exports = async (guild) => {
 };
 
 // Helper functions for optimized interval processing
-async function processItemMaintenanceV2(item, itemData) {
-    try {
-        // Use the new V2 maintenance system that leverages comprehensive stats
-        // This is just the decay cycle - actual maintenance is done via commands
-        
-        // Special handling for Midas' Burden (wealthiest maintenance)
-        let isRichest = false;
-        if (itemData.maintenanceType === 'wealthiest' && item.itemId === 10) {
-            const Money = require('../models/currency');
-            const richestPlayer = await Money.findOne().sort({ money: -1 }).limit(1);
-            isRichest = richestPlayer && richestPlayer.userId === item.ownerId;
-            
-            if (isRichest) {
-                console.log(`[UNIQUE ITEMS V2] ${itemData.name}: Owner still wealthiest, maintenance will decay normally`);
-            }
-            
-            // Special case: If maintenance is 0 but player is still richest, restore some maintenance
-            if (item.maintenanceLevel <= 0 && isRichest) {
-                console.log(`[UNIQUE ITEMS V2] ${itemData.name}: Maintenance at 0 but owner still wealthiest - restoring above curse threshold`);
-                item.maintenanceLevel = 2;
-            }
-        }
-        
-        // Reduce maintenance by decay rate
-        const oldLevel = item.maintenanceLevel;
-        if (!(itemData.maintenanceType === 'wealthiest' && item.itemId === 10 && item.maintenanceLevel <= 0 && isRichest)) {
-            const decayRate = itemData.maintenanceDecayRate || 1;
-            await item.reduceMaintenance(decayRate, isRichest);
-            
-            // If maintenance drops to 0 or below, handle item loss
-            if (item.maintenanceLevel <= 0) {
-                if (itemData.maintenanceType === 'wealthiest' && item.itemId === 10) {
-                    // Midas' Burden becomes cursed but stays with owner
-                    console.log(`[UNIQUE ITEMS V2] ${itemData.name} cursed due to maintenance failure (owner: ${item.ownerTag})`);
-                } else {
-                    console.log(`[UNIQUE ITEMS V2] ${itemData.name} lost due to maintenance failure`);
-                    
-                    if (item.previousOwners) {
-                        item.previousOwners.push({
-                            userId: item.ownerId,
-                            userTag: item.ownerTag,
-                            acquiredDate: item.createdAt,
-                            lostDate: new Date(),
-                            lostReason: 'maintenance_failure'
-                        });
-                    }
-                    
-                    if (item.statistics) {
-                        item.statistics.timesLostToMaintenance++;
-                    }
-                    
-                    item.ownerId = null;
-                    item.ownerTag = null;
-                    item.maintenanceLevel = 10;
-                }
-            }
-        }
-        
-        item.nextMaintenanceCheck = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        await item.save();
-        
-        console.log(`[UNIQUE ITEMS V2] ${itemData.name}: Maintenance ${oldLevel} -> ${item.maintenanceLevel} (Owner: ${item.ownerTag || 'None'})`);
-        
-        if (item.maintenanceLevel <= 0 && !item.ownerId) {
-            console.log(`[UNIQUE ITEMS V2] ⚠️ ${itemData.name} was lost due to maintenance failure!`);
-        }
-    } catch (itemError) {
-        console.error(`[UNIQUE ITEMS V2] Error processing item ${item.itemId}:`, itemError);
-    }
-}
-
-// Legacy function for backward compatibility
 async function processItemMaintenance(item, itemData) {
     try {
         // Special handling for Midas' Burden (wealthiest maintenance)
