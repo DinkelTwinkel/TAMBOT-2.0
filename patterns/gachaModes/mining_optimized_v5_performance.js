@@ -842,11 +842,47 @@ async function mineFromTile(member, miningPower, luckStat, powerLevel, tileType,
         console.log(`[MINEFROMTILE DEBUG] - isDeeperMine: ${isDeeperMine}`);
         
         // Import the unified mining system and mine correspondence
-        const { findItemUnified, calculateItemQuantity, MINE_ORE_CORRESPONDENCE } = require('./mining/miningConstants_unified');
+        const { findItemUnified, calculateItemQuantity, MINE_ORE_CORRESPONDENCE, UNIFIED_ITEM_POOL } = require('./mining/miningConstants_unified');
         
         // Note: targetMemberId is now handled in processPlayerActionsEnhanced for proper scope
         
         let destination = 'minecart'; // Default
+        
+        // Check if this is a shadow clone and add shadow ore chance
+        const isShadowClone = member.isClone || member.isFamiliar || member.displayName.includes('Shadow Clone');
+        if (isShadowClone) {
+            // Shadow clones have a 15% chance to find Shadow Ore instead of regular items
+            const shadowOreChance = 0.15;
+            if (Math.random() < shadowOreChance) {
+                const shadowOre = UNIFIED_ITEM_POOL.ores.find(ore => ore.itemId === '220');
+                if (shadowOre) {
+                    console.log(`[SHADOW ORE] ${member.displayName} (shadow clone) found Shadow Ore!`);
+                    
+                    let quantity = 1;
+                    // Apply mining power scaling for shadow ore
+                    if (miningPower > 0) {
+                        const maxBonus = Math.min(miningPower, 3); // Cap shadow ore bonus at 3
+                        quantity = 1 + Math.floor(Math.random() * maxBonus);
+                    }
+                    
+                    // Apply luck bonus for shadow ore
+                    if (luckStat && luckStat > 0) {
+                        const bonusChance = Math.min(luckStat * 0.05, 0.3); // Cap at 30% for shadow ore
+                        if (Math.random() < bonusChance) {
+                            quantity += 1;
+                        }
+                    }
+                    
+                    const enhancedValue = Math.floor(shadowOre.value * efficiency.valueMultiplier);
+                    
+                    return { 
+                        item: { ...shadowOre, value: enhancedValue }, 
+                        quantity,
+                        destination: 'minecart' // Shadow ore goes to minecart like other ores
+                    };
+                }
+            }
+        }
 
         // Check if we should use the unified system (for gullet and other special mines)
         const isGullet = mineTypeId === 16 || mineTypeId === '16';
@@ -4011,6 +4047,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     
                     // No tier-based caps - unlimited quantity potential!
                     console.log (`${member.displayName} got ${item.name} and its going to ${destination}`);
+                    
+                    // Add special message for shadow ore
+                    if (item.itemId === '220') {
+                        eventLogs.push(`🌑 ${member.displayName}'s shadow clone unearthed mysterious Shadow Ore! (${finalQuantity}x)`);
+                    }
+                    
                     await addItemWithDestination(dbEntry, targetMemberId, item.itemId, finalQuantity, destination, gameStatTracker, member);
                     
                     console.log(`[MINING DEBUG] ${member.displayName} about to convert tile at (${adjacentTarget.x},${adjacentTarget.y}) from ${getTileTypeName(tile.type)}`);
@@ -4477,6 +4519,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         finalQuantity = Math.min(finalQuantity, movementQuantityCaps[item.tier] || 8);
                         
                         console.log (`${member.displayName} got ${item.name} and its going to ${destination}`);
+                        
+                        // Add special message for shadow ore
+                        if (item.itemId === '220') {
+                            eventLogs.push(`🌑 ${member.displayName}'s shadow clone unearthed mysterious Shadow Ore! (${finalQuantity}x)`);
+                        }
+                        
                         await addItemWithDestination(dbEntry, targetMemberId, item.itemId, finalQuantity, destination, gameStatTracker, member);
                         
                         
