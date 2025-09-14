@@ -472,28 +472,136 @@ class NPCSalesSystem {
             const npc = this.selectRandomNPC(itemData);
             if (!npc) return;
 
-            // Generate dialogue about expensive price
-            const overpricePercentage = Math.round((priceRatio - 1) * 100);
-            const savings = shop.pricePerItem - marketValue;
-            
-            const expensiveDialogues = [
-                `${overpricePercentage}% over market value? That's a bit steep for my taste.`,
-                `I could get this for ${marketValue}c elsewhere. ${savings}c markup is too much.`,
-                `Interesting item, but ${shop.pricePerItem}c is way above the ${marketValue}c market rate.`,
-                `I'll pass on this one. ${overpricePercentage}% markup is beyond my budget.`,
-                `Good quality, but ${shop.pricePerItem}c vs ${marketValue}c market price? I'll wait for a better deal.`
-            ];
+            // Calculate expression level for expensive items
+            const expressionLevel = this.calculateExpressionLevel(priceRatio);
+            console.log(`[NPC_SALES] 💭 ${npc.name} commenting on expensive ${itemData.name} (expression level ${expressionLevel}/10)`);
 
-            const selectedDialogue = expensiveDialogues[Math.floor(Math.random() * expensiveDialogues.length)];
+            // Generate AI dialogue for expensive item comment
+            const aiDialogue = await this.generateExpensiveItemDialogue(npc, itemData, priceRatio, marketValue, expressionLevel);
 
             await dialogueChannel.send({
-                content: `💭 **${npc.name}** *looks at the ${itemData.name}*\n\n*"${selectedDialogue}"*`
+                content: `💭 **${npc.name}** *looks at the ${itemData.name}*\n\n*"${aiDialogue}"*`
             });
 
-            console.log(`[NPC_SALES] 💭 ${npc.name} commented on expensive ${itemData.name}`);
+            console.log(`[NPC_SALES] 💭 ${npc.name} commented on expensive ${itemData.name} with AI dialogue`);
 
         } catch (error) {
             console.error('[NPC_SALES] Error posting expensive item dialogue:', error);
+        }
+    }
+
+    /**
+     * Generate AI dialogue for expensive item comments
+     */
+    async generateExpensiveItemDialogue(npc, itemData, priceRatio, marketValue, expressionLevel) {
+        try {
+            const aiShopDialogue = getAIShopDialogue();
+            
+            if (!aiShopDialogue || !aiShopDialogue.isAvailable()) {
+                // Fallback to static dialogue
+                const overpricePercentage = Math.round((priceRatio - 1) * 100);
+                const savings = (priceRatio * marketValue) - marketValue;
+                
+                const expensiveDialogues = [
+                    `${overpricePercentage}% over market value? That's a bit steep for my taste.`,
+                    `I could get this for ${marketValue}c elsewhere. ${Math.round(savings)}c markup is too much.`,
+                    `Interesting item, but ${Math.round(priceRatio * marketValue)}c is way above the ${marketValue}c market rate.`,
+                    `I'll pass on this one. ${overpricePercentage}% markup is beyond my budget.`,
+                    `Good quality, but ${Math.round(priceRatio * marketValue)}c vs ${marketValue}c market price? I'll wait for a better deal.`
+                ];
+                return expensiveDialogues[Math.floor(Math.random() * expensiveDialogues.length)];
+            }
+
+            const overpricePercentage = Math.round((priceRatio - 1) * 100);
+            const actualPrice = Math.round(priceRatio * marketValue);
+            
+            // Create expression context based on level
+            let expressionContext = '';
+            let emotionalTone = '';
+            
+            if (expressionLevel <= 2) {
+                emotionalTone = 'barely interested, minimal reaction';
+                expressionContext = 'barely notices the high price';
+            } else if (expressionLevel <= 4) {
+                emotionalTone = 'slightly concerned, mild interest';
+                expressionContext = 'shows mild concern about the price';
+            } else if (expressionLevel <= 6) {
+                emotionalTone = 'concerned, business-like';
+                expressionContext = 'reacts with concern to the high price';
+            } else if (expressionLevel <= 8) {
+                emotionalTone = 'frustrated, clearly annoyed';
+                expressionContext = 'is clearly frustrated with the excessive price';
+            } else if (expressionLevel <= 9) {
+                emotionalTone = 'angry, very frustrated';
+                expressionContext = 'is angry about the extremely high price';
+            } else {
+                emotionalTone = 'outraged, absolutely furious';
+                expressionContext = 'is completely outraged by the absurd price';
+            }
+
+            // Get item description for context
+            const itemDescription = itemData.description || 'A useful item';
+            const itemType = itemData.type;
+            const itemName = itemData.name;
+
+            // Determine if NPC should mention the item specifically
+            const shouldMentionItem = Math.random() < 0.7; // 70% chance to mention item when commenting on price
+            const itemMention = shouldMentionItem ? 'Mention the specific item and its properties' : 'Just comment on the price without mentioning the item';
+
+            const prompt = `You are ${npc.name}, a character in HELLUNGI (a dimensional abyss where lost souls are trapped).
+
+PERSONALITY: ${npc.personality}
+
+ITEM BEING SOLD:
+- Name: ${itemName}
+- Type: ${itemType}
+- Description: ${itemDescription}
+- Price: ${actualPrice} coins (${overpricePercentage}% over market value of ${marketValue}c)
+- Expression level: ${expressionLevel}/10 (${emotionalTone})
+- ${expressionContext}
+
+CONTEXT:
+- You're trapped in HELLUNGI, a void dimension where memories fade
+- You're browsing a player marketplace in this endless abyss
+- Your wealth level: ${npc.wealth || 3}/10, budget: ${npc.budget || 'medium'}
+- You prefer: ${npc.preferences?.join(', ') || 'anything'}
+
+REQUIREMENTS:
+- React with expression level ${expressionLevel}/10 intensity
+- Keep dialogue under 150 characters
+- Stay in character based on your personality
+- ${itemMention}
+- Comment on the price being too high
+- Use your speech patterns and personality traits
+- You're NOT buying this item due to the high price
+- Be aware of the item's properties and value
+
+Generate a single line of dialogue expressing your reaction to seeing this overpriced item:`;
+
+            const response = await aiShopDialogue.openai.chat.completions.create({
+                model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
+                messages: [{ role: "user", content: prompt }],
+                max_tokens: 60,
+                temperature: 0.8,
+            });
+
+            const dialogue = response.choices[0].message.content.trim();
+            return this.truncateDialogue(dialogue);
+
+        } catch (error) {
+            console.error('[NPC_SALES] AI expensive item dialogue generation failed:', error);
+            // Fallback to static dialogue
+            const overpricePercentage = Math.round((priceRatio - 1) * 100);
+            const actualPrice = Math.round(priceRatio * marketValue);
+            
+            const expensiveDialogues = [
+                `${overpricePercentage}% over market value? That's a bit steep for my taste.`,
+                `I could get this for ${marketValue}c elsewhere. ${Math.round(actualPrice - marketValue)}c markup is too much.`,
+                `Interesting item, but ${actualPrice}c is way above the ${marketValue}c market rate.`,
+                `I'll pass on this one. ${overpricePercentage}% markup is beyond my budget.`,
+                `Good quality, but ${actualPrice}c vs ${marketValue}c market price? I'll wait for a better deal.`
+            ];
+            return expensiveDialogues[Math.floor(Math.random() * expensiveDialogues.length)];
         }
     }
 
@@ -506,57 +614,38 @@ class NPCSalesSystem {
                 return npc.dialogue[Math.floor(Math.random() * npc.dialogue.length)];
             }
 
-            // Calculate if this was a good deal for context
+            // Calculate price ratio and expression level (1-10 scale)
             const priceRatio = pricePaid / marketValue;
-            let dealQuality;
-            if (priceRatio <= 0.5) dealQuality = 'excellent';
-            else if (priceRatio <= 0.8) dealQuality = 'good';
-            else if (priceRatio <= 1.0) dealQuality = 'fair';
-            else dealQuality = 'expensive';
+            const expressionLevel = this.calculateExpressionLevel(priceRatio);
+            
+            console.log(`[NPC_SALES] 📊 Price ratio: ${(priceRatio * 100).toFixed(1)}%, Expression level: ${expressionLevel}/10`);
 
-            // Create NPC context for AI
+            // Create NPC context for AI with expression level
             const npcContext = {
                 name: npc.name,
                 personality: npc.aiPersonality || npc.description,
                 preferences: npc.preferences || [],
                 wealth: npc.wealth || 3,
                 budget: npc.budget || 'medium',
-                dealQuality: dealQuality,
+                priceRatio: priceRatio,
+                expressionLevel: expressionLevel,
                 pricePaid: pricePaid,
                 marketValue: marketValue,
                 itemType: itemData.type,
                 itemName: itemData.name,
-                savings: marketValue - pricePaid
+                savings: marketValue - pricePaid,
+                overpricePercentage: Math.round((priceRatio - 1) * 100)
             };
 
-            // Generate AI dialogue using the existing shop dialogue system
-            // We'll create a mock shop object for the AI to work with
-            const mockShop = {
-                name: 'Player Marketplace',
-                shopkeeper: {
-                    name: npc.name,
-                    personality: npc.aiPersonality || npc.description
-                },
-                successBuy: npc.dialogue // Fallback dialogue
-            };
-
-            const mockBuyer = {
-                username: npc.name,
-                displayName: npc.name,
-                id: npc.id
-            };
-
-            // Generate contextual purchase dialogue
-            const aiDialogue = await aiShopDialogue.generatePurchaseDialogue(
-                mockShop, 
+            // Generate AI dialogue with expression level context
+            const aiDialogue = await this.generateNPCPurchaseDialogueWithAI(
+                npc, 
                 itemData, 
-                pricePaid, 
-                mockBuyer, 
-                1, 
-                npcContext
+                npcContext, 
+                aiShopDialogue
             );
 
-            console.log(`[NPC_SALES] 🤖 Generated AI dialogue for ${npc.name}`);
+            console.log(`[NPC_SALES] 🤖 Generated AI dialogue for ${npc.name} (expression level ${expressionLevel})`);
             return aiDialogue;
 
         } catch (error) {
@@ -564,6 +653,141 @@ class NPCSalesSystem {
             // Fallback to static dialogue
             return npc.dialogue[Math.floor(Math.random() * npc.dialogue.length)];
         }
+    }
+
+    /**
+     * Calculate NPC expression level based on price ratio (1-10 scale)
+     * @param {number} priceRatio - Price paid vs market value ratio
+     * @returns {number} Expression level from 1-10
+     */
+    calculateExpressionLevel(priceRatio) {
+        if (priceRatio <= 0.1) return 1; // Nearly free - minimal reaction
+        if (priceRatio <= 0.3) return 2; // Very cheap - slight surprise
+        if (priceRatio <= 0.5) return 3; // Good deal - pleased
+        if (priceRatio <= 0.7) return 4; // Fair price - satisfied
+        if (priceRatio <= 0.9) return 5; // Slightly overpriced - neutral
+        if (priceRatio <= 1.1) return 6; // Market price - normal
+        if (priceRatio <= 1.5) return 7; // Overpriced - concerned
+        if (priceRatio <= 2.0) return 8; // Very overpriced - frustrated
+        if (priceRatio <= 5.0) return 9; // Extremely overpriced - angry
+        return 10; // Absurdly overpriced (10000%+) - outraged
+    }
+
+    /**
+     * Generate AI dialogue for NPC purchase with expression level
+     */
+    async generateNPCPurchaseDialogueWithAI(npc, itemData, npcContext, aiShopDialogue) {
+        try {
+            const expressionLevel = npcContext.expressionLevel;
+            const priceRatio = npcContext.priceRatio;
+            const overpricePercentage = npcContext.overpricePercentage;
+            
+            // Create expression context based on level
+            let expressionContext = '';
+            let emotionalTone = '';
+            
+            if (expressionLevel <= 2) {
+                emotionalTone = 'minimal reaction, barely interested';
+                expressionContext = 'barely notices the price, shows little interest';
+            } else if (expressionLevel <= 4) {
+                emotionalTone = 'pleased, satisfied with the deal';
+                expressionContext = 'shows satisfaction with the good price';
+            } else if (expressionLevel <= 6) {
+                emotionalTone = 'neutral, business-like';
+                expressionContext = 'reacts normally to the transaction';
+            } else if (expressionLevel <= 8) {
+                emotionalTone = 'concerned, frustrated with the price';
+                expressionContext = 'shows concern about the high price';
+            } else if (expressionLevel <= 9) {
+                emotionalTone = 'angry, very frustrated';
+                expressionContext = 'is clearly angry about the excessive price';
+            } else {
+                emotionalTone = 'outraged, absolutely furious';
+                expressionContext = 'is completely outraged by the absurd price';
+            }
+
+            // Determine if NPC should mention the item specifically or just give thanks
+            const shouldMentionItem = Math.random() < 0.6; // 60% chance to mention item
+            const itemMention = shouldMentionItem ? 'Mention the specific item and its properties' : 'Just give thanks without mentioning the item';
+            
+            // Get item description for context
+            const itemDescription = itemData.description || 'A useful item';
+            const itemType = itemData.type;
+            const itemName = itemData.name;
+
+            // Create deal quality description
+            let dealQuality = '';
+            if (expressionLevel <= 2) {
+                dealQuality = 'incredibly cheap - almost free';
+            } else if (expressionLevel <= 4) {
+                dealQuality = 'excellent deal - very cheap';
+            } else if (expressionLevel <= 6) {
+                dealQuality = 'fair price - reasonable';
+            } else if (expressionLevel <= 8) {
+                dealQuality = 'overpriced - expensive';
+            } else if (expressionLevel <= 9) {
+                dealQuality = 'extremely overpriced - very expensive';
+            } else {
+                dealQuality = 'absurdly overpriced - outrageously expensive';
+            }
+
+            const prompt = `You are ${npc.name}, a character in HELLUNGI (a dimensional abyss where lost souls are trapped).
+
+PERSONALITY: ${npc.personality}
+
+ITEM PURCHASED:
+- Name: ${itemName}
+- Type: ${itemType}
+- Description: ${itemDescription}
+- Price paid: ${npcContext.pricePaid} coins
+- Market value: ${npcContext.marketValue} coins
+- Deal quality: ${dealQuality} (${(priceRatio * 100).toFixed(1)}% of market value)
+
+CURRENT SITUATION:
+- You just bought this item and are reacting to the purchase
+- Expression level: ${expressionLevel}/10 (${emotionalTone})
+- ${expressionContext}
+
+CONTEXT:
+- You're trapped in HELLUNGI, a void dimension where memories fade
+- You're buying from a player marketplace in this endless abyss
+- Your wealth level: ${npcContext.wealth}/10, budget: ${npcContext.budget}
+- You prefer: ${npcContext.preferences.join(', ') || 'anything'}
+
+REQUIREMENTS:
+- React with expression level ${expressionLevel}/10 intensity
+- Keep dialogue under 150 characters
+- Stay in character based on your personality
+- ${itemMention}
+- Reference how good/bad the deal was
+- Use your speech patterns and personality traits
+- Be aware of the item's properties and usefulness
+
+Generate a single line of dialogue expressing your reaction to this purchase:`;
+
+            const response = await aiShopDialogue.openai.chat.completions.create({
+                model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
+                messages: [{ role: "user", content: prompt }],
+                max_tokens: 60,
+                temperature: 0.8,
+            });
+
+            const dialogue = response.choices[0].message.content.trim();
+            return this.truncateDialogue(dialogue);
+
+        } catch (error) {
+            console.error('[NPC_SALES] AI purchase dialogue generation failed:', error);
+            // Fallback to static dialogue
+            return npc.dialogue[Math.floor(Math.random() * npc.dialogue.length)];
+        }
+    }
+
+    /**
+     * Truncate dialogue to reasonable length
+     */
+    truncateDialogue(dialogue) {
+        if (dialogue.length <= 200) return dialogue;
+        return dialogue.substring(0, 197) + '...';
     }
 
     formatTypeName(type) {
