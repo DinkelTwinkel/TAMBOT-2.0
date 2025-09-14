@@ -2089,19 +2089,19 @@ module.exports = {
                     
                     const currentStats = await gameStatTracker.getUserGameStats(userId, guildId, 'mining');
                     
-                    // Initialize maintenance state
+                    // Initialize maintenance state with baseline stats (set to 0 so all current progress counts)
                     item.maintenanceState = {
                         previousStats: {
-                            tilesMoved: currentStats.tilesMoved || 0,
-                            itemsFound: currentStats.itemsFound || {},
+                            tilesMoved: 0,
+                            itemsFound: {},
                             itemsFoundBySource: {
-                                mining: currentStats.itemsFoundBySource?.mining || {},
-                                treasure: currentStats.itemsFoundBySource?.treasure || {}
+                                mining: {},
+                                treasure: {}
                             },
-                            timeInMiningChannel: currentStats.timeInMiningChannel || 0,
-                            hazardsEvaded: currentStats.hazardsEvaded || 0,
-                            hazardsTriggered: currentStats.hazardsTriggered || 0,
-                            highestPowerLevel: currentStats.highestPowerLevel || 0
+                            timeInMiningChannel: 0,
+                            hazardsEvaded: 0,
+                            hazardsTriggered: 0,
+                            highestPowerLevel: 0
                         },
                         guildId: guildId
                     };
@@ -2222,19 +2222,19 @@ module.exports = {
             
             const currentStats = await gameStatTracker.getUserGameStats(userId, guildId, 'mining');
             
-            // Update maintenance state with current stats
+            // Update maintenance state with baseline stats (set to 0 so all current progress counts)
             item.maintenanceState = {
                 previousStats: {
-                    tilesMoved: currentStats.tilesMoved || 0,
-                    itemsFound: currentStats.itemsFound || {},
+                    tilesMoved: 0,
+                    itemsFound: {},
                     itemsFoundBySource: {
-                        mining: currentStats.itemsFoundBySource?.mining || {},
-                        treasure: currentStats.itemsFoundBySource?.treasure || {}
+                        mining: {},
+                        treasure: {}
                     },
-                    timeInMiningChannel: currentStats.timeInMiningChannel || 0,
-                    hazardsEvaded: currentStats.hazardsEvaded || 0,
-                    hazardsTriggered: currentStats.hazardsTriggered || 0,
-                    highestPowerLevel: currentStats.highestPowerLevel || 0
+                    timeInMiningChannel: 0,
+                    hazardsEvaded: 0,
+                    hazardsTriggered: 0,
+                    highestPowerLevel: 0
                 },
                 guildId: guildId
             };
