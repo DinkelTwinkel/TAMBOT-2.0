@@ -116,58 +116,48 @@ class CustomerManager {
         const gameStatTracker = new GameStatTracker();
         
         // Remove customers who have left (wealth = 0 or very unhappy)
-        const remainingCustomers = customers.filter(customer => {
+        const remainingCustomers = [];
+        const departingCustomers = [];
+        
+        for (const customer of customers) {
             if (customer.wealth <= 0) {
                 // Customer leaves due to no money
                 if (customer.happiness >= 50) {
                     v4State.innReputation = Math.min(100, (v4State.innReputation || 50) + 2);
                     departureEvents.push(`${customer.name} left satisfied after spending all their money (reputation +2)`);
                     console.log(`[CustomerManager] Happy customer ${customer.name} left, reputation +2`);
-                    
-                    // Track reputation gain for all voice members
-                    for (const member of voiceMembers) {
-                        try {
-                            await gameStatTracker.trackReputationGain(member.id, channel.guild.id, 2);
-                        } catch (error) {
-                            console.error('Error tracking reputation gain:', error);
-                        }
-                    }
+                    departingCustomers.push({ customer, reputationChange: 2, isGain: true });
                 } else {
                     v4State.innReputation = Math.max(0, (v4State.innReputation || 50) - 1);
                     departureEvents.push(`${customer.name} left disappointed with no money (reputation -1)`);
                     console.log(`[CustomerManager] Unhappy customer ${customer.name} left, reputation -1`);
-                    
-                    // Track reputation loss for all voice members
-                    for (const member of voiceMembers) {
-                        try {
-                            await gameStatTracker.trackReputationLoss(member.id, channel.guild.id, 1);
-                        } catch (error) {
-                            console.error('Error tracking reputation loss:', error);
-                        }
-                    }
+                    departingCustomers.push({ customer, reputationChange: 1, isGain: false });
                 }
-                return false;
-            }
-            
-            if (customer.happiness <= 0) {
+            } else if (customer.happiness <= 0) {
                 // Customer leaves due to unhappiness
                 v4State.innReputation = Math.max(0, (v4State.innReputation || 50) - 3);
                 departureEvents.push(`${customer.name} stormed out in anger! (reputation -3)`);
                 console.log(`[CustomerManager] Very unhappy customer ${customer.name} stormed out, reputation -3`);
-                
-                // Track reputation loss for all voice members
-                for (const member of voiceMembers) {
-                    try {
-                        await gameStatTracker.trackReputationLoss(member.id, channel.guild.id, 3);
-                    } catch (error) {
-                        console.error('Error tracking reputation loss:', error);
-                    }
-                }
-                return false;
+                departingCustomers.push({ customer, reputationChange: 3, isGain: false });
+            } else {
+                remainingCustomers.push(customer);
             }
-            
-            return true;
-        });
+        }
+        
+        // Track reputation changes for departing customers
+        for (const { reputationChange, isGain } of departingCustomers) {
+            for (const member of voiceMembers) {
+                try {
+                    if (isGain) {
+                        await gameStatTracker.trackReputationGain(member.id, channel.guild.id, reputationChange);
+                    } else {
+                        await gameStatTracker.trackReputationLoss(member.id, channel.guild.id, reputationChange);
+                    }
+                } catch (error) {
+                    console.error('Error tracking reputation change:', error);
+                }
+            }
+        }
         
         // Add new customers if there's space (influenced by reputation)
         if (remainingCustomers.length < maxCustomers) {
