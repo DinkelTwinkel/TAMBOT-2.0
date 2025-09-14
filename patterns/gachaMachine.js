@@ -605,6 +605,30 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             
             console.log(`🔥 Created new gullet channel with permissions for ${rollerMember.user.tag}`);
         }
+        
+        // If this is a debug channel, set special debug permissions
+        if (debugOverride) {
+            // Set base permissions: everyone can see but cannot connect or interact with text
+            await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                ViewChannel: true,        // Can see the channel exists
+                Connect: false,           // Cannot connect directly
+                SendMessages: false,      // Cannot send messages
+                ReadMessageHistory: false // Cannot read message history
+            });
+            
+            // Grant full permissions to the debug user
+            await newGachaChannel.permissionOverwrites.edit(rollerMember, {
+                ViewChannel: true,        // Can see the channel
+                Connect: true,            // Can connect
+                Speak: true,             // Can speak
+                UseVAD: true,            // Can use voice activity
+                Stream: true,            // Can stream
+                SendMessages: true,      // Can send messages in chat
+                ReadMessageHistory: true // Can read message history
+            });
+            
+            console.log(`🔧 Created debug channel with locked permissions for ${rollerMember.user.tag}`);
+        }
 
         // Update VC name to the selected VC and create the intro message
         await newGachaChannel.setName('『 ' + chosenChannelType.rarity.toUpperCase() + ' ROLL 』');
