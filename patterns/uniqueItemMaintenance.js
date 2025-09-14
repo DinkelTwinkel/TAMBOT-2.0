@@ -93,6 +93,36 @@ function calculateStatDifferences(currentStats, previousStats) {
     return differences;
 }
 
+// Helper function to initialize maintenance state for a single item
+async function initializeMaintenanceStateForItem(item, userId, guildId = 'default') {
+    try {
+        // Get current stats to set as baseline
+        const currentStats = await getCurrentStats(userId, guildId);
+        
+        // Initialize maintenance state
+        item.maintenanceState = {
+            previousStats: {
+                tilesMoved: currentStats.tilesMoved || 0,
+                itemsFound: currentStats.itemsFound || {},
+                itemsFoundBySource: {
+                    mining: currentStats.itemsFoundBySource?.mining || {},
+                    treasure: currentStats.itemsFoundBySource?.treasure || {}
+                },
+                timeInMiningChannel: currentStats.timeInMiningChannel || 0,
+                hazardsEvaded: currentStats.hazardsEvaded || 0,
+                hazardsTriggered: currentStats.hazardsTriggered || 0,
+                highestPowerLevel: currentStats.highestPowerLevel || 0
+            },
+            guildId: guildId
+        };
+        
+        await item.save();
+        console.log(`[UNIQUE ITEMS] Initialized maintenance state for item ${item.itemId} with guildId ${guildId}`);
+    } catch (error) {
+        console.error(`[UNIQUE ITEMS] Error initializing maintenance state for item ${item.itemId}:`, error);
+    }
+}
+
 // Manual maintenance cycle for testing/admin purposes
 async function runMaintenanceCycle() {
     console.log('[UNIQUE ITEMS] Running manual maintenance cycle');
@@ -251,14 +281,20 @@ const maintenanceHandlers = {
     },
     
     // Mining activity maintenance - check if player has mined enough
-    async mining_activity(userId, userTag, item, requirement) {
+    async mining_activity(userId, userTag, item, requirement, guildId = 'default') {
         // Get unique item data to check for specific ore requirements
         const { getUniqueItemById } = require('../data/uniqueItemsSheet');
         const itemData = getUniqueItemById(item.itemId);
         
+        // Check if item has new maintenance state, if not, initialize it
+        if (!item.maintenanceState) {
+            console.log(`[UNIQUE ITEMS] Initializing maintenance state for item ${item.itemId} (${itemData?.name})`);
+            await initializeMaintenanceStateForItem(item, userId, guildId);
+        }
+        
         // Get current stats from GameStatTracker
-        const guildId = item.maintenanceState?.guildId || 'default';
-        const currentStats = await getCurrentStats(userId, guildId);
+        const effectiveGuildId = item.maintenanceState?.guildId || guildId;
+        const currentStats = await getCurrentStats(userId, effectiveGuildId);
         const previousStats = item.maintenanceState?.previousStats || {};
         const statDifferences = calculateStatDifferences(currentStats, previousStats);
         
@@ -303,10 +339,10 @@ const maintenanceHandlers = {
     },
     
     // Voice activity maintenance - check voice minutes
-    async voice_activity(userId, userTag, item, requirement) {
+    async voice_activity(userId, userTag, item, requirement, guildId = 'default') {
         // Get current stats from GameStatTracker
-        const guildId = item.maintenanceState?.guildId || 'default';
-        const currentStats = await getCurrentStats(userId, guildId);
+        const effectiveGuildId = item.maintenanceState?.guildId || guildId;
+        const currentStats = await getCurrentStats(userId, effectiveGuildId);
         const previousStats = item.maintenanceState?.previousStats || {};
         const statDifferences = calculateStatDifferences(currentStats, previousStats);
         
@@ -365,10 +401,10 @@ const maintenanceHandlers = {
     },
     
     // Movement activity maintenance - check tiles moved in mining
-    async movement_activity(userId, userTag, item, requirement) {
+    async movement_activity(userId, userTag, item, requirement, guildId = 'default') {
         // Get current stats from GameStatTracker
-        const guildId = item.maintenanceState?.guildId || 'default';
-        const currentStats = await getCurrentStats(userId, guildId);
+        const effectiveGuildId = item.maintenanceState?.guildId || guildId;
+        const currentStats = await getCurrentStats(userId, effectiveGuildId);
         const previousStats = item.maintenanceState?.previousStats || {};
         const statDifferences = calculateStatDifferences(currentStats, previousStats);
         
@@ -391,7 +427,7 @@ const maintenanceHandlers = {
 };
 
 // Main function to perform maintenance on an item
-async function performMaintenance(userId, userTag, itemId) {
+async function performMaintenance(userId, userTag, itemId, guildId = 'default') {
     try {
         // Find the unique item
         const item = await UniqueItem.findOne({ itemId });
@@ -434,7 +470,7 @@ async function performMaintenance(userId, userTag, itemId) {
         }
         
         // Perform the maintenance
-        const result = await handler(userId, userTag, item, itemData.maintenanceCost);
+        const result = await handler(userId, userTag, item, itemData.maintenanceCost, guildId);
         
         return result;
         
@@ -464,6 +500,12 @@ async function checkMaintenanceStatus(userId, guildId = 'default') {
         for (const item of items) {
             const itemData = getUniqueItemById(item.itemId);
             if (!itemData) continue;
+            
+            // Check if item has new maintenance state, if not, initialize it
+            if (!item.maintenanceState) {
+                console.log(`[UNIQUE ITEMS] Initializing maintenance state for item ${item.itemId} (${itemData?.name}) in status check`);
+                await initializeMaintenanceStateForItem(item, userId, guildId);
+            }
             
             // Calculate progress since last maintenance
             const previousStats = item.maintenanceState?.previousStats || {};

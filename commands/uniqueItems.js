@@ -174,7 +174,8 @@ async function handleMaintain(interaction, userId, userTag) {
     }
     
     try {
-        const result = await performMaintenance(userId, userTag, itemId);
+        const guildId = interaction.guild?.id || 'default';
+        const result = await performMaintenance(userId, userTag, itemId, guildId);
         
         if (result.success) {
             // Special handling for Midas' Burden wealth gamble
@@ -240,7 +241,8 @@ async function handleMaintain(interaction, userId, userTag) {
 async function handleStatus(interaction, userId) {
     await interaction.deferReply();
     
-    const statuses = await checkMaintenanceStatus(userId);
+    const guildId = interaction.guild?.id || 'default';
+    const statuses = await checkMaintenanceStatus(userId, guildId);
     
     if (statuses.length === 0) {
         const embed = new EmbedBuilder()
