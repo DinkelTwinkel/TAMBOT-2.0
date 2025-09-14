@@ -116,7 +116,7 @@ class GameStatTracker {
                 { new: true }
             );
 
-            console.log(`📊 Tracked item found: ${quantity}x item ${itemId} from ${source} for user ${userId}`);
+            console.log(`📊 Tracked item found: ${quantity}x item ${itemId} (type: ${typeof itemId}) from ${source} for user ${userId}`);
         } catch (error) {
             console.error('Error tracking item found:', error);
         }

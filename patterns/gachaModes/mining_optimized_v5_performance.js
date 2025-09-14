@@ -4474,6 +4474,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                             try {
                                 // For familiars, track stats under the owner's ID
                                 const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                                console.log(`[STAT TRACKING] Tracking item found: ${finalQuantity}x item ${item.itemId} (type: ${typeof item.itemId}) for user ${trackingMemberId} from mining`);
                                 await gameStatTracker.trackItemFound(trackingMemberId, member.guild.id, item.itemId, finalQuantity, 'mining');
                             } catch (error) {
                                 console.error('Error tracking item found:', error);
@@ -4650,6 +4651,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                             for (const item of treasureResult.itemsFound) {
                                 // For familiars, track stats under the owner's ID
                                 const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                                console.log(`[STAT TRACKING] Tracking treasure found: ${item.quantity}x item ${item.itemId} (type: ${typeof item.itemId}) for user ${trackingMemberId} from treasure`);
                                 await gameStatTracker.trackItemFound(trackingMemberId, member.guild.id, item.itemId, item.quantity, 'treasure');
                             }
                         } catch (error) {

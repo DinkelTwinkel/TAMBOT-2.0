@@ -1428,7 +1428,10 @@ module.exports = {
             // Items found
             if (stats.itemsFound && Object.keys(stats.itemsFound).length > 0) {
                 const itemCount = Object.values(stats.itemsFound).reduce((sum, count) => sum + count, 0);
+                console.log(`[ADMIN STATS] Items found data:`, stats.itemsFound);
                 fields.push({ name: '💎 Items Found', value: itemCount.toString(), inline: true });
+            } else {
+                console.log(`[ADMIN STATS] No items found data for user. Stats object:`, stats);
             }
             
             // Tiles broken
