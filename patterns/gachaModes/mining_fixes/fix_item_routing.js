@@ -31,7 +31,7 @@ $2// Get destination from mineFromTile result
                         const destination = lootResult.destination || 'minecart';
                         
                         // Route item based on destination
-                        await addItemWithDestination(dbEntry, member.id, lootResult.item.itemId, finalQuantity, destination);`;
+                        await addItemWithDestination(dbEntry, member.id, lootResult.item.itemId, finalQuantity, destination, gameStatTracker, member);`;
         
         content = content.replace(miningPattern, replacement);
         changesMade++;
@@ -39,7 +39,7 @@ $2// Get destination from mineFromTile result
         // Fix 2: Replace treasure additions to use inventory
         const treasurePattern = /await addItemToMinecart\(dbEntry, member\.id, treasure\.itemId, 1\);/g;
         content = content.replace(treasurePattern, 
-            'await addItemWithDestination(dbEntry, member.id, treasure.itemId, 1, "inventory");');
+            'await addItemWithDestination(dbEntry, member.id, treasure.itemId, 1, "inventory", gameStatTracker, member);');
         changesMade++;
         
         // Fix 3: Update event logs to show proper destination

@@ -3922,7 +3922,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 if (treasure) {
                     // Treasures go to inventory, not minecart
                     console.log(`[MINING DEBUG] ${member.displayName} found treasure: ${treasure.name}!`);
-                    await addItemWithDestination(dbEntry, targetMemberId, treasure.itemId, 1, 'inventory');
+                    await addItemWithDestination(dbEntry, targetMemberId, treasure.itemId, 1, 'inventory', gameStatTracker, member);
                     eventLogs.push(`🎁 ${member.displayName} discovered ${treasure.name} while exploring! (added to inventory)`);
                     treasuresFound++;
                 } else {
@@ -3935,7 +3935,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
             // Midas' Burden greed bonus - chance to find extra coins
             if (uniqueBonuses.greedBonus > 0 && Math.random() < uniqueBonuses.greedBonus) {
                 const bonusCoins = Math.floor((10 + powerLevel * 5) * (1 + Math.random())); // 10-15 base + power level scaling
-                await addItemWithDestination(dbEntry, targetMemberId, 'coin', bonusCoins, 'inventory');
+                await addItemWithDestination(dbEntry, targetMemberId, 'coin', bonusCoins, 'inventory', gameStatTracker, member);
                 eventLogs.push(`💰 ${member.displayName}'s greed attracts ${bonusCoins} loose coins!`);
             }
             
@@ -4011,7 +4011,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     
                     // No tier-based caps - unlimited quantity potential!
                     console.log (`${member.displayName} got ${item.name} and its going to ${destination}`);
-                    await addItemWithDestination(dbEntry, targetMemberId, item.itemId, finalQuantity, destination);
+                    await addItemWithDestination(dbEntry, targetMemberId, item.itemId, finalQuantity, destination, gameStatTracker, member);
                     
                     console.log(`[MINING DEBUG] ${member.displayName} about to convert tile at (${adjacentTarget.x},${adjacentTarget.y}) from ${getTileTypeName(tile.type)}`);
                     mapData.tiles[adjacentTarget.y][adjacentTarget.x] = { type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 };
@@ -4262,7 +4262,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                                     member, miningPower, luckStat, powerLevel, 
                                     chainTile.type, availableItems, efficiency
                                 , isDeeperMine, mineTypeId);
-                                await addItemWithDestination(dbEntry, targetMemberId, chainItem.itemId, chainQty, destination);
+                                await addItemWithDestination(dbEntry, targetMemberId, chainItem.itemId, chainQty, destination, gameStatTracker, member);
                                 mapData.tiles[chainTarget.y][chainTarget.x] = { 
                                     type: TILE_TYPES.FLOOR, discovered: true, hardness: 0 
                                 };
@@ -4477,19 +4477,8 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         finalQuantity = Math.min(finalQuantity, movementQuantityCaps[item.tier] || 8);
                         
                         console.log (`${member.displayName} got ${item.name} and its going to ${destination}`);
-                        await addItemWithDestination(dbEntry, targetMemberId, item.itemId, finalQuantity, destination);
+                        await addItemWithDestination(dbEntry, targetMemberId, item.itemId, finalQuantity, destination, gameStatTracker, member);
                         
-                        // Track item found for stats
-                        if (gameStatTracker) {
-                            try {
-                                // For familiars, track stats under the owner's ID
-                                const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
-                                console.log(`[STAT TRACKING] Tracking item found: ${finalQuantity}x item ${item.itemId} (type: ${typeof item.itemId}) for user ${trackingMemberId} from mining`);
-                                await gameStatTracker.trackItemFound(trackingMemberId, member.guild.id, item.itemId, finalQuantity, 'mining');
-                            } catch (error) {
-                                console.error('Error tracking item found:', error);
-                            }
-                        }
                         
                         let findMessage;
                         // Treasure chests no longer spawn
@@ -4843,7 +4832,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     } else {
                         eventLogs.push(`🔍 ${member.displayName} found ${bonusItem.name} while exploring!`);
                     }
-                    await addItemWithDestination(dbEntry, targetMemberId, bonusItem.itemId, 1, destination);
+                    await addItemWithDestination(dbEntry, targetMemberId, bonusItem.itemId, 1, destination, gameStatTracker, member);
                 }
             }
             

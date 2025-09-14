@@ -199,7 +199,7 @@ class DatabaseTransaction {
 }
 
 // Enhanced item routing - checks if item should go to inventory or minecart
-async function addItemWithDestination(dbEntry, playerId, itemId, amount, destination = 'minecart') {
+async function addItemWithDestination(dbEntry, playerId, itemId, amount, destination = 'minecart', gameStatTracker = null, member = null) {
     // Route to inventory if specified
     if (destination === 'inventory') {
         const PlayerInventory = require('../../../models/inventory');
@@ -255,6 +255,19 @@ async function addItemWithDestination(dbEntry, playerId, itemId, amount, destina
             }
             
             console.log(`[INVENTORY] Added ${amount}x item ${itemId} to player ${playerId}'s inventory`);
+            
+            // Track item found for stats
+            if (gameStatTracker && member) {
+                try {
+                    // For familiars, track stats under the owner's ID
+                    const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                    console.log(`[STAT TRACKING] Tracking item found: ${amount}x item ${itemId} (type: ${typeof itemId}) for user ${trackingMemberId} from mining`);
+                    await gameStatTracker.trackItemFound(trackingMemberId, member.guild.id, itemId, amount, 'mining');
+                } catch (error) {
+                    console.error('Error tracking item found:', error);
+                }
+            }
+            
             return;
         } catch (error) {
             console.error(`[INVENTORY] Error adding item ${itemId} to player ${playerId}'s inventory:`, error);
@@ -265,7 +278,21 @@ async function addItemWithDestination(dbEntry, playerId, itemId, amount, destina
     
     // Original minecart logic (for ores)
     if (destination === 'minecart') {
-        return addItemToMinecart(dbEntry, playerId, itemId, amount);
+        await addItemToMinecart(dbEntry, playerId, itemId, amount);
+        
+        // Track item found for stats
+        if (gameStatTracker && member) {
+            try {
+                // For familiars, track stats under the owner's ID
+                const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                console.log(`[STAT TRACKING] Tracking item found: ${amount}x item ${itemId} (type: ${typeof itemId}) for user ${trackingMemberId} from mining`);
+                await gameStatTracker.trackItemFound(trackingMemberId, member.guild.id, itemId, amount, 'mining');
+            } catch (error) {
+                console.error('Error tracking item found:', error);
+            }
+        }
+        
+        return;
     }
 }
 
