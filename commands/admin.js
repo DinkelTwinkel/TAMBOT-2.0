@@ -208,6 +208,10 @@ module.exports = {
                             option.setName('item_id')
                                 .setDescription('Item ID to debug')
                                 .setRequired(true)))
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName('force-fix-shadow-amulet')
+                        .setDescription('Force fix the Shadow Legion Amulet with correct guild ID'))
         ),
 
     async execute(interaction) {
@@ -257,6 +261,9 @@ module.exports = {
                     break;
                 case 'debug-maintenance-state':
                     await this.handleDebugMaintenanceState(interaction);
+                    break;
+                case 'force-fix-shadow-amulet':
+                    await this.handleForceFixShadowAmulet(interaction);
                     break;
             }
             return;
@@ -2032,14 +2039,16 @@ module.exports = {
                 items = await UniqueItem.find({ itemId, ownerId: { $ne: null } });
                 message = `Fixing maintenance state for item ${itemId}...`;
             } else {
-                // Fix all items missing maintenance state
-                // Check for both non-existent and null/undefined maintenanceState
+                // Fix all items missing maintenance state or with empty/default values
                 items = await UniqueItem.find({ 
                     ownerId: { $ne: null },
                     $or: [
                         { maintenanceState: { $exists: false } },
                         { maintenanceState: null },
-                        { maintenanceState: undefined }
+                        { maintenanceState: undefined },
+                        // Check for items with default/empty maintenance state
+                        { "maintenanceState.previousStats.tilesMoved": 0 },
+                        { "maintenanceState.guildId": "default" }
                     ]
                 });
                 message = `Fixing maintenance state for all items missing it...`;
@@ -2063,8 +2072,14 @@ module.exports = {
             
             for (const item of items) {
                 try {
-                    // Skip if already has maintenance state
-                    if (item.maintenanceState) {
+                    // Check if maintenance state needs updating
+                    const needsUpdate = !item.maintenanceState || 
+                                      !item.maintenanceState.previousStats ||
+                                      item.maintenanceState.previousStats.tilesMoved === 0 ||
+                                      item.maintenanceState.guildId === 'default' ||
+                                      Object.keys(item.maintenanceState.previousStats.itemsFound || {}).length === 0;
+                    
+                    if (!needsUpdate) {
                         continue;
                     }
                     
@@ -2181,6 +2196,71 @@ module.exports = {
             
         } catch (error) {
             console.error('Error in handleDebugMaintenanceState:', error);
+            return interaction.editReply(`❌ Error: ${error.message}`);
+        }
+    },
+
+    // Force fix the Shadow Legion Amulet with correct guild ID
+    async handleForceFixShadowAmulet(interaction) {
+        await interaction.deferReply();
+        
+        try {
+            const GameStatTracker = require('../patterns/gameStatTracker');
+            const gameStatTracker = new GameStatTracker();
+            
+            // Find the Shadow Legion Amulet
+            const item = await UniqueItem.findOne({ itemId: 11 });
+            if (!item) {
+                return interaction.editReply(`❌ Shadow Legion Amulet (ID: 11) not found in database`);
+            }
+            
+            // Get current stats with the correct guild ID
+            const userId = item.ownerId;
+            const guildId = "1221772148385910835"; // The user's actual guild ID
+            
+            console.log(`🔧 Force fixing Shadow Legion Amulet for user ${userId} in guild ${guildId}`);
+            
+            const currentStats = await gameStatTracker.getUserGameStats(userId, guildId, 'mining');
+            
+            // Update maintenance state with current stats
+            item.maintenanceState = {
+                previousStats: {
+                    tilesMoved: currentStats.tilesMoved || 0,
+                    itemsFound: currentStats.itemsFound || {},
+                    itemsFoundBySource: {
+                        mining: currentStats.itemsFoundBySource?.mining || {},
+                        treasure: currentStats.itemsFoundBySource?.treasure || {}
+                    },
+                    timeInMiningChannel: currentStats.timeInMiningChannel || 0,
+                    hazardsEvaded: currentStats.hazardsEvaded || 0,
+                    hazardsTriggered: currentStats.hazardsTriggered || 0,
+                    highestPowerLevel: currentStats.highestPowerLevel || 0
+                },
+                guildId: guildId
+            };
+            
+            // Save the item
+            await item.save();
+            
+            // Calculate progress
+            const shadowOreMined = currentStats.itemsFoundBySource?.mining?.['220'] || 0;
+            const requirement = 500;
+            const progressPercent = Math.round((shadowOreMined/requirement)*100);
+            
+            let resultMessage = `✅ **Shadow Legion Amulet Fixed!**\n\n`;
+            resultMessage += `📊 **Current Stats:**\n`;
+            resultMessage += `- Tiles moved: ${currentStats.tilesMoved || 0}\n`;
+            resultMessage += `- Shadow Ore mined: ${shadowOreMined}\n`;
+            resultMessage += `- Guild ID: ${guildId}\n\n`;
+            resultMessage += `🎯 **Maintenance Progress:**\n`;
+            resultMessage += `- Progress: ${shadowOreMined}/${requirement} Shadow Ore (${progressPercent}%)\n`;
+            resultMessage += `- Requirement met: ${shadowOreMined >= requirement ? 'YES' : 'NO'}\n\n`;
+            resultMessage += `🔧 The amulet now has proper maintenance state integration!`;
+            
+            return interaction.editReply(resultMessage);
+            
+        } catch (error) {
+            console.error('Error in handleForceFixShadowAmulet:', error);
             return interaction.editReply(`❌ Error: ${error.message}`);
         }
     }
