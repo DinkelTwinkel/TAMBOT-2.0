@@ -1313,7 +1313,7 @@ module.exports = {
         try {
             await interaction.deferReply();
             
-            const gameMode = interaction.options.getString('game_mode') || 'mining';
+            const gameMode = interaction.options.getString('game_mode') || 'all';
             const targetUser = interaction.options.getUser('user');
             const gameStatTracker = new GameStatTracker();
             
@@ -1321,81 +1321,10 @@ module.exports = {
             
             if (targetUser) {
                 // Show stats for specific user
-                const userStats = await gameStatTracker.getUserGameStats(targetUser.id, interaction.guild.id, gameMode);
-                
-                if (gameMode === 'all') {
-                    // Show all game modes for the user
-                    const miningStats = await gameStatTracker.getUserGameStats(targetUser.id, interaction.guild.id, 'mining');
-                    
-                    const embed = new EmbedBuilder()
-                        .setTitle(`📊 Game Statistics - ${targetUser.displayName}`)
-                        .setColor(0x00ff00)
-                        .setTimestamp();
-                    
-                    // Add mining stats
-                    if (miningStats && Object.keys(miningStats).length > 0) {
-                        const miningFields = this.formatGameStatsForEmbed(miningStats, 'Mining');
-                        embed.addFields(miningFields);
-                    } else {
-                        embed.addFields({ name: '⛏️ Mining', value: 'No mining statistics available', inline: false });
-                    }
-                    
-                    embeds.push(embed);
-                } else {
-                    // Show specific game mode
-                    const embed = new EmbedBuilder()
-                        .setTitle(`📊 ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Statistics - ${targetUser.displayName}`)
-                        .setColor(0x00ff00)
-                        .setTimestamp();
-                    
-                    if (userStats && Object.keys(userStats).length > 0) {
-                        const fields = this.formatGameStatsForEmbed(userStats, gameMode);
-                        embed.addFields(fields);
-                    } else {
-                        embed.setDescription(`No ${gameMode} statistics available for this user.`);
-                    }
-                    
-                    embeds.push(embed);
-                }
+                embeds = await this.createUserStatsEmbeds(targetUser, interaction.guild.id, gameMode, gameStatTracker);
             } else {
                 // Show stats for all users
-                const allUsersStats = await gameStatTracker.getAllUsersGameStats(interaction.guild.id, gameMode);
-                
-                if (allUsersStats.length === 0) {
-                    const embed = new EmbedBuilder()
-                        .setTitle('📊 Game Statistics')
-                        .setDescription(`No ${gameMode} statistics available for any users.`)
-                        .setColor(0xffaa00)
-                        .setTimestamp();
-                    embeds.push(embed);
-                } else {
-                    // Group users by game mode and create embeds
-                    if (gameMode === 'all') {
-                        // Create separate embeds for each game mode
-                        const miningUsers = await gameStatTracker.getAllUsersGameStats(interaction.guild.id, 'mining');
-                        
-                        if (miningUsers.length > 0) {
-                            const miningEmbed = new EmbedBuilder()
-                                .setTitle('⛏️ Mining Statistics - All Users')
-                                .setColor(0x8B4513)
-                                .setTimestamp();
-                            
-                            const miningFields = this.formatAllUsersStatsForEmbed(miningUsers, 'mining');
-                            miningEmbed.addFields(miningFields);
-                            embeds.push(miningEmbed);
-                        }
-                    } else {
-                        // Single game mode
-                        const embed = new EmbedBuilder()
-                            .setTitle(`📊 ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Statistics - All Users`)
-                            .setColor(0x00ff00)
-                            .setTimestamp();
-                        
-                        const fields = this.formatAllUsersStatsForEmbed(allUsersStats, gameMode);
-                        embed.addFields(fields);
-                        embeds.push(embed);
-                    }
-                }
+                embeds = await this.createAllUsersStatsEmbeds(interaction.guild.id, gameMode, gameStatTracker);
             }
             
             // Send embeds (Discord has a limit of 10 embeds per message)
@@ -1413,6 +1342,391 @@ module.exports = {
                 
             await interaction.editReply({ embeds: [errorEmbed] });
         }
+    },
+
+    // ========== DYNAMIC EMBED CREATION METHODS ==========
+
+    /**
+     * Create embeds for a specific user's stats
+     */
+    async createUserStatsEmbeds(targetUser, guildId, gameMode, gameStatTracker) {
+        const embeds = [];
+        
+        if (gameMode === 'all') {
+            // Get all available game data categories for this user
+            const userStats = await UserStats.findOne({ userId: targetUser.id, guildId });
+            
+            if (!userStats || !userStats.gameData) {
+                const embed = new EmbedBuilder()
+                    .setTitle(`📊 Game Statistics - ${targetUser.displayName}`)
+                    .setDescription('No game statistics available for this user.')
+                    .setColor(0xffaa00)
+                    .setTimestamp();
+                return [embed];
+            }
+            
+            // Create separate embeds for each game data category
+            const gameDataCategories = Object.keys(userStats.gameData);
+            
+            for (const category of gameDataCategories) {
+                const categoryStats = userStats.gameData[category];
+                const embed = await this.createCategoryEmbed(category, categoryStats, targetUser.displayName, true);
+                if (embed) {
+                    embeds.push(embed);
+                }
+            }
+            
+            // If no categories found, show a message
+            if (embeds.length === 0) {
+                const embed = new EmbedBuilder()
+                    .setTitle(`📊 Game Statistics - ${targetUser.displayName}`)
+                    .setDescription('No game statistics available for this user.')
+                    .setColor(0xffaa00)
+                    .setTimestamp();
+                embeds.push(embed);
+            }
+        } else {
+            // Show specific game mode
+            const userStats = await gameStatTracker.getUserGameStats(targetUser.id, guildId, gameMode);
+            const embed = await this.createCategoryEmbed(gameMode, userStats, targetUser.displayName, true);
+            if (embed) {
+                embeds.push(embed);
+            } else {
+                const embed = new EmbedBuilder()
+                    .setTitle(`📊 ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Statistics - ${targetUser.displayName}`)
+                    .setDescription(`No ${gameMode} statistics available for this user.`)
+                    .setColor(0xffaa00)
+                    .setTimestamp();
+                embeds.push(embed);
+            }
+        }
+        
+        return embeds;
+    },
+
+    /**
+     * Create embeds for all users' stats
+     */
+    async createAllUsersStatsEmbeds(guildId, gameMode, gameStatTracker) {
+        const embeds = [];
+        
+        if (gameMode === 'all') {
+            // Get all users and find all available game data categories
+            const allUsers = await UserStats.find({ guildId }).select('userId username gameData');
+            
+            if (allUsers.length === 0) {
+                const embed = new EmbedBuilder()
+                    .setTitle('📊 Game Statistics')
+                    .setDescription('No game statistics available for any users.')
+                    .setColor(0xffaa00)
+                    .setTimestamp();
+                return [embed];
+            }
+            
+            // Find all unique game data categories across all users
+            const allCategories = new Set();
+            allUsers.forEach(user => {
+                if (user.gameData) {
+                    Object.keys(user.gameData).forEach(category => allCategories.add(category));
+                }
+            });
+            
+            // Create separate embeds for each category
+            for (const category of allCategories) {
+                const categoryUsers = allUsers
+                    .filter(user => user.gameData && user.gameData[category])
+                    .map(user => ({
+                        userId: user.userId,
+                        username: user.username,
+                        gameStats: user.gameData[category]
+                    }));
+                
+                if (categoryUsers.length > 0) {
+                    const embed = await this.createCategoryEmbed(category, null, 'All Users', false, categoryUsers);
+                    if (embed) {
+                        embeds.push(embed);
+                    }
+                }
+            }
+            
+            // If no categories found, show a message
+            if (embeds.length === 0) {
+                const embed = new EmbedBuilder()
+                    .setTitle('📊 Game Statistics')
+                    .setDescription('No game statistics available for any users.')
+                    .setColor(0xffaa00)
+                    .setTimestamp();
+                embeds.push(embed);
+            }
+        } else {
+            // Show specific game mode for all users
+            const allUsersStats = await gameStatTracker.getAllUsersGameStats(guildId, gameMode);
+            
+            if (allUsersStats.length === 0) {
+                const embed = new EmbedBuilder()
+                    .setTitle(`📊 ${gameMode.charAt(0).toUpperCase() + gameMode.slice(1)} Statistics`)
+                    .setDescription(`No ${gameMode} statistics available for any users.`)
+                    .setColor(0xffaa00)
+                    .setTimestamp();
+                return [embed];
+            }
+            
+            const embed = await this.createCategoryEmbed(gameMode, null, 'All Users', false, allUsersStats);
+            if (embed) {
+                embeds.push(embed);
+            }
+        }
+        
+        return embeds;
+    },
+
+    /**
+     * Create a single category embed with proper formatting
+     */
+    async createCategoryEmbed(category, stats, userDisplayName, isUserSpecific, allUsersData = null) {
+        const categoryEmojis = {
+            mining: '⛏️',
+            combat: '⚔️',
+            trading: '💰',
+            exploration: '🗺️',
+            social: '💬'
+        };
+        
+        const categoryColors = {
+            mining: 0x8B4513,
+            combat: 0xDC143C,
+            trading: 0xFFD700,
+            exploration: 0x32CD32,
+            social: 0x9370DB
+        };
+        
+        const emoji = categoryEmojis[category] || '📊';
+        const color = categoryColors[category] || 0x00ff00;
+        
+        const embed = new EmbedBuilder()
+            .setTitle(`${emoji} ${category.charAt(0).toUpperCase() + category.slice(1)} Statistics - ${userDisplayName}`)
+            .setColor(color)
+            .setTimestamp();
+        
+        if (isUserSpecific) {
+            // Single user stats
+            if (!stats || Object.keys(stats).length === 0) {
+                embed.setDescription(`No ${category} statistics available.`);
+                return embed;
+            }
+            
+            const fields = await this.formatCategoryStatsForEmbed(stats, category);
+            if (fields.length > 0) {
+                embed.addFields(fields);
+            } else {
+                embed.setDescription(`No ${category} statistics available.`);
+            }
+        } else {
+            // All users stats
+            if (!allUsersData || allUsersData.length === 0) {
+                embed.setDescription(`No ${category} statistics available for any users.`);
+                return embed;
+            }
+            
+            const fields = await this.formatAllUsersCategoryStatsForEmbed(allUsersData, category);
+            if (fields.length > 0) {
+                embed.addFields(fields);
+            } else {
+                embed.setDescription(`No ${category} statistics available for any users.`);
+            }
+        }
+        
+        return embed;
+    },
+
+    /**
+     * Format category stats for a single user embed
+     */
+    async formatCategoryStatsForEmbed(stats, category) {
+        const fields = [];
+        
+        if (category === 'mining') {
+            // Basic mining stats
+            if (stats.tilesMoved > 0) {
+                fields.push({ name: '🚶 Tiles Moved', value: stats.tilesMoved.toString(), inline: true });
+            }
+            
+            // Items found with proper names
+            if (stats.itemsFound && Object.keys(stats.itemsFound).length > 0) {
+                const itemDetails = await this.formatItemsFound(stats.itemsFound);
+                if (itemDetails) {
+                    fields.push({ name: '💎 Items Found', value: itemDetails, inline: false });
+                }
+            }
+            
+            // Items found by source
+            if (stats.itemsFoundBySource && Object.keys(stats.itemsFoundBySource).length > 0) {
+                const sourceDetails = await this.formatItemsFoundBySource(stats.itemsFoundBySource);
+                if (sourceDetails) {
+                    fields.push({ name: '📦 Items by Source', value: sourceDetails, inline: false });
+                }
+            }
+            
+            // Tiles broken with proper names
+            if (stats.tilesBroken && Object.keys(stats.tilesBroken).length > 0) {
+                const tileDetails = await this.formatTilesBroken(stats.tilesBroken);
+                if (tileDetails) {
+                    fields.push({ name: '⛏️ Tiles Broken', value: tileDetails, inline: false });
+                }
+            }
+            
+            // Hazards
+            const hazardsEvaded = stats.hazardsEvaded || 0;
+            const hazardsTriggered = stats.hazardsTriggered || 0;
+            const hazardsSeen = stats.hazardsSeen || 0;
+            
+            if (hazardsEvaded > 0 || hazardsTriggered > 0 || hazardsSeen > 0) {
+                fields.push({ 
+                    name: '⚠️ Hazards', 
+                    value: `Evaded: ${hazardsEvaded}\nTriggered: ${hazardsTriggered}\nSeen: ${hazardsSeen}`, 
+                    inline: true 
+                });
+            }
+            
+            // Power level
+            if (stats.highestPowerLevel > 0) {
+                fields.push({ name: '⚡ Highest Power Level', value: stats.highestPowerLevel.toString(), inline: true });
+            }
+            
+            // Time in mining
+            if (stats.timeInMiningChannel > 0) {
+                const hours = Math.floor(stats.timeInMiningChannel / 3600);
+                const minutes = Math.floor((stats.timeInMiningChannel % 3600) / 60);
+                fields.push({ 
+                    name: '⏰ Time in Mining', 
+                    value: `${hours}h ${minutes}m`, 
+                    inline: true 
+                });
+            }
+            
+            // Movement by direction
+            if (stats.movementByDirection && Object.keys(stats.movementByDirection).length > 0) {
+                const directionStats = Object.entries(stats.movementByDirection)
+                    .map(([dir, count]) => `${dir}: ${count}`)
+                    .join('\n');
+                fields.push({ name: '🧭 Movement by Direction', value: directionStats, inline: true });
+            }
+        }
+        
+        // Add support for other categories here as they're implemented
+        // if (category === 'combat') { ... }
+        // if (category === 'trading') { ... }
+        
+        return fields;
+    },
+
+    /**
+     * Format all users stats for a category embed
+     */
+    async formatAllUsersCategoryStatsForEmbed(allUsersData, category) {
+        const fields = [];
+        
+        // Sort users by activity level
+        const sortedUsers = allUsersData.sort((a, b) => {
+            const aActivity = this.getUserActivityLevel(a.gameStats, category);
+            const bActivity = this.getUserActivityLevel(b.gameStats, category);
+            return bActivity - aActivity;
+        });
+        
+        // Show top 10 most active users
+        const topUsers = sortedUsers.slice(0, 10);
+        
+        for (const user of topUsers) {
+            const activityLevel = this.getUserActivityLevel(user.gameStats, category);
+            if (activityLevel > 0) {
+                const username = user.username || 'Unknown';
+                const stats = user.gameStats;
+                
+                let value = '';
+                if (category === 'mining') {
+                    const tilesMoved = stats.tilesMoved || 0;
+                    const itemsFound = stats.itemsFound ? Object.values(stats.itemsFound).reduce((sum, count) => sum + count, 0) : 0;
+                    const tilesBroken = stats.tilesBroken ? Object.values(stats.tilesBroken).reduce((sum, count) => sum + count, 0) : 0;
+                    
+                    value = `Moved: ${tilesMoved} | Items: ${itemsFound} | Broken: ${tilesBroken}`;
+                }
+                
+                fields.push({ 
+                    name: username, 
+                    value: value || 'No activity', 
+                    inline: false 
+                });
+            }
+        }
+        
+        if (fields.length === 0) {
+            fields.push({ name: 'No Activity', value: 'No users have any recorded activity.', inline: false });
+        }
+        
+        return fields;
+    },
+
+    /**
+     * Format items found with proper names
+     */
+    async formatItemsFound(itemsFound) {
+        if (!itemsFound || Object.keys(itemsFound).length === 0) return null;
+        
+        const itemEntries = Object.entries(itemsFound)
+            .filter(([itemId, count]) => count > 0)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 10); // Limit to top 10 items
+        
+        if (itemEntries.length === 0) return null;
+        
+        const itemDetails = await Promise.all(
+            itemEntries.map(async ([itemId, count]) => {
+                const itemData = itemMap.get(itemId);
+                const itemName = itemData ? itemData.name : `Item ${itemId}`;
+                return `${itemName}: ${count}`;
+            })
+        );
+        
+        return itemDetails.join('\n');
+    },
+
+    /**
+     * Format items found by source
+     */
+    async formatItemsFoundBySource(itemsFoundBySource) {
+        if (!itemsFoundBySource || Object.keys(itemsFoundBySource).length === 0) return null;
+        
+        const sourceDetails = [];
+        
+        for (const [source, items] of Object.entries(itemsFoundBySource)) {
+            if (items && Object.keys(items).length > 0) {
+                const totalItems = Object.values(items).reduce((sum, count) => sum + count, 0);
+                sourceDetails.push(`**${source.charAt(0).toUpperCase() + source.slice(1)}**: ${totalItems} items`);
+            }
+        }
+        
+        return sourceDetails.length > 0 ? sourceDetails.join('\n') : null;
+    },
+
+    /**
+     * Format tiles broken with proper names
+     */
+    async formatTilesBroken(tilesBroken) {
+        if (!tilesBroken || Object.keys(tilesBroken).length === 0) return null;
+        
+        const tileEntries = Object.entries(tilesBroken)
+            .filter(([tileType, count]) => count > 0)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 10); // Limit to top 10 tile types
+        
+        if (tileEntries.length === 0) return null;
+        
+        const tileDetails = tileEntries.map(([tileType, count]) => {
+            // You might want to create a tile type mapping similar to itemMap
+            return `${tileType}: ${count}`;
+        });
+        
+        return tileDetails.join('\n');
     },
 
     // Helper method to format game stats for embed
