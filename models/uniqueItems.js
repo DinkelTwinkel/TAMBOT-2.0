@@ -84,10 +84,10 @@ const uniqueItemSchema = new Schema({
         // Previous stats snapshot from GameStatTracker
         previousStats: {
             tilesMoved: { type: Number, default: 0 },
-            itemsFound: { type: Map, of: Number, default: {} },
+            itemsFound: { type: Schema.Types.Mixed, default: {} },
             itemsFoundBySource: {
-                mining: { type: Map, of: Number, default: {} },
-                treasure: { type: Map, of: Number, default: {} }
+                mining: { type: Schema.Types.Mixed, default: {} },
+                treasure: { type: Schema.Types.Mixed, default: {} }
             },
             timeInMiningChannel: { type: Number, default: 0 },
             hazardsEvaded: { type: Number, default: 0 },
@@ -188,10 +188,10 @@ uniqueItemSchema.methods.reduceMaintenance = async function(amount = 1, isRiches
             this.maintenanceState = {
                 previousStats: {
                     tilesMoved: 0,
-                    itemsFound: new Map(),
+                    itemsFound: {},
                     itemsFoundBySource: {
-                        mining: new Map(),
-                        treasure: new Map()
+                        mining: {},
+                        treasure: {}
                     },
                     timeInMiningChannel: 0,
                     hazardsEvaded: 0,
@@ -245,10 +245,10 @@ uniqueItemSchema.methods.assignToPlayer = function(userId, userTag, guildId = 'd
     this.maintenanceState = {
         previousStats: {
             tilesMoved: 0,
-            itemsFound: new Map(),
+            itemsFound: {},
             itemsFoundBySource: {
-                mining: new Map(),
-                treasure: new Map()
+                mining: {},
+                treasure: {}
             },
             timeInMiningChannel: 0,
             hazardsEvaded: 0,
@@ -265,10 +265,10 @@ uniqueItemSchema.methods.assignToPlayer = function(userId, userTag, guildId = 'd
 uniqueItemSchema.methods.saveMaintenanceState = function(currentStats) {
     this.maintenanceState.previousStats = {
         tilesMoved: currentStats.tilesMoved || 0,
-        itemsFound: new Map(Object.entries(currentStats.itemsFound || {})),
+        itemsFound: currentStats.itemsFound || {},
         itemsFoundBySource: {
-            mining: new Map(Object.entries(currentStats.itemsFoundBySource?.mining || {})),
-            treasure: new Map(Object.entries(currentStats.itemsFoundBySource?.treasure || {}))
+            mining: currentStats.itemsFoundBySource?.mining || {},
+            treasure: currentStats.itemsFoundBySource?.treasure || {}
         },
         timeInMiningChannel: currentStats.timeInMiningChannel || 0,
         hazardsEvaded: currentStats.hazardsEvaded || 0,

@@ -213,6 +213,25 @@ client.once(Events.ClientReady, async c => {
             console.error('[MARKETPLACE] Error during periodic cleanup:', error);
         }
     }, 10 * 60 * 1000); // Run every 10 minutes
+
+    // Setup periodic bot message cleanup
+    setInterval(async () => {
+        try {
+            console.log('🧹 Running scheduled bot message cleanup...');
+            // Run botMessageDeletus for all guilds
+            client.guilds.cache.forEach(async guild => {
+                try {
+                    await botMessageDeletus(guild);
+                } catch (error) {
+                    console.error(`❌ Error cleaning bot messages for guild ${guild.id}:`, error);
+                }
+            });
+            console.log('✅ Scheduled bot message cleanup completed');
+        } catch (error) {
+            console.error('❌ Error during scheduled bot message cleanup:', error);
+        }
+    }, 10 * 60 * 1000); // Run every 10 minutes
+
     const ShopHandler = require('./patterns/shopHandler');
     const ItemTransferHandler = require('./patterns/itemTransferHandler');
     const ItemUseHandler = require('./patterns/itemUseHandler');

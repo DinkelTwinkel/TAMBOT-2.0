@@ -68,15 +68,22 @@ function calculateStatDifferences(currentStats, previousStats) {
         }
     }
 
-    // Calculate mining source item differences
+    // Calculate mining source item differences - handle both Map and Object formats
+    const currentMiningItems = currentStats.itemsFoundBySource?.mining || {};
+    const previousMiningItems = previousStats.itemsFoundBySource?.mining || {};
+    
+    // Convert Maps to objects if needed
+    const currentMiningObj = currentMiningItems instanceof Map ? Object.fromEntries(currentMiningItems) : currentMiningItems;
+    const previousMiningObj = previousMiningItems instanceof Map ? Object.fromEntries(previousMiningItems) : previousMiningItems;
+    
     const allMiningItemIds = new Set([
-        ...Object.keys(currentStats.itemsFoundBySource?.mining || {}),
-        ...Object.keys(previousStats.itemsFoundBySource?.mining || {})
+        ...Object.keys(currentMiningObj),
+        ...Object.keys(previousMiningObj)
     ]);
 
     for (const itemId of allMiningItemIds) {
-        const current = currentStats.itemsFoundBySource?.mining?.[itemId] || 0;
-        const previous = previousStats.itemsFoundBySource?.mining?.[itemId] || 0;
+        const current = currentMiningObj[itemId] || 0;
+        const previous = previousMiningObj[itemId] || 0;
         const diff = current - previous;
         if (diff > 0) {
             differences.itemsFoundBySource.mining[itemId] = diff;
@@ -250,7 +257,8 @@ const maintenanceHandlers = {
         const itemData = getUniqueItemById(item.itemId);
         
         // Get current stats from GameStatTracker
-        const currentStats = await getCurrentStats(userId, item.guildId || 'default');
+        const guildId = item.maintenanceState?.guildId || 'default';
+        const currentStats = await getCurrentStats(userId, guildId);
         const previousStats = item.maintenanceState?.previousStats || {};
         const statDifferences = calculateStatDifferences(currentStats, previousStats);
         
@@ -297,7 +305,8 @@ const maintenanceHandlers = {
     // Voice activity maintenance - check voice minutes
     async voice_activity(userId, userTag, item, requirement) {
         // Get current stats from GameStatTracker
-        const currentStats = await getCurrentStats(userId, item.guildId || 'default');
+        const guildId = item.maintenanceState?.guildId || 'default';
+        const currentStats = await getCurrentStats(userId, guildId);
         const previousStats = item.maintenanceState?.previousStats || {};
         const statDifferences = calculateStatDifferences(currentStats, previousStats);
         
@@ -358,7 +367,8 @@ const maintenanceHandlers = {
     // Movement activity maintenance - check tiles moved in mining
     async movement_activity(userId, userTag, item, requirement) {
         // Get current stats from GameStatTracker
-        const currentStats = await getCurrentStats(userId, item.guildId || 'default');
+        const guildId = item.maintenanceState?.guildId || 'default';
+        const currentStats = await getCurrentStats(userId, guildId);
         const previousStats = item.maintenanceState?.previousStats || {};
         const statDifferences = calculateStatDifferences(currentStats, previousStats);
         
@@ -512,10 +522,10 @@ async function initializeMaintenanceStateForExistingItems() {
                 item.maintenanceState = {
                     previousStats: {
                         tilesMoved: 0,
-                        itemsFound: new Map(),
+                        itemsFound: {},
                         itemsFoundBySource: {
-                            mining: new Map(),
-                            treasure: new Map()
+                            mining: {},
+                            treasure: {}
                         },
                         timeInMiningChannel: 0,
                         hazardsEvaded: 0,
