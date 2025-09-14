@@ -287,7 +287,13 @@ const maintenanceHandlers = {
         const itemData = getUniqueItemById(item.itemId);
         
         // Check if item has new maintenance state, if not, initialize it
-        if (!item.maintenanceState) {
+        const needsInitialization = !item.maintenanceState || 
+                                  !item.maintenanceState.previousStats ||
+                                  item.maintenanceState.previousStats.tilesMoved === 0 ||
+                                  item.maintenanceState.guildId === 'default' ||
+                                  Object.keys(item.maintenanceState.previousStats.itemsFound || {}).length === 0;
+        
+        if (needsInitialization) {
             console.log(`[UNIQUE ITEMS] Initializing maintenance state for item ${item.itemId} (${itemData?.name})`);
             await initializeMaintenanceStateForItem(item, userId, guildId);
         }
@@ -340,6 +346,18 @@ const maintenanceHandlers = {
     
     // Voice activity maintenance - check voice minutes
     async voice_activity(userId, userTag, item, requirement, guildId = 'default') {
+        // Check if item has new maintenance state, if not, initialize it
+        const needsInitialization = !item.maintenanceState || 
+                                  !item.maintenanceState.previousStats ||
+                                  item.maintenanceState.previousStats.tilesMoved === 0 ||
+                                  item.maintenanceState.guildId === 'default' ||
+                                  Object.keys(item.maintenanceState.previousStats.itemsFound || {}).length === 0;
+        
+        if (needsInitialization) {
+            console.log(`[UNIQUE ITEMS] Initializing maintenance state for item ${item.itemId} in voice_activity`);
+            await initializeMaintenanceStateForItem(item, userId, guildId);
+        }
+        
         // Get current stats from GameStatTracker
         const effectiveGuildId = item.maintenanceState?.guildId || guildId;
         const currentStats = await getCurrentStats(userId, effectiveGuildId);
@@ -402,6 +420,18 @@ const maintenanceHandlers = {
     
     // Movement activity maintenance - check tiles moved in mining
     async movement_activity(userId, userTag, item, requirement, guildId = 'default') {
+        // Check if item has new maintenance state, if not, initialize it
+        const needsInitialization = !item.maintenanceState || 
+                                  !item.maintenanceState.previousStats ||
+                                  item.maintenanceState.previousStats.tilesMoved === 0 ||
+                                  item.maintenanceState.guildId === 'default' ||
+                                  Object.keys(item.maintenanceState.previousStats.itemsFound || {}).length === 0;
+        
+        if (needsInitialization) {
+            console.log(`[UNIQUE ITEMS] Initializing maintenance state for item ${item.itemId} in movement_activity`);
+            await initializeMaintenanceStateForItem(item, userId, guildId);
+        }
+        
         // Get current stats from GameStatTracker
         const effectiveGuildId = item.maintenanceState?.guildId || guildId;
         const currentStats = await getCurrentStats(userId, effectiveGuildId);
@@ -502,7 +532,13 @@ async function checkMaintenanceStatus(userId, guildId = 'default') {
             if (!itemData) continue;
             
             // Check if item has new maintenance state, if not, initialize it
-            if (!item.maintenanceState) {
+            const needsInitialization = !item.maintenanceState || 
+                                      !item.maintenanceState.previousStats ||
+                                      item.maintenanceState.previousStats.tilesMoved === 0 ||
+                                      item.maintenanceState.guildId === 'default' ||
+                                      Object.keys(item.maintenanceState.previousStats.itemsFound || {}).length === 0;
+            
+            if (needsInitialization) {
                 console.log(`[UNIQUE ITEMS] Initializing maintenance state for item ${item.itemId} (${itemData?.name}) in status check`);
                 await initializeMaintenanceStateForItem(item, userId, guildId);
             }
