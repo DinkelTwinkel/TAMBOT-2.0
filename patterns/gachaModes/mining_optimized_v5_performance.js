@@ -3011,6 +3011,7 @@ if (shouldStartBreak) {
                         displayName: familiar.displayName,
                         bot: false
                     },
+                    guild: ownerMember.guild, // Add guild property for stat tracking
                     // Reference to the original owner
                     ownerId: ownerId,
                     ownerMember: ownerMember,
@@ -3490,10 +3491,12 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
         return { mapChanged: false, wallsBroken: 0, treasuresFound: 0, mapData, hazardsChanged: false };
     }
     
-    // Track power level for stats
+                    // Track power level for stats
     if (gameStatTracker) {
         try {
-            await gameStatTracker.trackPowerLevel(member.id, member.guild.id, powerLevel);
+            // For familiars, track stats under the owner's ID
+            const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+            await gameStatTracker.trackPowerLevel(trackingMemberId, member.guild.id, powerLevel);
         } catch (error) {
             console.error('Error tracking power level:', error);
         }
@@ -4469,7 +4472,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                         // Track item found for stats
                         if (gameStatTracker) {
                             try {
-                                await gameStatTracker.trackItemFound(member.id, member.guild.id, item.itemId, finalQuantity, 'mining');
+                                // For familiars, track stats under the owner's ID
+                                const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                                await gameStatTracker.trackItemFound(trackingMemberId, member.guild.id, item.itemId, finalQuantity, 'mining');
                             } catch (error) {
                                 console.error('Error tracking item found:', error);
                             }
@@ -4514,7 +4519,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     // Track tile broken for stats
                     if (gameStatTracker) {
                         try {
-                            await gameStatTracker.trackTileBroken(member.id, member.guild.id, getTileTypeName(targetTile.type));
+                            // For familiars, track stats under the owner's ID
+                            const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                            await gameStatTracker.trackTileBroken(trackingMemberId, member.guild.id, getTileTypeName(targetTile.type));
                         } catch (error) {
                             console.error('Error tracking tile broken:', error);
                         }
@@ -4591,7 +4598,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
         if (gameStatTracker) {
             try {
                 const direction = getDirectionName(newX - oldX, newY - oldY);
-                await gameStatTracker.trackTileMovement(member.id, member.guild.id, direction);
+                // For familiars, track stats under the owner's ID
+                const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                await gameStatTracker.trackTileMovement(trackingMemberId, member.guild.id, direction);
             } catch (error) {
                 console.error('Error tracking tile movement:', error);
             }
@@ -4639,7 +4648,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     if (gameStatTracker && treasureResult.itemsFound && treasureResult.itemsFound.length > 0) {
                         try {
                             for (const item of treasureResult.itemsFound) {
-                                await gameStatTracker.trackItemFound(member.id, member.guild.id, item.itemId, item.quantity, 'treasure');
+                                // For familiars, track stats under the owner's ID
+                                const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                                await gameStatTracker.trackItemFound(trackingMemberId, member.guild.id, item.itemId, item.quantity, 'treasure');
                             }
                         } catch (error) {
                             console.error('Error tracking treasure items found:', error);
@@ -4701,7 +4712,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 // Track hazard evaded for stats
                 if (gameStatTracker) {
                     try {
-                        await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
+                        // For familiars, track stats under the owner's ID
+                        const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                        await gameStatTracker.trackHazardInteraction(trackingMemberId, member.guild.id, hazard.type || 'unknown', 'evaded');
                     } catch (error) {
                         console.error('Error tracking hazard evaded:', error);
                     }
@@ -4717,7 +4730,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 // Track hazard evaded for stats
                 if (gameStatTracker) {
                     try {
-                        await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
+                        // For familiars, track stats under the owner's ID
+                        const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                        await gameStatTracker.trackHazardInteraction(trackingMemberId, member.guild.id, hazard.type || 'unknown', 'evaded');
                     } catch (error) {
                         console.error('Error tracking hazard evaded:', error);
                     }
@@ -4734,7 +4749,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 // Track hazard evaded for stats
                 if (gameStatTracker) {
                     try {
-                        await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'evaded');
+                        // For familiars, track stats under the owner's ID
+                        const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                        await gameStatTracker.trackHazardInteraction(trackingMemberId, member.guild.id, hazard.type || 'unknown', 'evaded');
                     } catch (error) {
                         console.error('Error tracking hazard evaded:', error);
                     }
@@ -4770,7 +4787,9 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                 // Track hazard triggered for stats
                 if (gameStatTracker) {
                     try {
-                        await gameStatTracker.trackHazardInteraction(member.id, member.guild.id, hazard.type || 'unknown', 'triggered');
+                        // For familiars, track stats under the owner's ID
+                        const trackingMemberId = member.isFamiliar ? member.ownerId : member.id;
+                        await gameStatTracker.trackHazardInteraction(trackingMemberId, member.guild.id, hazard.type || 'unknown', 'triggered');
                     } catch (error) {
                         console.error('Error tracking hazard triggered:', error);
                     }
