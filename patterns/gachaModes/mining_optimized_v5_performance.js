@@ -4445,17 +4445,15 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     if (Math.random() < 0.05 && targetTile.type === TILE_TYPES.WALL) {
                         continue;
                     }
-                    console.log(`[STAT DEBUG] Checking tile type: "${targetTile.type}" (type: ${typeof targetTile.type}) against [${TILE_TYPES.WALL_WITH_ORE}, ${TILE_TYPES.RARE_ORE}, ${TILE_TYPES.WALL}, ${TILE_TYPES.REINFORCED_WALL}]`);
+                    console.log(`[STAT DEBUG] Checking tile type: "${targetTile.type}" (type: ${typeof targetTile.type}) against [${TILE_TYPES.WALL_WITH_ORE}, ${TILE_TYPES.RARE_ORE}]`);
                     console.log(`[STAT DEBUG] WALL_WITH_ORE: "${TILE_TYPES.WALL_WITH_ORE}" (type: ${typeof TILE_TYPES.WALL_WITH_ORE})`);
                     console.log(`[STAT DEBUG] RARE_ORE: "${TILE_TYPES.RARE_ORE}" (type: ${typeof TILE_TYPES.RARE_ORE})`);
-                    console.log(`[STAT DEBUG] WALL: "${TILE_TYPES.WALL}" (type: ${typeof TILE_TYPES.WALL})`);
-                    console.log(`[STAT DEBUG] REINFORCED_WALL: "${TILE_TYPES.REINFORCED_WALL}" (type: ${typeof TILE_TYPES.REINFORCED_WALL})`);
-                    console.log(`[STAT DEBUG] Includes check: ${[TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE, TILE_TYPES.WALL, TILE_TYPES.REINFORCED_WALL].includes(targetTile.type)}`);
+                    console.log(`[STAT DEBUG] Includes check: ${[TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)}`);
                     
-                    if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE, TILE_TYPES.WALL, TILE_TYPES.REINFORCED_WALL].includes(targetTile.type)) {
+                    if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
                         console.log(`[MINE ID DEBUG] ${member.displayName} SPEED mining with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId}) | tile type: ${targetTile.type}`);
                         console.log(`[STAT DEBUG] gameStatTracker exists: ${!!gameStatTracker}, tile type: ${targetTile.type}, WALL_WITH_ORE: ${TILE_TYPES.WALL_WITH_ORE}, RARE_ORE: ${TILE_TYPES.RARE_ORE}`);
-                        console.log(`[STAT DEBUG] Condition check: ${[TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE, TILE_TYPES.WALL, TILE_TYPES.REINFORCED_WALL].includes(targetTile.type)}`);
+                        console.log(`[STAT DEBUG] Condition check: ${[TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)}`);
                         const { item, quantity, destination } = await mineFromTile(member, miningPower, luckStat, powerLevel, targetTile.type, availableItems, efficiency, isDeeperMine, mineTypeId);
                         
                         let finalQuantity = quantity;
