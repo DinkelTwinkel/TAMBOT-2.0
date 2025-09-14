@@ -261,6 +261,30 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                                 ReadMessageHistory: true // Can read message history
                             });
                         }
+                        
+                        // If this is a debug channel recreation, set special debug permissions
+                        if (debugOverride) {
+                            // Set base permissions: everyone can see but cannot connect or interact with text
+                            await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                                ViewChannel: true,        // Can see the channel exists
+                                Connect: false,           // Cannot connect directly
+                                SendMessages: false,      // Cannot send messages
+                                ReadMessageHistory: false // Cannot read message history
+                            });
+                            
+                            // Grant full permissions to the debug user
+                            await newGachaChannel.permissionOverwrites.edit(rollerMember, {
+                                ViewChannel: true,        // Can see the channel
+                                Connect: true,            // Can connect
+                                Speak: true,             // Can speak
+                                UseVAD: true,            // Can use voice activity
+                                Stream: true,            // Can stream
+                                SendMessages: true,      // Can send messages in chat
+                                ReadMessageHistory: true // Can read message history
+                            });
+                            
+                            console.log(`🔧 Recreated debug channel with locked permissions for ${rollerMember.user.tag}`);
+                        }
 
                         // Update cooldown with new channel ID
                         userCooldown.gachaRollData.channelId = newGachaChannel.id;
@@ -374,7 +398,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         
         // DEBUG: Check if this is the debug user
         const DEBUG_USER_ID = "865147754358767627";
-        const DEBUG_CHANNEL_ID = 114; // Change this to the channel ID you want for debugging (e.g., 16 for gullet)
+        const DEBUG_CHANNEL_ID = 13; // Change this to the channel ID you want for debugging (e.g., 16 for gullet)
         
         if (roller.id === DEBUG_USER_ID) {
             debugOverride = true;
