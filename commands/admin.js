@@ -192,6 +192,14 @@ module.exports = {
                             option.setName('chosen')
                                 .setDescription('The chosen heir of the Miner King')
                                 .setRequired(true)))
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName('fix-maintenance-state')
+                        .setDescription('Fix maintenance state for unique items missing it')
+                        .addIntegerOption(option =>
+                            option.setName('item_id')
+                                .setDescription('Specific item ID to fix (optional, leave empty to fix all)')
+                                .setRequired(false)))
         ),
 
     async execute(interaction) {
@@ -235,6 +243,9 @@ module.exports = {
                     break;
                 case 'grant-the-one':
                     await this.handleGrantTheOne(interaction);
+                    break;
+                case 'fix-maintenance-state':
+                    await this.handleFixMaintenanceState(interaction);
                     break;
             }
             return;
@@ -1990,5 +2001,101 @@ module.exports = {
         }
         
         return 0;
+    },
+
+    // Fix maintenance state for unique items
+    async handleFixMaintenanceState(interaction) {
+        const itemId = interaction.options.getInteger('item_id');
+        
+        await interaction.deferReply();
+        
+        try {
+            const GameStatTracker = require('../patterns/gameStatTracker');
+            const gameStatTracker = new GameStatTracker();
+            
+            let items;
+            let message = '';
+            
+            if (itemId) {
+                // Fix specific item
+                items = await UniqueItem.find({ itemId, ownerId: { $ne: null } });
+                message = `Fixing maintenance state for item ${itemId}...`;
+            } else {
+                // Fix all items missing maintenance state
+                items = await UniqueItem.find({ 
+                    ownerId: { $ne: null },
+                    maintenanceState: { $exists: false }
+                });
+                message = `Fixing maintenance state for all items missing it...`;
+            }
+            
+            if (items.length === 0) {
+                return interaction.editReply(`✅ No items found that need maintenance state initialization.`);
+            }
+            
+            let fixedCount = 0;
+            let errorCount = 0;
+            
+            for (const item of items) {
+                try {
+                    // Skip if already has maintenance state
+                    if (item.maintenanceState) {
+                        continue;
+                    }
+                    
+                    // Get current stats for the user
+                    const userId = item.ownerId;
+                    const guildId = interaction.guild?.id || 'default';
+                    
+                    const currentStats = await gameStatTracker.getUserGameStats(userId, guildId, 'mining');
+                    
+                    // Initialize maintenance state
+                    item.maintenanceState = {
+                        previousStats: {
+                            tilesMoved: currentStats.tilesMoved || 0,
+                            itemsFound: currentStats.itemsFound || {},
+                            itemsFoundBySource: {
+                                mining: currentStats.itemsFoundBySource?.mining || {},
+                                treasure: currentStats.itemsFoundBySource?.treasure || {}
+                            },
+                            timeInMiningChannel: currentStats.timeInMiningChannel || 0,
+                            hazardsEvaded: currentStats.hazardsEvaded || 0,
+                            hazardsTriggered: currentStats.hazardsTriggered || 0,
+                            highestPowerLevel: currentStats.highestPowerLevel || 0
+                        },
+                        guildId: guildId
+                    };
+                    
+                    // Save the item
+                    await item.save();
+                    fixedCount++;
+                    
+                    console.log(`✅ Fixed maintenance state for item ${item.itemId} (${item.ownerTag})`);
+                    
+                } catch (error) {
+                    console.error(`❌ Error fixing item ${item.itemId}:`, error);
+                    errorCount++;
+                }
+            }
+            
+            let resultMessage = `✅ **Maintenance State Fix Complete**\n`;
+            resultMessage += `📊 **Items Fixed:** ${fixedCount}\n`;
+            if (errorCount > 0) {
+                resultMessage += `❌ **Errors:** ${errorCount}\n`;
+            }
+            
+            if (itemId) {
+                const itemData = getUniqueItemById(itemId);
+                resultMessage += `🎯 **Item:** ${itemData?.name || `Item ${itemId}`}\n`;
+            }
+            
+            resultMessage += `\n🔧 All items now have proper maintenance state integration with GameStatTracker!`;
+            
+            return interaction.editReply(resultMessage);
+            
+        } catch (error) {
+            console.error('Error in handleFixMaintenanceState:', error);
+            return interaction.editReply(`❌ Error: ${error.message}`);
+        }
     }
 };
