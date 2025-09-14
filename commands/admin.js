@@ -14,6 +14,7 @@ const { sendLegendaryAnnouncement, sendLegendaryAnnouncementWithEmbed } = requir
 const { startRailBuildingEvent, startMineCollapseEvent } = require('../patterns/gachaModes/mining/miningEvents');
 const gachaVC = require('../models/activevcs');
 const GameStatTracker = require('../patterns/gameStatTracker');
+const { UserStats } = require('../models/statsSchema');
 
 // Create item map for O(1) lookups
 const itemMap = new Map(itemSheet.map(item => [item.id, item]));
@@ -94,14 +95,6 @@ module.exports = {
             subcommand
                 .setName('stats')
                 .setDescription('View comprehensive game statistics for users')
-                .addStringOption(option =>
-                    option.setName('game_mode')
-                        .setDescription('Game mode to show stats for')
-                        .setRequired(false)
-                        .addChoices(
-                            { name: 'Mining', value: 'mining' },
-                            { name: 'All Modes', value: 'all' }
-                        ))
                 .addUserOption(option =>
                     option.setName('user')
                         .setDescription('Specific user to show stats for (optional)')
@@ -1313,18 +1306,17 @@ module.exports = {
         try {
             await interaction.deferReply();
             
-            const gameMode = interaction.options.getString('game_mode') || 'all';
             const targetUser = interaction.options.getUser('user');
             const gameStatTracker = new GameStatTracker();
             
             let embeds = [];
             
             if (targetUser) {
-                // Show stats for specific user
-                embeds = await this.createUserStatsEmbeds(targetUser, interaction.guild.id, gameMode, gameStatTracker);
+                // Show stats for specific user - always show all categories
+                embeds = await this.createUserStatsEmbeds(targetUser, interaction.guild.id, 'all', gameStatTracker);
             } else {
-                // Show stats for all users
-                embeds = await this.createAllUsersStatsEmbeds(interaction.guild.id, gameMode, gameStatTracker);
+                // Show stats for all users - always show all categories
+                embeds = await this.createAllUsersStatsEmbeds(interaction.guild.id, 'all', gameStatTracker);
             }
             
             // Send embeds (Discord has a limit of 10 embeds per message)
