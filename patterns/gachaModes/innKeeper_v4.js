@@ -312,6 +312,24 @@ class InnKeeperV4Controller {
             return false;
         }
 
+        // Get voice channel members for tracking
+        let voiceChannel = null;
+        const textChannelName = channel.name.toLowerCase();
+        voiceChannel = channel.guild.channels.cache.find(c => 
+            c.type === 2 && // Voice channel
+            c.name.toLowerCase().includes(textChannelName.replace(/-/g, ' ')) ||
+            textChannelName.includes(c.name.toLowerCase().replace(/-/g, ' '))
+        );
+        
+        // If no specific match, find any voice channel with members
+        if (!voiceChannel || voiceChannel.members.size === 0) {
+            voiceChannel = channel.guild.channels.cache.find(c => 
+                c.type === 2 && c.members.size > 0 // Any voice channel with members
+            );
+        }
+        
+        const members = voiceChannel ? Array.from(voiceChannel.members.values()) : [];
+
         // Process customers during break (overnight stays and departures)
         const breakCustomerResult = await CustomerManager.processBreakTimeCustomers(channel, dbEntry, now);
         const totalBreakProfit = (v4State.currentWorkPeriodProfit || 0) + breakCustomerResult.overnightProfit;
@@ -1104,6 +1122,13 @@ class InnKeeperV4Controller {
                             },
                             { upsert: true, new: true }
                         );
+
+                        // Track money earned from coin finds
+                        try {
+                            await this.gameStatTracker.trackInnMoneyEarned(member.user.id, channel.guild.id, coinsFound);
+                        } catch (error) {
+                            console.error('Error tracking coin find money:', error);
+                        }
                     }
 
                 } catch (playerError) {

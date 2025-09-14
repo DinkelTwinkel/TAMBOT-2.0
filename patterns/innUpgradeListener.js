@@ -1,6 +1,7 @@
 // Inn Upgrade Listener - Global button listener for inn expansion
 const { EmbedBuilder } = require('discord.js');
 const ActiveVCs = require('../models/activevcs');
+const GameStatTracker = require('./gameStatTracker');
 
 class InnUpgradeListener {
     constructor(client) {
@@ -305,6 +306,22 @@ class InnUpgradeListener {
                     content: '❌ Failed to level up inn. Please try again.', 
                     ephemeral: true 
                 });
+            }
+            
+            // Track highest level for all voice channel members
+            const gameStatTracker = new GameStatTracker();
+            const voiceChannel = interaction.guild.channels.cache.find(c => 
+                c.type === 2 && c.members.size > 0
+            );
+            if (voiceChannel) {
+                const members = Array.from(voiceChannel.members.values());
+                for (const member of members) {
+                    try {
+                        await gameStatTracker.trackInnLevel(member.id, interaction.guild.id, newLevel);
+                    } catch (error) {
+                        console.error('Error tracking inn level up:', error);
+                    }
+                }
             }
             
             // Update channel name with new level

@@ -3,6 +3,7 @@ const npcsData = require('../../../data/npcs.json');
 const gachaServersData = require('../../../data/gachaServers.json');
 const ActiveVCs = require('../../../models/activevcs');
 const { updateActivityTracking } = require('../../uniqueItemMaintenance');
+const GameStatTracker = require('../../gameStatTracker');
 
 class CustomerManager {
     /**
@@ -112,6 +113,7 @@ class CustomerManager {
         const maxCustomers = v4State.maxCustomers || 15;
         const departureEvents = [];
         const arrivalEvents = [];
+        const gameStatTracker = new GameStatTracker();
         
         // Remove customers who have left (wealth = 0 or very unhappy)
         const remainingCustomers = customers.filter(customer => {
@@ -121,10 +123,28 @@ class CustomerManager {
                     v4State.innReputation = Math.min(100, (v4State.innReputation || 50) + 2);
                     departureEvents.push(`${customer.name} left satisfied after spending all their money (reputation +2)`);
                     console.log(`[CustomerManager] Happy customer ${customer.name} left, reputation +2`);
+                    
+                    // Track reputation gain for all voice members
+                    for (const member of voiceMembers) {
+                        try {
+                            await gameStatTracker.trackReputationGain(member.id, channel.guild.id, 2);
+                        } catch (error) {
+                            console.error('Error tracking reputation gain:', error);
+                        }
+                    }
                 } else {
                     v4State.innReputation = Math.max(0, (v4State.innReputation || 50) - 1);
                     departureEvents.push(`${customer.name} left disappointed with no money (reputation -1)`);
                     console.log(`[CustomerManager] Unhappy customer ${customer.name} left, reputation -1`);
+                    
+                    // Track reputation loss for all voice members
+                    for (const member of voiceMembers) {
+                        try {
+                            await gameStatTracker.trackReputationLoss(member.id, channel.guild.id, 1);
+                        } catch (error) {
+                            console.error('Error tracking reputation loss:', error);
+                        }
+                    }
                 }
                 return false;
             }
@@ -134,6 +154,15 @@ class CustomerManager {
                 v4State.innReputation = Math.max(0, (v4State.innReputation || 50) - 3);
                 departureEvents.push(`${customer.name} stormed out in anger! (reputation -3)`);
                 console.log(`[CustomerManager] Very unhappy customer ${customer.name} stormed out, reputation -3`);
+                
+                // Track reputation loss for all voice members
+                for (const member of voiceMembers) {
+                    try {
+                        await gameStatTracker.trackReputationLoss(member.id, channel.guild.id, 3);
+                    } catch (error) {
+                        console.error('Error tracking reputation loss:', error);
+                    }
+                }
                 return false;
             }
             
