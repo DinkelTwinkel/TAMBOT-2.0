@@ -1348,7 +1348,7 @@ module.exports = {
             // Get all available game data categories for this user
             const userStats = await UserStats.findOne({ userId: targetUser.id, guildId });
             
-            if (!userStats || !userStats.gameData) {
+            if (!userStats) {
                 const embed = new EmbedBuilder()
                     .setTitle(`📊 Game Statistics - ${targetUser.displayName}`)
                     .setDescription('No game statistics available for this user.')
@@ -1357,14 +1357,24 @@ module.exports = {
                 return [embed];
             }
             
-            // Create separate embeds for each game data category
-            const gameDataCategories = Object.keys(userStats.gameData);
+            // Create voice statistics embed (always show if user has any voice activity)
+            if (userStats.totalVoiceTime > 0 || userStats.totalVoiceJoins > 0 || userStats.totalMessages > 0) {
+                const voiceEmbed = await this.createVoiceStatsEmbed(userStats, targetUser.displayName);
+                if (voiceEmbed) {
+                    embeds.push(voiceEmbed);
+                }
+            }
             
-            for (const category of gameDataCategories) {
-                const categoryStats = userStats.gameData[category];
-                const embed = await this.createCategoryEmbed(category, categoryStats, targetUser.displayName, true);
-                if (embed) {
-                    embeds.push(embed);
+            // Create separate embeds for each game data category
+            if (userStats.gameData) {
+                const gameDataCategories = Object.keys(userStats.gameData);
+                
+                for (const category of gameDataCategories) {
+                    const categoryStats = userStats.gameData[category];
+                    const embed = await this.createCategoryEmbed(category, categoryStats, targetUser.displayName, true);
+                    if (embed) {
+                        embeds.push(embed);
+                    }
                 }
             }
             
@@ -1404,7 +1414,7 @@ module.exports = {
         
         if (gameMode === 'all') {
             // Get all users and find all available game data categories
-            const allUsers = await UserStats.find({ guildId }).select('userId username gameData');
+            const allUsers = await UserStats.find({ guildId }).select('userId username gameData totalVoiceTime totalVoiceJoins totalMessages firstSeen lastSeen');
             
             if (allUsers.length === 0) {
                 const embed = new EmbedBuilder()
@@ -1413,6 +1423,18 @@ module.exports = {
                     .setColor(0xffaa00)
                     .setTimestamp();
                 return [embed];
+            }
+            
+            // Create voice statistics embed for all users
+            const usersWithVoiceActivity = allUsers.filter(user => 
+                user.totalVoiceTime > 0 || user.totalVoiceJoins > 0 || user.totalMessages > 0
+            );
+            
+            if (usersWithVoiceActivity.length > 0) {
+                const voiceEmbed = await this.createAllUsersVoiceStatsEmbed(usersWithVoiceActivity);
+                if (voiceEmbed) {
+                    embeds.push(voiceEmbed);
+                }
             }
             
             // Find all unique game data categories across all users
@@ -1528,6 +1550,130 @@ module.exports = {
             }
         }
         
+        return embed;
+    },
+
+    /**
+     * Create voice statistics embed for a single user
+     */
+    async createVoiceStatsEmbed(userStats, userDisplayName) {
+        const embed = new EmbedBuilder()
+            .setTitle(`🔊 Voice Statistics - ${userDisplayName}`)
+            .setColor(0x5865F2) // Discord voice channel color
+            .setTimestamp();
+
+        const fields = [];
+
+        // Voice time
+        if (userStats.totalVoiceTime > 0) {
+            const hours = Math.floor(userStats.totalVoiceTime / 3600);
+            const minutes = Math.floor((userStats.totalVoiceTime % 3600) / 60);
+            const days = Math.floor(userStats.totalVoiceTime / 86400);
+            
+            let timeDisplay = '';
+            if (days > 0) {
+                timeDisplay = `${days}d ${hours % 24}h ${minutes}m`;
+            } else if (hours > 0) {
+                timeDisplay = `${hours}h ${minutes}m`;
+            } else {
+                timeDisplay = `${minutes}m`;
+            }
+            
+            fields.push({ name: '⏰ Total Voice Time', value: timeDisplay, inline: true });
+        }
+
+        // Voice joins
+        if (userStats.totalVoiceJoins > 0) {
+            fields.push({ name: '🚪 Voice Joins', value: userStats.totalVoiceJoins.toString(), inline: true });
+        }
+
+        // Messages
+        if (userStats.totalMessages > 0) {
+            fields.push({ name: '💬 Total Messages', value: userStats.totalMessages.toString(), inline: true });
+        }
+
+        // Commands used
+        if (userStats.totalCommandsUsed > 0) {
+            fields.push({ name: '⚡ Commands Used', value: userStats.totalCommandsUsed.toString(), inline: true });
+        }
+
+        // First seen
+        if (userStats.firstSeen) {
+            const firstSeenDate = new Date(userStats.firstSeen);
+            fields.push({ 
+                name: '👋 First Seen', 
+                value: `<t:${Math.floor(firstSeenDate.getTime() / 1000)}:D>`, 
+                inline: true 
+            });
+        }
+
+        // Last seen
+        if (userStats.lastSeen) {
+            const lastSeenDate = new Date(userStats.lastSeen);
+            fields.push({ 
+                name: '👁️ Last Seen', 
+                value: `<t:${Math.floor(lastSeenDate.getTime() / 1000)}:R>`, 
+                inline: true 
+            });
+        }
+
+        if (fields.length > 0) {
+            embed.addFields(fields);
+        } else {
+            embed.setDescription('No voice activity recorded.');
+        }
+
+        return embed;
+    },
+
+    /**
+     * Create voice statistics embed for all users
+     */
+    async createAllUsersVoiceStatsEmbed(usersWithVoiceActivity) {
+        const embed = new EmbedBuilder()
+            .setTitle('🔊 Voice Statistics - All Users')
+            .setColor(0x5865F2) // Discord voice channel color
+            .setTimestamp();
+
+        // Sort users by total voice time (descending)
+        const sortedUsers = usersWithVoiceActivity
+            .sort((a, b) => b.totalVoiceTime - a.totalVoiceTime)
+            .slice(0, 10); // Top 10 users
+
+        const fields = [];
+
+        for (const user of sortedUsers) {
+            const username = user.username || 'Unknown';
+            
+            // Format voice time
+            const hours = Math.floor(user.totalVoiceTime / 3600);
+            const minutes = Math.floor((user.totalVoiceTime % 3600) / 60);
+            const days = Math.floor(user.totalVoiceTime / 86400);
+            
+            let timeDisplay = '';
+            if (days > 0) {
+                timeDisplay = `${days}d ${hours % 24}h ${minutes}m`;
+            } else if (hours > 0) {
+                timeDisplay = `${hours}h ${minutes}m`;
+            } else {
+                timeDisplay = `${minutes}m`;
+            }
+
+            const value = `Voice: ${timeDisplay} | Joins: ${user.totalVoiceJoins} | Messages: ${user.totalMessages}`;
+            
+            fields.push({ 
+                name: username, 
+                value: value, 
+                inline: false 
+            });
+        }
+
+        if (fields.length > 0) {
+            embed.addFields(fields);
+        } else {
+            embed.setDescription('No voice activity recorded for any users.');
+        }
+
         return embed;
     },
 

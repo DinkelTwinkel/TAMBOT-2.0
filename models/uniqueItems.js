@@ -63,7 +63,7 @@ const uniqueItemSchema = new Schema({
         default: () => new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
     },
     
-    // Activity tracking for different maintenance types
+    // Activity tracking for different maintenance types (DEPRECATED - kept for backward compatibility)
     activityTracking: {
         lastMiningTime: { type: Date },
         lastVoiceJoin: { type: Date },
@@ -77,6 +77,25 @@ const uniqueItemSchema = new Schema({
         tilesMovedThisCycle: { type: Number, default: 0 },
         // Ore-specific tracking (itemId -> quantity)
         oresMinedThisCycle: { type: Map, of: Number, default: {} }
+    },
+    
+    // New maintenance state tracking using GameStatTracker as source of truth
+    maintenanceState: {
+        // Previous stats snapshot from GameStatTracker
+        previousStats: {
+            tilesMoved: { type: Number, default: 0 },
+            itemsFound: { type: Map, of: Number, default: {} },
+            itemsFoundBySource: {
+                mining: { type: Map, of: Number, default: {} },
+                treasure: { type: Map, of: Number, default: {} }
+            },
+            timeInMiningChannel: { type: Number, default: 0 },
+            hazardsEvaded: { type: Number, default: 0 },
+            hazardsTriggered: { type: Number, default: 0 },
+            highestPowerLevel: { type: Number, default: 0 }
+        },
+        // Guild ID for stat tracking
+        guildId: { type: String, default: 'default' }
     },
     
     // History tracking
@@ -164,6 +183,23 @@ uniqueItemSchema.methods.reduceMaintenance = async function(amount = 1, isRiches
                 tilesMovedThisCycle: 0,
                 oresMinedThisCycle: new Map()
             };
+            
+            // Reset maintenance state for next owner
+            this.maintenanceState = {
+                previousStats: {
+                    tilesMoved: 0,
+                    itemsFound: new Map(),
+                    itemsFoundBySource: {
+                        mining: new Map(),
+                        treasure: new Map()
+                    },
+                    timeInMiningChannel: 0,
+                    hazardsEvaded: 0,
+                    hazardsTriggered: 0,
+                    highestPowerLevel: 0
+                },
+                guildId: 'default'
+            };
         }
     }
     
@@ -185,7 +221,7 @@ uniqueItemSchema.methods.performMaintenance = async function(userId, cost) {
         this.statistics.totalCoinsSpentOnMaintenance += cost;
     }
     
-    // Reset activity tracking for the cycle
+    // Reset activity tracking for the cycle (DEPRECATED - kept for backward compatibility)
     this.activityTracking.miningBlocksThisCycle = 0;
     this.activityTracking.voiceMinutesThisCycle = 0;
     this.activityTracking.combatWinsThisCycle = 0;
@@ -197,13 +233,48 @@ uniqueItemSchema.methods.performMaintenance = async function(userId, cost) {
 };
 
 // Instance method to assign to new owner
-uniqueItemSchema.methods.assignToPlayer = function(userId, userTag) {
+uniqueItemSchema.methods.assignToPlayer = function(userId, userTag, guildId = 'default') {
     this.ownerId = userId;
     this.ownerTag = userTag;
     this.maintenanceLevel = 10; // Start with full maintenance
     this.lastMaintenanceDate = new Date();
     this.nextMaintenanceCheck = new Date(Date.now() + 24 * 60 * 60 * 1000);
     this.statistics.timesFound++;
+    
+    // Initialize maintenance state
+    this.maintenanceState = {
+        previousStats: {
+            tilesMoved: 0,
+            itemsFound: new Map(),
+            itemsFoundBySource: {
+                mining: new Map(),
+                treasure: new Map()
+            },
+            timeInMiningChannel: 0,
+            hazardsEvaded: 0,
+            hazardsTriggered: 0,
+            highestPowerLevel: 0
+        },
+        guildId: guildId
+    };
+    
+    return this.save();
+};
+
+// Instance method to save maintenance state (stats snapshot)
+uniqueItemSchema.methods.saveMaintenanceState = function(currentStats) {
+    this.maintenanceState.previousStats = {
+        tilesMoved: currentStats.tilesMoved || 0,
+        itemsFound: new Map(Object.entries(currentStats.itemsFound || {})),
+        itemsFoundBySource: {
+            mining: new Map(Object.entries(currentStats.itemsFoundBySource?.mining || {})),
+            treasure: new Map(Object.entries(currentStats.itemsFoundBySource?.treasure || {}))
+        },
+        timeInMiningChannel: currentStats.timeInMiningChannel || 0,
+        hazardsEvaded: currentStats.hazardsEvaded || 0,
+        hazardsTriggered: currentStats.hazardsTriggered || 0,
+        highestPowerLevel: currentStats.highestPowerLevel || 0
+    };
     
     return this.save();
 };
