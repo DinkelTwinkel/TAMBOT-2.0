@@ -1532,7 +1532,9 @@ module.exports = {
             combat: '⚔️',
             trading: '💰',
             exploration: '🗺️',
-            social: '💬'
+            social: '💬',
+            innkeeper: '🏨',
+            sellmarket: '🏪'
         };
         
         const categoryColors = {
@@ -1540,7 +1542,9 @@ module.exports = {
             combat: 0xDC143C,
             trading: 0xFFD700,
             exploration: 0x32CD32,
-            social: 0x9370DB
+            social: 0x9370DB,
+            innkeeper: 0xFF6B35,
+            sellmarket: 0x2ECC71
         };
         
         const emoji = categoryEmojis[category] || '📊';
@@ -1778,11 +1782,77 @@ module.exports = {
                     .join('\n');
                 fields.push({ name: '🧭 Movement by Direction', value: directionStats, inline: true });
             }
+        } else if (category === 'innkeeper') {
+            // Innkeeper stats
+            if (stats.overnightStays > 0) {
+                fields.push({ name: '🛏️ Overnight Stays', value: stats.overnightStays.toString(), inline: true });
+            }
+            
+            if (stats.happyCustomers > 0) {
+                fields.push({ name: '😊 Happy Customers', value: stats.happyCustomers.toString(), inline: true });
+            }
+            
+            if (stats.sadCustomers > 0) {
+                fields.push({ name: '😢 Sad Customers', value: stats.sadCustomers.toString(), inline: true });
+            }
+            
+            if (stats.reputationGained > 0) {
+                fields.push({ name: '📈 Reputation Gained', value: stats.reputationGained.toString(), inline: true });
+            }
+            
+            if (stats.reputationLost > 0) {
+                fields.push({ name: '📉 Reputation Lost', value: stats.reputationLost.toString(), inline: true });
+            }
+            
+            if (stats.moneyEarned > 0) {
+                fields.push({ name: '💰 Money Earned', value: `${stats.moneyEarned} coins`, inline: true });
+            }
+            
+            if (stats.ordersPlaced > 0) {
+                fields.push({ name: '🍽️ Orders Placed', value: stats.ordersPlaced.toString(), inline: true });
+            }
+            
+            if (stats.highestLevel > 0) {
+                fields.push({ name: '🏆 Highest Level', value: stats.highestLevel.toString(), inline: true });
+            }
+        } else if (category === 'sellmarket') {
+            // Sell market stats
+            if (stats.totalItemsSold > 0) {
+                fields.push({ name: '📤 Items Sold', value: stats.totalItemsSold.toString(), inline: true });
+            }
+            
+            if (stats.totalItemsBought > 0) {
+                fields.push({ name: '📥 Items Bought', value: stats.totalItemsBought.toString(), inline: true });
+            }
+            
+            if (stats.totalEarnings > 0) {
+                fields.push({ name: '💰 Total Earnings', value: `${stats.totalEarnings} coins`, inline: true });
+            }
+            
+            if (stats.totalSpent > 0) {
+                fields.push({ name: '💸 Total Spent', value: `${stats.totalSpent} coins`, inline: true });
+            }
+            
+            if (stats.itemsSoldToPlayers > 0) {
+                fields.push({ name: '👥 Items Sold to Players', value: stats.itemsSoldToPlayers.toString(), inline: true });
+            }
+            
+            // Items sold breakdown
+            if (stats.itemsSold && Object.keys(stats.itemsSold).length > 0) {
+                const itemDetails = await this.formatItemsSold(stats.itemsSold);
+                if (itemDetails) {
+                    fields.push({ name: '📦 Items Sold by Type', value: itemDetails, inline: false });
+                }
+            }
+            
+            // Items bought breakdown
+            if (stats.itemsBought && Object.keys(stats.itemsBought).length > 0) {
+                const itemDetails = await this.formatItemsBought(stats.itemsBought);
+                if (itemDetails) {
+                    fields.push({ name: '🛒 Items Bought by Type', value: itemDetails, inline: false });
+                }
+            }
         }
-        
-        // Add support for other categories here as they're implemented
-        // if (category === 'combat') { ... }
-        // if (category === 'trading') { ... }
         
         return fields;
     },
@@ -1816,6 +1886,20 @@ module.exports = {
                     const tilesBroken = stats.tilesBroken ? Object.values(stats.tilesBroken).reduce((sum, count) => sum + count, 0) : 0;
                     
                     value = `Moved: ${tilesMoved} | Items: ${itemsFound} | Broken: ${tilesBroken}`;
+                } else if (category === 'innkeeper') {
+                    const overnightStays = stats.overnightStays || 0;
+                    const happyCustomers = stats.happyCustomers || 0;
+                    const ordersPlaced = stats.ordersPlaced || 0;
+                    const moneyEarned = stats.moneyEarned || 0;
+                    
+                    value = `Stays: ${overnightStays} | Happy: ${happyCustomers} | Orders: ${ordersPlaced} | Earned: ${moneyEarned}c`;
+                } else if (category === 'sellmarket') {
+                    const itemsSold = stats.totalItemsSold || 0;
+                    const itemsBought = stats.totalItemsBought || 0;
+                    const earnings = stats.totalEarnings || 0;
+                    const spent = stats.totalSpent || 0;
+                    
+                    value = `Sold: ${itemsSold} | Bought: ${itemsBought} | Earned: ${earnings}c | Spent: ${spent}c`;
                 }
                 
                 fields.push({ 
@@ -1894,6 +1978,36 @@ module.exports = {
         });
         
         return tileDetails.join('\n');
+    },
+
+    /**
+     * Format items sold with proper names
+     */
+    async formatItemsSold(itemsSold) {
+        if (!itemsSold || Object.keys(itemsSold).length === 0) return null;
+        
+        const itemDetails = Object.entries(itemsSold).map(([itemId, count]) => {
+            const item = itemMap.get(itemId);
+            const itemName = item ? item.name : `Item ${itemId}`;
+            return `${itemName}: ${count}`;
+        });
+        
+        return itemDetails.join('\n');
+    },
+
+    /**
+     * Format items bought with proper names
+     */
+    async formatItemsBought(itemsBought) {
+        if (!itemsBought || Object.keys(itemsBought).length === 0) return null;
+        
+        const itemDetails = Object.entries(itemsBought).map(([itemId, count]) => {
+            const item = itemMap.get(itemId);
+            const itemName = item ? item.name : `Item ${itemId}`;
+            return `${itemName}: ${count}`;
+        });
+        
+        return itemDetails.join('\n');
     },
 
     // Helper method to format game stats for embed
@@ -2016,6 +2130,20 @@ module.exports = {
             const tilesBroken = gameStats.tilesBroken ? Object.values(gameStats.tilesBroken).reduce((sum, count) => sum + count, 0) : 0;
             
             return tilesMoved + itemsFound + tilesBroken;
+        } else if (gameMode === 'innkeeper') {
+            const overnightStays = gameStats.overnightStays || 0;
+            const happyCustomers = gameStats.happyCustomers || 0;
+            const ordersPlaced = gameStats.ordersPlaced || 0;
+            const moneyEarned = gameStats.moneyEarned || 0;
+            
+            return overnightStays + happyCustomers + ordersPlaced + (moneyEarned / 100); // Divide money by 100 to normalize
+        } else if (gameMode === 'sellmarket') {
+            const itemsSold = gameStats.totalItemsSold || 0;
+            const itemsBought = gameStats.totalItemsBought || 0;
+            const earnings = gameStats.totalEarnings || 0;
+            const spent = gameStats.totalSpent || 0;
+            
+            return itemsSold + itemsBought + (earnings / 100) + (spent / 100); // Divide money by 100 to normalize
         }
         
         return 0;
