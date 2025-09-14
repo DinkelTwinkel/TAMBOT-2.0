@@ -200,6 +200,14 @@ module.exports = {
                             option.setName('item_id')
                                 .setDescription('Specific item ID to fix (optional, leave empty to fix all)')
                                 .setRequired(false)))
+                .addSubcommand(subcommand =>
+                    subcommand
+                        .setName('debug-maintenance-state')
+                        .setDescription('Debug maintenance state for a specific item')
+                        .addIntegerOption(option =>
+                            option.setName('item_id')
+                                .setDescription('Item ID to debug')
+                                .setRequired(true)))
         ),
 
     async execute(interaction) {
@@ -246,6 +254,9 @@ module.exports = {
                     break;
                 case 'fix-maintenance-state':
                     await this.handleFixMaintenanceState(interaction);
+                    break;
+                case 'debug-maintenance-state':
+                    await this.handleDebugMaintenanceState(interaction);
                     break;
             }
             return;
@@ -2022,15 +2033,29 @@ module.exports = {
                 message = `Fixing maintenance state for item ${itemId}...`;
             } else {
                 // Fix all items missing maintenance state
+                // Check for both non-existent and null/undefined maintenanceState
                 items = await UniqueItem.find({ 
                     ownerId: { $ne: null },
-                    maintenanceState: { $exists: false }
+                    $or: [
+                        { maintenanceState: { $exists: false } },
+                        { maintenanceState: null },
+                        { maintenanceState: undefined }
+                    ]
                 });
                 message = `Fixing maintenance state for all items missing it...`;
             }
             
             if (items.length === 0) {
-                return interaction.editReply(`✅ No items found that need maintenance state initialization.`);
+                // Debug: Let's see what items exist
+                const allItems = await UniqueItem.find({ ownerId: { $ne: null } });
+                const debugInfo = allItems.map(item => ({
+                    itemId: item.itemId,
+                    ownerTag: item.ownerTag,
+                    hasMaintenanceState: !!item.maintenanceState,
+                    maintenanceStateType: typeof item.maintenanceState
+                }));
+                
+                return interaction.editReply(`✅ No items found that need maintenance state initialization.\n\n**Debug Info:**\n${debugInfo.map(info => `Item ${info.itemId} (${info.ownerTag}): hasMaintenanceState=${info.hasMaintenanceState}, type=${info.maintenanceStateType}`).join('\n')}`);
             }
             
             let fixedCount = 0;
@@ -2095,6 +2120,67 @@ module.exports = {
             
         } catch (error) {
             console.error('Error in handleFixMaintenanceState:', error);
+            return interaction.editReply(`❌ Error: ${error.message}`);
+        }
+    },
+
+    // Debug maintenance state for a specific item
+    async handleDebugMaintenanceState(interaction) {
+        const itemId = interaction.options.getInteger('item_id');
+        
+        await interaction.deferReply();
+        
+        try {
+            const item = await UniqueItem.findOne({ itemId });
+            
+            if (!item) {
+                return interaction.editReply(`❌ Item ${itemId} not found in database`);
+            }
+            
+            let debugInfo = `🔍 **Debug Info for Item ${itemId}**\n\n`;
+            debugInfo += `**Basic Info:**\n`;
+            debugInfo += `- Owner: ${item.ownerTag} (${item.ownerId})\n`;
+            debugInfo += `- Maintenance Level: ${item.maintenanceLevel}\n`;
+            debugInfo += `- Maintenance Type: ${item.maintenanceType}\n`;
+            debugInfo += `- Maintenance Cost: ${item.maintenanceCost}\n\n`;
+            
+            debugInfo += `**Maintenance State Info:**\n`;
+            debugInfo += `- Has maintenanceState: ${!!item.maintenanceState}\n`;
+            debugInfo += `- maintenanceState type: ${typeof item.maintenanceState}\n`;
+            debugInfo += `- maintenanceState value: ${JSON.stringify(item.maintenanceState, null, 2)}\n\n`;
+            
+            debugInfo += `**Raw Document Fields:**\n`;
+            const fields = Object.keys(item.toObject());
+            debugInfo += `- Available fields: ${fields.join(', ')}\n\n`;
+            
+            // Check if maintenanceState exists in the raw document
+            const rawDoc = item.toObject();
+            debugInfo += `**Raw Document Check:**\n`;
+            debugInfo += `- maintenanceState in raw doc: ${rawDoc.hasOwnProperty('maintenanceState')}\n`;
+            debugInfo += `- maintenanceState value in raw doc: ${JSON.stringify(rawDoc.maintenanceState, null, 2)}\n\n`;
+            
+            // Check GameStatTracker stats
+            if (item.ownerId) {
+                const GameStatTracker = require('../patterns/gameStatTracker');
+                const gameStatTracker = new GameStatTracker();
+                const guildId = interaction.guild?.id || 'default';
+                
+                try {
+                    const currentStats = await gameStatTracker.getUserGameStats(item.ownerId, guildId, 'mining');
+                    debugInfo += `**Current GameStatTracker Stats:**\n`;
+                    debugInfo += `- Guild ID used: ${guildId}\n`;
+                    debugInfo += `- Tiles moved: ${currentStats.tilesMoved || 0}\n`;
+                    debugInfo += `- Shadow Ore (220): ${currentStats.itemsFoundBySource?.mining?.['220'] || 0}\n`;
+                    debugInfo += `- All mining items: ${JSON.stringify(currentStats.itemsFoundBySource?.mining || {}, null, 2)}\n`;
+                } catch (error) {
+                    debugInfo += `**GameStatTracker Error:** ${error.message}\n`;
+                }
+            }
+            
+            return interaction.editReply(debugInfo);
+            
+        } catch (error) {
+            console.error('Error in handleDebugMaintenanceState:', error);
             return interaction.editReply(`❌ Error: ${error.message}`);
         }
     }
