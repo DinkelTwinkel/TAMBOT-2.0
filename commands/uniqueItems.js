@@ -764,18 +764,18 @@ function formatMaintenanceCost(type, cost, oreType = null) {
 
 function formatProgress(type, progress, requirement, oreType = null) {
     if (type === 'mining_activity' && oreType) {
-        // Get ore-specific progress
-        const oresMined = progress.oresMinedThisCycle?.get(oreType) || 0;
+        // Get ore-specific progress from new GameStatTracker system
+        const oresMined = progress.itemsFoundBySource?.mining?.[oreType] || 0;
         const oreName = getOreNameById(oreType);
         return `${oresMined}/${requirement} ${oreName}`;
     }
     
     const progressMap = {
-        'mining_activity': `${progress.mining}/${requirement} blocks`,
-        'voice_activity': `${progress.voice}/${requirement} minutes`,
-        'combat_activity': `${progress.combat}/${requirement} wins`,
-        'social_activity': `${progress.social}/${requirement} interactions`,
-        'movement_activity': `${progress.movement}/${requirement} tiles`
+        'mining_activity': `${progress.tilesMoved || 0}/${requirement} blocks`,
+        'voice_activity': `${progress.voiceMinutes || 0}/${requirement} minutes`,
+        'combat_activity': `${progress.combat || 0}/${requirement} wins`,
+        'social_activity': `${progress.social || 0}/${requirement} interactions`,
+        'movement_activity': `${progress.tilesMoved || 0}/${requirement} tiles`
     };
     return progressMap[type] || 'N/A';
 }
