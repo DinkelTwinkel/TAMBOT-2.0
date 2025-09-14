@@ -473,11 +473,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#4B0082", // Indigo
         particleEffect: "forgotten_whispers",
         
-        maintenanceType: "social_activity",
+        maintenanceType: "item_sales",
         maintenanceCost: 20,
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
-        maintenanceDescription: "The crown feeds on the respect and admiration of others. Interact with fellow players to maintain its royal authority.",
+        maintenanceDescription: "The crown feeds on the respect and admiration of others. Sell items to players and NPCs to maintain its royal authority.",
         
         specialEffects: [
             "All nearby players gain +10% mining speed",
@@ -714,11 +714,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#FFD700", // Gold
         particleEffect: "solar_flare",
         
-        maintenanceType: "social_activity",
+        maintenanceType: "item_sales",
         maintenanceCost: 15,
         maintenanceDecayRate: 1,
         requiresMaintenance: true,
-        maintenanceDescription: "The Solar Forge Hammer's healing light grows stronger when shared with others. Interact with fellow miners to maintain its solar connection.",
+        maintenanceDescription: "The Solar Forge Hammer's healing light grows stronger when shared with others. Sell items to players and NPCs to maintain its solar connection.",
         
         specialEffects: [
             "All topaz and crystal ore gives 2.5x normal value",
@@ -824,11 +824,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#00FF00", // Bright Green
         particleEffect: "leaf_swirl",
         
-        maintenanceType: "social_activity",
+        maintenanceType: "item_sales",
         maintenanceCost: 12,
         maintenanceDecayRate: 0.5,
         requiresMaintenance: true,
-        maintenanceDescription: "The World Tree's branch thrives on connections and community. Share experiences with other players to nurture its growth.",
+        maintenanceDescription: "The World Tree's branch thrives on connections and community. Sell items to players and NPCs to nurture its growth.",
         
         specialEffects: [
             "All emerald and plant-based ore gives 3x normal value",
@@ -1099,11 +1099,11 @@ const UNIQUE_ITEMS = [
         glowColor: "#E6E6FA", // Lavender
         particleEffect: "crystal_visions",
         
-        maintenanceType: "social_activity",
+        maintenanceType: "item_sales",
         maintenanceCost: 15,
         maintenanceDecayRate: 0.5,
         requiresMaintenance: true,
-        maintenanceDescription: "The Crystal Seer's wisdom flows through shared knowledge and conversation. Interact with others to maintain the orb's visions.",
+        maintenanceDescription: "The Crystal Seer's wisdom flows through shared knowledge and conversation. Sell items to players and NPCs to maintain the orb's visions.",
         
         specialEffects: [
             "All crystal and gem ore gives 4x normal value",

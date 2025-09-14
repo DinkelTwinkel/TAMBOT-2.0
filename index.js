@@ -517,6 +517,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isCommand()) return;
   //if (interaction.guild.id !== targetGuildId) return;
 
+  // Check if this is the restricted marketplace channel
+  if (interaction.channel.id === '1416024145128587437') {
+    // Only allow /sell command in this channel
+    if (interaction.commandName !== 'sell') {
+      return interaction.reply({ 
+        content: '❌ Only `/sell` command is allowed in this channel.', 
+        ephemeral: true 
+      });
+    }
+  }
+
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
 

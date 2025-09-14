@@ -400,22 +400,34 @@ const maintenanceHandlers = {
         };
     },
     
-    // Social activity maintenance - check interactions
-    async social_activity(userId, userTag, item, requirement) {
-        const interactions = item.activityTracking.socialInteractionsThisCycle || 0;
-        
-        if (interactions < requirement) {
-            throw new Error(`Insufficient social activity. Need ${requirement} interactions (current: ${interactions}).`);
+    // Item sales maintenance - check items sold to players and NPCs
+    async item_sales(userId, userTag, item, requirement, guildId = 'default') {
+        try {
+            // Get total items sold from GameStatTracker
+            const itemsSoldData = await gameStatTracker.getTotalItemsSold(userId, guildId);
+            const totalItemsSold = itemsSoldData.totalItemsSold;
+            
+            if (totalItemsSold < requirement) {
+                throw new Error(`Insufficient trading activity. Need ${requirement} items sold to players and NPCs (current: ${totalItemsSold}).`);
+            }
+            
+            // Perform maintenance
+            await item.performMaintenance(userId, 0);
+            
+            return {
+                success: true,
+                message: `Trading requirement met (${totalItemsSold}/${requirement} items sold to players and NPCs)`,
+                newMaintenanceLevel: item.maintenanceLevel,
+                itemsSoldBreakdown: {
+                    totalItemsSold,
+                    itemsSoldToPlayers: itemsSoldData.itemsSoldToPlayers,
+                    itemsSoldToNPCs: itemsSoldData.itemsSoldToNPCs
+                }
+            };
+        } catch (error) {
+            console.error('[UNIQUE ITEMS] Error in item_sales maintenance:', error);
+            throw error;
         }
-        
-        // Perform maintenance
-        await item.performMaintenance(userId, 0);
-        
-        return {
-            success: true,
-            message: `Social requirement met (${interactions}/${requirement} interactions)`,
-            newMaintenanceLevel: item.maintenanceLevel
-        };
     },
     
     // Movement activity maintenance - check tiles moved in mining
@@ -567,7 +579,13 @@ async function checkMaintenanceStatus(userId, guildId = 'default') {
                     itemsFoundBySource: statDifferences.itemsFoundBySource,
                     hazardsEvaded: statDifferences.hazardsEvaded,
                     hazardsTriggered: statDifferences.hazardsTriggered,
-                    highestPowerLevel: statDifferences.highestPowerLevel
+                    highestPowerLevel: statDifferences.highestPowerLevel,
+                    // Add items sold tracking for item sales items
+                    ...(itemData.maintenanceType === 'item_sales' ? {
+                        totalItemsSold: await gameStatTracker.getTotalItemsSold(userId, guildId).then(data => data.totalItemsSold).catch(() => 0),
+                        itemsSoldToPlayers: await gameStatTracker.getTotalItemsSold(userId, guildId).then(data => data.itemsSoldToPlayers).catch(() => 0),
+                        itemsSoldToNPCs: await gameStatTracker.getTotalItemsSold(userId, guildId).then(data => data.itemsSoldToNPCs).catch(() => 0)
+                    } : {})
                 }
             });
         }

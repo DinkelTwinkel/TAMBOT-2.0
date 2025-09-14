@@ -11,6 +11,7 @@ const GuildConfig = require('../models/GuildConfig');
 const { generateMarketplaceImage } = require('./generateMarketplaceImage');
 const registerBotMessage = require('./registerBotMessage');
 const getPlayerStats = require('./calculatePlayerStat');
+const GameStatTracker = require('./gameStatTracker');
 
 // Create item map for O(1) lookups
 const itemMap = new Map(itemSheet.map(item => [item.id, item]));
@@ -23,6 +24,9 @@ class NPCSalesSystem {
         this.client = client;
         this.isRunning = false;
         this.interval = null;
+        
+        // Initialize game stat tracker
+        this.gameStatTracker = new GameStatTracker();
     }
 
     start() {
@@ -285,6 +289,13 @@ class NPCSalesSystem {
                 }
                 sellerProfile.money += shop.pricePerItem;
                 await sellerProfile.save({ session });
+
+                // Track NPC purchase for seller
+                try {
+                    await this.gameStatTracker.trackNPCPurchases(shop.shopOwnerId, shop.guildId, shop.itemId, 1, shop.pricePerItem);
+                } catch (error) {
+                    console.error('Error tracking NPC purchase:', error);
+                }
 
                 await session.commitTransaction();
                 session.endSession();

@@ -7,6 +7,7 @@ const ActiveShop = require('../models/activeShop');
 const itemSheet = require('../data/itemSheet.json');
 const { generateMarketplaceImage } = require('./generateMarketplaceImage');
 const registerBotMessage = require('./registerBotMessage');
+const GameStatTracker = require('./gameStatTracker');
 const path = require('path');
 const fs = require('fs');
 
@@ -23,6 +24,9 @@ class SellMarketListener {
         
         // Create a unique listener name for this guild
         this.listenerName = `sellMarketListener_${guildId}`;
+        
+        // Initialize game stat tracker
+        this.gameStatTracker = new GameStatTracker();
         
         // Remove any existing listeners for this guild before setting up new ones
         this.removeExistingListeners();
@@ -405,6 +409,17 @@ class SellMarketListener {
                 }
                 sellerProfile.money += updatedShop.pricePerItem;
                 await sellerProfile.save({ session });
+
+                // Track marketplace transactions
+                try {
+                    // Track item sold for seller
+                    await this.gameStatTracker.trackItemsSold(sellerId, interaction.guild.id, shop.itemId, 1, updatedShop.pricePerItem);
+                    
+                    // Track item bought for buyer
+                    await this.gameStatTracker.trackItemsBought(buyerId, interaction.guild.id, shop.itemId, 1, updatedShop.pricePerItem);
+                } catch (error) {
+                    console.error('Error tracking marketplace transactions:', error);
+                }
             }
 
             // Give item to buyer

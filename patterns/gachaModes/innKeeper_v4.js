@@ -8,6 +8,7 @@ const InnConstants = require('./innKeeping/innConstants');
 const { generateInnMapImage } = require('./imageProcessing/inn-layered-render');
 const generateShop = require('../generateShop');
 const CustomerManager = require('./innKeeping/customerManager');
+const GameStatTracker = require('../gameStatTracker');
 
 class InnKeeperV4Controller {
     constructor() {
@@ -16,6 +17,9 @@ class InnKeeperV4Controller {
         
         this.processingLocks = new Map();
         this.messageCache = new Map();
+        
+        // Initialize game stat tracker
+        this.gameStatTracker = new GameStatTracker();
     }
 
     /**
@@ -53,6 +57,24 @@ class InnKeeperV4Controller {
                         type: 'inn_init'
                     };
                     await this.updateWorkEventLog(channel, freshEntry, initialWorkEvent);
+                    
+                    // Track initial inn level for all voice channel members
+                    const v4State = freshEntry.gameData?.v4State;
+                    if (v4State && v4State.innLevel) {
+                        const voiceChannel = channel.guild.channels.cache.find(c => 
+                            c.type === 2 && c.members.size > 0
+                        );
+                        if (voiceChannel) {
+                            const members = Array.from(voiceChannel.members.values());
+                            for (const member of members) {
+                                try {
+                                    await this.gameStatTracker.trackInnLevel(member.id, channel.guild.id, v4State.innLevel);
+                                } catch (error) {
+                                    console.error('Error tracking initial inn level:', error);
+                                }
+                            }
+                        }
+                    }
                     
                     // Send initial inn opening notification
                     try {
@@ -294,6 +316,36 @@ class InnKeeperV4Controller {
         const breakCustomerResult = await CustomerManager.processBreakTimeCustomers(channel, dbEntry, now);
         const totalBreakProfit = (v4State.currentWorkPeriodProfit || 0) + breakCustomerResult.overnightProfit;
 
+        // Track overnight stays and customer satisfaction
+        if (breakCustomerResult.customersStayed > 0) {
+            for (const member of members) {
+                try {
+                    await this.gameStatTracker.trackOvernightStays(member.id, channel.guild.id, breakCustomerResult.customersStayed);
+                } catch (error) {
+                    console.error('Error tracking overnight stays:', error);
+                }
+            }
+        }
+
+        // Track happy and sad customers
+        const happyCustomers = breakCustomerResult.customersLeft > 0 ? Math.floor(breakCustomerResult.customersLeft * 0.7) : 0;
+        const sadCustomers = breakCustomerResult.customersLeft - happyCustomers;
+        
+        if (happyCustomers > 0 || sadCustomers > 0) {
+            for (const member of members) {
+                try {
+                    if (happyCustomers > 0) {
+                        await this.gameStatTracker.trackHappyCustomers(member.id, channel.guild.id, happyCustomers);
+                    }
+                    if (sadCustomers > 0) {
+                        await this.gameStatTracker.trackSadCustomers(member.id, channel.guild.id, sadCustomers);
+                    }
+                } catch (error) {
+                    console.error('Error tracking customer satisfaction:', error);
+                }
+            }
+        }
+
         // Distribute profits to all members in the channel (including overnight fees)
         await this.distributeProfits(channel, totalBreakProfit);
 
@@ -495,6 +547,17 @@ class InnKeeperV4Controller {
             console.log(`[InnKeeperV4] Processing customer orders for channel ${channel.id} with ${members.length} staff members`);
             const orderResult = await CustomerManager.processCustomerOrders(channel, updatedDbEntry || dbEntry, now, members);
             let profit = orderResult.profit;
+
+            // Track orders placed
+            if (orderResult.customersServed > 0) {
+                for (const member of members) {
+                    try {
+                        await this.gameStatTracker.trackOrdersPlaced(member.id, channel.guild.id, orderResult.customersServed);
+                    } catch (error) {
+                        console.error('Error tracking orders placed:', error);
+                    }
+                }
+            }
 
             // Process luck-based coin finding for each member
             const coinFindResults = await this.processPlayerCoinFinds(members, channel.id, updatedDbEntry || dbEntry);
@@ -699,6 +762,11 @@ class InnKeeperV4Controller {
                         },
                         { upsert: true, new: true }
                     );
+
+                    // Track money earned from inn
+                    if (profitPerMember > 0) {
+                        await this.gameStatTracker.trackInnMoneyEarned(member.id, channel.guild.id, profitPerMember);
+                    }
                 } catch (error) {
                     console.error(`[InnKeeperV4] Error updating money for user ${member.id}:`, error);
                 }
@@ -715,6 +783,9 @@ class InnKeeperV4Controller {
                         },
                         { upsert: true, new: true }
                     );
+
+                    // Track additional money earned from inn
+                    await this.gameStatTracker.trackInnMoneyEarned(members[0].id, channel.guild.id, remainingProfit);
                 } catch (error) {
                     console.error(`[InnKeeperV4] Error updating remaining money for user ${members[0].id}:`, error);
                 }

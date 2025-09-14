@@ -339,6 +339,408 @@ class GameStatTracker {
         }
     }
 
+    // =============== INN KEEPER STATS TRACKING ===============
+
+    /**
+     * Track overnight stays in inn
+     */
+    async trackOvernightStays(userId, guildId, count = 1) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'innkeeper');
+            
+            const updateData = {
+                $inc: { 'gameData.innkeeper.overnightStays': count },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { new: true }
+            );
+
+            console.log(`📊 Tracked overnight stays: ${count} for user ${userId}`);
+        } catch (error) {
+            console.error('Error tracking overnight stays:', error);
+        }
+    }
+
+    /**
+     * Track customers who left happy
+     */
+    async trackHappyCustomers(userId, guildId, count = 1) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'innkeeper');
+            
+            const updateData = {
+                $inc: { 'gameData.innkeeper.happyCustomers': count },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { new: true }
+            );
+
+            console.log(`📊 Tracked happy customers: ${count} for user ${userId}`);
+        } catch (error) {
+            console.error('Error tracking happy customers:', error);
+        }
+    }
+
+    /**
+     * Track customers who left sad
+     */
+    async trackSadCustomers(userId, guildId, count = 1) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'innkeeper');
+            
+            const updateData = {
+                $inc: { 'gameData.innkeeper.sadCustomers': count },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { new: true }
+            );
+
+            console.log(`📊 Tracked sad customers: ${count} for user ${userId}`);
+        } catch (error) {
+            console.error('Error tracking sad customers:', error);
+        }
+    }
+
+    /**
+     * Track reputation gain
+     */
+    async trackReputationGain(userId, guildId, amount) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'innkeeper');
+            
+            const updateData = {
+                $inc: { 'gameData.innkeeper.reputationGained': amount },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { new: true }
+            );
+
+            console.log(`📊 Tracked reputation gain: ${amount} for user ${userId}`);
+        } catch (error) {
+            console.error('Error tracking reputation gain:', error);
+        }
+    }
+
+    /**
+     * Track reputation loss
+     */
+    async trackReputationLoss(userId, guildId, amount) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'innkeeper');
+            
+            const updateData = {
+                $inc: { 'gameData.innkeeper.reputationLost': amount },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { new: true }
+            );
+
+            console.log(`📊 Tracked reputation loss: ${amount} for user ${userId}`);
+        } catch (error) {
+            console.error('Error tracking reputation loss:', error);
+        }
+    }
+
+    /**
+     * Track money earned from inn
+     */
+    async trackInnMoneyEarned(userId, guildId, amount) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'innkeeper');
+            
+            const updateData = {
+                $inc: { 'gameData.innkeeper.moneyEarned': amount },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { new: true }
+            );
+
+            console.log(`📊 Tracked inn money earned: ${amount} for user ${userId}`);
+        } catch (error) {
+            console.error('Error tracking inn money earned:', error);
+        }
+    }
+
+    /**
+     * Track orders placed in inn
+     */
+    async trackOrdersPlaced(userId, guildId, count = 1) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'innkeeper');
+            
+            const updateData = {
+                $inc: { 'gameData.innkeeper.ordersPlaced': count },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { new: true }
+            );
+
+            console.log(`📊 Tracked orders placed: ${count} for user ${userId}`);
+        } catch (error) {
+            console.error('Error tracking orders placed:', error);
+        }
+    }
+
+    /**
+     * Track highest inn level reached
+     */
+    async trackInnLevel(userId, guildId, level) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'innkeeper');
+            
+            // Check current highest level
+            const userStats = await UserStats.findOne({ userId, guildId });
+            const currentHighest = userStats?.gameData?.innkeeper?.highestLevel || 0;
+            
+            if (level > currentHighest) {
+                await UserStats.findOneAndUpdate(
+                    { userId, guildId },
+                    {
+                        $set: { 
+                            'gameData.innkeeper.highestLevel': level,
+                            lastSeen: new Date(),
+                            lastUpdated: new Date()
+                        }
+                    },
+                    { new: true }
+                );
+
+                console.log(`📊 Updated highest inn level: ${level} for user ${userId}`);
+            }
+        } catch (error) {
+            console.error('Error tracking inn level:', error);
+        }
+    }
+
+    // =============== SELL MARKET STATS TRACKING ===============
+
+    /**
+     * Track items sold in marketplace
+     */
+    async trackItemsSold(userId, guildId, itemId, quantity, totalPrice) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'sellmarket');
+            
+            const updateData = {
+                $inc: { 
+                    'gameData.sellmarket.totalItemsSold': quantity,
+                    'gameData.sellmarket.totalEarnings': totalPrice,
+                    [`gameData.sellmarket.itemsSold.${itemId}`]: quantity
+                },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { new: true }
+            );
+
+            console.log(`📊 Tracked items sold: ${quantity}x item ${itemId} for ${totalPrice} coins by user ${userId}`);
+        } catch (error) {
+            console.error('Error tracking items sold:', error);
+        }
+    }
+
+    /**
+     * Track items bought in marketplace
+     */
+    async trackItemsBought(userId, guildId, itemId, quantity, totalPrice) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'sellmarket');
+            
+            const updateData = {
+                $inc: { 
+                    'gameData.sellmarket.totalItemsBought': quantity,
+                    'gameData.sellmarket.totalSpent': totalPrice,
+                    [`gameData.sellmarket.itemsBought.${itemId}`]: quantity
+                },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { new: true }
+            );
+
+            console.log(`📊 Tracked items bought: ${quantity}x item ${itemId} for ${totalPrice} coins by user ${userId}`);
+        } catch (error) {
+            console.error('Error tracking items bought:', error);
+        }
+    }
+
+    // =============== NPC SALES STATS TRACKING ===============
+
+    /**
+     * Track NPC purchases (from seller's perspective)
+     */
+    async trackNPCPurchases(userId, guildId, itemId, quantity, totalPrice) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'npcsales');
+            
+            const updateData = {
+                $inc: { 
+                    'gameData.npcsales.totalNPCPurchases': quantity,
+                    'gameData.npcsales.totalNPCEarnings': totalPrice,
+                    [`gameData.npcsales.npcItemsSold.${itemId}`]: quantity
+                },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { new: true }
+            );
+
+            console.log(`📊 Tracked NPC purchases: ${quantity}x item ${itemId} for ${totalPrice} coins by user ${userId}`);
+        } catch (error) {
+            console.error('Error tracking NPC purchases:', error);
+        }
+    }
+
+    // =============== ITEMS SOLD TRACKING ===============
+
+    /**
+     * Track items sold to players (through marketplace/shops)
+     */
+    async trackItemsSoldToPlayers(userId, guildId, count = 1) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'sellmarket');
+            
+            const updateData = {
+                $inc: { 'gameData.sellmarket.itemsSoldToPlayers': count },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { upsert: true, new: true }
+            );
+
+            console.log(`[GameStatTracker] Tracked ${count} items sold to players for user ${userId}`);
+        } catch (error) {
+            console.error(`[GameStatTracker] Error tracking items sold to players for user ${userId}:`, error);
+        }
+    }
+
+    /**
+     * Track items sold to NPCs
+     */
+    async trackItemsSoldToNPCs(userId, guildId, count = 1) {
+        try {
+            await this.initializeUserGameData(userId, guildId, 'npcsales');
+            
+            const updateData = {
+                $inc: { 'gameData.npcsales.itemsSoldToNPCs': count },
+                $set: { 
+                    lastSeen: new Date(),
+                    lastUpdated: new Date()
+                }
+            };
+
+            await UserStats.findOneAndUpdate(
+                { userId, guildId },
+                updateData,
+                { upsert: true, new: true }
+            );
+
+            console.log(`[GameStatTracker] Tracked ${count} items sold to NPCs for user ${userId}`);
+        } catch (error) {
+            console.error(`[GameStatTracker] Error tracking items sold to NPCs for user ${userId}:`, error);
+        }
+    }
+
+    /**
+     * Get total items sold (both to players and NPCs)
+     */
+    async getTotalItemsSold(userId, guildId) {
+        try {
+            const stats = await this.getUserGameStats(userId, guildId);
+            const sellmarketStats = stats.sellmarket || {};
+            const npcsalesStats = stats.npcsales || {};
+            
+            const itemsSoldToPlayers = sellmarketStats.itemsSoldToPlayers || 0;
+            const itemsSoldToNPCs = npcsalesStats.itemsSoldToNPCs || 0;
+            
+            return {
+                totalItemsSold: itemsSoldToPlayers + itemsSoldToNPCs,
+                itemsSoldToPlayers,
+                itemsSoldToNPCs
+            };
+        } catch (error) {
+            console.error(`[GameStatTracker] Error getting total items sold for user ${userId}:`, error);
+            return {
+                totalItemsSold: 0,
+                itemsSoldToPlayers: 0,
+                itemsSoldToNPCs: 0
+            };
+        }
+    }
+
     // =============== BATCH OPERATIONS FOR PERFORMANCE ===============
 
     /**
@@ -367,6 +769,31 @@ class GameStatTracker {
                                 movementByDirection: {},
                                 highestPowerLevel: 0,
                                 timeInMiningChannel: 0
+                            },
+                            innkeeper: {
+                                overnightStays: 0,
+                                happyCustomers: 0,
+                                sadCustomers: 0,
+                                reputationGained: 0,
+                                reputationLost: 0,
+                                moneyEarned: 0,
+                                ordersPlaced: 0,
+                                highestLevel: 0
+                            },
+                            sellmarket: {
+                                totalItemsSold: 0,
+                                totalItemsBought: 0,
+                                totalEarnings: 0,
+                                totalSpent: 0,
+                                itemsSold: {},
+                                itemsBought: {},
+                                itemsSoldToPlayers: 0
+                            },
+                            npcsales: {
+                                totalNPCPurchases: 0,
+                                totalNPCEarnings: 0,
+                                npcItemsSold: {},
+                                itemsSoldToNPCs: 0
                             }
                         }
                     }
@@ -453,6 +880,31 @@ class GameStatTracker {
                 movementByDirection: {},
                 highestPowerLevel: 0,
                 timeInMiningChannel: 0
+            },
+            innkeeper: {
+                overnightStays: 0,
+                happyCustomers: 0,
+                sadCustomers: 0,
+                reputationGained: 0,
+                reputationLost: 0,
+                moneyEarned: 0,
+                ordersPlaced: 0,
+                highestLevel: 0
+            },
+            sellmarket: {
+                totalItemsSold: 0,
+                totalItemsBought: 0,
+                totalEarnings: 0,
+                totalSpent: 0,
+                itemsSold: {},
+                itemsBought: {},
+                itemsSoldToPlayers: 0
+            },
+            npcsales: {
+                totalNPCPurchases: 0,
+                totalNPCEarnings: 0,
+                npcItemsSold: {},
+                itemsSoldToNPCs: 0
             }
         };
 
