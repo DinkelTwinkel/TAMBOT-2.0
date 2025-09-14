@@ -309,10 +309,13 @@ class InnUpgradeListener {
             
             // Update channel name with new level
             try {
-                const baseName = currentInn.name.replace(/[^a-zA-Z0-9\s]/g, '').trim(); // Remove emojis and special chars
-                const newChannelName = `${baseName}『 L${newLevel} 』`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                const currentChannelName = interaction.channel.name;
+                // Find any number in the channel name and increment it by 1
+                const newChannelName = currentChannelName.replace(/\d+/, (match) => {
+                    return String(parseInt(match) + 1);
+                });
                 await interaction.channel.setName(newChannelName);
-                console.log(`[InnUpgradeListener] Channel name updated to ${newChannelName}`);
+                console.log(`[InnUpgradeListener] Channel name updated from ${currentChannelName} to ${newChannelName}`);
             } catch (nameError) {
                 console.warn('[InnUpgradeListener] Failed to update channel name:', nameError.message);
             }
