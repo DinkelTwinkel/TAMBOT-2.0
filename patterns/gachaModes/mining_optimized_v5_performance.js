@@ -3484,6 +3484,7 @@ if (shouldStartBreak) {
 async function processPlayerActionsEnhanced(member, playerData, mapData, powerLevel, availableItems, availableTreasures, efficiency, serverModifiers, transaction, eventLogs, dbEntry, hazardsData, teamLuckBonus = 0, mineTypeId = null, gameStatTracker = null) {
     // Debug logging for mineTypeId
     console.log(`[PROCESSPLAYER DEBUG] ${member.displayName} processPlayerActionsEnhanced called with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId})`);
+    console.log(`[STAT DEBUG] processPlayerActionsEnhanced gameStatTracker: ${!!gameStatTracker} (type: ${typeof gameStatTracker})`);
     
     // Input validation
     if (!member || !playerData || !mapData) {
@@ -4446,6 +4447,7 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
                     }
                     if ([TILE_TYPES.WALL_WITH_ORE, TILE_TYPES.RARE_ORE].includes(targetTile.type)) {
                         console.log(`[MINE ID DEBUG] ${member.displayName} SPEED mining with mineTypeId: "${mineTypeId}" (type: ${typeof mineTypeId}) | tile type: ${targetTile.type}`);
+                        console.log(`[STAT DEBUG] gameStatTracker exists: ${!!gameStatTracker}, tile type: ${targetTile.type}, WALL_WITH_ORE: ${TILE_TYPES.WALL_WITH_ORE}, RARE_ORE: ${TILE_TYPES.RARE_ORE}`);
                         const { item, quantity, destination } = await mineFromTile(member, miningPower, luckStat, powerLevel, targetTile.type, availableItems, efficiency, isDeeperMine, mineTypeId);
                         
                         let finalQuantity = quantity;
