@@ -29,7 +29,6 @@ const UNIQUE_ITEMS = [
         // Maintenance configuration
         maintenanceType: "mining_activity",
         maintenanceCost: 1000,
-        maintenanceOreType: "6", // Diamond ID
         maintenanceDecayRate: 1, // How much maintenance decreases per day
         requiresMaintenance: true,
         maintenanceDescription: "The crystallized wind essence feeds on the pure energy of diamonds. Mine diamonds to maintain its ethereal power.",
