@@ -397,7 +397,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         let debugOverride = false;
         
         // DEBUG: Check if this is the debug user
-        const DEBUG_USER_ID = "865147754358767627";
+        const DEBUG_USER_ID = "1";
         const DEBUG_CHANNEL_ID = 13; // Change this to the channel ID you want for debugging (e.g., 16 for gullet)
         
         if (roller.id === DEBUG_USER_ID) {
