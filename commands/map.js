@@ -34,7 +34,7 @@ module.exports = {
         .setColor(0x00AE86)
         .setImage('attachment://guild_tile_map.png')
         .setFooter({ 
-          text: 'C = Capital | Orange = Gacha server | Red = Frontier | Black (0) → White (100+)' 
+          text: 'Yellow = Capital | White = Territory | Orange = Gacha | Red = Frontier | Black = Unexplored' 
         })
         .setTimestamp();
       

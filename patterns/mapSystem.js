@@ -206,6 +206,9 @@ async function generateTileMapImage(guildId, client = null) {
       }
     }
     
+    // Draw collective outline around all territory (tiles with >0 points)
+    await drawTerritoryOutline(ctx, tileMap, hexRadius, visibleMapSize, extendedMapSize, gridOffset, horizontalSpacing, verticalSpacing, hexWidth, hexHeight);
+    
     // Draw white bar at the bottom with "HELLUNGI MAP" text
     const barY = canvasHeight - barHeight;
     ctx.fillStyle = '#ffffff';
@@ -486,11 +489,15 @@ async function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, 
   } else if (isFrontier) {
     // Frontier tiles (0 points adjacent to territory) are red
     ctx.fillStyle = '#cc0000';
+  } else if (isCenter) {
+    // Capital tile is yellow
+    ctx.fillStyle = '#ffff00';
+  } else if (points > 0) {
+    // Territory tiles (non-gacha, non-capital) are white
+    ctx.fillStyle = '#ffffff';
   } else {
-    // Calculate gradient color based on points (0 = black, 100 = white)
-    const intensity = Math.min(points / 100, 1); // Normalize to 0-1 range
-    const colorValue = Math.round(intensity * 255);
-    ctx.fillStyle = `rgb(${colorValue}, ${colorValue}, ${colorValue})`;
+    // Zero point tiles are black
+    ctx.fillStyle = '#000000';
   }
   
   ctx.fill();
@@ -503,20 +510,36 @@ async function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, 
     ctx.stroke();
   }
   
-  // Draw point text on all tiles with >0 points
-  if (points > 0) {
-    // Text color based on 50-point threshold
-    const textColor = points >= 50 ? '#000000' : '#ffffff'; // Black text if 50+, white text if below 50
-    const strokeColor = points >= 50 ? '#ffffff' : '#000000'; // Opposite color for stroke
+  // Draw point text
+  if (hasGacha) {
+    // For gacha tiles: draw point value at bottom of tile only
+    ctx.font = '12px "MyFont"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     
-    ctx.font = '12px "MyFont"'; // Match generateShopImage.js style
+    const displayText = points.toString();
+    
+    // Draw stroke first for better visibility
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.strokeText(displayText, centerX, centerY + radius * 0.6);
+    
+    // Draw fill text on top
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(displayText, centerX, centerY + radius * 0.6);
+  } else if (points > 0) {
+    // For non-gacha tiles with points: draw in center
+    const textColor = isCenter ? '#000000' : '#000000'; // Black text for white/yellow backgrounds
+    const strokeColor = '#ffffff'; // White stroke for contrast
+    
+    ctx.font = '12px "MyFont"';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
     // Show C (capital) and points for center tile, just points for all others
     const displayText = isCenter ? `C${points}` : points.toString();
     
-    // Draw stroke first for better visibility (like generateShopImage.js)
+    // Draw stroke first for better visibility
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 2;
     ctx.strokeText(displayText, centerX, centerY);
@@ -524,25 +547,6 @@ async function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, 
     // Draw fill text on top
     ctx.fillStyle = textColor;
     ctx.fillText(displayText, centerX, centerY);
-  }
-  
-  // Draw gacha indicator - show point value instead of G/I
-  if (hasGacha) {
-    ctx.font = '8px "MyFont"'; // Smaller font for the indicator
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    // Show point value for gacha servers
-    const indicator = points.toString();
-    
-    // Draw stroke first for better visibility
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1;
-    ctx.strokeText(indicator, centerX, centerY + 8);
-    
-    // Draw fill text on top
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(indicator, centerX, centerY + 8);
   }
   
   // Draw player avatars if there are players in this tile's gacha channel
@@ -618,6 +622,79 @@ async function removeGachaFromTileMap(guildId, channelId) {
   } catch (error) {
     console.error('Error removing gacha from tile map:', error);
     return false;
+  }
+}
+
+/**
+ * Draw collective outline around all territory tiles
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {Object} tileMap - TileMap instance
+ * @param {number} hexRadius - Hexagon radius
+ * @param {number} visibleMapSize - Visible map size
+ * @param {number} extendedMapSize - Extended map size
+ * @param {number} gridOffset - Grid offset
+ * @param {number} horizontalSpacing - Horizontal spacing
+ * @param {number} verticalSpacing - Vertical spacing
+ * @param {number} hexWidth - Hexagon width
+ * @param {number} hexHeight - Hexagon height
+ */
+async function drawTerritoryOutline(ctx, tileMap, hexRadius, visibleMapSize, extendedMapSize, gridOffset, horizontalSpacing, verticalSpacing, hexWidth, hexHeight) {
+  try {
+    // Find all territory tiles (points > 0)
+    const territoryTiles = tileMap.tiles.filter(tile => tile.points > 0);
+    if (territoryTiles.length === 0) return;
+    
+    // Create a set of territory coordinates for quick lookup
+    const territoryCoords = new Set(
+      territoryTiles.map(tile => `${tile.row},${tile.col}`)
+    );
+    
+    // Find boundary edges (territory tiles that have non-territory neighbors)
+    const boundaryEdges = [];
+    
+    for (const tile of territoryTiles) {
+      const neighbors = getHexagonalNeighbors(tile.row, tile.col, tileMap.mapSize);
+      
+      // Check each neighbor to find boundary edges
+      for (const [nRow, nCol] of neighbors) {
+        const neighborKey = `${nRow},${nCol}`;
+        if (!territoryCoords.has(neighborKey)) {
+          // This edge faces non-territory, add it to boundary
+          boundaryEdges.push({
+            fromRow: tile.row,
+            fromCol: tile.col,
+            toRow: nRow,
+            toCol: nCol
+          });
+        }
+      }
+    }
+    
+    // Draw the boundary outline
+    if (boundaryEdges.length > 0) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 3]); // Dashed line
+      
+      ctx.beginPath();
+      
+      // For simplicity, draw a rough outline by connecting boundary points
+      // This is a simplified approach - a full implementation would trace the actual boundary
+      for (const edge of boundaryEdges) {
+        const offsetX = (edge.fromRow % 2) * (horizontalSpacing / 2);
+        const x = (edge.fromCol - gridOffset) * horizontalSpacing + offsetX + hexWidth / 2;
+        const y = (edge.fromRow - gridOffset) * verticalSpacing + hexHeight / 2;
+        
+        ctx.moveTo(x, y);
+        ctx.arc(x, y, hexRadius + 2, 0, Math.PI * 2);
+      }
+      
+      ctx.stroke();
+      ctx.setLineDash([]); // Reset line dash
+    }
+    
+  } catch (error) {
+    console.error('Error drawing territory outline:', error);
   }
 }
 
