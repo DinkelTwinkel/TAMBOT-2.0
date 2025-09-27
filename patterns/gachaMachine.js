@@ -48,10 +48,12 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
     const rollerMember = await guild.members.fetch(roller.id);
 
-    // Check if user has an active roll cooldown
+    // Check if user has an active roll cooldown (skip for users without special role)
     let userCooldown = await Cooldown.findOne({ userId: roller.id });
+    const specialRoleId = '1421477924187541504';
+    const hasSpecialRole = rollerMember.roles.cache.has(specialRoleId);
     
-    if (userCooldown && userCooldown.gachaRollData && userCooldown.gachaRollData.expiresAt) {
+    if (userCooldown && userCooldown.gachaRollData && userCooldown.gachaRollData.expiresAt && hasSpecialRole) {
         const cooldownExpiry = new Date(userCooldown.gachaRollData.expiresAt);
         const now = new Date();
         
@@ -856,30 +858,35 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             }
         }
 
-        // Store the roll in cooldowns (1 hour cooldown)
-        const cooldownExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+        // Store the roll in cooldowns (1 hour cooldown) - only for users with special role
+        if (hasSpecialRole) {
+            const cooldownExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
 
-        if (!userCooldown) {
-            userCooldown = new Cooldown({
-                userId: roller.id,
-                cooldowns: new Map(),
-                gachaRollData: {
+            if (!userCooldown) {
+                userCooldown = new Cooldown({
+                    userId: roller.id,
+                    cooldowns: new Map(),
+                    gachaRollData: {
+                        channelId: newGachaChannel.id,
+                        typeId: parseInt(chosenChannelType.id), // Ensure it's stored as a number
+                        rolledAt: new Date(),
+                        expiresAt: cooldownExpiry
+                    }
+                });
+            } else {
+                userCooldown.gachaRollData = {
                     channelId: newGachaChannel.id,
                     typeId: parseInt(chosenChannelType.id), // Ensure it's stored as a number
                     rolledAt: new Date(),
                     expiresAt: cooldownExpiry
-                }
-            });
-        } else {
-            userCooldown.gachaRollData = {
-                channelId: newGachaChannel.id,
-                typeId: parseInt(chosenChannelType.id), // Ensure it's stored as a number
-                rolledAt: new Date(),
-                expiresAt: cooldownExpiry
-            };
-        }
+                };
+            }
 
-        await userCooldown.save();
+            await userCooldown.save();
+            console.log(`⏰ Set cooldown for user with special role: ${rollerMember.user.tag}`);
+        } else {
+            console.log(`🚀 No cooldown for tutorial user: ${rollerMember.user.tag}`);
+        }
 
         // Send special message based on override type
         if (debugOverride) {
@@ -901,36 +908,62 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                 `⏰ Next roll available in **60 minutes**.`
             );
         } else {
-            await gachaRollChannel.send(
-                `**${rollerMember.user.tag}** Inserted ${rollPrice} Coins! Your rolling booth is ready: **${newGachaChannel.name}**\n` +
-                `⏰ Next roll available in **60 minutes**.`
-            );
+            if (hasSpecialRole) {
+                await gachaRollChannel.send(
+                    `**${rollerMember.user.tag}** Inserted ${rollPrice} Coins! Your rolling booth is ready: **${newGachaChannel.name}**\n` +
+                    `⏰ Next roll available in **60 minutes**.`
+                );
+            } else {
+                await gachaRollChannel.send(
+                    `**${rollerMember.user.tag}** Inserted ${rollPrice} Coins! Your rolling booth is ready: **${newGachaChannel.name}**\n` +
+                    `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns.`
+                );
+            }
         }
 
         // Send special message in the VC based on override type
         if (debugOverride) {
+            const cooldownMessage = hasSpecialRole ? 
+                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.` :
+                `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.`;
+                
             await newGachaChannel.send(
                 `🔧 ${rollerMember} **DEBUG MODE ACTIVE** 🔧\n` +
                 `You've been spawned in ${chosenChannelType.name} for debugging purposes!\n` +
-                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+                cooldownMessage
             );
         } else if (sanityOverride && chosenChannelType.id == 16) {
+            const cooldownMessage = hasSpecialRole ? 
+                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.` :
+                `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.`;
+                
             await newGachaChannel.send(
                 `🧠💀 ${rollerMember} **YOUR MIND UNRAVELS!** 🧠💀\n` +
                 `Your sanity (${playerSanity}) has led you to ${chosenChannelType.name}! The whispers grow louder...\n` +
-                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+                cooldownMessage
             );
         } else if (sacrificeData && sacrificeData.isSacrificing && chosenChannelType.id == 16) {
+            const cooldownMessage = hasSpecialRole ? 
+                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.` :
+                `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.`;
+                
             await newGachaChannel.send(
                 `🔥 ${rollerMember} **THE SACRIFICE DEMANDS YOUR PRESENCE!** 🔥\n` +
                 `You've been forcefully drawn into ${chosenChannelType.name}!\n` +
-                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+                cooldownMessage
             );
         } else {
-            await newGachaChannel.send(
-                `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
-                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
-            );
+            if (hasSpecialRole) {
+                await newGachaChannel.send(
+                    `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
+                    `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+                );
+            } else {
+                await newGachaChannel.send(
+                    `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
+                    `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.`
+                );
+            }
         }
 
         // Build the file path for the image

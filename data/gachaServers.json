@@ -227,7 +227,7 @@
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 50,
+        "conditionCost": 10,
         "deeperMineId": "1001",
         "isLocked": false
     },
