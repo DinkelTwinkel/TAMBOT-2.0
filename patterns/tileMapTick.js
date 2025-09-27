@@ -12,6 +12,7 @@ let previousCenterPoints = null;
  */
 async function processTileMapTick(guildId, client) {
     try {
+        console.log(`🗺️ [TICK START] Processing tile map tick for guild ${guildId}`);
         const tileMap = await getOrCreateTileMap(guildId);
         let changesCount = 0;
         
