@@ -313,7 +313,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
                         await newGachaChannel.send(
                             `${rollerMember} Welcome back to the ${chosenChannelType.name}!\n` +
-                            `⏰ This is the same type you rolled earlier. You can roll for a new VC at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+                            `⏰ This is the same type you rolled earlier. You can roll for a new VC at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.`
                         );
 
                         // Build and send the embed with image
@@ -924,7 +924,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         // Send special message in the VC based on override type
         if (debugOverride) {
             const cooldownMessage = hasSpecialRole ? 
-                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.` :
+                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.` :
                 `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.`;
                 
             await newGachaChannel.send(
@@ -934,7 +934,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             );
         } else if (sanityOverride && chosenChannelType.id == 16) {
             const cooldownMessage = hasSpecialRole ? 
-                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.` :
+                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.` :
                 `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.`;
                 
             await newGachaChannel.send(
@@ -944,7 +944,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             );
         } else if (sacrificeData && sacrificeData.isSacrificing && chosenChannelType.id == 16) {
             const cooldownMessage = hasSpecialRole ? 
-                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.` :
+                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.` :
                 `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.`;
                 
             await newGachaChannel.send(
@@ -956,7 +956,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             if (hasSpecialRole) {
                 await newGachaChannel.send(
                     `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
-                    `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+                    `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.`
                 );
             }
             // Tutorial users don't get a channel message - they get the tutorial embed instead

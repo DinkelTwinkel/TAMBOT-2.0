@@ -498,7 +498,7 @@ module.exports = async (guild) => {
     }, 7 * 1000); // Check every 7 seconds
 
     // --- TILE DECAY/GROWTH SYSTEM ---
-    // Process tile point changes every 30 seconds
+    // Process tile point changes every 1 minute
     if (!global.tileDecaySystemInitialized) {
         console.log('[TILE SYSTEM] Initializing tile decay/growth system...');
         
@@ -508,7 +508,7 @@ module.exports = async (guild) => {
             } catch (error) {
                 console.error('[TILE SYSTEM] Error processing tile map tick:', error);
             }
-        }, 30 * 1000); // Every 30 seconds
+        }, 60 * 1000); // Every 1 minute
         
         global.tileDecaySystemInitialized = true;
         console.log('[TILE SYSTEM] Tile decay/growth system initialized');
