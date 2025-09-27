@@ -1639,5 +1639,22 @@
       "The ice whispers of frozen depths...",
       "Cold magic awaits its moment of release..."
     ]
+  },
+  {
+    "id": "246",
+    "name": "📨 Invite Ticket",
+    "type": "summonable",
+    "subtype": "invite",
+    "description": "A magical ticket that can summon a single-use portal invitation to Hellungi for 24 hours.",
+    "value": 500,
+    "vendable": true,
+    "script": "inviteTicket",
+    "image": "invite_ticket",
+    "tier": "common",
+    "flavorText": [
+      "A shimmering ticket that beckons others to join...",
+      "The portal magic within awaits activation...",
+      "One chance to bring a friend to Hellungi..."
+    ]
   }
 ]
