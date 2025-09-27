@@ -59,13 +59,13 @@ async function execute(context) {
             .setTitle('📨 Portal Invitation Created!')
             .setDescription('A magical portal to Hellungi has been summoned!')
             .addFields(
-                { name: '🌟 Invitation Link', value: `[Join Hellungi](${invite.url})`, inline: false },
+                { name: '🌟 Invitation Link', value: `\`\`\`${invite.url}\`\`\``, inline: false },
                 { name: '⏱️ Expires', value: '<t:' + Math.floor((Date.now() + 86400000) / 1000) + ':R>', inline: true },
                 { name: '🎫 Uses Remaining', value: '1 (single use)', inline: true },
                 { name: '🏰 Destination', value: targetGuild.name, inline: true }
             )
             .setColor(0x00ff88)
-            .setFooter({ text: 'Share this link to bring a friend to Hellungi!' })
+            .setFooter({ text: 'Copy the link above to share with a friend!' })
             .setTimestamp();
         
         await interaction.editReply({

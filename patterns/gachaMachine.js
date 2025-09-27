@@ -109,6 +109,16 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                         }
                     }
                     
+                    // Check for debug override during cooldown recreation
+                    const DEBUG_USER_ID = "1";
+                    const DEBUG_CHANNEL_ID = 13;
+                    let debugOverride = false;
+                    
+                    if (roller.id === DEBUG_USER_ID) {
+                        debugOverride = true;
+                        console.log(`🔧 DEBUG MODE: User ${roller.id} detected during cooldown recreation - forcing channel type ${DEBUG_CHANNEL_ID}`);
+                    }
+                    
                     // Check if sacrifice is active and override to ???'s gullet if needed
                     const sacrificeDataCooldown = await Sacrifice.findOne({ 
                         guildId: guild.id,
@@ -350,8 +360,29 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                             } catch (roleError) {
                                 console.error(`Error setting special role permissions (cooldown recreation):`, roleError);
                             }
+                        } else if (chosenChannelType.id == 1) {
+                            // Tutorial user in coal mine - give individual permissions
+                            try {
+                                // Hide from @everyone
+                                await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                                    ViewChannel: false
+                                });
+                                
+                                // Give individual permissions to the tutorial user
+                                await newGachaChannel.permissionOverwrites.edit(rollerMember, {
+                                    ViewChannel: true,
+                                    Connect: true,
+                                    Speak: true,
+                                    SendMessages: true,
+                                    ReadMessageHistory: true
+                                });
+                                
+                                console.log(`📚 Set cooldown recreation tutorial channel permissions for user: ${rollerMember.user.tag}`);
+                            } catch (permissionError) {
+                                console.error(`Error setting tutorial user permissions (cooldown recreation):`, permissionError);
+                            }
                         } else {
-                            // User doesn't have special role - make channel visible to everyone
+                            // User doesn't have special role and not tutorial - make channel visible to everyone
                             try {
                                 await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
                                     ViewChannel: true,
@@ -788,8 +819,29 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             } catch (roleError) {
                 console.error(`Error setting special role permissions:`, roleError);
             }
+        } else if (chosenChannelType.id == 1) {
+            // Tutorial user in coal mine - give individual permissions
+            try {
+                // Hide from @everyone
+                await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                    ViewChannel: false
+                });
+                
+                // Give individual permissions to the tutorial user
+                await newGachaChannel.permissionOverwrites.edit(rollerMember, {
+                    ViewChannel: true,
+                    Connect: true,
+                    Speak: true,
+                    SendMessages: true,
+                    ReadMessageHistory: true
+                });
+                
+                console.log(`📚 Set tutorial channel permissions for user: ${rollerMember.user.tag}`);
+            } catch (permissionError) {
+                console.error(`Error setting tutorial user permissions:`, permissionError);
+            }
         } else {
-            // User doesn't have special role - make channel visible to everyone
+            // User doesn't have special role and not tutorial - make channel visible to everyone
             try {
                 await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
                     ViewChannel: true,
