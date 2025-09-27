@@ -83,6 +83,25 @@ async function processTileMapTick(guildId, client) {
             if (updateSuccess) {
                 changesCount++;
                 console.log(`🗺️ [GACHA GROWTH] Tile (${tile.row}, ${tile.col}) with gacha ${tile.gachaServerId}: ${oldPoints} → ${newPoints} (+${pointIncrease} from ${userCount} user(s))`);
+                
+                // Check if this gacha tile is adjacent to the capital
+                const neighbors = getHexagonalNeighbors(tile.row, tile.col, tileMap.mapSize);
+                const isAdjacentToCapital = neighbors.some(([nRow, nCol]) => 
+                    nRow === tileMap.centerRow && nCol === tileMap.centerCol
+                );
+                
+                if (isAdjacentToCapital) {
+                    // Increase capital tile points as well
+                    const capitalTile = tileMap.getTile(tileMap.centerRow, tileMap.centerCol);
+                    const capitalOldPoints = capitalTile.points;
+                    const capitalNewPoints = capitalTile.points + pointIncrease;
+                    
+                    const capitalUpdateSuccess = tileMap.updateTilePoints(tileMap.centerRow, tileMap.centerCol, capitalNewPoints);
+                    if (capitalUpdateSuccess) {
+                        changesCount++;
+                        console.log(`🗺️ [CAPITAL BOOST] Capital tile boosted by adjacent gacha: ${capitalOldPoints} → ${capitalNewPoints} (+${pointIncrease})`);
+                    }
+                }
             } else {
                 console.error(`🗺️ [ERROR] Failed to update tile (${tile.row}, ${tile.col}) points`);
             }
@@ -212,11 +231,12 @@ async function updateHellungiChannelName(guildId, tileMap, client) {
             return;
         }
         
-        // Calculate total points across all tiles
-        const totalPoints = tileMap.tiles.reduce((sum, tile) => sum + tile.points, 0);
+        // Get capital tile points
+        const centerTile = tileMap.getTile(tileMap.centerRow, tileMap.centerCol);
+        const capitalPoints = centerTile ? centerTile.points : 0;
         
-        // Format the new channel name
-        const newName = `🔥 HELLUNGI 『 ${totalPoints.toLocaleString()} 』`;
+        // Format the new channel name using capital points
+        const newName = `🔥 HELLUNGI 『 ${capitalPoints.toLocaleString()} 』`;
         
         // Only update if name has changed
         if (channel.name !== newName) {
@@ -276,12 +296,25 @@ async function updateCitadelAndVisibility(guildId, tileMap, client) {
         // Update previous points for next comparison
         previousCenterPoints = centerPoints;
         
-        // Update citadel channel name
+        // Update citadel channel name based on capital point level
         if (citadelChannel) {
-            const newName = `citadel 『 ${centerPoints.toLocaleString()} 』`;
+            let settlementType;
+            if (centerPoints >= 1000) {
+                settlementType = 'invictus';
+            } else if (centerPoints >= 500) {
+                settlementType = 'citadel';
+            } else if (centerPoints >= 200) {
+                settlementType = 'city';
+            } else if (centerPoints >= 50) {
+                settlementType = 'town';
+            } else {
+                settlementType = 'village';
+            }
+            
+            const newName = `${settlementType} 『 ${centerPoints.toLocaleString()} 』`;
             if (citadelChannel.name !== newName) {
                 await citadelChannel.setName(newName);
-                console.log(`🏰 [CITADEL] Updated channel name to: ${newName}`);
+                console.log(`🏰 [CITADEL] Updated settlement name to: ${newName}`);
             }
         }
         
@@ -562,7 +595,7 @@ async function updateWarMapMessage(guildId, tileMap, client) {
                 { name: '🎰 Active Gacha', value: gachaCount.toString(), inline: true },
                 { name: '⚠️ Capital at Risk', value: riskStatus, inline: false },
                 { name: '🏪 Marketplace', value: marketplaceStatus, inline: true },
-                { name: '🏰 Citadel', value: citadelStatus, inline: true }
+                { name: '🏰 Capital', value: citadelStatus, inline: true }
             )
             .setColor(centerPoints < 25 ? 0xff0000 : centerPoints < 50 ? 0xffaa00 : 0x00ff00)
             .setTimestamp();

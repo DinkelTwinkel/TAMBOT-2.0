@@ -77,7 +77,7 @@ module.exports = {
           { name: '🎰 Active Gacha', value: stats.gachaTiles.toString(), inline: true },
           { name: '⚠️ Capital at Risk', value: riskStatus, inline: false },
           { name: '🏪 Marketplace', value: marketplaceStatus, inline: true },
-          { name: '🏰 Citadel', value: citadelStatus, inline: true }
+                { name: '🏰 Capital', value: citadelStatus, inline: true }
         )
         .setColor(centerPoints < 25 ? 0xff0000 : centerPoints < 50 ? 0xffaa00 : 0x00ff00)
         .setFooter({ 
