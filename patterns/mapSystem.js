@@ -241,6 +241,189 @@ function getHexagonalNeighbors(row, col, mapSize) {
 }
 
 /**
+ * Get players in gacha channels for avatar display
+ * @param {string} guildId - Guild ID
+ * @param {Object} tileMap - TileMap instance
+ * @param {Object} client - Discord client
+ * @returns {Promise<Object>} Object mapping channelId to array of members
+ */
+async function getGachaChannelPlayers(guildId, tileMap, client) {
+  try {
+    const guild = await client.guilds.fetch(guildId);
+    if (!guild) {
+      return {};
+    }
+    
+    const gachaPlayersData = {};
+    
+    // Get all tiles with gacha servers
+    const tilesWithGacha = tileMap.tiles.filter(tile => tile.gachaServerId);
+    
+    for (const tile of tilesWithGacha) {
+      try {
+        const channel = await guild.channels.fetch(tile.gachaServerId);
+        if (channel && channel.isVoiceBased()) {
+          // Get members in the voice channel
+          const members = Array.from(channel.members.values());
+          gachaPlayersData[tile.gachaServerId] = members;
+          
+          if (members.length > 0) {
+            console.log(`🗺️ [AVATARS] Found ${members.length} player(s) in channel ${channel.name}`);
+          }
+        }
+      } catch (error) {
+        // Channel doesn't exist or can't be accessed
+        console.log(`🗺️ [AVATARS] Skipping invalid channel ${tile.gachaServerId}`);
+      }
+    }
+    
+    return gachaPlayersData;
+    
+  } catch (error) {
+    console.error('[AVATARS] Error getting gacha channel players:', error);
+    return {};
+  }
+}
+
+/**
+ * Get user role color (from mining-layered-render.js)
+ * @param {Object} member - Discord member object
+ * @returns {string} Hex color string
+ */
+function getUserRoleColor(member) {
+  try {
+    // Get the highest role with a color
+    const roleColor = member.displayHexColor;
+    
+    // If no role color or default color, use white
+    if (!roleColor || roleColor === '#000000') {
+      return '#FFFFFF';
+    }
+    
+    return roleColor;
+  } catch (error) {
+    console.warn(`[RENDER] Error getting role color for ${member.displayName}:`, error);
+    return '#FFFFFF'; // Fallback to white
+  }
+}
+
+/**
+ * Draw player avatar (adapted from mining-layered-render.js)
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {Object} member - Discord member object
+ * @param {number} centerX - X coordinate
+ * @param {number} centerY - Y coordinate
+ * @param {number} size - Avatar size
+ */
+async function drawPlayerAvatar(ctx, member, centerX, centerY, size) {
+  try {
+    const radius = size / 2;
+    
+    // Load player avatar
+    const avatarSize = size > 32 ? 128 : 64;
+    const avatarURL = member.user.displayAvatarURL({ extension: 'png', size: avatarSize });
+    const avatar = await loadImage(avatarURL);
+    
+    // Draw shadow effect
+    if (size > 16) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.beginPath();
+      ctx.arc(centerX + 1, centerY + 1, radius + 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Clip to circular shape
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
+    ctx.closePath();
+    ctx.clip();
+    
+    // Draw avatar
+    ctx.drawImage(avatar, centerX - radius, centerY - radius, size, size);
+    ctx.restore();
+    
+    // Draw border with role color
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
+    ctx.strokeStyle = getUserRoleColor(member);
+    ctx.lineWidth = Math.max(1, Math.floor(size * 0.08));
+    ctx.stroke();
+    
+    return true;
+    
+  } catch (error) {
+    console.error(`Error loading avatar for ${member.user.username}:`, error);
+    
+    // Fallback: draw colored circle with initial
+    const radius = size / 2;
+    ctx.fillStyle = '#666666';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = `${Math.floor(size * 0.4)}px "MyFont"`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(member.displayName.charAt(0).toUpperCase(), centerX, centerY);
+    
+    return false;
+  }
+}
+
+/**
+ * Draw multiple players in a circular arrangement around the tile center
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {Array} players - Array of member objects
+ * @param {number} centerX - Tile center X
+ * @param {number} centerY - Tile center Y
+ * @param {number} tileRadius - Tile radius for positioning
+ */
+async function drawPlayersOnTile(ctx, players, centerX, centerY, tileRadius) {
+  if (players.length === 0) return;
+  
+  const avatarSize = Math.max(12, Math.min(16, tileRadius * 0.4));
+  const playerRadius = tileRadius * 0.6; // Distance from center to place avatars
+  
+  if (players.length === 1) {
+    // Single player: place at center
+    await drawPlayerAvatar(ctx, players[0], centerX, centerY, avatarSize);
+  } else if (players.length <= 6) {
+    // Multiple players: arrange in circle
+    for (let i = 0; i < players.length; i++) {
+      const angle = (i * 2 * Math.PI) / players.length;
+      const x = centerX + playerRadius * Math.cos(angle);
+      const y = centerY + playerRadius * Math.sin(angle);
+      
+      await drawPlayerAvatar(ctx, players[i], x, y, avatarSize);
+    }
+  } else {
+    // Too many players: arrange in two rings
+    const innerCount = 6;
+    const outerCount = players.length - innerCount;
+    
+    // Inner ring
+    for (let i = 0; i < Math.min(innerCount, players.length); i++) {
+      const angle = (i * 2 * Math.PI) / innerCount;
+      const x = centerX + (playerRadius * 0.6) * Math.cos(angle);
+      const y = centerY + (playerRadius * 0.6) * Math.sin(angle);
+      
+      await drawPlayerAvatar(ctx, players[i], x, y, avatarSize * 0.8);
+    }
+    
+    // Outer ring
+    for (let i = 0; i < outerCount; i++) {
+      const angle = (i * 2 * Math.PI) / outerCount;
+      const x = centerX + playerRadius * Math.cos(angle);
+      const y = centerY + playerRadius * Math.sin(angle);
+      
+      await drawPlayerAvatar(ctx, players[innerCount + i], x, y, avatarSize * 0.8);
+    }
+  }
+}
+
+/**
  * Draw a single hexagon with game information
  * @param {CanvasRenderingContext2D} ctx - Canvas context
  * @param {number} centerX - X coordinate of hexagon center
@@ -337,6 +520,11 @@ async function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, 
     // Draw fill text on top
     ctx.fillStyle = '#ffffff';
     ctx.fillText(indicator, centerX, centerY + 8);
+  }
+  
+  // Draw player avatars if there are players in this tile's gacha channel
+  if (players && players.length > 0) {
+    await drawPlayersOnTile(ctx, players, centerX, centerY, radius);
   }
 }
 

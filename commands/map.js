@@ -12,7 +12,7 @@ module.exports = {
       
       // Generate the tile map image and get stats
       const [mapBuffer, stats] = await Promise.all([
-        generateTileMapImage(guildId),
+        generateTileMapImage(guildId, interaction.client),
         getMapStats(guildId)
       ]);
       
