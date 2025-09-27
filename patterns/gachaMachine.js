@@ -111,8 +111,8 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                     }
                     
                     // Check for debug override during cooldown recreation
-                    const DEBUG_USER_ID = "1";
-                    const DEBUG_CHANNEL_ID = 13;
+                    const DEBUG_USER_ID = "865147754358767627";
+                    const DEBUG_CHANNEL_ID = 4014;
                     let debugOverride = false;
                     
                     if (roller.id === DEBUG_USER_ID) {
