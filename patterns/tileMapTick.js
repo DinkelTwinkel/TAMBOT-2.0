@@ -63,15 +63,29 @@ async function processTileMapTick(guildId, client) {
             }
         }
         
-        // Process each edge tile
-        for (const tile of edgeTiles) {
-            if (tile.gachaServerId) {
-                // Has gacha server: increase by 1 point (no max limit now)
-                const newPoints = tile.points + 1;
-                tileMap.updateTilePoints(tile.row, tile.col, newPoints);
+        // First, process ALL gacha server tiles (regardless of edge status)
+        const gachaTiles = tileMap.tiles.filter(tile => tile.gachaServerId);
+        console.log(`🗺️ [DEBUG] Found ${gachaTiles.length} gacha tiles to process`);
+        
+        for (const tile of gachaTiles) {
+            // Has gacha server: increase by number of users in channel
+            const userCount = await getChannelUserCount(guildId, tile.gachaServerId, client);
+            const pointIncrease = Math.max(1, userCount); // Minimum 1 point even if no users
+            const oldPoints = tile.points;
+            const newPoints = tile.points + pointIncrease;
+            
+            const updateSuccess = tileMap.updateTilePoints(tile.row, tile.col, newPoints);
+            if (updateSuccess) {
                 changesCount++;
-                console.log(`🗺️ [GROWTH] Tile (${tile.row}, ${tile.col}) with gacha: ${tile.points} → ${newPoints}`);
+                console.log(`🗺️ [GACHA GROWTH] Tile (${tile.row}, ${tile.col}) with gacha ${tile.gachaServerId}: ${oldPoints} → ${newPoints} (+${pointIncrease} from ${userCount} user(s))`);
             } else {
+                console.error(`🗺️ [ERROR] Failed to update tile (${tile.row}, ${tile.col}) points`);
+            }
+        }
+        
+        // Then, process edge tiles for decay (only non-gacha tiles)
+        for (const tile of edgeTiles) {
+            if (!tile.gachaServerId) {
                 // No gacha server: decrease by 1 point (min 0)
                 const newPoints = Math.max(0, tile.points - 1);
                 if (newPoints !== tile.points) {
@@ -91,22 +105,38 @@ async function processTileMapTick(guildId, client) {
         
         for (const tile of influentialTiles) {
             const neighbors = getHexagonalNeighbors(tile.row, tile.col, tileMap.mapSize);
+            const userCount = await getChannelUserCount(guildId, tile.gachaServerId, client);
+            const influenceBonus = Math.max(1, userCount); // Minimum 1 influence even if no users
             
             for (const [nRow, nCol] of neighbors) {
                 const neighborTile = tileMap.getTile(nRow, nCol);
                 if (neighborTile) {
-                    const newPoints = neighborTile.points + 1;
+                    const newPoints = neighborTile.points + influenceBonus;
                     tileMap.updateTilePoints(nRow, nCol, newPoints);
                     changesCount++;
-                    console.log(`🗺️ [INFLUENCE] Tile (${nRow}, ${nCol}) influenced by (${tile.row}, ${tile.col}): ${neighborTile.points} → ${newPoints}`);
+                    console.log(`🗺️ [INFLUENCE] Tile (${nRow}, ${nCol}) influenced by (${tile.row}, ${tile.col}): ${neighborTile.points} → ${newPoints} (+${influenceBonus} from ${userCount} user(s))`);
                 }
             }
         }
         
         // Save changes if any were made
         if (changesCount > 0) {
-            await tileMap.save();
-            console.log(`🗺️ [TILE SYSTEM] Processed ${edgeTiles.length} edge tiles, ${changesCount} changes made for guild ${guildId}`);
+            try {
+                await tileMap.save();
+                console.log(`🗺️ [TILE SYSTEM] Successfully saved ${changesCount} changes to database for guild ${guildId}`);
+                
+                // Debug: Verify the save worked by checking a few tiles
+                const verifyTileMap = await TileMap.findOne({ guildId });
+                const verifyGachaTiles = verifyTileMap.tiles.filter(tile => tile.gachaServerId);
+                console.log(`🗺️ [VERIFY] After save, database shows ${verifyGachaTiles.length} gacha tiles:`);
+                verifyGachaTiles.slice(0, 3).forEach(tile => {
+                    console.log(`🗺️ [VERIFY] Tile (${tile.row}, ${tile.col}): ${tile.points} points`);
+                });
+            } catch (saveError) {
+                console.error(`🗺️ [ERROR] Failed to save tile map changes:`, saveError);
+            }
+        } else {
+            console.log(`🗺️ [TILE SYSTEM] No changes to save for guild ${guildId}`);
         }
         
         // Update channel names and visibility (for specific guild)
@@ -436,6 +466,33 @@ async function assignUnassignedActiveVCs(guildId, tileMap, client) {
         
     } catch (error) {
         console.error('[RETROACTIVE] Error assigning unassigned activeVCs:', error);
+        return 0;
+    }
+}
+
+/**
+ * Get the number of users currently in a voice channel
+ * @param {string} guildId - Guild ID
+ * @param {string} channelId - Channel ID
+ * @param {Object} client - Discord client
+ * @returns {Promise<number>} Number of users in the channel
+ */
+async function getChannelUserCount(guildId, channelId, client) {
+    try {
+        const guild = await client.guilds.fetch(guildId);
+        if (!guild) {
+            return 0;
+        }
+        
+        const channel = await guild.channels.fetch(channelId);
+        if (!channel || !channel.isVoiceBased()) {
+            return 0;
+        }
+        
+        return channel.members.size;
+        
+    } catch (error) {
+        // Channel doesn't exist or can't be accessed
         return 0;
     }
 }

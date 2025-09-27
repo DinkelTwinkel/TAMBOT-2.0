@@ -124,6 +124,13 @@ async function generateTileMapImage(guildId, client = null) {
   try {
     const tileMap = await getOrCreateTileMap(guildId);
     
+    // Debug: Log some tile data to verify we're getting fresh data
+    const gachaTilesDebug = tileMap.tiles.filter(tile => tile.gachaServerId);
+    console.log(`🗺️ [MAP DEBUG] Generating map for guild ${guildId}, found ${gachaTilesDebug.length} gacha tiles`);
+    gachaTilesDebug.forEach(tile => {
+      console.log(`🗺️ [MAP DEBUG] Gacha tile (${tile.row}, ${tile.col}): ${tile.points} points, channel: ${tile.gachaServerId}`);
+    });
+    
     // Get player data for gacha channels if client is provided
     let gachaPlayersData = {};
     if (client) {
