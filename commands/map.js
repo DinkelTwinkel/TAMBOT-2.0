@@ -38,8 +38,9 @@ module.exports = {
 async function generateHexagonalMap() {
   // Canvas settings
   const hexRadius = 30; // Radius of each hexagon (from center to vertex)
-  const mapSize = 10; // 10x10 grid
-  const padding = 40;
+  const visibleMapSize = 9; // 9x9 visible grid (odd size for true center)
+  const extendedMapSize = 13; // Extended grid to go beyond borders
+  const padding = 0; // No padding - let tiles extend to edges
   
   // Calculate hexagon dimensions for proper tiling
   const hexWidth = hexRadius * 2 * Math.cos(Math.PI / 6); // Width of hexagon (flat-to-flat)
@@ -47,9 +48,9 @@ async function generateHexagonalMap() {
   const verticalSpacing = hexHeight * 0.75; // Vertical spacing between row centers
   const horizontalSpacing = hexWidth; // Horizontal spacing between column centers
   
-  // Calculate canvas dimensions
-  const canvasWidth = Math.ceil(horizontalSpacing * (mapSize - 1) + hexWidth * 0.75) + padding * 2;
-  const canvasHeight = Math.ceil(verticalSpacing * (mapSize - 1) + hexHeight) + padding * 2;
+  // Calculate canvas dimensions based on visible area
+  const canvasWidth = Math.ceil(horizontalSpacing * (visibleMapSize - 1) + hexWidth * 0.75);
+  const canvasHeight = Math.ceil(verticalSpacing * (visibleMapSize - 1) + hexHeight);
   
   // Create canvas
   const canvas = createCanvas(canvasWidth, canvasHeight);
@@ -60,23 +61,26 @@ async function generateHexagonalMap() {
   ctx.fillStyle = '#2c2c2c';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
   
-  // Center position (5,5 in 0-indexed 10x10 grid)
-  const centerRow = 4;
-  const centerCol = 4;
+  // Calculate offset to center the visible area within the extended grid
+  const gridOffset = (extendedMapSize - visibleMapSize) / 2;
+  
+  // Center position in the extended grid
+  const centerRow = Math.floor(extendedMapSize / 2);
+  const centerCol = Math.floor(extendedMapSize / 2);
   
   // Draw hexagonal tiles with proper tessellation
-  for (let row = 0; row < mapSize; row++) {
-    for (let col = 0; col < mapSize; col++) {
+  for (let row = 0; row < extendedMapSize; row++) {
+    for (let col = 0; col < extendedMapSize; col++) {
       // Calculate hexagon center position for proper tiling
       // Every other row is offset by half the horizontal spacing
       const offsetX = (row % 2) * (horizontalSpacing / 2);
-      const x = padding + col * horizontalSpacing + offsetX + hexWidth / 2;
-      const y = padding + row * verticalSpacing + hexHeight / 2;
+      const x = (col - gridOffset) * horizontalSpacing + offsetX + hexWidth / 2;
+      const y = (row - gridOffset) * verticalSpacing + hexHeight / 2;
       
       // Determine if this is the center tile
       const isCenter = (row === centerRow && col === centerCol);
       
-      // Draw hexagon
+      // Draw hexagon (even if partially off-screen)
       drawHexagon(ctx, x, y, hexRadius, isCenter);
     }
   }
