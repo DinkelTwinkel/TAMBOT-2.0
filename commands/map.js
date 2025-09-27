@@ -82,14 +82,13 @@ module.exports = {
       const emptyBars = healthBarLength - filledBars;
       
       const healthBar = '█'.repeat(filledBars) + '░'.repeat(emptyBars);
-      const healthBarText = `\`${healthBar}\` ${currentHP}/${maxHP} (${healthPercentage.toFixed(1)}%)`;
+      const healthBarTitle = `⚡ CORE HP\n\`${healthBar}\` ${currentHP}/${maxHP} (${healthPercentage.toFixed(1)}%)`;
       
       // Create info embed (same format as status message)
       const embed = new EmbedBuilder()
-        .setTitle('STATUS')
+        .setTitle(healthBarTitle)
         .setDescription('Current territorial control status')
         .addFields(
-          { name: '⚡ CORE HP', value: healthBarText, inline: false },
           { name: '🗺️ Total Points', value: stats.totalPoints.toLocaleString(), inline: true },
           { name: '🎰 Active Gacha', value: stats.gachaTiles.toString(), inline: true },
           { name: '⚠️ Capital at Risk', value: riskStatus, inline: false },
@@ -97,9 +96,7 @@ module.exports = {
           { name: '🏰 Capital', value: citadelStatus, inline: true }
         )
         .setColor(centerPoints < 25 ? 0xff0000 : centerPoints < 50 ? 0xffaa00 : 0x00ff00)
-        .setFooter({ 
-          text: 'Yellow = Capital | White = Territory | Orange = Gacha | Red = Frontier | Black = Unexplored' 
-        })
+        .setFooter({ text: 'STATUS' })
         .setTimestamp();
       
       // Send ephemeral response

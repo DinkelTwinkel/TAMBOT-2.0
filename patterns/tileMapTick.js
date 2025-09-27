@@ -635,14 +635,13 @@ async function updateWarMapMessage(guildId, tileMap, client) {
         const emptyBars = healthBarLength - filledBars;
         
         const healthBar = '█'.repeat(filledBars) + '░'.repeat(emptyBars);
-        const healthBarText = `\`${healthBar}\` ${currentHP}/${maxHP} (${healthPercentage.toFixed(1)}%)`;
+        const healthBarTitle = `⚡ CORE HP\n\`${healthBar}\` ${currentHP}/${maxHP} (${healthPercentage.toFixed(1)}%)`;
 
         // Create embed
         const embed = new EmbedBuilder()
-            .setTitle('STATUS')
+            .setTitle(healthBarTitle)
             .setDescription('Current territorial control status')
             .addFields(
-                { name: '⚡ CORE HP', value: healthBarText, inline: false },
                 { name: '🗺️ Total Points', value: totalPoints.toLocaleString(), inline: true },
                 { name: '🎰 Active Gacha', value: gachaCount.toString(), inline: true },
                 { name: '⚠️ Capital at Risk', value: riskStatus, inline: false },
@@ -650,6 +649,7 @@ async function updateWarMapMessage(guildId, tileMap, client) {
                 { name: '🏰 Capital', value: citadelStatus, inline: true }
             )
             .setColor(centerPoints < 25 ? 0xff0000 : centerPoints < 50 ? 0xffaa00 : 0x00ff00)
+            .setFooter({ text: 'STATUS' })
             .setTimestamp();
         
         const messageData = {
@@ -664,7 +664,8 @@ async function updateWarMapMessage(guildId, tileMap, client) {
             const messages = await warChannel.messages.fetch({ limit: 10 });
             const statusMessages = messages.filter(msg => 
                 msg.embeds.length > 0 && 
-                msg.embeds[0].title === 'STATUS'
+                msg.embeds[0].footer && 
+                msg.embeds[0].footer.text === 'STATUS'
             );
             
             console.log(`⚔️ [STATUS] Found ${statusMessages.size} previous status messages`);
