@@ -1,5 +1,6 @@
-const { createCanvas, registerFont } = require('canvas');
+const { createCanvas, registerFont, loadImage } = require('canvas');
 const TileMap = require('../models/TileMap');
+const ActiveVCS = require('../models/activevcs');
 const path = require('path');
 
 // Register the goblin font (same as generateShopImage.js)
@@ -119,9 +120,15 @@ async function getTileInfo(guildId, row, col) {
  * @param {string} guildId - Guild ID
  * @returns {Promise<Buffer>} PNG image buffer
  */
-async function generateTileMapImage(guildId) {
+async function generateTileMapImage(guildId, client = null) {
   try {
     const tileMap = await getOrCreateTileMap(guildId);
+    
+    // Get player data for gacha channels if client is provided
+    let gachaPlayersData = {};
+    if (client) {
+      gachaPlayersData = await getGachaChannelPlayers(guildId, tileMap, client);
+    }
     
     // Canvas settings
     const hexRadius = 30;
@@ -173,8 +180,21 @@ async function generateTileMapImage(guildId) {
         const points = tile ? tile.points : 0;
         const hasGacha = tile && tile.gachaServerId;
         
+        // Check if this is a frontier tile (0 points but adjacent to >0 points)
+        let isFrontier = false;
+        if (tile && points === 0) {
+          const neighbors = getHexagonalNeighbors(actualRow, actualCol, tileMap.mapSize);
+          isFrontier = neighbors.some(([nRow, nCol]) => {
+            const neighborTile = tileMap.getTile(nRow, nCol);
+            return neighborTile && neighborTile.points > 0;
+          });
+        }
+        
+        // Get players for this tile if it has a gacha server
+        const tilePlayers = hasGacha && tile ? gachaPlayersData[tile.gachaServerId] || [] : [];
+        
         // Draw hexagon
-        drawGameHexagon(ctx, x, y, hexRadius, isCenter, points, hasGacha);
+        await drawGameHexagon(ctx, x, y, hexRadius, isCenter, points, hasGacha, isFrontier, tilePlayers);
       }
     }
     
@@ -186,6 +206,41 @@ async function generateTileMapImage(guildId) {
 }
 
 /**
+ * Helper function to get hexagonal neighbors
+ * @param {number} row - Row coordinate
+ * @param {number} col - Column coordinate
+ * @param {number} mapSize - Size of the map
+ * @returns {Array} Array of neighbor coordinates
+ */
+function getHexagonalNeighbors(row, col, mapSize) {
+  const neighbors = [];
+  
+  // Hexagonal grid neighbor offsets (depends on whether row is even or odd)
+  const isEvenRow = row % 2 === 0;
+  const offsets = isEvenRow ? [
+    [-1, -1], [-1, 0],  // Top-left, Top-right
+    [0, -1],  [0, 1],   // Left, Right
+    [1, -1],  [1, 0]    // Bottom-left, Bottom-right
+  ] : [
+    [-1, 0],  [-1, 1],  // Top-left, Top-right
+    [0, -1],  [0, 1],   // Left, Right
+    [1, 0],   [1, 1]    // Bottom-left, Bottom-right
+  ];
+  
+  for (const [dRow, dCol] of offsets) {
+    const newRow = row + dRow;
+    const newCol = col + dCol;
+    
+    // Check if neighbor is within map bounds
+    if (newRow >= 0 && newRow < mapSize && newCol >= 0 && newCol < mapSize) {
+      neighbors.push([newRow, newCol]);
+    }
+  }
+  
+  return neighbors;
+}
+
+/**
  * Draw a single hexagon with game information
  * @param {CanvasRenderingContext2D} ctx - Canvas context
  * @param {number} centerX - X coordinate of hexagon center
@@ -194,8 +249,10 @@ async function generateTileMapImage(guildId) {
  * @param {boolean} isCenter - Whether this is the center tile
  * @param {number} points - Point value of the tile
  * @param {boolean} hasGacha - Whether tile has a gacha server
+ * @param {boolean} isFrontier - Whether this is a frontier tile (0 points adjacent to >0 points)
+ * @param {Array} players - Array of player objects in this tile's gacha channel
  */
-function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points = 0, hasGacha = false) {
+async function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points = 0, hasGacha = false, isFrontier = false, players = []) {
   // Begin path
   ctx.beginPath();
   
@@ -214,7 +271,7 @@ function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points
   
   ctx.closePath();
   
-  // Fill hexagon based on point value (gradient from black to white)
+  // Fill hexagon based on point value and special states
   if (hasGacha) {
     // Gacha servers get orange background, but show influence with brightness
     if (points >= 100) {
@@ -223,6 +280,9 @@ function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points
     } else {
       ctx.fillStyle = '#ff6b35';
     }
+  } else if (isFrontier) {
+    // Frontier tiles (0 points adjacent to territory) are red
+    ctx.fillStyle = '#cc0000';
   } else {
     // Calculate gradient color based on points (0 = black, 100 = white)
     const intensity = Math.min(points / 100, 1); // Normalize to 0-1 range
@@ -247,8 +307,8 @@ function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    // Show star and points for center tile, just points for all others
-    const displayText = isCenter ? `★${points}` : points.toString();
+    // Show C (capital) and points for center tile, just points for all others
+    const displayText = isCenter ? `C${points}` : points.toString();
     
     // Draw stroke first for better visibility (like generateShopImage.js)
     ctx.strokeStyle = strokeColor;
@@ -260,18 +320,18 @@ function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points
     ctx.fillText(displayText, centerX, centerY);
   }
   
-  // Draw gacha indicator
+  // Draw gacha indicator - show point value instead of G/I
   if (hasGacha) {
-    ctx.font = '10px "MyFont"'; // Match generateShopImage.js style
+    ctx.font = '8px "MyFont"'; // Smaller font for the indicator
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    // Show different indicator for influential gacha servers (100+ points)
-    const indicator = points >= 100 ? '✦' : 'G';
+    // Show point value for gacha servers
+    const indicator = points.toString();
     
     // Draw stroke first for better visibility
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     ctx.strokeText(indicator, centerX, centerY + 8);
     
     // Draw fill text on top
