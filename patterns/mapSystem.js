@@ -482,10 +482,13 @@ async function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, 
   
   ctx.fill();
   
-  // Draw border
-  ctx.strokeStyle = hasGacha ? '#ff6b35' : '#666666';
-  ctx.lineWidth = hasGacha ? 2.5 : 1.5;
-  ctx.stroke();
+  // Draw border (skip for pure black tiles)
+  const shouldDrawBorder = points > 0 || hasGacha || isFrontier;
+  if (shouldDrawBorder) {
+    ctx.strokeStyle = hasGacha ? '#ff6b35' : '#666666';
+    ctx.lineWidth = hasGacha ? 2.5 : 1.5;
+    ctx.stroke();
+  }
   
   // Draw point text on all tiles with >0 points
   if (points > 0) {

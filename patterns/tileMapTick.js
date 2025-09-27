@@ -1,9 +1,13 @@
 const TileMap = require('../models/TileMap');
-const { getOrCreateTileMap } = require('./mapSystem');
+const { getOrCreateTileMap, generateTileMapImage } = require('./mapSystem');
 const ActiveVCS = require('../models/activevcs');
+const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 
 // Track previous center tile points for assault detection
 let previousCenterPoints = null;
+
+// Track previous war map message for editing
+let previousWarMapMessageId = null;
 
 /**
  * Main tile processing function - handles decay, growth, influence, and channel updates
@@ -144,6 +148,7 @@ async function processTileMapTick(guildId, client) {
         if (guildId === '1221772148385910835') {
             await updateHellungiChannelName(guildId, tileMap, client);
             await updateCitadelAndVisibility(guildId, tileMap, client);
+            await updateWarMapMessage(guildId, tileMap, client);
         }
         
     } catch (error) {
@@ -495,6 +500,90 @@ async function getChannelUserCount(guildId, channelId, client) {
     } catch (error) {
         // Channel doesn't exist or can't be accessed
         return 0;
+    }
+}
+
+/**
+ * Update or create war map message in specified channel
+ * @param {string} guildId - Guild ID
+ * @param {Object} tileMap - TileMap instance
+ * @param {Object} client - Discord client
+ */
+async function updateWarMapMessage(guildId, tileMap, client) {
+    try {
+        const guild = await client.guilds.fetch(guildId);
+        if (!guild) {
+            console.warn(`[WAR MAP] Guild ${guildId} not found`);
+            return;
+        }
+        
+        const warChannelId = '1421460021405024356';
+        const warChannel = await guild.channels.fetch(warChannelId);
+        if (!warChannel) {
+            console.warn(`[WAR MAP] War channel ${warChannelId} not found in guild ${guildId}`);
+            return;
+        }
+        
+        // Generate fresh map image
+        const mapBuffer = await generateTileMapImage(guildId, client);
+        const attachment = new AttachmentBuilder(mapBuffer, { name: 'war_map.png' });
+        
+        // Get current stats
+        const centerTile = tileMap.getTile(tileMap.centerRow, tileMap.centerCol);
+        const centerPoints = centerTile ? centerTile.points : 0;
+        const totalPoints = tileMap.tiles.reduce((sum, tile) => sum + tile.points, 0);
+        const gachaCount = tileMap.tiles.filter(tile => tile.gachaServerId).length;
+        
+        // Determine capital risk status
+        let riskStatus;
+        if (centerPoints < 25) {
+            riskStatus = '💀 **CRITICAL** - Capital may fall!';
+        } else if (centerPoints < 50) {
+            riskStatus = '⚠️ **HIGH** - Under siege!';
+        } else if (centerPoints < 75) {
+            riskStatus = '🟡 **MODERATE** - Holding steady';
+        } else {
+            riskStatus = '🛡️ **LOW** - Well defended';
+        }
+        
+        // Create embed
+        const embed = new EmbedBuilder()
+            .setTitle('⚔️ WAR MAP')
+            .setDescription('Current territorial control status')
+            .addFields(
+                { name: '🏰 Capital Points', value: centerPoints.toLocaleString(), inline: true },
+                { name: '🗺️ Total Points', value: totalPoints.toLocaleString(), inline: true },
+                { name: '🎰 Active Gacha', value: gachaCount.toString(), inline: true },
+                { name: '⚠️ Capital at Risk', value: riskStatus, inline: false }
+            )
+            .setColor(centerPoints < 25 ? 0xff0000 : centerPoints < 50 ? 0xffaa00 : 0x00ff00)
+            .setTimestamp();
+        
+        const messageData = {
+            embeds: [embed],
+            files: [attachment]
+        };
+        
+        // Try to edit previous message, or create new one
+        if (previousWarMapMessageId) {
+            try {
+                const previousMessage = await warChannel.messages.fetch(previousWarMapMessageId);
+                await previousMessage.edit(messageData);
+                console.log(`⚔️ [WAR MAP] Updated existing war map message`);
+                return;
+            } catch (editError) {
+                console.log(`⚔️ [WAR MAP] Previous message not found, creating new one`);
+                previousWarMapMessageId = null;
+            }
+        }
+        
+        // Create new message
+        const newMessage = await warChannel.send(messageData);
+        previousWarMapMessageId = newMessage.id;
+        console.log(`⚔️ [WAR MAP] Created new war map message: ${newMessage.id}`);
+        
+    } catch (error) {
+        console.error('[WAR MAP] Error updating war map message:', error);
     }
 }
 
