@@ -555,6 +555,17 @@ class DigDeeperListener {
                                 
                                 await newChannel.send({ embeds: [completionEmbed] });
                                 console.log(`[DIG_DEEPER] Sent tutorial completion embed for ${member.displayName}`);
+                                
+                                // Send arrival announcement to the main channel
+                                try {
+                                    const announcementChannel = await interaction.guild.channels.fetch('1407609278315102208');
+                                    if (announcementChannel) {
+                                        await announcementChannel.send(`${member} has arrived`);
+                                        console.log(`[DIG_DEEPER] Sent arrival announcement for ${member.displayName}`);
+                                    }
+                                } catch (announcementError) {
+                                    console.error(`[DIG_DEEPER] Error sending arrival announcement:`, announcementError);
+                                }
                             } else {
                                 console.warn(`[DIG_DEEPER] Special role ${specialRoleId} not found in guild`);
                             }
@@ -621,6 +632,17 @@ class DigDeeperListener {
                                 
                                 await newChannel.send({ embeds: [completionEmbed] });
                                 console.log(`[DIG_DEEPER] Sent tutorial completion embed for ${member.displayName} (existing channel)`);
+                                
+                                // Send arrival announcement to the main channel
+                                try {
+                                    const announcementChannel = await interaction.guild.channels.fetch('1407609278315102208');
+                                    if (announcementChannel) {
+                                        await announcementChannel.send(`${member} has arrived`);
+                                        console.log(`[DIG_DEEPER] Sent arrival announcement for ${member.displayName} (existing channel)`);
+                                    }
+                                } catch (announcementError) {
+                                    console.error(`[DIG_DEEPER] Error sending arrival announcement:`, announcementError);
+                                }
                             } else {
                                 console.warn(`[DIG_DEEPER] Special role ${specialRoleId} not found in guild`);
                             }

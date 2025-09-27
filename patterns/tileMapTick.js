@@ -666,8 +666,14 @@ async function getChannelVisibilityStatus(guildId, channelId, client) {
             return 'FALLEN';
         }
         
-        // Check if @everyone can view the channel
-        const canView = channel.permissionsFor(guild.roles.everyone)?.has('ViewChannel');
+        // Check if special role can view the channel
+        const specialRoleId = '1421477924187541504';
+        const specialRole = await guild.roles.fetch(specialRoleId);
+        if (!specialRole) {
+            return 'FALLEN';
+        }
+        
+        const canView = channel.permissionsFor(specialRole)?.has('ViewChannel');
         return canView ? 'ACTIVE' : 'FALLEN';
         
     } catch (error) {
