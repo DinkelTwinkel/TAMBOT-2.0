@@ -37,17 +37,18 @@ module.exports = {
  */
 async function generateHexagonalMap() {
   // Canvas settings
-  const tileSize = 40; // Size of each hexagon
+  const hexRadius = 30; // Radius of each hexagon (from center to vertex)
   const mapSize = 10; // 10x10 grid
-  const padding = 20;
+  const padding = 40;
   
-  // Calculate canvas dimensions for hexagonal grid
-  // Hexagons are arranged in an offset grid pattern
-  const hexWidth = tileSize * Math.sqrt(3);
-  const hexHeight = tileSize * 2;
-  const verticalSpacing = hexHeight * 0.75;
+  // Calculate hexagon dimensions for proper tiling
+  const hexWidth = hexRadius * 2 * Math.cos(Math.PI / 6); // Width of hexagon (flat-to-flat)
+  const hexHeight = hexRadius * 2; // Height of hexagon (point-to-point)
+  const verticalSpacing = hexHeight * 0.75; // Vertical spacing between row centers
+  const horizontalSpacing = hexWidth; // Horizontal spacing between column centers
   
-  const canvasWidth = Math.ceil(hexWidth * mapSize + hexWidth * 0.5) + padding * 2;
+  // Calculate canvas dimensions
+  const canvasWidth = Math.ceil(horizontalSpacing * (mapSize - 1) + hexWidth * 0.75) + padding * 2;
   const canvasHeight = Math.ceil(verticalSpacing * (mapSize - 1) + hexHeight) + padding * 2;
   
   // Create canvas
@@ -63,19 +64,20 @@ async function generateHexagonalMap() {
   const centerRow = 4;
   const centerCol = 4;
   
-  // Draw hexagonal tiles
+  // Draw hexagonal tiles with proper tessellation
   for (let row = 0; row < mapSize; row++) {
     for (let col = 0; col < mapSize; col++) {
-      // Calculate hexagon position
-      const offsetX = (row % 2) * (hexWidth / 2); // Offset every other row
-      const x = padding + col * hexWidth + offsetX + hexWidth / 2;
+      // Calculate hexagon center position for proper tiling
+      // Every other row is offset by half the horizontal spacing
+      const offsetX = (row % 2) * (horizontalSpacing / 2);
+      const x = padding + col * horizontalSpacing + offsetX + hexWidth / 2;
       const y = padding + row * verticalSpacing + hexHeight / 2;
       
       // Determine if this is the center tile
       const isCenter = (row === centerRow && col === centerCol);
       
       // Draw hexagon
-      drawHexagon(ctx, x, y, tileSize, isCenter);
+      drawHexagon(ctx, x, y, hexRadius, isCenter);
     }
   }
   
@@ -87,28 +89,25 @@ async function generateHexagonalMap() {
  * @param {CanvasRenderingContext2D} ctx - Canvas context
  * @param {number} centerX - X coordinate of hexagon center
  * @param {number} centerY - Y coordinate of hexagon center
- * @param {number} size - Size of the hexagon
+ * @param {number} radius - Radius of the hexagon (from center to vertex)
  * @param {boolean} isCenter - Whether this is the center tile (white)
  */
-function drawHexagon(ctx, centerX, centerY, size, isCenter = false) {
-  const angles = [];
-  for (let i = 0; i < 6; i++) {
-    angles.push((Math.PI / 3) * i);
-  }
-  
+function drawHexagon(ctx, centerX, centerY, radius, isCenter = false) {
   // Begin path
   ctx.beginPath();
   
-  // Move to first point
-  const firstX = centerX + size * Math.cos(angles[0]);
-  const firstY = centerY + size * Math.sin(angles[0]);
-  ctx.moveTo(firstX, firstY);
-  
-  // Draw lines to other points
-  for (let i = 1; i < 6; i++) {
-    const x = centerX + size * Math.cos(angles[i]);
-    const y = centerY + size * Math.sin(angles[i]);
-    ctx.lineTo(x, y);
+  // Draw hexagon with flat top (pointy sides)
+  // Start from top vertex and go clockwise
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i - (Math.PI / 2); // Start from top, rotate -90 degrees
+    const x = centerX + radius * Math.cos(angle);
+    const y = centerY + radius * Math.sin(angle);
+    
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
   }
   
   // Close path
@@ -120,6 +119,6 @@ function drawHexagon(ctx, centerX, centerY, size, isCenter = false) {
   
   // Draw border
   ctx.strokeStyle = '#666666';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 }
