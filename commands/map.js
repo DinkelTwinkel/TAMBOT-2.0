@@ -1,6 +1,35 @@
 const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const { generateTileMapImage, getMapStats } = require('../patterns/mapSystem');
 
+/**
+ * Check if a channel is visible to everyone
+ * @param {string} guildId - Guild ID
+ * @param {string} channelId - Channel ID to check
+ * @param {Object} client - Discord client
+ * @returns {Promise<string>} "ACTIVE" or "FALLEN"
+ */
+async function getChannelVisibilityStatus(guildId, channelId, client) {
+  try {
+    const guild = await client.guilds.fetch(guildId);
+    if (!guild) {
+      return 'FALLEN';
+    }
+    
+    const channel = await guild.channels.fetch(channelId);
+    if (!channel) {
+      return 'FALLEN';
+    }
+    
+    // Check if @everyone can view the channel
+    const canView = channel.permissionsFor(guild.roles.everyone)?.has('ViewChannel');
+    return canView ? 'ACTIVE' : 'FALLEN';
+    
+  } catch (error) {
+    console.error(`Error checking channel visibility for ${channelId}:`, error);
+    return 'FALLEN';
+  }
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('map')
@@ -16,23 +45,41 @@ module.exports = {
         getMapStats(guildId)
       ]);
       
+      // Check marketplace and citadel status
+      const [marketplaceStatus, citadelStatus] = await Promise.all([
+        getChannelVisibilityStatus(guildId, '1416024145128587437', interaction.client),
+        getChannelVisibilityStatus(guildId, '1407609278315102208', interaction.client)
+      ]);
+      
       // Create attachment
       const attachment = new AttachmentBuilder(mapBuffer, { name: 'guild_tile_map.png' });
       
-      // Create info embed
+      // Determine capital risk status (same logic as war map)
+      const centerPoints = stats.centerTilePoints;
+      let riskStatus;
+      if (centerPoints < 25) {
+        riskStatus = '💀 **CRITICAL** - Capital may fall!';
+      } else if (centerPoints < 50) {
+        riskStatus = '⚠️ **HIGH** - Under siege!';
+      } else if (centerPoints < 75) {
+        riskStatus = '🟡 **MODERATE** - Holding steady';
+      } else {
+        riskStatus = '🛡️ **LOW** - Well defended';
+      }
+      
+      // Create info embed (same format as war map)
       const embed = new EmbedBuilder()
-        .setTitle('🗺️ Guild Tile Map')
-        .setDescription('Your guild\'s hexagonal tile map showing point values and gacha server locations')
+        .setTitle('⚔️ WAR MAP')
+        .setDescription('Current territorial control status')
         .addFields(
-          { name: '📊 Total Points', value: stats.totalPoints.toString(), inline: true },
-          { name: '📈 Average Points', value: stats.averagePoints.toString(), inline: true },
-          { name: '⭐ Center Tile', value: `${stats.centerTilePoints} points`, inline: true },
-          { name: '🎰 Gacha Servers', value: stats.gachaTiles.toString(), inline: true },
-          { name: '🔓 Available Slots', value: stats.availableForGacha.toString(), inline: true },
-          { name: '🏠 Total Tiles', value: stats.totalTiles.toString(), inline: true }
+          { name: '🏰 Capital Points', value: centerPoints.toLocaleString(), inline: true },
+          { name: '🗺️ Total Points', value: stats.totalPoints.toLocaleString(), inline: true },
+          { name: '🎰 Active Gacha', value: stats.gachaTiles.toString(), inline: true },
+          { name: '⚠️ Capital at Risk', value: riskStatus, inline: false },
+          { name: '🏪 Marketplace', value: marketplaceStatus, inline: true },
+          { name: '🏰 Citadel', value: citadelStatus, inline: true }
         )
-        .setColor(0x00AE86)
-        .setImage('attachment://guild_tile_map.png')
+        .setColor(centerPoints < 25 ? 0xff0000 : centerPoints < 50 ? 0xffaa00 : 0x00ff00)
         .setFooter({ 
           text: 'Yellow = Capital | White = Territory | Orange = Gacha | Red = Frontier | Black = Unexplored' 
         })

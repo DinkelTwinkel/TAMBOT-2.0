@@ -206,8 +206,6 @@ async function generateTileMapImage(guildId, client = null) {
       }
     }
     
-    // Draw collective outline around all territory (tiles with >0 points)
-    await drawTerritoryOutline(ctx, tileMap, hexRadius, visibleMapSize, extendedMapSize, gridOffset, horizontalSpacing, verticalSpacing, hexWidth, hexHeight);
     
     // Draw white bar at the bottom with "HELLUNGI MAP" text
     const barY = canvasHeight - barHeight;
@@ -502,10 +500,10 @@ async function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, 
   
   ctx.fill();
   
-  // Draw border (skip for pure black tiles to create seamless black background)
-  const shouldDrawBorder = points > 0 || hasGacha || isFrontier;
+  // Draw border only for gacha servers and frontier tiles
+  const shouldDrawBorder = hasGacha || isFrontier;
   if (shouldDrawBorder) {
-    ctx.strokeStyle = hasGacha ? '#ff6b35' : (isFrontier ? '#cc0000' : '#666666');
+    ctx.strokeStyle = hasGacha ? '#ff6b35' : '#cc0000';
     ctx.lineWidth = hasGacha ? 2.5 : 1.5;
     ctx.stroke();
   }
@@ -622,79 +620,6 @@ async function removeGachaFromTileMap(guildId, channelId) {
   } catch (error) {
     console.error('Error removing gacha from tile map:', error);
     return false;
-  }
-}
-
-/**
- * Draw collective outline around all territory tiles
- * @param {CanvasRenderingContext2D} ctx - Canvas context
- * @param {Object} tileMap - TileMap instance
- * @param {number} hexRadius - Hexagon radius
- * @param {number} visibleMapSize - Visible map size
- * @param {number} extendedMapSize - Extended map size
- * @param {number} gridOffset - Grid offset
- * @param {number} horizontalSpacing - Horizontal spacing
- * @param {number} verticalSpacing - Vertical spacing
- * @param {number} hexWidth - Hexagon width
- * @param {number} hexHeight - Hexagon height
- */
-async function drawTerritoryOutline(ctx, tileMap, hexRadius, visibleMapSize, extendedMapSize, gridOffset, horizontalSpacing, verticalSpacing, hexWidth, hexHeight) {
-  try {
-    // Find all territory tiles (points > 0)
-    const territoryTiles = tileMap.tiles.filter(tile => tile.points > 0);
-    if (territoryTiles.length === 0) return;
-    
-    // Create a set of territory coordinates for quick lookup
-    const territoryCoords = new Set(
-      territoryTiles.map(tile => `${tile.row},${tile.col}`)
-    );
-    
-    // Find boundary edges (territory tiles that have non-territory neighbors)
-    const boundaryEdges = [];
-    
-    for (const tile of territoryTiles) {
-      const neighbors = getHexagonalNeighbors(tile.row, tile.col, tileMap.mapSize);
-      
-      // Check each neighbor to find boundary edges
-      for (const [nRow, nCol] of neighbors) {
-        const neighborKey = `${nRow},${nCol}`;
-        if (!territoryCoords.has(neighborKey)) {
-          // This edge faces non-territory, add it to boundary
-          boundaryEdges.push({
-            fromRow: tile.row,
-            fromCol: tile.col,
-            toRow: nRow,
-            toCol: nCol
-          });
-        }
-      }
-    }
-    
-    // Draw the boundary outline
-    if (boundaryEdges.length > 0) {
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([5, 3]); // Dashed line
-      
-      ctx.beginPath();
-      
-      // For simplicity, draw a rough outline by connecting boundary points
-      // This is a simplified approach - a full implementation would trace the actual boundary
-      for (const edge of boundaryEdges) {
-        const offsetX = (edge.fromRow % 2) * (horizontalSpacing / 2);
-        const x = (edge.fromCol - gridOffset) * horizontalSpacing + offsetX + hexWidth / 2;
-        const y = (edge.fromRow - gridOffset) * verticalSpacing + hexHeight / 2;
-        
-        ctx.moveTo(x, y);
-        ctx.arc(x, y, hexRadius + 2, 0, Math.PI * 2);
-      }
-      
-      ctx.stroke();
-      ctx.setLineDash([]); // Reset line dash
-    }
-    
-  } catch (error) {
-    console.error('Error drawing territory outline:', error);
   }
 }
 

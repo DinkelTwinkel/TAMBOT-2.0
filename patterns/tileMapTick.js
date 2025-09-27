@@ -534,6 +534,12 @@ async function updateWarMapMessage(guildId, tileMap, client) {
         const totalPoints = tileMap.tiles.reduce((sum, tile) => sum + tile.points, 0);
         const gachaCount = tileMap.tiles.filter(tile => tile.gachaServerId).length;
         
+        // Check marketplace and citadel status
+        const [marketplaceStatus, citadelStatus] = await Promise.all([
+            getChannelVisibilityStatus(guildId, '1416024145128587437', client),
+            getChannelVisibilityStatus(guildId, '1407609278315102208', client)
+        ]);
+        
         // Determine capital risk status
         let riskStatus;
         if (centerPoints < 25) {
@@ -554,7 +560,9 @@ async function updateWarMapMessage(guildId, tileMap, client) {
                 { name: '🏰 Capital Points', value: centerPoints.toLocaleString(), inline: true },
                 { name: '🗺️ Total Points', value: totalPoints.toLocaleString(), inline: true },
                 { name: '🎰 Active Gacha', value: gachaCount.toString(), inline: true },
-                { name: '⚠️ Capital at Risk', value: riskStatus, inline: false }
+                { name: '⚠️ Capital at Risk', value: riskStatus, inline: false },
+                { name: '🏪 Marketplace', value: marketplaceStatus, inline: true },
+                { name: '🏰 Citadel', value: citadelStatus, inline: true }
             )
             .setColor(centerPoints < 25 ? 0xff0000 : centerPoints < 50 ? 0xffaa00 : 0x00ff00)
             .setTimestamp();
@@ -564,16 +572,14 @@ async function updateWarMapMessage(guildId, tileMap, client) {
             files: [attachment]
         };
         
-        // Try to edit previous message, or create new one
+        // Delete previous message if it exists, then create new one
         if (previousWarMapMessageId) {
             try {
                 const previousMessage = await warChannel.messages.fetch(previousWarMapMessageId);
-                await previousMessage.edit(messageData);
-                console.log(`⚔️ [WAR MAP] Updated existing war map message`);
-                return;
-            } catch (editError) {
-                console.log(`⚔️ [WAR MAP] Previous message not found, creating new one`);
-                previousWarMapMessageId = null;
+                await previousMessage.delete();
+                console.log(`⚔️ [WAR MAP] Deleted previous war map message`);
+            } catch (deleteError) {
+                console.log(`⚔️ [WAR MAP] Previous message not found or couldn't be deleted`);
             }
         }
         
@@ -584,6 +590,35 @@ async function updateWarMapMessage(guildId, tileMap, client) {
         
     } catch (error) {
         console.error('[WAR MAP] Error updating war map message:', error);
+    }
+}
+
+/**
+ * Check if a channel is visible to everyone
+ * @param {string} guildId - Guild ID
+ * @param {string} channelId - Channel ID to check
+ * @param {Object} client - Discord client
+ * @returns {Promise<string>} "ACTIVE" or "FALLEN"
+ */
+async function getChannelVisibilityStatus(guildId, channelId, client) {
+    try {
+        const guild = await client.guilds.fetch(guildId);
+        if (!guild) {
+            return 'FALLEN';
+        }
+        
+        const channel = await guild.channels.fetch(channelId);
+        if (!channel) {
+            return 'FALLEN';
+        }
+        
+        // Check if @everyone can view the channel
+        const canView = channel.permissionsFor(guild.roles.everyone)?.has('ViewChannel');
+        return canView ? 'ACTIVE' : 'FALLEN';
+        
+    } catch (error) {
+        console.error(`Error checking channel visibility for ${channelId}:`, error);
+        return 'FALLEN';
     }
 }
 
