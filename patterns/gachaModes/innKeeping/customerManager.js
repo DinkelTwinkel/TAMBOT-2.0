@@ -178,17 +178,40 @@ class CustomerManager {
             if (Math.random() < arrivalChance) {
                 const innLevel = v4State.innLevel || 1;
                 const baseEarnings = v4State.baseEarnings || 5;
-                const newCustomer = this.createCustomer(channel.id, now, reputation, innLevel, baseEarnings);
-                remainingCustomers.push(newCustomer);
-                arrivalEvents.push(`${newCustomer.name} arrived at the inn (happiness: ${newCustomer.happiness}, wealth: ${newCustomer.wealth}c)`);
-                console.log(`[CustomerManager] New customer ${newCustomer.name} arrived (reputation: ${reputation}, L${innLevel} inn, chance: ${Math.round(arrivalChance * 100)}%)`);
+                
+                // Calculate how many customers to spawn based on reputation
+                let customerCount = 1; // Base: 1 customer
+                
+                if (reputation >= 100) customerCount = 2;      // 100+ reputation: 2 customers
+                if (reputation >= 200) customerCount = 3;      // 200+ reputation: 3 customers  
+                if (reputation >= 300) customerCount = 4;      // 300+ reputation: 4 customers
+                if (reputation >= 400) customerCount = 5;      // 400+ reputation: 5 customers
+                if (reputation >= 500) customerCount = 6;      // 500+ reputation: 6 customers
+                if (reputation >= 600) customerCount = 7;      // 600+ reputation: 7 customers
+                if (reputation >= 700) customerCount = 8;      // 700+ reputation: 8 customers
+                if (reputation >= 800) customerCount = 9;      // 800+ reputation: 9 customers
+                if (reputation >= 900) customerCount = 10;     // 900+ reputation: 10 customers
+                
+                // Don't exceed available space
+                const availableSpace = maxCustomers - remainingCustomers.length;
+                customerCount = Math.min(customerCount, availableSpace);
+                
+                console.log(`[CustomerManager] Spawning ${customerCount} customers (reputation: ${reputation}, available space: ${availableSpace})`);
+                
+                // Spawn multiple customers
+                for (let i = 0; i < customerCount; i++) {
+                    const newCustomer = this.createCustomer(channel.id, now + i, reputation, innLevel, baseEarnings);
+                    remainingCustomers.push(newCustomer);
+                    arrivalEvents.push(`${newCustomer.name} arrived at the inn (happiness: ${newCustomer.happiness}, wealth: ${newCustomer.wealth}c)`);
+                    console.log(`[CustomerManager] New customer ${newCustomer.name} arrived (reputation: ${reputation}, L${innLevel} inn, chance: ${Math.round(arrivalChance * 100)}%)`);
+                }
                 
                 // Track social interactions for all voice channel members (inn staff)
                 for (const member of voiceMembers) {
                     if (!member.user.bot) {
                         try {
-                            await updateActivityTracking(member.id, 'social', 1);
-                            console.log(`[CustomerManager] Social interaction tracked for ${member.displayName} (new customer arrival)`);
+                            await updateActivityTracking(member.id, 'social', customerCount);
+                            console.log(`[CustomerManager] Social interaction tracked for ${member.displayName} (${customerCount} new customer arrivals)`);
                         } catch (error) {
                             console.error(`[CustomerManager] Error tracking social interaction for ${member.displayName}:`, error);
                         }
