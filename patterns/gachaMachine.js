@@ -958,12 +958,8 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                     `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
                     `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
                 );
-            } else {
-                await newGachaChannel.send(
-                    `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
-                    `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.`
-                );
             }
+            // Tutorial users don't get a channel message - they get the tutorial embed instead
         }
 
         // Build the file path for the image
@@ -997,7 +993,8 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                 .setTitle('[TUTORIAL MODE]')
                 .setDescription(
                     `> > > Please Hold > > >\n` +
-                    `Game Beginning Shortly`
+                    `Game Beginning Shortly\n\n` +
+                    `Reach the next level for complete tutorial and unlock the full server!`
                 )
                 .setColor(0x00FF00) // Green color
                 .setTimestamp();
