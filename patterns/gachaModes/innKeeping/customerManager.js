@@ -189,15 +189,16 @@ class CustomerManager {
                 // Calculate how many customers to spawn based on reputation
                 let customerCount = 1; // Base: 1 customer
                 
-                if (reputation >= 100) customerCount = 2;      // 100+ reputation: 2 customers
-                if (reputation >= 200) customerCount = 3;      // 200+ reputation: 3 customers  
-                if (reputation >= 300) customerCount = 4;      // 300+ reputation: 4 customers
-                if (reputation >= 400) customerCount = 5;      // 400+ reputation: 5 customers
-                if (reputation >= 500) customerCount = 6;      // 500+ reputation: 6 customers
-                if (reputation >= 600) customerCount = 7;      // 600+ reputation: 7 customers
-                if (reputation >= 700) customerCount = 8;      // 700+ reputation: 8 customers
-                if (reputation >= 800) customerCount = 9;      // 800+ reputation: 9 customers
-                if (reputation >= 900) customerCount = 10;     // 900+ reputation: 10 customers
+                if (reputation < 10) customerCount = 1;        // Under 10 reputation: 1 customer
+                else if (reputation < 20) customerCount = 2;   // Under 20 reputation: 2 customers
+                else if (reputation < 30) customerCount = 3;   // Under 30 reputation: 3 customers
+                else if (reputation < 40) customerCount = 4;   // Under 40 reputation: 4 customers
+                else if (reputation < 50) customerCount = 5;   // Under 50 reputation: 5 customers
+                else if (reputation < 60) customerCount = 6;   // Under 60 reputation: 6 customers
+                else if (reputation < 70) customerCount = 7;   // Under 70 reputation: 7 customers
+                else if (reputation < 80) customerCount = 8;   // Under 80 reputation: 8 customers
+                else if (reputation < 90) customerCount = 9;   // Under 90 reputation: 9 customers
+                else customerCount = 10;                       // 90+ reputation: 10 customers
                 
                 // Don't exceed available space
                 const availableSpace = maxCustomers - remainingCustomers.length;
