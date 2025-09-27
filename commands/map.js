@@ -73,17 +73,28 @@ module.exports = {
         riskStatus = '🛡️ **LOW** - Well defended';
       }
       
+      // Create health bar for CORE HP (0-1000) - same as war map
+      const maxHP = 1000;
+      const currentHP = Math.min(centerPoints, maxHP);
+      const healthPercentage = (currentHP / maxHP) * 100;
+      const healthBarLength = 20;
+      const filledBars = Math.round((healthPercentage / 100) * healthBarLength);
+      const emptyBars = healthBarLength - filledBars;
+      
+      const healthBar = '█'.repeat(filledBars) + '░'.repeat(emptyBars);
+      const healthBarText = `\`${healthBar}\` ${currentHP}/${maxHP} (${healthPercentage.toFixed(1)}%)`;
+      
       // Create info embed (same format as status message)
       const embed = new EmbedBuilder()
         .setTitle('STATUS')
         .setDescription('Current territorial control status')
         .addFields(
-          { name: '🏰 Capital Points', value: centerPoints.toLocaleString(), inline: true },
+          { name: '⚡ CORE HP', value: healthBarText, inline: false },
           { name: '🗺️ Total Points', value: stats.totalPoints.toLocaleString(), inline: true },
           { name: '🎰 Active Gacha', value: stats.gachaTiles.toString(), inline: true },
           { name: '⚠️ Capital at Risk', value: riskStatus, inline: false },
           { name: '🏪 Marketplace', value: marketplaceStatus, inline: true },
-                { name: '🏰 Capital', value: citadelStatus, inline: true }
+          { name: '🏰 Capital', value: citadelStatus, inline: true }
         )
         .setColor(centerPoints < 25 ? 0xff0000 : centerPoints < 50 ? 0xffaa00 : 0x00ff00)
         .setFooter({ 

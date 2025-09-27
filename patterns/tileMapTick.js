@@ -102,15 +102,15 @@ async function processTileMapTick(guildId, client) {
                 );
                 
                 if (isAdjacentToCapital) {
-                    // Increase capital tile points as well
+                    // Increase capital tile points as well (capped at 1000)
                     const capitalTile = tileMap.getTile(tileMap.centerRow, tileMap.centerCol);
                     const capitalOldPoints = capitalTile.points;
-                    const capitalNewPoints = capitalTile.points + pointIncrease;
+                    const capitalNewPoints = Math.min(capitalTile.points + pointIncrease, 1000);
                     
                     const capitalUpdateSuccess = tileMap.updateTilePoints(tileMap.centerRow, tileMap.centerCol, capitalNewPoints);
                     if (capitalUpdateSuccess) {
                         changesCount++;
-                        console.log(`🗺️ [CAPITAL BOOST] Capital tile boosted by adjacent gacha: ${capitalOldPoints} → ${capitalNewPoints} (+${pointIncrease})`);
+                        console.log(`🗺️ [CAPITAL BOOST] Capital tile boosted by adjacent gacha: ${capitalOldPoints} → ${capitalNewPoints} (+${capitalNewPoints - capitalOldPoints})`);
                     }
                 }
             } else {
@@ -626,12 +626,23 @@ async function updateWarMapMessage(guildId, tileMap, client) {
             riskStatus = '🛡️ **LOW** - Well defended';
         }
         
+        // Create health bar for CORE HP (0-1000)
+        const maxHP = 1000;
+        const currentHP = Math.min(centerPoints, maxHP);
+        const healthPercentage = (currentHP / maxHP) * 100;
+        const healthBarLength = 20;
+        const filledBars = Math.round((healthPercentage / 100) * healthBarLength);
+        const emptyBars = healthBarLength - filledBars;
+        
+        const healthBar = '█'.repeat(filledBars) + '░'.repeat(emptyBars);
+        const healthBarText = `\`${healthBar}\` ${currentHP}/${maxHP} (${healthPercentage.toFixed(1)}%)`;
+
         // Create embed
         const embed = new EmbedBuilder()
             .setTitle('STATUS')
             .setDescription('Current territorial control status')
             .addFields(
-                { name: '🏰 Capital Points', value: centerPoints.toLocaleString(), inline: true },
+                { name: '⚡ CORE HP', value: healthBarText, inline: false },
                 { name: '🗺️ Total Points', value: totalPoints.toLocaleString(), inline: true },
                 { name: '🎰 Active Gacha', value: gachaCount.toString(), inline: true },
                 { name: '⚠️ Capital at Risk', value: riskStatus, inline: false },
