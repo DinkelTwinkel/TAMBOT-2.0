@@ -165,9 +165,12 @@ async function processTileMapTick(guildId, client) {
         
         // Update channel names and visibility (for specific guild)
         if (guildId === '1221772148385910835') {
+            console.log(`🗺️ [TILE SYSTEM] Updating channels for guild ${guildId}`);
             await updateHellungiChannelName(guildId, tileMap, client);
             await updateCitadelAndVisibility(guildId, tileMap, client);
             await updateWarMapMessage(guildId, tileMap, client);
+        } else {
+            console.log(`🗺️ [TILE SYSTEM] Skipping channel updates for guild ${guildId} (not target guild)`);
         }
         
     } catch (error) {
@@ -556,6 +559,8 @@ async function getChannelUserCount(guildId, channelId, client) {
  */
 async function updateWarMapMessage(guildId, tileMap, client) {
     try {
+        console.log(`⚔️ [STATUS] Starting war map message update for guild ${guildId}`);
+        
         const guild = await client.guilds.fetch(guildId);
         if (!guild) {
             console.warn(`[WAR MAP] Guild ${guildId} not found`);
@@ -568,6 +573,8 @@ async function updateWarMapMessage(guildId, tileMap, client) {
             console.warn(`[WAR MAP] War channel ${warChannelId} not found in guild ${guildId}`);
             return;
         }
+        
+        console.log(`⚔️ [STATUS] Found war channel: ${warChannel.name}`);
         
         // Generate fresh map image
         const mapBuffer = await generateTileMapImage(guildId, client);
