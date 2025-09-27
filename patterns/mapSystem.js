@@ -149,17 +149,18 @@ async function generateTileMapImage(guildId, client = null) {
     const verticalSpacing = hexHeight * 0.75;
     const horizontalSpacing = hexWidth;
     
-    // Calculate canvas dimensions with extra padding to prevent cutoff
+    // Calculate canvas dimensions with extra padding to prevent cutoff and space for bottom bar
+    const barHeight = 30; // Height of the bottom bar
     const canvasWidth = Math.ceil(horizontalSpacing * (visibleMapSize - 1) + hexWidth * 1.5);
-    const canvasHeight = Math.ceil(verticalSpacing * (visibleMapSize - 1) + hexHeight * 1.2);
+    const canvasHeight = Math.ceil(verticalSpacing * (visibleMapSize - 1) + hexHeight * 1.2) + barHeight;
     
     // Create canvas
     const canvas = createCanvas(canvasWidth, canvasHeight);
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
     
-    // Fill background
-    ctx.fillStyle = '#2c2c2c';
+    // Fill background with black (same as black tiles)
+    ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     
     // Calculate grid offset
@@ -204,6 +205,18 @@ async function generateTileMapImage(guildId, client = null) {
         await drawGameHexagon(ctx, x, y, hexRadius, isCenter, points, hasGacha, isFrontier, tilePlayers);
       }
     }
+    
+    // Draw white bar at the bottom with "HELLUNGI MAP" text
+    const barY = canvasHeight - barHeight;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, barY, canvasWidth, barHeight);
+    
+    // Draw "HELLUNGI MAP" text on the bar
+    ctx.fillStyle = '#000000';
+    ctx.font = '16px "MyFont"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('HELLUNGI MAP', canvasWidth / 2, barY + barHeight / 2);
     
     return canvas.toBuffer('image/png');
   } catch (error) {
@@ -482,10 +495,10 @@ async function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, 
   
   ctx.fill();
   
-  // Draw border (skip for pure black tiles)
+  // Draw border (skip for pure black tiles to create seamless black background)
   const shouldDrawBorder = points > 0 || hasGacha || isFrontier;
   if (shouldDrawBorder) {
-    ctx.strokeStyle = hasGacha ? '#ff6b35' : '#666666';
+    ctx.strokeStyle = hasGacha ? '#ff6b35' : (isFrontier ? '#cc0000' : '#666666');
     ctx.lineWidth = hasGacha ? 2.5 : 1.5;
     ctx.stroke();
   }
