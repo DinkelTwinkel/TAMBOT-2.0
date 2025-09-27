@@ -14,6 +14,13 @@ async function processTileMapTick(guildId, client) {
         const tileMap = await getOrCreateTileMap(guildId);
         let changesCount = 0;
         
+        // Clean up invalid gacha server references
+        const cleanupCount = await cleanupInvalidGachaServers(guildId, tileMap, client);
+        if (cleanupCount > 0) {
+            changesCount += cleanupCount;
+            console.log(`🗺️ [CLEANUP] Removed ${cleanupCount} invalid gacha server reference(s)`);
+        }
+        
         // Find all tiles with points > 0 (player territory)
         const territoryTiles = tileMap.tiles.filter(tile => tile.points > 0);
         
@@ -272,6 +279,55 @@ async function updateCitadelAndVisibility(guildId, tileMap, client) {
         
     } catch (error) {
         console.error('[CITADEL] Error updating citadel and visibility:', error);
+    }
+}
+
+/**
+ * Clean up gacha server references for channels that no longer exist
+ * @param {string} guildId - Guild ID
+ * @param {Object} tileMap - TileMap instance
+ * @param {Object} client - Discord client
+ * @returns {number} Number of cleaned up references
+ */
+async function cleanupInvalidGachaServers(guildId, tileMap, client) {
+    try {
+        const guild = await client.guilds.fetch(guildId);
+        if (!guild) {
+            return 0;
+        }
+        
+        let cleanupCount = 0;
+        
+        // Get all tiles with gacha servers
+        const tilesWithGacha = tileMap.tiles.filter(tile => tile.gachaServerId);
+        
+        for (const tile of tilesWithGacha) {
+            try {
+                // Try to fetch the channel
+                const channel = await guild.channels.fetch(tile.gachaServerId);
+                if (!channel) {
+                    // Channel doesn't exist, remove gacha reference
+                    tileMap.removeGachaFromTile(tile.row, tile.col);
+                    cleanupCount++;
+                    console.log(`🗺️ [CLEANUP] Removed invalid gacha ${tile.gachaServerId} from tile (${tile.row}, ${tile.col})`);
+                }
+            } catch (error) {
+                // Channel fetch failed (doesn't exist), remove gacha reference
+                tileMap.removeGachaFromTile(tile.row, tile.col);
+                cleanupCount++;
+                console.log(`🗺️ [CLEANUP] Removed invalid gacha ${tile.gachaServerId} from tile (${tile.row}, ${tile.col})`);
+            }
+        }
+        
+        if (cleanupCount > 0) {
+            await tileMap.save();
+        }
+        
+        return cleanupCount;
+        
+    } catch (error) {
+        console.error('[CLEANUP] Error cleaning up invalid gacha servers:', error);
+        return 0;
     }
 }
 

@@ -136,9 +136,9 @@ async function generateTileMapImage(guildId) {
     const verticalSpacing = hexHeight * 0.75;
     const horizontalSpacing = hexWidth;
     
-    // Calculate canvas dimensions
-    const canvasWidth = Math.ceil(horizontalSpacing * (visibleMapSize - 1) + hexWidth * 0.75);
-    const canvasHeight = Math.ceil(verticalSpacing * (visibleMapSize - 1) + hexHeight);
+    // Calculate canvas dimensions with extra padding to prevent cutoff
+    const canvasWidth = Math.ceil(horizontalSpacing * (visibleMapSize - 1) + hexWidth * 1.5);
+    const canvasHeight = Math.ceil(verticalSpacing * (visibleMapSize - 1) + hexHeight * 1.2);
     
     // Create canvas
     const canvas = createCanvas(canvasWidth, canvasHeight);
@@ -238,8 +238,8 @@ function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points
   ctx.lineWidth = hasGacha ? 2.5 : 1.5;
   ctx.stroke();
   
-  // Draw point text (if points > 0 or center tile)
-  if (points > 0 || isCenter) {
+  // Draw point text on all tiles with >0 points
+  if (points > 0) {
     // Text color based on 50-point threshold
     ctx.fillStyle = points >= 50 ? '#000000' : '#ffffff'; // Black text if 50+, white text if below 50
     
@@ -247,6 +247,7 @@ function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
+    // Show star for center tile, points for all others
     const displayText = isCenter ? '★' : points.toString();
     ctx.fillText(displayText, centerX, centerY);
   }
