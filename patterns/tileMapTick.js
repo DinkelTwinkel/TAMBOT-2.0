@@ -9,6 +9,9 @@ let previousCenterPoints = null;
 // Track previous war map message for editing
 let previousWarMapMessageId = null;
 
+// Track last channel name update time (30 minute intervals)
+let lastChannelNameUpdate = 0;
+
 // Track active tick processing to prevent duplicates
 const activeTicks = new Set();
 
@@ -177,11 +180,23 @@ async function processTileMapTick(guildId, client) {
         // Update channel names and visibility (for specific guild)
         if (guildId === '1221772148385910835') {
             console.log(`🗺️ [TILE SYSTEM] Updating channels for guild ${guildId}`);
-            // Update war map message first
+            // Update war map message first (every minute)
             await updateWarMapMessage(guildId, tileMap, client);
-            // Then update channel names
-            await updateHellungiChannelName(guildId, tileMap, client);
-            await updateCitadelAndVisibility(guildId, tileMap, client);
+            
+            // Update channel names only every 30 minutes
+            const now = Date.now();
+            const thirtyMinutes = 30 * 60 * 1000; // 30 minutes in milliseconds
+            
+            if (now - lastChannelNameUpdate >= thirtyMinutes) {
+                console.log(`🗺️ [CHANNEL NAMES] Updating channel names (30 minute interval)`);
+                await updateHellungiChannelName(guildId, tileMap, client);
+                await updateCitadelAndVisibility(guildId, tileMap, client);
+                lastChannelNameUpdate = now;
+            } else {
+                const timeUntilNext = thirtyMinutes - (now - lastChannelNameUpdate);
+                const minutesUntilNext = Math.ceil(timeUntilNext / (60 * 1000));
+                console.log(`🗺️ [CHANNEL NAMES] Skipping channel name updates (next update in ${minutesUntilNext} minutes)`);
+            }
         } else {
             console.log(`🗺️ [TILE SYSTEM] Skipping channel updates for guild ${guildId} (not target guild)`);
         }
