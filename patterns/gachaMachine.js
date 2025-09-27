@@ -434,6 +434,16 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                 console.log(`🔧 DEBUG: Forcing channel type: ${chosenChannelType.name} for debug user`);
             }
         }
+        // ROLE CHECK: If user doesn't have the special role, default to coal mine (id: 1)
+        else if (!rollerMember.roles.cache.has('1421477924187541504')) {
+            chosenChannelType = channelData.find(ch => ch.id == 1);
+            if (!chosenChannelType) {
+                console.error("⚠️ Warning: Coal mine (id: 1) not found in gachaServers.json!");
+                chosenChannelType = pickRandomChannelWeighted(channelData); // Fallback to normal roll
+            } else {
+                console.log(`⛏️ Role check: User ${rollerMember.user.tag} doesn't have special role, defaulting to coal mine`);
+            }
+        }
         // If sacrificing is active OR sanity override triggered, force roll to ???'s gullet (id: 16)
         else if (sacrificeData && sacrificeData.isSacrificing || sanityOverride) {
             chosenChannelType = channelData.find(ch => ch.id == 16);
@@ -780,6 +790,24 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                 `You've been forcefully drawn into ${chosenChannelType.name}!\n` +
                 `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
             );
+        } else if (chosenChannelType.id == 1 && !rollerMember.roles.cache.has('1421477924187541504')) {
+            // Special tutorial message for new users in coal mine
+            await newGachaChannel.send(
+                `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
+                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
+            );
+            
+            // Send tutorial embed for new users
+            const tutorialEmbed = new EmbedBuilder()
+                .setTitle(`Welcome to Hellungi ${rollerMember.user.username}!`)
+                .setDescription(
+                    `This is a coal mine, the game will self begin in this chat soon!\n` +
+                    `Once you complete this level, you will access the full server.`
+                )
+                .setColor(0x8B4513) // Brown color for coal mine
+                .setTimestamp();
+            
+            await newGachaChannel.send({ embeds: [tutorialEmbed] });
         } else {
             await newGachaChannel.send(
                 `${rollerMember} You've found the ${chosenChannelType.name}!\n` +

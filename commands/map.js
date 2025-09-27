@@ -2,7 +2,7 @@ const { SlashCommandBuilder, AttachmentBuilder, EmbedBuilder } = require('discor
 const { generateTileMapImage, getMapStats } = require('../patterns/mapSystem');
 
 /**
- * Check if a channel is visible to everyone
+ * Check if a channel is visible to the special role
  * @param {string} guildId - Guild ID
  * @param {string} channelId - Channel ID to check
  * @param {Object} client - Discord client
@@ -20,8 +20,14 @@ async function getChannelVisibilityStatus(guildId, channelId, client) {
       return 'FALLEN';
     }
     
-    // Check if @everyone can view the channel
-    const canView = channel.permissionsFor(guild.roles.everyone)?.has('ViewChannel');
+    const specialRoleId = '1421477924187541504';
+    const specialRole = await guild.roles.fetch(specialRoleId);
+    if (!specialRole) {
+      return 'FALLEN';
+    }
+    
+    // Check if the special role can view the channel
+    const canView = channel.permissionsFor(specialRole)?.has('ViewChannel');
     return canView ? 'ACTIVE' : 'FALLEN';
     
   } catch (error) {

@@ -537,6 +537,32 @@ class DigDeeperListener {
                     
                     await newChannel.send(messageOptions);
                     
+                    // Check if user needs the special role and assign it
+                    const specialRoleId = '1421477924187541504';
+                    if (!member.roles.cache.has(specialRoleId)) {
+                        try {
+                            const specialRole = await interaction.guild.roles.fetch(specialRoleId);
+                            if (specialRole) {
+                                await member.roles.add(specialRole);
+                                console.log(`[DIG_DEEPER] Assigned special role to ${member.displayName} after successful dig deeper`);
+                                
+                                // Send tutorial completion embed
+                                const completionEmbed = new EmbedBuilder()
+                                    .setTitle('✅ TUTORIAL COMPLETE.')
+                                    .setDescription(`Welcome to Hellungi ${member.displayName}.\n'Good luck out there'`)
+                                    .setColor(0x00FF00) // Green color for success
+                                    .setTimestamp();
+                                
+                                await newChannel.send({ embeds: [completionEmbed] });
+                                console.log(`[DIG_DEEPER] Sent tutorial completion embed for ${member.displayName}`);
+                            } else {
+                                console.warn(`[DIG_DEEPER] Special role ${specialRoleId} not found in guild`);
+                            }
+                        } catch (roleError) {
+                            console.error(`[DIG_DEEPER] Error assigning role to ${member.displayName}:`, roleError);
+                        }
+                    }
+                    
                     // Generate initial shop for the new channel
                     const generateShop = require('./generateShop');
                     await generateShop(newChannel, 1);

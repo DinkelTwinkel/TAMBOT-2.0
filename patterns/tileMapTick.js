@@ -311,7 +311,7 @@ async function updateCitadelAndVisibility(guildId, tileMap, client) {
                 settlementType = 'village';
             }
             
-            const newName = `${settlementType} 『 ${centerPoints.toLocaleString()} 』`;
+            const newName = settlementType; // No point data in name
             if (citadelChannel.name !== newName) {
                 await citadelChannel.setName(newName);
                 console.log(`🏰 [CITADEL] Updated settlement name to: ${newName}`);
@@ -321,36 +321,48 @@ async function updateCitadelAndVisibility(guildId, tileMap, client) {
         // Handle marketplace channel visibility (hide if center < 50)
         if (marketplaceChannel) {
             const shouldHideMarketplace = centerPoints < 50;
-            const currentlyHidden = !marketplaceChannel.permissionsFor(guild.roles.everyone)?.has('ViewChannel');
+            const specialRoleId = '1421477924187541504';
             
-            if (shouldHideMarketplace && !currentlyHidden) {
-                await marketplaceChannel.permissionOverwrites.edit(guild.roles.everyone, {
+            // Always hide from @everyone
+            await marketplaceChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                ViewChannel: false
+            });
+            
+            // Show/hide from special role based on center points
+            if (shouldHideMarketplace) {
+                await marketplaceChannel.permissionOverwrites.edit(specialRoleId, {
                     ViewChannel: false
                 });
-                console.log(`🔒 [MARKETPLACE] Hidden due to center points: ${centerPoints}`);
-            } else if (!shouldHideMarketplace && currentlyHidden) {
-                await marketplaceChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                console.log(`🔒 [MARKETPLACE] Hidden from special role due to center points: ${centerPoints}`);
+            } else {
+                await marketplaceChannel.permissionOverwrites.edit(specialRoleId, {
                     ViewChannel: true
                 });
-                console.log(`🔓 [MARKETPLACE] Made visible, center points: ${centerPoints}`);
+                console.log(`🔓 [MARKETPLACE] Made visible to special role, center points: ${centerPoints}`);
             }
         }
         
         // Handle citadel channel visibility (hide if center < 25)
         if (citadelChannel) {
             const shouldHideCitadel = centerPoints < 25;
-            const currentlyHidden = !citadelChannel.permissionsFor(guild.roles.everyone)?.has('ViewChannel');
+            const specialRoleId = '1421477924187541504';
             
-            if (shouldHideCitadel && !currentlyHidden) {
-                await citadelChannel.permissionOverwrites.edit(guild.roles.everyone, {
+            // Always hide from @everyone
+            await citadelChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                ViewChannel: false
+            });
+            
+            // Show/hide from special role based on center points
+            if (shouldHideCitadel) {
+                await citadelChannel.permissionOverwrites.edit(specialRoleId, {
                     ViewChannel: false
                 });
-                console.log(`🔒 [CITADEL] Hidden due to center points: ${centerPoints}`);
-            } else if (!shouldHideCitadel && currentlyHidden) {
-                await citadelChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                console.log(`🔒 [CITADEL] Hidden from special role due to center points: ${centerPoints}`);
+            } else {
+                await citadelChannel.permissionOverwrites.edit(specialRoleId, {
                     ViewChannel: true
                 });
-                console.log(`🔓 [CITADEL] Made visible, center points: ${centerPoints}`);
+                console.log(`🔓 [CITADEL] Made visible to special role, center points: ${centerPoints}`);
             }
         }
         
@@ -627,7 +639,7 @@ async function updateWarMapMessage(guildId, tileMap, client) {
 }
 
 /**
- * Check if a channel is visible to everyone
+ * Check if a channel is visible to the special role
  * @param {string} guildId - Guild ID
  * @param {string} channelId - Channel ID to check
  * @param {Object} client - Discord client
@@ -645,8 +657,14 @@ async function getChannelVisibilityStatus(guildId, channelId, client) {
             return 'FALLEN';
         }
         
-        // Check if @everyone can view the channel
-        const canView = channel.permissionsFor(guild.roles.everyone)?.has('ViewChannel');
+        const specialRoleId = '1421477924187541504';
+        const specialRole = await guild.roles.fetch(specialRoleId);
+        if (!specialRole) {
+            return 'FALLEN';
+        }
+        
+        // Check if the special role can view the channel
+        const canView = channel.permissionsFor(specialRole)?.has('ViewChannel');
         return canView ? 'ACTIVE' : 'FALLEN';
         
     } catch (error) {

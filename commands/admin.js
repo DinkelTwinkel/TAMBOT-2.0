@@ -15,6 +15,7 @@ const { startRailBuildingEvent, startMineCollapseEvent } = require('../patterns/
 const gachaVC = require('../models/activevcs');
 const GameStatTracker = require('../patterns/gameStatTracker');
 const { UserStats } = require('../models/statsSchema');
+const { processTileMapTick } = require('../patterns/tileMapTick');
 
 // Create item map for O(1) lookups
 const itemMap = new Map(itemSheet.map(item => [item.id, item]));
@@ -208,10 +209,14 @@ module.exports = {
                             option.setName('item_id')
                                 .setDescription('Item ID to debug')
                                 .setRequired(true)))
-                .addSubcommand(subcommand =>
-                    subcommand
-                        .setName('force-fix-shadow-amulet')
-                        .setDescription('Force fix the Shadow Legion Amulet with correct guild ID'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('force-fix-shadow-amulet')
+                .setDescription('Force fix the Shadow Legion Amulet with correct guild ID'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('maptick')
+                .setDescription('Manually trigger a tile map tick for testing'))
         ),
 
     async execute(interaction) {
@@ -286,6 +291,8 @@ module.exports = {
             await this.executeFixInventoryDurability(interaction);
         } else if (subcommand === 'stats') {
             await this.executeStats(interaction);
+        } else if (subcommand === 'maptick') {
+            await this.executeMaptick(interaction);
         }
     },
 
@@ -2390,6 +2397,30 @@ module.exports = {
         } catch (error) {
             console.error('Error in handleForceFixShadowAmulet:', error);
             return interaction.editReply(`❌ Error: ${error.message}`);
+        }
+    },
+
+    // ========== MAPTICK COMMAND ==========
+    async executeMaptick(interaction) {
+        try {
+            await interaction.deferReply({ ephemeral: true });
+            
+            const guildId = interaction.guild.id;
+            
+            console.log(`🔧 [MANUAL TICK] Admin ${interaction.user.tag} triggered manual tile tick for guild ${guildId}`);
+            
+            // Process the tile map tick
+            await processTileMapTick(guildId, interaction.client);
+            
+            await interaction.editReply({
+                content: '✅ Manual tile map tick completed! Check console logs for details.'
+            });
+
+        } catch (error) {
+            console.error('Error in manual tile tick:', error);
+            await interaction.editReply({
+                content: '❌ Error processing tile tick. Check console logs.'
+            });
         }
     }
 };
