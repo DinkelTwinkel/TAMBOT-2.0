@@ -170,7 +170,14 @@ class CustomerManager {
                 console.log(`[CustomerManager] Inn is empty, using guaranteed arrival chance: 30%`);
             } else {
                 // Normal reputation-based arrival
-                const baseArrivalChance = 0.2; // 20% base chance
+                let baseArrivalChance = 0.2; // 20% base chance
+                
+                // Boost arrival chances for low reputation inns (under 20)
+                if (reputation < 20) {
+                    baseArrivalChance = 0.4; // 40% base chance for new inns
+                    console.log(`[CustomerManager] Low reputation inn (${reputation}), using boosted arrival chance: 40%`);
+                }
+                
                 const reputationBonus = (reputation - 50) / 100; // -0.5 to +0.5 based on reputation
                 arrivalChance = Math.max(0.05, Math.min(0.6, baseArrivalChance + reputationBonus));
             }
