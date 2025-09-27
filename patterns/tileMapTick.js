@@ -1,5 +1,6 @@
 const TileMap = require('../models/TileMap');
 const { getOrCreateTileMap } = require('./mapSystem');
+const ActiveVCS = require('../models/activevcs');
 
 // Track previous center tile points for assault detection
 let previousCenterPoints = null;
@@ -19,6 +20,13 @@ async function processTileMapTick(guildId, client) {
         if (cleanupCount > 0) {
             changesCount += cleanupCount;
             console.log(`🗺️ [CLEANUP] Removed ${cleanupCount} invalid gacha server reference(s)`);
+        }
+        
+        // Retroactively assign tiles to activeVCs that don't have assignments
+        const assignmentCount = await assignUnassignedActiveVCs(guildId, tileMap, client);
+        if (assignmentCount > 0) {
+            changesCount += assignmentCount;
+            console.log(`🗺️ [RETROACTIVE] Assigned ${assignmentCount} existing activeVC(s) to tiles`);
         }
         
         // Find all tiles with points > 0 (player territory)
@@ -327,6 +335,107 @@ async function cleanupInvalidGachaServers(guildId, tileMap, client) {
         
     } catch (error) {
         console.error('[CLEANUP] Error cleaning up invalid gacha servers:', error);
+        return 0;
+    }
+}
+
+/**
+ * Assign tiles to activeVCs that don't currently have tile assignments
+ * @param {string} guildId - Guild ID
+ * @param {Object} tileMap - TileMap instance
+ * @param {Object} client - Discord client
+ * @returns {number} Number of assignments made
+ */
+async function assignUnassignedActiveVCs(guildId, tileMap, client) {
+    try {
+        const guild = await client.guilds.fetch(guildId);
+        if (!guild) {
+            return 0;
+        }
+        
+        // Get all activeVCs for this guild
+        const activeVCs = await ActiveVCS.find({ guildId });
+        if (activeVCs.length === 0) {
+            return 0;
+        }
+        
+        // Get all channel IDs that already have tile assignments
+        const assignedChannelIds = new Set(
+            tileMap.tiles
+                .filter(tile => tile.gachaServerId)
+                .map(tile => tile.gachaServerId)
+        );
+        
+        // Find activeVCs that don't have tile assignments
+        const unassignedVCs = [];
+        
+        for (const vc of activeVCs) {
+            if (!assignedChannelIds.has(vc.channelId)) {
+                // Check if the channel still exists
+                try {
+                    const channel = await guild.channels.fetch(vc.channelId);
+                    if (channel) {
+                        unassignedVCs.push(vc);
+                    }
+                } catch (error) {
+                    // Channel doesn't exist, skip it
+                    console.log(`🗺️ [RETROACTIVE] Skipping non-existent channel ${vc.channelId}`);
+                }
+            }
+        }
+        
+        if (unassignedVCs.length === 0) {
+            return 0;
+        }
+        
+        let assignmentCount = 0;
+        
+        // Assign each unassigned VC to an available tile
+        for (const vc of unassignedVCs) {
+            // Find available tiles (points < 20 and no existing gacha server)
+            const availableTiles = tileMap.tiles.filter(tile => 
+                tile.points < 20 && !tile.gachaServerId
+            );
+            
+            if (availableTiles.length === 0) {
+                console.log(`🗺️ [RETROACTIVE] No available tiles for channel ${vc.channelId}`);
+                break; // No more tiles available
+            }
+            
+            // Sort by points first, then by distance to center (closest first)
+            const centerRow = tileMap.centerRow;
+            const centerCol = tileMap.centerCol;
+            
+            availableTiles.sort((a, b) => {
+                // First priority: lower points
+                if (a.points !== b.points) {
+                    return a.points - b.points;
+                }
+                
+                // Second priority: distance to center (closer is better)
+                const distanceA = Math.sqrt(Math.pow(a.row - centerRow, 2) + Math.pow(a.col - centerCol, 2));
+                const distanceB = Math.sqrt(Math.pow(b.row - centerRow, 2) + Math.pow(b.col - centerCol, 2));
+                return distanceA - distanceB;
+            });
+            
+            const selectedTile = availableTiles[0];
+            
+            // Assign the gacha server to the tile
+            const success = tileMap.attachGachaToTile(selectedTile.row, selectedTile.col, vc.channelId);
+            if (success) {
+                assignmentCount++;
+                console.log(`🗺️ [RETROACTIVE] Assigned channel ${vc.channelId} to tile (${selectedTile.row}, ${selectedTile.col}) with ${selectedTile.points} points`);
+            }
+        }
+        
+        if (assignmentCount > 0) {
+            await tileMap.save();
+        }
+        
+        return assignmentCount;
+        
+    } catch (error) {
+        console.error('[RETROACTIVE] Error assigning unassigned activeVCs:', error);
         return 0;
     }
 }

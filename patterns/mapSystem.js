@@ -2,9 +2,8 @@ const { createCanvas, registerFont } = require('canvas');
 const TileMap = require('../models/TileMap');
 const path = require('path');
 
-// Register the goblin font
-const fontPath = path.join(__dirname, '../assets/font/goblinfont.ttf');
-registerFont(fontPath, { family: 'GoblinFont' });
+// Register the goblin font (same as generateShopImage.js)
+registerFont('./assets/font/goblinfont.ttf', { family: 'MyFont' });
 
 /**
  * Map System - Handles tile map operations and rendering
@@ -241,24 +240,42 @@ function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points
   // Draw point text on all tiles with >0 points
   if (points > 0) {
     // Text color based on 50-point threshold
-    ctx.fillStyle = points >= 50 ? '#000000' : '#ffffff'; // Black text if 50+, white text if below 50
+    const textColor = points >= 50 ? '#000000' : '#ffffff'; // Black text if 50+, white text if below 50
+    const strokeColor = points >= 50 ? '#ffffff' : '#000000'; // Opposite color for stroke
     
-    ctx.font = 'bold 12px GoblinFont, Arial';
+    ctx.font = '12px "MyFont"'; // Match generateShopImage.js style
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    // Show star for center tile, points for all others
-    const displayText = isCenter ? '★' : points.toString();
+    // Show star and points for center tile, just points for all others
+    const displayText = isCenter ? `★${points}` : points.toString();
+    
+    // Draw stroke first for better visibility (like generateShopImage.js)
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 2;
+    ctx.strokeText(displayText, centerX, centerY);
+    
+    // Draw fill text on top
+    ctx.fillStyle = textColor;
     ctx.fillText(displayText, centerX, centerY);
   }
   
   // Draw gacha indicator
   if (hasGacha) {
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 10px GoblinFont, Arial';
+    ctx.font = '10px "MyFont"'; // Match generateShopImage.js style
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     
     // Show different indicator for influential gacha servers (100+ points)
     const indicator = points >= 100 ? '✦' : 'G';
+    
+    // Draw stroke first for better visibility
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.strokeText(indicator, centerX, centerY + 8);
+    
+    // Draw fill text on top
+    ctx.fillStyle = '#ffffff';
     ctx.fillText(indicator, centerX, centerY + 8);
   }
 }
