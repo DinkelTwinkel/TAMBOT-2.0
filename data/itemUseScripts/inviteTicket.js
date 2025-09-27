@@ -7,42 +7,44 @@ const { EmbedBuilder } = require('discord.js');
 
 /**
  * Generate a single-use Discord server invite
- * @param {Object} interaction - Discord interaction object
- * @param {Object} item - Item data from itemSheet
- * @param {number} quantity - Quantity being used (should be 1)
- * @returns {Promise<Object>} Result object with success status and message
+ * @param {Object} context - Context object from itemUseHandler containing interaction, client, etc.
+ * @returns {Promise<void>}
  */
-async function execute(interaction, item, quantity = 1) {
+async function execute(context) {
     try {
+        const { interaction, client, consumeItem } = context;
         const targetGuildId = '1221772148385910835';
+        const targetChannelId = '1406523058663198763';
         
         // Get the target guild
-        const targetGuild = await interaction.client.guilds.fetch(targetGuildId);
+        const targetGuild = await client.guilds.fetch(targetGuildId);
         if (!targetGuild) {
-            return {
-                success: false,
-                message: '❌ Unable to access Hellungi server. The portal magic has failed.',
-                shouldConsumeItem: false
-            };
+            await interaction.editReply({
+                content: '❌ Unable to access Hellungi server. The portal magic has failed.',
+                ephemeral: true
+            });
+            return;
         }
         
-        // Find a suitable channel to create invite from (preferably general or first text channel)
-        const channels = await targetGuild.channels.fetch();
-        const textChannels = channels.filter(channel => 
-            channel.isTextBased() && 
-            channel.permissionsFor(targetGuild.members.me)?.has(['CreateInstantInvite', 'ViewChannel'])
-        );
-        
-        if (textChannels.size === 0) {
-            return {
-                success: false,
-                message: '❌ Unable to create portal invitation. No suitable channels available.',
-                shouldConsumeItem: false
-            };
+        // Get the specific channel to create invite from
+        const inviteChannel = await targetGuild.channels.fetch(targetChannelId);
+        if (!inviteChannel) {
+            await interaction.editReply({
+                content: '❌ Unable to access the target channel. The portal magic has failed.',
+                ephemeral: true
+            });
+            return;
         }
         
-        // Use the first available text channel
-        const inviteChannel = textChannels.first();
+        // Check if bot has permission to create invites in this channel
+        const botMember = await targetGuild.members.fetch(client.user.id);
+        if (!inviteChannel.permissionsFor(botMember)?.has(['CreateInstantInvite', 'ViewChannel'])) {
+            await interaction.editReply({
+                content: '❌ Unable to create portal invitation. Insufficient permissions.',
+                ephemeral: true
+            });
+            return;
+        }
         
         // Create the invite
         const invite = await inviteChannel.createInvite({
@@ -52,8 +54,8 @@ async function execute(interaction, item, quantity = 1) {
             reason: `Invite Ticket used by ${interaction.user.tag}`
         });
         
-        // Create response embed
-        const embed = new EmbedBuilder()
+        // Send ephemeral message to player with the invite link
+        const playerEmbed = new EmbedBuilder()
             .setTitle('📨 Portal Invitation Created!')
             .setDescription('A magical portal to Hellungi has been summoned!')
             .addFields(
@@ -66,24 +68,32 @@ async function execute(interaction, item, quantity = 1) {
             .setFooter({ text: 'Share this link to bring a friend to Hellungi!' })
             .setTimestamp();
         
-        console.log(`📨 [INVITE TICKET] ${interaction.user.tag} created invite: ${invite.code} (expires in 24h, 1 use)`);
+        await interaction.editReply({
+            embeds: [playerEmbed],
+            ephemeral: true
+        });
         
-        return {
-            success: true,
-            message: 'Portal invitation successfully created!',
-            embed: embed,
-            shouldConsumeItem: true,
-            ephemeral: false // Make invite visible so it can be shared
-        };
+        // Post public announcement in the channel
+        const announcementEmbed = new EmbedBuilder()
+            .setTitle('🎫 Invite Ticket Used!')
+            .setDescription(`${interaction.user} has used an **Invite Ticket** to create a portal to Hellungi!`)
+            .setColor(0x00ff88)
+            .setTimestamp();
+        
+        await inviteChannel.send({ embeds: [announcementEmbed] });
+        
+        // Consume the item
+        await consumeItem(1);
+        
+        console.log(`📨 [INVITE TICKET] ${interaction.user.tag} created invite: ${invite.code} (expires in 24h, 1 use)`);
         
     } catch (error) {
         console.error('Error creating invite ticket:', error);
         
-        return {
-            success: false,
-            message: '❌ The portal magic has failed. Unable to create invitation.',
-            shouldConsumeItem: false
-        };
+        await interaction.editReply({
+            content: '❌ The portal magic has failed. Unable to create invitation.',
+            ephemeral: true
+        });
     }
 }
 

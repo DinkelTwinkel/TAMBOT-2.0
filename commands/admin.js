@@ -213,11 +213,11 @@ module.exports = {
             subcommand
                 .setName('force-fix-shadow-amulet')
                 .setDescription('Force fix the Shadow Legion Amulet with correct guild ID'))
+        )
         .addSubcommand(subcommand =>
             subcommand
                 .setName('maptick')
-                .setDescription('Manually trigger a tile map tick for testing'))
-        ),
+                .setDescription('Manually trigger a tile map tick for testing')),
 
     async execute(interaction) {
         // Check if user is admin

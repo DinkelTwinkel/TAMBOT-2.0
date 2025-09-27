@@ -73,9 +73,9 @@ module.exports = {
         riskStatus = '🛡️ **LOW** - Well defended';
       }
       
-      // Create info embed (same format as war map)
+      // Create info embed (same format as status message)
       const embed = new EmbedBuilder()
-        .setTitle('⚔️ WAR MAP')
+        .setTitle('STATUS')
         .setDescription('Current territorial control status')
         .addFields(
           { name: '🏰 Capital Points', value: centerPoints.toLocaleString(), inline: true },

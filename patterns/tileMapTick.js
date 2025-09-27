@@ -599,7 +599,7 @@ async function updateWarMapMessage(guildId, tileMap, client) {
         
         // Create embed
         const embed = new EmbedBuilder()
-            .setTitle('⚔️ WAR MAP')
+            .setTitle('STATUS')
             .setDescription('Current territorial control status')
             .addFields(
                 { name: '🏰 Capital Points', value: centerPoints.toLocaleString(), inline: true },
@@ -617,24 +617,33 @@ async function updateWarMapMessage(guildId, tileMap, client) {
             files: [attachment]
         };
         
-        // Delete previous message if it exists, then create new one
-        if (previousWarMapMessageId) {
-            try {
-                const previousMessage = await warChannel.messages.fetch(previousWarMapMessageId);
-                await previousMessage.delete();
-                console.log(`⚔️ [WAR MAP] Deleted previous war map message`);
-            } catch (deleteError) {
-                console.log(`⚔️ [WAR MAP] Previous message not found or couldn't be deleted`);
+        // Delete previous messages with the same embed title
+        try {
+            const messages = await warChannel.messages.fetch({ limit: 10 });
+            const statusMessages = messages.filter(msg => 
+                msg.embeds.length > 0 && 
+                msg.embeds[0].title === 'STATUS'
+            );
+            
+            for (const message of statusMessages.values()) {
+                try {
+                    await message.delete();
+                    console.log(`⚔️ [STATUS] Deleted previous status message: ${message.id}`);
+                } catch (deleteError) {
+                    console.log(`⚔️ [STATUS] Could not delete message ${message.id}:`, deleteError.message);
+                }
             }
+        } catch (fetchError) {
+            console.log(`⚔️ [STATUS] Could not fetch messages for cleanup:`, fetchError.message);
         }
         
         // Create new message
         const newMessage = await warChannel.send(messageData);
         previousWarMapMessageId = newMessage.id;
-        console.log(`⚔️ [WAR MAP] Created new war map message: ${newMessage.id}`);
+        console.log(`⚔️ [STATUS] Created new status message: ${newMessage.id}`);
         
     } catch (error) {
-        console.error('[WAR MAP] Error updating war map message:', error);
+        console.error('[STATUS] Error updating status message:', error);
     }
 }
 

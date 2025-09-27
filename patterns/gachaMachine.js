@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 const { ChannelType, NewsChannel } = require('discord.js');
 const messageDeletus = require('../models/tidyMessages'); // Adjust path accordingly
 const ActiveVCS =  require ('../models/activevcs');
@@ -7,6 +8,7 @@ const createCurrencyProfile = require('../patterns/currency/createCurrencyProfil
 const registerBotMessage = require('./registerBotMessage');
 const Cooldown = require('../models/coolDowns');
 const TileMap = require('../models/TileMap');
+const PlayerInventory = require('../models/inventory');
 
 const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const generateShop = require('./generateShop');
@@ -872,24 +874,6 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                 `You've been forcefully drawn into ${chosenChannelType.name}!\n` +
                 `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
             );
-        } else if (chosenChannelType.id == 1 && !rollerMember.roles.cache.has('1421477924187541504')) {
-            // Special tutorial message for new users in coal mine
-            await newGachaChannel.send(
-                `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
-                `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
-            );
-            
-            // Send tutorial embed for new users
-            const tutorialEmbed = new EmbedBuilder()
-                .setTitle(`Welcome to Hellungi ${rollerMember.user.username}!`)
-                .setDescription(
-                    `This is a coal mine, the game will self begin in this chat soon!\n` +
-                    `Once you complete this level, you will access the full server.`
-                )
-                .setColor(0x8B4513) // Brown color for coal mine
-                .setTimestamp();
-            
-            await newGachaChannel.send({ embeds: [tutorialEmbed] });
         } else {
             await newGachaChannel.send(
                 `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
@@ -922,7 +906,64 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         // Send it in the new text channel with the attachment
         await newGachaChannel.send({ embeds: [rollEmbed], files: [imageAttachment] });
 
-        await generateShop(newGachaChannel, 0.5);
+        // Send tutorial embed for new users in coal mine (after main embed)
+        if (chosenChannelType.id == 1 && !rollerMember.roles.cache.has('1421477924187541504')) {
+            const tutorialEmbed = new EmbedBuilder()
+                .setTitle('[TUTORIAL MODE]')
+                .setDescription(
+                    `> > > Please Hold > > >\n` +
+                    `Game Beginning Shortly`
+                )
+                .setColor(0x00FF00) // Green color
+                .setTimestamp();
+            
+            await newGachaChannel.send({ embeds: [tutorialEmbed] });
+            console.log(`📚 Sent tutorial embed for new user: ${rollerMember.user.tag}`);
+            
+            // Add rusty pickaxe to tutorial player's inventory
+            try {
+                const session = await mongoose.startSession();
+                session.startTransaction();
+                
+                // Find or create player's inventory
+                let playerInv = await PlayerInventory.findOne({ playerId: roller.id }).session(session);
+                if (!playerInv) {
+                    playerInv = new PlayerInventory({ 
+                        playerId: roller.id, 
+                        items: [] 
+                    });
+                }
+                
+                // Check if rusty pickaxe already exists in inventory
+                const rustyPickaxeId = "3";
+                const existingItemIndex = playerInv.items.findIndex(item => item.itemId === rustyPickaxeId);
+                
+                if (existingItemIndex !== -1) {
+                    // Item exists, add to quantity
+                    playerInv.items[existingItemIndex].quantity += 1;
+                } else {
+                    // Item doesn't exist, create new entry
+                    const newItem = {
+                        itemId: rustyPickaxeId,
+                        quantity: 1,
+                        obtainedAt: new Date(),
+                        currentDurability: 30 // Full durability for rusty pickaxe
+                    };
+                    playerInv.items.push(newItem);
+                }
+                
+                await playerInv.save({ session });
+                await session.commitTransaction();
+                session.endSession();
+                
+                console.log(`⛏️ Added rusty pickaxe to tutorial player inventory: ${rollerMember.user.tag}`);
+            } catch (inventoryError) {
+                console.error(`Error adding rusty pickaxe to tutorial player inventory:`, inventoryError);
+            }
+        } else {
+            // Only generate shop for non-tutorial channels
+            await generateShop(newGachaChannel, 0.5);
+        }
 
     } catch (err) {
         console.error('Error creating or assigning VC:', err);
