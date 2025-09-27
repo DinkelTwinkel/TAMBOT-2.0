@@ -226,8 +226,8 @@
         "shop": 1,
         "colour": "2C2C2C",
         "image": "coalMine",
-        "nextLevelConditionType": "wallsBroken",
-        "conditionCost": 10,
+        "nextLevelConditionType": "oresFound",
+        "conditionCost": 15,
         "deeperMineId": "1001",
         "isLocked": false
     },
