@@ -1005,7 +1005,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             await newGachaChannel.send({ embeds: [tutorialEmbed] });
             console.log(`📚 Sent tutorial embed for new user: ${rollerMember.user.tag}`);
             
-            // Add rusty pickaxe to tutorial player's inventory
+            // Add iron pickaxe to tutorial player's inventory (if they don't already have one)
             try {
                 const session = await mongoose.startSession();
                 session.startTransaction();
@@ -1019,31 +1019,32 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                     });
                 }
                 
-                // Check if rusty pickaxe already exists in inventory
-                const rustyPickaxeId = "3";
-                const existingItemIndex = playerInv.items.findIndex(item => item.itemId === rustyPickaxeId);
+                // Check if iron pickaxe already exists in inventory
+                const ironPickaxeId = "7";
+                const existingItemIndex = playerInv.items.findIndex(item => item.itemId === ironPickaxeId);
                 
-                if (existingItemIndex !== -1) {
-                    // Item exists, add to quantity
-                    playerInv.items[existingItemIndex].quantity += 1;
-                } else {
+                if (existingItemIndex === -1) {
                     // Item doesn't exist, create new entry
                     const newItem = {
-                        itemId: rustyPickaxeId,
+                        itemId: ironPickaxeId,
                         quantity: 1,
                         obtainedAt: new Date(),
-                        currentDurability: 30 // Full durability for rusty pickaxe
+                        currentDurability: 40 // Full durability for worn iron pickaxe
                     };
                     playerInv.items.push(newItem);
+                    
+                    await playerInv.save({ session });
+                    await session.commitTransaction();
+                    session.endSession();
+                    
+                    console.log(`⛏️ Added iron pickaxe to tutorial player inventory: ${rollerMember.user.tag}`);
+                } else {
+                    await session.commitTransaction();
+                    session.endSession();
+                    console.log(`⛏️ Tutorial player already has iron pickaxe: ${rollerMember.user.tag}`);
                 }
-                
-                await playerInv.save({ session });
-                await session.commitTransaction();
-                session.endSession();
-                
-                console.log(`⛏️ Added rusty pickaxe to tutorial player inventory: ${rollerMember.user.tag}`);
             } catch (inventoryError) {
-                console.error(`Error adding rusty pickaxe to tutorial player inventory:`, inventoryError);
+                console.error(`Error adding iron pickaxe to tutorial player inventory:`, inventoryError);
             }
         } else {
             // Only generate shop for non-tutorial channels
