@@ -9,6 +9,9 @@ let previousCenterPoints = null;
 // Track previous war map message for editing
 let previousWarMapMessageId = null;
 
+// Track active tick processing to prevent duplicates
+const activeTicks = new Set();
+
 /**
  * Main tile processing function - handles decay, growth, influence, and channel updates
  * @param {string} guildId - Guild ID to process
@@ -16,7 +19,15 @@ let previousWarMapMessageId = null;
  */
 async function processTileMapTick(guildId, client) {
     try {
-        console.log(`🗺️ [TICK START] Processing tile map tick for guild ${guildId}`);
+        // Prevent duplicate tick processing
+        if (activeTicks.has(guildId)) {
+            console.log(`🗺️ [TICK SKIP] Guild ${guildId} already has an active tick, skipping duplicate`);
+            return;
+        }
+        
+        activeTicks.add(guildId);
+        const timestamp = new Date().toISOString();
+        console.log(`🗺️ [TICK START] Processing tile map tick for guild ${guildId} at ${timestamp}`);
         const tileMap = await getOrCreateTileMap(guildId);
         let changesCount = 0;
         
@@ -175,6 +186,9 @@ async function processTileMapTick(guildId, client) {
         
     } catch (error) {
         console.error('[TILE SYSTEM] Error in processTileMapTick:', error);
+    } finally {
+        // Always remove from active ticks, even if there was an error
+        activeTicks.delete(guildId);
     }
 }
 
@@ -624,7 +638,9 @@ async function updateWarMapMessage(guildId, tileMap, client) {
             files: [attachment]
         };
         
-        // Delete previous messages with the same embed title
+        // Try to find and edit previous message, or create new one
+        let messageUpdated = false;
+        
         try {
             const messages = await warChannel.messages.fetch({ limit: 10 });
             const statusMessages = messages.filter(msg => 
@@ -632,22 +648,42 @@ async function updateWarMapMessage(guildId, tileMap, client) {
                 msg.embeds[0].title === 'STATUS'
             );
             
-            for (const message of statusMessages.values()) {
+            console.log(`⚔️ [STATUS] Found ${statusMessages.size} previous status messages`);
+            
+            if (statusMessages.size > 0) {
+                // Get the most recent status message
+                const latestMessage = statusMessages.first();
                 try {
-                    await message.delete();
-                    console.log(`⚔️ [STATUS] Deleted previous status message: ${message.id}`);
-                } catch (deleteError) {
-                    console.log(`⚔️ [STATUS] Could not delete message ${message.id}:`, deleteError.message);
+                    await latestMessage.edit(messageData);
+                    previousWarMapMessageId = latestMessage.id;
+                    messageUpdated = true;
+                    console.log(`⚔️ [STATUS] Edited existing status message: ${latestMessage.id}`);
+                    
+                    // Delete any other status messages (keep only the most recent one)
+                    const otherMessages = statusMessages.filter(msg => msg.id !== latestMessage.id);
+                    for (const message of otherMessages.values()) {
+                        try {
+                            await message.delete();
+                            console.log(`⚔️ [STATUS] Deleted duplicate status message: ${message.id}`);
+                        } catch (deleteError) {
+                            console.log(`⚔️ [STATUS] Could not delete duplicate message ${message.id}:`, deleteError.message);
+                        }
+                    }
+                } catch (editError) {
+                    console.log(`⚔️ [STATUS] Could not edit message ${latestMessage.id}:`, editError.message);
+                    // Fall back to creating new message
                 }
             }
         } catch (fetchError) {
-            console.log(`⚔️ [STATUS] Could not fetch messages for cleanup:`, fetchError.message);
+            console.log(`⚔️ [STATUS] Could not fetch messages:`, fetchError.message);
         }
         
-        // Create new message
-        const newMessage = await warChannel.send(messageData);
-        previousWarMapMessageId = newMessage.id;
-        console.log(`⚔️ [STATUS] Created new status message: ${newMessage.id}`);
+        // Create new message if we couldn't edit an existing one
+        if (!messageUpdated) {
+            const newMessage = await warChannel.send(messageData);
+            previousWarMapMessageId = newMessage.id;
+            console.log(`⚔️ [STATUS] Created new status message: ${newMessage.id}`);
+        }
         
     } catch (error) {
         console.error('[STATUS] Error updating status message:', error);
