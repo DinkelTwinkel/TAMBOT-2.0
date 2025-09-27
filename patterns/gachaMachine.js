@@ -704,9 +704,15 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             }
 
             // Find tiles with less than 20 points and no existing gacha server
-            const availableTiles = tileMap.tiles.filter(tile => 
+            let availableTiles = tileMap.tiles.filter(tile => 
                 tile.points < 20 && !tile.gachaServerId
             );
+
+            // If no tiles under 20 points, fall back to lowest point tiles
+            if (availableTiles.length === 0) {
+                availableTiles = tileMap.tiles.filter(tile => !tile.gachaServerId);
+                console.log(`🗺️ No tiles under 20 points available, falling back to lowest point tiles`);
+            }
 
             if (availableTiles.length > 0) {
                 // Sort by points first, then by distance to center (closest first)
@@ -734,7 +740,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                     console.log(`🗺️ Attached gacha server ${newGachaChannel.name} to tile (${selectedTile.row}, ${selectedTile.col}) with ${selectedTile.points} points`);
                 }
             } else {
-                console.log(`🗺️ No available tiles for gacha server ${newGachaChannel.name} (all tiles have 20+ points or are occupied)`);
+                console.log(`🗺️ No available tiles for gacha server ${newGachaChannel.name} (all tiles are occupied)`);
             }
         } catch (tileError) {
             console.error('Error integrating gacha server with tile map:', tileError);

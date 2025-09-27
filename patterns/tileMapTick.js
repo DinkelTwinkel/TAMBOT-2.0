@@ -491,12 +491,18 @@ async function assignUnassignedActiveVCs(guildId, tileMap, client) {
         // Assign each unassigned VC to an available tile
         for (const vc of unassignedVCs) {
             // Find available tiles (points < 20 and no existing gacha server)
-            const availableTiles = tileMap.tiles.filter(tile => 
+            let availableTiles = tileMap.tiles.filter(tile => 
                 tile.points < 20 && !tile.gachaServerId
             );
             
+            // If no tiles under 20 points, fall back to lowest point tiles
             if (availableTiles.length === 0) {
-                console.log(`🗺️ [RETROACTIVE] No available tiles for channel ${vc.channelId}`);
+                availableTiles = tileMap.tiles.filter(tile => !tile.gachaServerId);
+                console.log(`🗺️ [RETROACTIVE] No tiles under 20 points available, falling back to lowest point tiles`);
+            }
+            
+            if (availableTiles.length === 0) {
+                console.log(`🗺️ [RETROACTIVE] No available tiles for channel ${vc.channelId} (all tiles are occupied)`);
                 break; // No more tiles available
             }
             
