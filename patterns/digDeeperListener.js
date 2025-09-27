@@ -603,6 +603,32 @@ class DigDeeperListener {
                     
                     await newChannel.send({ embeds: [joinEmbed] });
                     
+                    // Check if user needs the special role and assign it (for existing channels too)
+                    const specialRoleId = '1421477924187541504';
+                    if (!member.roles.cache.has(specialRoleId)) {
+                        try {
+                            const specialRole = await interaction.guild.roles.fetch(specialRoleId);
+                            if (specialRole) {
+                                await member.roles.add(specialRole);
+                                console.log(`[DIG_DEEPER] Assigned special role to ${member.displayName} after joining existing deeper mine`);
+                                
+                                // Send tutorial completion embed
+                                const completionEmbed = new EmbedBuilder()
+                                    .setTitle('✅ TUTORIAL COMPLETE.')
+                                    .setDescription(`Welcome to Hellungi ${member.displayName}.\n'Good luck out there'`)
+                                    .setColor(0x00FF00) // Green color for success
+                                    .setTimestamp();
+                                
+                                await newChannel.send({ embeds: [completionEmbed] });
+                                console.log(`[DIG_DEEPER] Sent tutorial completion embed for ${member.displayName} (existing channel)`);
+                            } else {
+                                console.warn(`[DIG_DEEPER] Special role ${specialRoleId} not found in guild`);
+                            }
+                        } catch (roleError) {
+                            console.error(`[DIG_DEEPER] Error assigning special role:`, roleError);
+                        }
+                    }
+                    
                     console.log(`[DIG_DEEPER] Member ${member.id} joined existing deeper mine ${newChannel.id}`);
                 }
                 
