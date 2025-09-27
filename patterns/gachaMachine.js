@@ -6,6 +6,7 @@ const ActiveVCS =  require ('../models/activevcs');
 const createCurrencyProfile = require('../patterns/currency/createCurrencyProfile');
 const registerBotMessage = require('./registerBotMessage');
 const Cooldown = require('../models/coolDowns');
+const TileMap = require('../models/TileMap');
 
 const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
 const generateShop = require('./generateShop');
@@ -605,6 +606,40 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         }
         
         await storeVC.save();
+
+        // === TILE MAP INTEGRATION ===
+        // Try to attach this gacha server to an available tile
+        try {
+            let tileMap = await TileMap.findOne({ guildId: guild.id });
+            if (!tileMap) {
+                // Initialize tile map for this guild if it doesn't exist
+                tileMap = await TileMap.initializeGuildMap(guild.id);
+                console.log(`🗺️ Initialized new tile map for guild ${guild.id}`);
+            }
+
+            // Find tiles with less than 20 points and no existing gacha server
+            const availableTiles = tileMap.tiles.filter(tile => 
+                tile.points < 20 && !tile.gachaServerId
+            );
+
+            if (availableTiles.length > 0) {
+                // Sort by points (ascending) to prefer tiles with lower points
+                availableTiles.sort((a, b) => a.points - b.points);
+                const selectedTile = availableTiles[0];
+
+                // Attach the gacha server to the tile
+                const success = tileMap.attachGachaToTile(selectedTile.row, selectedTile.col, newGachaChannel.id);
+                if (success) {
+                    await tileMap.save();
+                    console.log(`🗺️ Attached gacha server ${newGachaChannel.name} to tile (${selectedTile.row}, ${selectedTile.col}) with ${selectedTile.points} points`);
+                }
+            } else {
+                console.log(`🗺️ No available tiles for gacha server ${newGachaChannel.name} (all tiles have 20+ points or are occupied)`);
+            }
+        } catch (tileError) {
+            console.error('Error integrating gacha server with tile map:', tileError);
+            // Don't fail the entire gacha roll if tile integration fails
+        }
 
         // If this is a gullet channel, set special permissions
         if (chosenChannelType.id == 16) {

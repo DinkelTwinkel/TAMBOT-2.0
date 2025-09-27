@@ -1,0 +1,332 @@
+const { createCanvas } = require('canvas');
+const TileMap = require('../models/TileMap');
+
+/**
+ * Map System - Handles tile map operations and rendering
+ */
+
+/**
+ * Initialize or get tile map for a guild
+ * @param {string} guildId - Guild ID
+ * @returns {Promise<Object>} TileMap document
+ */
+async function getOrCreateTileMap(guildId) {
+  try {
+    let tileMap = await TileMap.findOne({ guildId });
+    if (!tileMap) {
+      tileMap = await TileMap.initializeGuildMap(guildId);
+      console.log(`🗺️ Initialized new tile map for guild ${guildId}`);
+    }
+    return tileMap;
+  } catch (error) {
+    console.error('Error getting/creating tile map:', error);
+    throw error;
+  }
+}
+
+/**
+ * Reduce points of a specific tile
+ * @param {string} guildId - Guild ID
+ * @param {number} row - Tile row
+ * @param {number} col - Tile column
+ * @param {number} amount - Amount to reduce (positive number)
+ * @returns {Promise<boolean>} Success status
+ */
+async function reduceTilePoints(guildId, row, col, amount) {
+  try {
+    const tileMap = await getOrCreateTileMap(guildId);
+    const tile = tileMap.getTile(row, col);
+    
+    if (!tile) {
+      console.log(`Tile (${row}, ${col}) not found in guild ${guildId}`);
+      return false;
+    }
+    
+    const newPoints = Math.max(0, tile.points - amount);
+    const success = tileMap.updateTilePoints(row, col, newPoints);
+    
+    if (success) {
+      await tileMap.save();
+      console.log(`🗺️ Reduced tile (${row}, ${col}) points by ${amount}: ${tile.points} → ${newPoints}`);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error reducing tile points:', error);
+    return false;
+  }
+}
+
+/**
+ * Increase points of a specific tile
+ * @param {string} guildId - Guild ID
+ * @param {number} row - Tile row
+ * @param {number} col - Tile column
+ * @param {number} amount - Amount to increase
+ * @returns {Promise<boolean>} Success status
+ */
+async function increaseTilePoints(guildId, row, col, amount) {
+  try {
+    const tileMap = await getOrCreateTileMap(guildId);
+    const tile = tileMap.getTile(row, col);
+    
+    if (!tile) {
+      console.log(`Tile (${row}, ${col}) not found in guild ${guildId}`);
+      return false;
+    }
+    
+    const newPoints = tile.points + amount;
+    const success = tileMap.updateTilePoints(row, col, newPoints);
+    
+    if (success) {
+      await tileMap.save();
+      console.log(`🗺️ Increased tile (${row}, ${col}) points by ${amount}: ${tile.points} → ${newPoints}`);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error increasing tile points:', error);
+    return false;
+  }
+}
+
+/**
+ * Get tile information
+ * @param {string} guildId - Guild ID
+ * @param {number} row - Tile row
+ * @param {number} col - Tile column
+ * @returns {Promise<Object|null>} Tile data or null
+ */
+async function getTileInfo(guildId, row, col) {
+  try {
+    const tileMap = await getOrCreateTileMap(guildId);
+    const tile = tileMap.getTile(row, col);
+    return tile || null;
+  } catch (error) {
+    console.error('Error getting tile info:', error);
+    return null;
+  }
+}
+
+/**
+ * Generate tile map image with point values and gacha servers
+ * @param {string} guildId - Guild ID
+ * @returns {Promise<Buffer>} PNG image buffer
+ */
+async function generateTileMapImage(guildId) {
+  try {
+    const tileMap = await getOrCreateTileMap(guildId);
+    
+    // Canvas settings
+    const hexRadius = 30;
+    const visibleMapSize = tileMap.mapSize;
+    const extendedMapSize = visibleMapSize + 4; // Extended for border effect
+    const padding = 0;
+    
+    // Calculate hexagon dimensions
+    const hexWidth = hexRadius * 2 * Math.cos(Math.PI / 6);
+    const hexHeight = hexRadius * 2;
+    const verticalSpacing = hexHeight * 0.75;
+    const horizontalSpacing = hexWidth;
+    
+    // Calculate canvas dimensions
+    const canvasWidth = Math.ceil(horizontalSpacing * (visibleMapSize - 1) + hexWidth * 0.75);
+    const canvasHeight = Math.ceil(verticalSpacing * (visibleMapSize - 1) + hexHeight);
+    
+    // Create canvas
+    const canvas = createCanvas(canvasWidth, canvasHeight);
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    
+    // Fill background
+    ctx.fillStyle = '#2c2c2c';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    
+    // Calculate grid offset
+    const gridOffset = (extendedMapSize - visibleMapSize) / 2;
+    
+    // Draw hexagonal tiles
+    for (let row = 0; row < extendedMapSize; row++) {
+      for (let col = 0; col < extendedMapSize; col++) {
+        // Calculate position
+        const offsetX = (row % 2) * (horizontalSpacing / 2);
+        const x = (col - gridOffset) * horizontalSpacing + offsetX + hexWidth / 2;
+        const y = (row - gridOffset) * verticalSpacing + hexHeight / 2;
+        
+        // Get actual tile data (if within map bounds)
+        const actualRow = row - gridOffset;
+        const actualCol = col - gridOffset;
+        let tile = null;
+        
+        if (actualRow >= 0 && actualRow < visibleMapSize && actualCol >= 0 && actualCol < visibleMapSize) {
+          tile = tileMap.getTile(actualRow, actualCol);
+        }
+        
+        // Determine tile appearance
+        const isCenter = tile && (actualRow === tileMap.centerRow && actualCol === tileMap.centerCol);
+        const points = tile ? tile.points : 0;
+        const hasGacha = tile && tile.gachaServerId;
+        
+        // Draw hexagon
+        drawGameHexagon(ctx, x, y, hexRadius, isCenter, points, hasGacha);
+      }
+    }
+    
+    return canvas.toBuffer('image/png');
+  } catch (error) {
+    console.error('Error generating tile map image:', error);
+    throw error;
+  }
+}
+
+/**
+ * Draw a single hexagon with game information
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {number} centerX - X coordinate of hexagon center
+ * @param {number} centerY - Y coordinate of hexagon center
+ * @param {number} radius - Radius of the hexagon
+ * @param {boolean} isCenter - Whether this is the center tile
+ * @param {number} points - Point value of the tile
+ * @param {boolean} hasGacha - Whether tile has a gacha server
+ */
+function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points = 0, hasGacha = false) {
+  // Begin path
+  ctx.beginPath();
+  
+  // Draw hexagon
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i - (Math.PI / 2);
+    const x = centerX + radius * Math.cos(angle);
+    const y = centerY + radius * Math.sin(angle);
+    
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+  
+  ctx.closePath();
+  
+  // Fill hexagon based on state
+  if (isCenter) {
+    ctx.fillStyle = '#ffffff'; // White center
+  } else if (hasGacha) {
+    ctx.fillStyle = '#ff6b35'; // Orange for gacha servers
+  } else if (points >= 50) {
+    ctx.fillStyle = '#4a90e2'; // Blue for high points
+  } else if (points >= 20) {
+    ctx.fillStyle = '#666666'; // Gray for medium points
+  } else if (points > 0) {
+    ctx.fillStyle = '#2d2d2d'; // Dark gray for low points
+  } else {
+    ctx.fillStyle = '#000000'; // Black for zero points
+  }
+  
+  ctx.fill();
+  
+  // Draw border
+  ctx.strokeStyle = hasGacha ? '#ff6b35' : '#666666';
+  ctx.lineWidth = hasGacha ? 2.5 : 1.5;
+  ctx.stroke();
+  
+  // Draw point text (if points > 0 or center tile)
+  if (points > 0 || isCenter) {
+    ctx.fillStyle = isCenter ? '#000000' : '#ffffff';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    const displayText = isCenter ? '★' : points.toString();
+    ctx.fillText(displayText, centerX, centerY);
+  }
+  
+  // Draw gacha indicator
+  if (hasGacha) {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 8px Arial';
+    ctx.fillText('🎰', centerX, centerY + 8);
+  }
+}
+
+/**
+ * Get map statistics for a guild
+ * @param {string} guildId - Guild ID
+ * @returns {Promise<Object>} Map statistics
+ */
+async function getMapStats(guildId) {
+  try {
+    const tileMap = await getOrCreateTileMap(guildId);
+    
+    const totalTiles = tileMap.tiles.length;
+    const totalPoints = tileMap.tiles.reduce((sum, tile) => sum + tile.points, 0);
+    const averagePoints = totalTiles > 0 ? totalPoints / totalTiles : 0;
+    const gachaTiles = tileMap.tiles.filter(tile => tile.gachaServerId).length;
+    const availableForGacha = tileMap.tiles.filter(tile => tile.points < 20 && !tile.gachaServerId).length;
+    
+    return {
+      totalTiles,
+      totalPoints,
+      averagePoints: Math.round(averagePoints * 100) / 100,
+      gachaTiles,
+      availableForGacha,
+      centerTilePoints: tileMap.getTile(tileMap.centerRow, tileMap.centerCol)?.points || 0
+    };
+  } catch (error) {
+    console.error('Error getting map stats:', error);
+    return {
+      totalTiles: 0,
+      totalPoints: 0,
+      averagePoints: 0,
+      gachaTiles: 0,
+      availableForGacha: 0,
+      centerTilePoints: 0
+    };
+  }
+}
+
+/**
+ * Remove gacha server from tile map when channel is deleted
+ * @param {string} guildId - Guild ID
+ * @param {string} channelId - Channel ID to remove
+ * @returns {Promise<boolean>} Success status
+ */
+async function removeGachaFromTileMap(guildId, channelId) {
+  try {
+    const tileMap = await TileMap.findOne({ guildId });
+    if (!tileMap) {
+      return false;
+    }
+    
+    // Find tile with this gacha server
+    const tile = tileMap.tiles.find(t => t.gachaServerId === channelId);
+    if (!tile) {
+      return false;
+    }
+    
+    // Remove gacha server from tile
+    const success = tileMap.removeGachaFromTile(tile.row, tile.col);
+    if (success) {
+      await tileMap.save();
+      console.log(`🗺️ Removed gacha server ${channelId} from tile (${tile.row}, ${tile.col})`);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error removing gacha from tile map:', error);
+    return false;
+  }
+}
+
+module.exports = {
+  getOrCreateTileMap,
+  reduceTilePoints,
+  increaseTilePoints,
+  getTileInfo,
+  generateTileMapImage,
+  getMapStats,
+  removeGachaFromTileMap
+};
