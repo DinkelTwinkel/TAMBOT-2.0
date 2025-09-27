@@ -989,6 +989,9 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
         // Send tutorial embed for new users in coal mine (after main embed)
         if (chosenChannelType.id == 1 && !rollerMember.roles.cache.has('1421477924187541504')) {
+            // Send user mention first
+            await newGachaChannel.send(`${rollerMember}`);
+            
             const tutorialEmbed = new EmbedBuilder()
                 .setTitle('[TUTORIAL MODE]')
                 .setDescription(
