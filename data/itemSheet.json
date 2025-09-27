@@ -1645,7 +1645,7 @@
     "name": "📨 Invite Ticket",
     "type": "summonable",
     "subtype": "invite",
-    "description": "A magical ticket that can summon a single-use portal invitation to Hellungi for 24 hours.",
+    "description": "A Strange Talisman for Summoning new Players to Hellungi.",
     "value": 500,
     "vendable": true,
     "script": "inviteTicket",

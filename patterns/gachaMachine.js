@@ -7,7 +7,6 @@ const ActiveVCS =  require ('../models/activevcs');
 const createCurrencyProfile = require('../patterns/currency/createCurrencyProfile');
 const registerBotMessage = require('./registerBotMessage');
 const Cooldown = require('../models/coolDowns');
-const TileMap = require('../models/TileMap');
 const PlayerInventory = require('../models/inventory');
 
 const { AttachmentBuilder, EmbedBuilder } = require('discord.js');
@@ -694,58 +693,9 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         await storeVC.save();
 
         // === TILE MAP INTEGRATION ===
-        // Try to attach this gacha server to an available tile
-        try {
-            let tileMap = await TileMap.findOne({ guildId: guild.id });
-            if (!tileMap) {
-                // Initialize tile map for this guild if it doesn't exist
-                tileMap = await TileMap.initializeGuildMap(guild.id);
-                console.log(`🗺️ Initialized new tile map for guild ${guild.id}`);
-            }
-
-            // Find tiles with less than 20 points and no existing gacha server
-            let availableTiles = tileMap.tiles.filter(tile => 
-                tile.points < 20 && !tile.gachaServerId
-            );
-
-            // If no tiles under 20 points, fall back to lowest point tiles
-            if (availableTiles.length === 0) {
-                availableTiles = tileMap.tiles.filter(tile => !tile.gachaServerId);
-                console.log(`🗺️ No tiles under 20 points available, falling back to lowest point tiles`);
-            }
-
-            if (availableTiles.length > 0) {
-                // Sort by points first, then by distance to center (closest first)
-                const centerRow = tileMap.centerRow;
-                const centerCol = tileMap.centerCol;
-                
-                availableTiles.sort((a, b) => {
-                    // First priority: lower points
-                    if (a.points !== b.points) {
-                        return a.points - b.points;
-                    }
-                    
-                    // Second priority: distance to center (closer is better)
-                    const distanceA = Math.sqrt(Math.pow(a.row - centerRow, 2) + Math.pow(a.col - centerCol, 2));
-                    const distanceB = Math.sqrt(Math.pow(b.row - centerRow, 2) + Math.pow(b.col - centerCol, 2));
-                    return distanceA - distanceB;
-                });
-                
-                const selectedTile = availableTiles[0];
-
-                // Attach the gacha server to the tile
-                const success = tileMap.attachGachaToTile(selectedTile.row, selectedTile.col, newGachaChannel.id);
-                if (success) {
-                    await tileMap.save();
-                    console.log(`🗺️ Attached gacha server ${newGachaChannel.name} to tile (${selectedTile.row}, ${selectedTile.col}) with ${selectedTile.points} points`);
-                }
-            } else {
-                console.log(`🗺️ No available tiles for gacha server ${newGachaChannel.name} (all tiles are occupied)`);
-            }
-        } catch (tileError) {
-            console.error('Error integrating gacha server with tile map:', tileError);
-            // Don't fail the entire gacha roll if tile integration fails
-        }
+        // Tile assignment is now handled by the tile map tick system
+        // The tileMapTick.js will retroactively assign this gacha server to an available tile
+        console.log(`🗺️ Gacha server ${newGachaChannel.name} created - tile assignment will be handled by tile map tick system`);
 
         // If this is a gullet channel, set special permissions
         if (chosenChannelType.id == 16) {
