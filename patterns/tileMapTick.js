@@ -177,9 +177,11 @@ async function processTileMapTick(guildId, client) {
         // Update channel names and visibility (for specific guild)
         if (guildId === '1221772148385910835') {
             console.log(`🗺️ [TILE SYSTEM] Updating channels for guild ${guildId}`);
+            // Update war map message first
+            await updateWarMapMessage(guildId, tileMap, client);
+            // Then update channel names
             await updateHellungiChannelName(guildId, tileMap, client);
             await updateCitadelAndVisibility(guildId, tileMap, client);
-            await updateWarMapMessage(guildId, tileMap, client);
         } else {
             console.log(`🗺️ [TILE SYSTEM] Skipping channel updates for guild ${guildId} (not target guild)`);
         }
