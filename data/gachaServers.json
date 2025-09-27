@@ -245,7 +245,7 @@
             "allowedTypes": ["bomb_trap"],
             "modifiers": {}
         },
-        "shop": 0,
+        "shop": 1,
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
@@ -268,7 +268,7 @@
             "allowedTypes": ["bomb_trap"],
             "modifiers": {}
         },
-        "shop": 0,
+        "shop": 1,
         "colour": "2C2C2C",
         "image": "coalMine",
         "nextLevelConditionType": "wallsBroken",
