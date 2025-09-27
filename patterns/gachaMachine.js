@@ -623,8 +623,22 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             );
 
             if (availableTiles.length > 0) {
-                // Sort by points (ascending) to prefer tiles with lower points
-                availableTiles.sort((a, b) => a.points - b.points);
+                // Sort by points first, then by distance to center (closest first)
+                const centerRow = tileMap.centerRow;
+                const centerCol = tileMap.centerCol;
+                
+                availableTiles.sort((a, b) => {
+                    // First priority: lower points
+                    if (a.points !== b.points) {
+                        return a.points - b.points;
+                    }
+                    
+                    // Second priority: distance to center (closer is better)
+                    const distanceA = Math.sqrt(Math.pow(a.row - centerRow, 2) + Math.pow(a.col - centerCol, 2));
+                    const distanceB = Math.sqrt(Math.pow(b.row - centerRow, 2) + Math.pow(b.col - centerCol, 2));
+                    return distanceA - distanceB;
+                });
+                
                 const selectedTile = availableTiles[0];
 
                 // Attach the gacha server to the tile

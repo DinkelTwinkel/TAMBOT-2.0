@@ -302,6 +302,7 @@ const lockManager = new VCLockManager();
 const { initializeUniqueItems } = require('./uniqueItemFinding');
 const { initializeSolarForgeHealing } = require('./uniqueItems/solarForgeHammer');
 const NPCSalesSystem = require('./npcSalesSystem');
+const { processTileMapTick } = require('./tileMapTick');
 
 module.exports = async (guild) => {
     // --- INITIALIZE UNIQUE ITEMS SYSTEM ---
@@ -495,6 +496,23 @@ module.exports = async (guild) => {
             }
         }
     }, 7 * 1000); // Check every 7 seconds
+
+    // --- TILE DECAY/GROWTH SYSTEM ---
+    // Process tile point changes every 30 seconds
+    if (!global.tileDecaySystemInitialized) {
+        console.log('[TILE SYSTEM] Initializing tile decay/growth system...');
+        
+        setInterval(async () => {
+            try {
+                await processTileMapTick(guild.id, guild.client);
+            } catch (error) {
+                console.error('[TILE SYSTEM] Error processing tile map tick:', error);
+            }
+        }, 30 * 1000); // Every 30 seconds
+        
+        global.tileDecaySystemInitialized = true;
+        console.log('[TILE SYSTEM] Tile decay/growth system initialized');
+    }
 };
 
 // Helper functions for optimized interval processing

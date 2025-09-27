@@ -1,5 +1,10 @@
-const { createCanvas } = require('canvas');
+const { createCanvas, registerFont } = require('canvas');
 const TileMap = require('../models/TileMap');
+const path = require('path');
+
+// Register the goblin font
+const fontPath = path.join(__dirname, '../assets/font/goblinfont.ttf');
+registerFont(fontPath, { family: 'GoblinFont' });
 
 /**
  * Map System - Handles tile map operations and rendering
@@ -210,19 +215,20 @@ function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points
   
   ctx.closePath();
   
-  // Fill hexagon based on state
-  if (isCenter) {
-    ctx.fillStyle = '#ffffff'; // White center
-  } else if (hasGacha) {
-    ctx.fillStyle = '#ff6b35'; // Orange for gacha servers
-  } else if (points >= 50) {
-    ctx.fillStyle = '#4a90e2'; // Blue for high points
-  } else if (points >= 20) {
-    ctx.fillStyle = '#666666'; // Gray for medium points
-  } else if (points > 0) {
-    ctx.fillStyle = '#2d2d2d'; // Dark gray for low points
+  // Fill hexagon based on point value (gradient from black to white)
+  if (hasGacha) {
+    // Gacha servers get orange background, but show influence with brightness
+    if (points >= 100) {
+      // High-influence gacha servers get brighter orange
+      ctx.fillStyle = '#ff8c42';
+    } else {
+      ctx.fillStyle = '#ff6b35';
+    }
   } else {
-    ctx.fillStyle = '#000000'; // Black for zero points
+    // Calculate gradient color based on points (0 = black, 100 = white)
+    const intensity = Math.min(points / 100, 1); // Normalize to 0-1 range
+    const colorValue = Math.round(intensity * 255);
+    ctx.fillStyle = `rgb(${colorValue}, ${colorValue}, ${colorValue})`;
   }
   
   ctx.fill();
@@ -234,8 +240,10 @@ function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points
   
   // Draw point text (if points > 0 or center tile)
   if (points > 0 || isCenter) {
-    ctx.fillStyle = isCenter ? '#000000' : '#ffffff';
-    ctx.font = 'bold 12px Arial';
+    // Text color based on 50-point threshold
+    ctx.fillStyle = points >= 50 ? '#000000' : '#ffffff'; // Black text if 50+, white text if below 50
+    
+    ctx.font = 'bold 12px GoblinFont, Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
@@ -246,8 +254,11 @@ function drawGameHexagon(ctx, centerX, centerY, radius, isCenter = false, points
   // Draw gacha indicator
   if (hasGacha) {
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 8px Arial';
-    ctx.fillText('🎰', centerX, centerY + 8);
+    ctx.font = 'bold 10px GoblinFont, Arial';
+    
+    // Show different indicator for influential gacha servers (100+ points)
+    const indicator = points >= 100 ? '✦' : 'G';
+    ctx.fillText(indicator, centerX, centerY + 8);
   }
 }
 
