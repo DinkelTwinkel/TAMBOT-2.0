@@ -323,6 +323,47 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                         
                         await newGachaChannel.send({ embeds: [rollEmbed], files: [imageAttachment] });
                         
+                        // Set channel permissions based on user's role (cooldown recreation)
+                        const specialRoleId = '1421477924187541504';
+                        if (rollerMember.roles.cache.has(specialRoleId)) {
+                            // User has special role - make channel visible only to special role
+                            try {
+                                const specialRole = await guild.roles.fetch(specialRoleId);
+                                if (specialRole) {
+                                    // Hide from @everyone
+                                    await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                                        ViewChannel: false
+                                    });
+                                    
+                                    // Show to special role
+                                    await newGachaChannel.permissionOverwrites.edit(specialRole, {
+                                        ViewChannel: true,
+                                        Connect: true,
+                                        Speak: true,
+                                        SendMessages: true
+                                    });
+                                    
+                                    console.log(`🔒 Set cooldown recreation channel permissions for user with special role: ${rollerMember.user.tag}`);
+                                }
+                            } catch (roleError) {
+                                console.error(`Error setting special role permissions (cooldown recreation):`, roleError);
+                            }
+                        } else {
+                            // User doesn't have special role - make channel visible to everyone
+                            try {
+                                await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                                    ViewChannel: true,
+                                    Connect: true,
+                                    Speak: true,
+                                    SendMessages: true
+                                });
+                                
+                                console.log(`🌐 Set cooldown recreation channel permissions for user without special role: ${rollerMember.user.tag}`);
+                            } catch (permissionError) {
+                                console.error(`Error setting everyone permissions (cooldown recreation):`, permissionError);
+                            }
+                        }
+                        
                         await generateShop(newGachaChannel, 0.5);
                         
                         return;
@@ -719,6 +760,47 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         await newGachaChannel.setName(`${chosenChannelType.name}`);
         console.log(`🎉 Gacha rolled [${chosenChannelType.rarity.toUpperCase()}]: ${chosenChannelType.name}`);
         console.log(`Created VC ${newGachaChannel.name} for ${rollerMember.user.tag}`);
+
+        // Set channel permissions based on user's role
+        const specialRoleId = '1421477924187541504';
+        if (rollerMember.roles.cache.has(specialRoleId)) {
+            // User has special role - make channel visible only to special role
+            try {
+                const specialRole = await guild.roles.fetch(specialRoleId);
+                if (specialRole) {
+                    // Hide from @everyone
+                    await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                        ViewChannel: false
+                    });
+                    
+                    // Show to special role
+                    await newGachaChannel.permissionOverwrites.edit(specialRole, {
+                        ViewChannel: true,
+                        Connect: true,
+                        Speak: true,
+                        SendMessages: true
+                    });
+                    
+                    console.log(`🔒 Set channel permissions for user with special role: ${rollerMember.user.tag}`);
+                }
+            } catch (roleError) {
+                console.error(`Error setting special role permissions:`, roleError);
+            }
+        } else {
+            // User doesn't have special role - make channel visible to everyone
+            try {
+                await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
+                    ViewChannel: true,
+                    Connect: true,
+                    Speak: true,
+                    SendMessages: true
+                });
+                
+                console.log(`🌐 Set channel permissions for user without special role: ${rollerMember.user.tag}`);
+            } catch (permissionError) {
+                console.error(`Error setting everyone permissions:`, permissionError);
+            }
+        }
 
         // Store the roll in cooldowns (1 hour cooldown)
         const cooldownExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
