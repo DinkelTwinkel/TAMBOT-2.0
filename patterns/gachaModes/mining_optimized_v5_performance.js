@@ -3548,10 +3548,10 @@ async function processPlayerActionsEnhanced(member, playerData, mapData, powerLe
     }
 
     // Get base player stats
-    const baseMiningPower = Math.max(0, playerData?.stats?.mining || 0);
-    const baseLuckStat = Math.max(0, playerData?.stats?.luck || 0);
-    const baseSpeedStat = Math.max(1, playerData?.stats?.speed || 1);
-    const baseSightStat = Math.max(0, playerData?.stats?.sight || 0);
+    const baseMiningPower = Math.max(1, playerData?.stats?.mining || 1);
+    const baseLuckStat = Math.max(1, playerData?.stats?.luck || 1);
+    const baseSpeedStat = Math.max(2, playerData?.stats?.speed || 2);
+    const baseSightStat = Math.max(1, playerData?.stats?.sight || 1);
     
     // Initialize team buff variables (will be calculated after unique bonuses)
     let teamMiningSpeedBonus = 0;
