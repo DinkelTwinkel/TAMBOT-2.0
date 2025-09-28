@@ -47,6 +47,13 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
     const rollerMember = await guild.members.fetch(roller.id);
 
+    // Check if user is a bot - prevent bots from rolling gacha
+    if (rollerMember.user.bot) {
+        console.log(`🤖 Bot user ${rollerMember.user.tag} attempted to roll gacha - blocked`);
+        await gachaRollChannel.send(`🤖 **${rollerMember.user.tag}** Bots cannot roll gacha servers!`);
+        return;
+    }
+
     // Check if user has an active roll cooldown (skip for users without special role)
     let userCooldown = await Cooldown.findOne({ userId: roller.id });
     const specialRoleId = '1421477924187541504';
