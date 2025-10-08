@@ -16,6 +16,7 @@ const gachaVC = require('../models/activevcs');
 const GameStatTracker = require('../patterns/gameStatTracker');
 const { UserStats } = require('../models/statsSchema');
 const { processTileMapTick } = require('../patterns/tileMapTick');
+const TileMap = require('../models/TileMap');
 
 // Create item map for O(1) lookups
 const itemMap = new Map(itemSheet.map(item => [item.id, item]));
@@ -217,7 +218,11 @@ module.exports = {
         .addSubcommand(subcommand =>
             subcommand
                 .setName('maptick')
-                .setDescription('Manually trigger a tile map tick for testing')),
+                .setDescription('Manually trigger a tile map tick for testing'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('reset-tilemap')
+                .setDescription('Reset all tiles to 0 points except the center/capital tile')),
 
     async execute(interaction) {
         // Check if user is admin
@@ -293,6 +298,8 @@ module.exports = {
             await this.executeStats(interaction);
         } else if (subcommand === 'maptick') {
             await this.executeMaptick(interaction);
+        } else if (subcommand === 'reset-tilemap') {
+            await this.executeResetTileMap(interaction);
         }
     },
 
@@ -2420,6 +2427,69 @@ module.exports = {
             console.error('Error in manual tile tick:', error);
             await interaction.editReply({
                 content: '❌ Error processing tile tick. Check console logs.'
+            });
+        }
+    },
+
+    // ========== RESET TILEMAP COMMAND ==========
+    async executeResetTileMap(interaction) {
+        try {
+            await interaction.deferReply({ ephemeral: true });
+            
+            const guildId = interaction.guild.id;
+            
+            console.log(`🔧 [RESET TILEMAP] Admin ${interaction.user.tag} reset tile map for guild ${guildId}`);
+            
+            // Find the tile map for this guild
+            let tileMap = await TileMap.findOne({ guildId: guildId });
+            
+            if (!tileMap) {
+                return await interaction.editReply({
+                    content: '❌ No tile map found for this guild. Use the map command first to initialize it.'
+                });
+            }
+            
+            // Reset all tiles to 0 points except the center tile
+            const centerRow = tileMap.centerRow;
+            const centerCol = tileMap.centerCol;
+            
+            let resetCount = 0;
+            for (const tile of tileMap.tiles) {
+                // Skip the center tile - keep it at its current points (or 1000 if it's 0)
+                if (tile.row === centerRow && tile.col === centerCol) {
+                    if (tile.points === 0) {
+                        tile.points = 1000; // Ensure center tile has maximum points
+                    }
+                    continue;
+                }
+                
+                // Reset all other tiles to 0
+                if (tile.points > 0) {
+                    tile.points = 0;
+                    tile.gachaServerId = null; // Also remove any gacha server attachments
+                    tile.lastModified = new Date();
+                    resetCount++;
+                }
+            }
+            
+            // Save the updated tile map
+            await tileMap.save();
+            
+            const centerTile = tileMap.getTile(centerRow, centerCol);
+            
+            await interaction.editReply({
+                content: `✅ Tile map reset successfully!\n\n` +
+                        `🗺️ **Reset Statistics:**\n` +
+                        `• Tiles reset to 0: **${resetCount}**\n` +
+                        `• Center tile preserved: **${centerTile.points}** points\n` +
+                        `• Gacha server attachments removed from reset tiles\n\n` +
+                        `The capital/core tile at (${centerRow}, ${centerCol}) has been preserved with ${centerTile.points} points.`
+            });
+
+        } catch (error) {
+            console.error('Error resetting tile map:', error);
+            await interaction.editReply({
+                content: '❌ Error resetting tile map. Check console logs for details.'
             });
         }
     }
