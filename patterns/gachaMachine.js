@@ -18,6 +18,8 @@ const getPlayerStats = require('./calculatePlayerStat'); // Import player stats 
 const channelsFile = path.join(__dirname, '../data/gachaServers.json');
 const channelData = JSON.parse(fs.readFileSync(channelsFile, 'utf8'));
 
+// Tutorial mode only enabled for this specific guild
+const TUTORIAL_GUILD_ID = '1221772148385910835';
 
 module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
@@ -54,12 +56,18 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
     //     return;
     // }
 
-    // Check if user has an active roll cooldown (skip for users without special role)
+    // Check if user has an active roll cooldown
+    // In tutorial guild: skip cooldown for users without special role
+    // In non-tutorial guild: enforce cooldown for all users
     let userCooldown = await Cooldown.findOne({ userId: roller.id });
     const specialRoleId = '1421477924187541504';
     const hasSpecialRole = rollerMember.roles.cache.has(specialRoleId);
+    const isTutorialGuild = guild.id === TUTORIAL_GUILD_ID;
     
-    if (userCooldown && userCooldown.gachaRollData && userCooldown.gachaRollData.expiresAt && hasSpecialRole) {
+    // Check cooldown: always check if user has special role, or if not in tutorial guild
+    const shouldCheckCooldown = hasSpecialRole || !isTutorialGuild;
+    
+    if (userCooldown && userCooldown.gachaRollData && userCooldown.gachaRollData.expiresAt && shouldCheckCooldown) {
         const cooldownExpiry = new Date(userCooldown.gachaRollData.expiresAt);
         const now = new Date();
         
@@ -368,8 +376,8 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                             } catch (roleError) {
                                 console.error(`Error setting special role permissions (cooldown recreation):`, roleError);
                             }
-                        } else if (chosenChannelType.id == 1) {
-                            // Tutorial user in coal mine - give individual permissions
+                        } else if (chosenChannelType.id == 1 && isTutorialGuild) {
+                            // Tutorial user in coal mine - give individual permissions (only in tutorial guild)
                             try {
                                 // Hide from @everyone
                                 await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
@@ -784,8 +792,8 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
             } catch (roleError) {
                 console.error(`Error setting special role permissions:`, roleError);
             }
-        } else if (chosenChannelType.id == 1) {
-            // Tutorial user in coal mine - give individual permissions
+        } else if (chosenChannelType.id == 1 && isTutorialGuild) {
+            // Tutorial user in coal mine - give individual permissions (only in tutorial guild)
             try {
                 // Hide from @everyone
                 await newGachaChannel.permissionOverwrites.edit(guild.roles.everyone, {
@@ -847,8 +855,32 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
 
             await userCooldown.save();
             console.log(`⏰ Set cooldown for user with special role: ${rollerMember.user.tag}`);
-        } else {
+        } else if (isTutorialGuild) {
             console.log(`🚀 No cooldown for tutorial user: ${rollerMember.user.tag}`);
+        } else {
+            // Non-tutorial guild: set cooldown even for users without special role
+            const cooldownExpiry = new Date(Date.now() + 60 * 60 * 1000); // 60 minutes
+            if (!userCooldown) {
+                userCooldown = new Cooldown({
+                    userId: roller.id,
+                    cooldowns: new Map(),
+                    gachaRollData: {
+                        channelId: newGachaChannel.id,
+                        typeId: parseInt(chosenChannelType.id),
+                        rolledAt: new Date(),
+                        expiresAt: cooldownExpiry
+                    }
+                });
+            } else {
+                userCooldown.gachaRollData = {
+                    channelId: newGachaChannel.id,
+                    typeId: parseInt(chosenChannelType.id),
+                    rolledAt: new Date(),
+                    expiresAt: cooldownExpiry
+                };
+            }
+            await userCooldown.save();
+            console.log(`⏰ Set cooldown for user without special role (non-tutorial guild): ${rollerMember.user.tag}`);
         }
 
         // Send special message based on override type
@@ -877,9 +909,12 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                     `⏰ Next roll available in **60 minutes**.`
                 );
             } else {
+                const tutorialMessage = isTutorialGuild 
+                    ? `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns.`
+                    : `⏰ Next roll available in **60 minutes**.`;
                 await gachaRollChannel.send(
                     `**${rollerMember.user.tag}** Inserted ${rollPrice} Coins! Your rolling booth is ready: **${newGachaChannel.name}**\n` +
-                    `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns.`
+                    tutorialMessage
                 );
             }
         }
@@ -888,7 +923,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         if (debugOverride) {
             const cooldownMessage = hasSpecialRole ? 
                 `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.` :
-                `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.`;
+                (isTutorialGuild ? `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.` : `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.`);
                 
             await newGachaChannel.send(
                 `🔧 ${rollerMember} **DEBUG MODE ACTIVE** 🔧\n` +
@@ -898,7 +933,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         } else if (sanityOverride && chosenChannelType.id == 16) {
             const cooldownMessage = hasSpecialRole ? 
                 `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.` :
-                `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.`;
+                (isTutorialGuild ? `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.` : `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.`);
                 
             await newGachaChannel.send(
                 `🧠💀 ${rollerMember} **YOUR MIND UNRAVELS!** 🧠💀\n` +
@@ -908,7 +943,7 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         } else if (sacrificeData && sacrificeData.isSacrificing && chosenChannelType.id == 16) {
             const cooldownMessage = hasSpecialRole ? 
                 `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.` :
-                `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.`;
+                (isTutorialGuild ? `🚀 **Tutorial Mode:** You can roll for a new VC anytime! No cooldowns for tutorial users.` : `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.`);
                 
             await newGachaChannel.send(
                 `🔥 ${rollerMember} **THE SACRIFICE DEMANDS YOUR PRESENCE!** 🔥\n` +
@@ -920,6 +955,15 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
                 await newGachaChannel.send(
                     `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
                     `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(new Date(userCooldown.gachaRollData.expiresAt).getTime() / 1000)}:t>.`
+                );
+            } else if (!isTutorialGuild) {
+                // Non-tutorial guild: send cooldown message for users without special role
+                const cooldownExpiry = userCooldown?.gachaRollData?.expiresAt 
+                    ? new Date(userCooldown.gachaRollData.expiresAt)
+                    : new Date(Date.now() + 60 * 60 * 1000);
+                await newGachaChannel.send(
+                    `${rollerMember} You've found the ${chosenChannelType.name}!\n` +
+                    `⏰ **Note:** You can only roll for a new VC once per hour. Your next roll will be available at <t:${Math.floor(cooldownExpiry.getTime() / 1000)}:t>.`
                 );
             }
             // Tutorial users don't get a channel message - they get the tutorial embed instead
@@ -950,8 +994,8 @@ module.exports = async (roller, guild, parentCategory, gachaRollChannel) => {
         // Send it in the new text channel with the attachment
         await newGachaChannel.send({ embeds: [rollEmbed], files: [imageAttachment] });
 
-        // Send tutorial embed for new users in coal mine (after main embed)
-        if (chosenChannelType.id == 1 && !rollerMember.roles.cache.has('1421477924187541504')) {
+        // Send tutorial embed for new users in coal mine (after main embed) - only in tutorial guild
+        if (chosenChannelType.id == 1 && !rollerMember.roles.cache.has('1421477924187541504') && isTutorialGuild) {
             // Send user mention first
             await newGachaChannel.send(`${rollerMember}`);
             
