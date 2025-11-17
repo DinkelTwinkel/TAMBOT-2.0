@@ -9,10 +9,14 @@ module.exports = async (member, amount) => {
       return existingProfile; // Or handle as you want (e.g. update amount)
     }
 
+    // Handle both User and GuildMember objects
+    // GuildMember has member.user.tag, User has member.tag directly
+    const usertag = member.user ? member.user.tag : member.tag;
+
     // Create new profile with given amount
     const newProfile = new Money({
       userId: member.id,
-      usertag: member.user.tag,
+      usertag: usertag,
       money: amount || 0
     });
 
